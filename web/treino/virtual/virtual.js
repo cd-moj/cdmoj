@@ -10,7 +10,7 @@
 import { apiGet, apiPost, getToken } from '/shared/api.js';
 import { status, fileToBase64 } from '/shared/auth.js';
 import { el, verdictClass, isPending } from '/shared/ui.js';
-import { T } from '/shared/i18n.js';
+import { T, uiLocale } from '/shared/i18n.js';
 import { indexFeed, runsUpTo, boardAt, myRow, sliceVirtualPlaces, pickVirtuals } from '/shared/virtual-board.js';
 import { renderICPC } from '/contest/score/score-icpc.js';
 import * as F from '/contest/score/score-filters.js';   // a MESMA lógica de filtro do placar oficial
@@ -79,10 +79,10 @@ function buildHead() {
   clockEl = el('div', { class: 'vr-clock' }); statEl = el('div', { class: 'vr-stat' }); actEl = el('div', { class: 'row' });
   const box = $('vhead'); box.innerHTML = '';
   box.append(el('div', { class: 'vr-head' },
-    el('div', {}, el('div', { class: 'small muted' }, T('Participação virtual', 'Virtual participation')), el('h1', {}, info.title)),
+    el('div', {}, el('div', { class: 'small muted' }, T('Participação virtual', 'Virtual participation', 'Participación virtual')), el('h1', {}, info.title)),
     el('div', { class: 'spacer' }), clockEl), statEl, actEl);
   if (st === 'running') {
-    actEl.append(el('button', { class: 'btn ghost', onclick: finish }, T('Encerrar agora', 'Finish now')));
+    actEl.append(el('button', { class: 'btn ghost', onclick: finish }, T('Encerrar agora', 'Finish now', 'Terminar ahora')));
   }
 }
 function paintHead() {
@@ -92,16 +92,16 @@ function paintHead() {
     const left = me.end - srvNow();
     clockEl.textContent = hms(left); clockEl.classList.toggle('low', left < 600);
     if (left <= 0) refreshRun();
-  } else if (st === 'scheduled') clockEl.textContent = T('começa em ', 'starts in ') + hms(me.start - srvNow());
-  else if (st === 'judging') clockEl.textContent = T('aguardando os últimos veredictos…', 'waiting for the last verdicts…');
-  else clockEl.textContent = T('duração ', 'duration ') + hms(info.duration);
+  } else if (st === 'scheduled') clockEl.textContent = T('começa em ', 'starts in ', 'empieza en ') + hms(me.start - srvNow());
+  else if (st === 'judging') clockEl.textContent = T('aguardando os últimos veredictos…', 'waiting for the last verdicts…', 'esperando los últimos veredictos…');
+  else clockEl.textContent = T('duração ', 'duration ', 'duración ') + hms(info.duration);
   if (st === 'scheduled' && me.start - srvNow() <= 0) refreshRun();
   // botão Desistir aparece/some conforme a regra (≤ 15 min OU 0 AC) — o servidor é quem decide
   const want = st === 'running' && me.can_discard;
   const has = actEl.querySelector('[data-k=discard]');
   if (want && !has) actEl.append(el('button', { class: 'btn ghost danger', 'data-k': 'discard', onclick: discard,
-    title: T('Descarta esta participação sem gravar no placar', 'Drops this participation without recording it') },
-    T('Desistir (não grava)', 'Give up (not recorded)') + ' · ' + T('restam ', 'left: ') + me.discards_left));
+    title: T('Descarta esta participação sem gravar no placar', 'Drops this participation without recording it', 'Descarta esta participación sin registrarla') },
+    T('Desistir (não grava)', 'Give up (not recorded)', 'Desistir (no se registra)') + ' · ' + T('restam ', 'left: ', 'quedan: ') + me.discards_left));
   if (!want && has) has.remove();
 }
 function paintStat(parsed) {
@@ -110,59 +110,62 @@ function paintStat(parsed) {
   statEl.innerHTML = '';
   if (!r) return;
   statEl.append(
-    el('span', {}, T('posição ', 'place '), el('b', {}, String(r.gplace)), el('span', { class: 'muted small' }, ' / ' + parsed.teams.filter((x) => !x.guest).length)),
-    el('span', {}, T('resolvidos ', 'solved '), el('b', {}, r.total)),
-    el('span', {}, T('penalidade ', 'penalty '), el('b', {}, r.penalty)),
-    me && me.pending ? el('span', { class: 'muted' }, T('julgando: ', 'judging: ') + me.pending) : '');
+    el('span', {}, T('posição ', 'place ', 'posición '), el('b', {}, String(r.gplace)), el('span', { class: 'muted small' }, ' / ' + parsed.teams.filter((x) => !x.guest).length)),
+    el('span', {}, T('resolvidos ', 'solved ', 'resueltos '), el('b', {}, r.total)),
+    el('span', {}, T('penalidade ', 'penalty ', 'penalidad '), el('b', {}, r.penalty)),
+    me && me.pending ? el('span', { class: 'muted' }, T('julgando: ', 'judging: ', 'evaluando: ') + me.pending) : '');
 }
 
 // ---------------------------------------------------------------- largada
 function renderStart() {
   const box = $('vstart'); box.innerHTML = ''; box.classList.remove('hidden');
   const h = Math.floor(info.duration / 3600), m = Math.round(info.duration % 3600 / 60);
-  box.append(el('h2', {}, T('Refazer esta prova', 'Redo this contest')),
+  box.append(el('h2', {}, T('Refazer esta prova', 'Redo this contest', 'Rehacer esta competencia')),
     el('p', {}, T(`${info.problems_count} problemas · ${h} h ${m} min · regras ICPC, penalidade de ${info.penalty_minutes} min por erro.`,
-      `${info.problems_count} problems · ${h} h ${m} min · ICPC rules, ${info.penalty_minutes} min penalty per wrong try.`)),
+      `${info.problems_count} problems · ${h} h ${m} min · ICPC rules, ${info.penalty_minutes} min penalty per wrong try.`,
+      `${info.problems_count} problemas · ${h} h ${m} min · reglas ICPC, penalidad de ${info.penalty_minutes} min por intento fallido.`)),
     el('p', {}, T('Você compete contra o placar oficial: os times aparecem resolvendo os problemas no mesmo minuto em que resolveram na prova de verdade. No fim, a sua linha fica gravada no placar virtual, marcada como virtual.',
-      'You compete against the official scoreboard: the teams solve the problems at the same minute they did in the real contest. At the end your row is recorded on the virtual scoreboard, marked as virtual.')));
-  if (!logged()) { box.append(el('p', {}, el('a', { class: 'btn', href: '/treino/?next=' + enc(location.pathname + location.search) }, T('Entrar no Treino Livre para participar', 'Log into Free Training to take part')))); return; }
-  if (me.state === 'forbidden') { box.append(el('p', { class: 'muted' }, T('Contas de papel (admin, juiz, staff…) não participam. Use a sua conta pessoal.', 'Role accounts (admin, judge, staff…) do not take part. Use your personal account.'))); return; }
+      'You compete against the official scoreboard: the teams solve the problems at the same minute they did in the real contest. At the end your row is recorded on the virtual scoreboard, marked as virtual.',
+      'Compites contra el marcador oficial: los equipos aparecen resolviendo los problemas en el mismo minuto en que los resolvieron en la competencia real. Al final, tu fila queda registrada en el marcador virtual, marcada como virtual.')));
+  if (!logged()) { box.append(el('p', {}, el('a', { class: 'btn', href: '/treino/?next=' + enc(location.pathname + location.search) }, T('Entrar no Treino Livre para participar', 'Log into Free Training to take part', 'Inicia sesión en el Entrenamiento Libre para participar')))); return; }
+  if (me.state === 'forbidden') { box.append(el('p', { class: 'muted' }, T('Contas de papel (admin, juiz, staff…) não participam. Use a sua conta pessoal.', 'Role accounts (admin, judge, staff…) do not take part. Use your personal account.', 'Las cuentas de rol (admin, juez, staff…) no participan. Usa tu cuenta personal.'))); return; }
   const fin = me.discards >= info.rules.max_discards;
   const mins = Math.round(info.rules.grace_s / 60);
   box.append(el('ul', { class: 'vr-rules' },
-    el('li', {}, T('Cada conta faz a participação virtual de uma prova UMA vez.', 'Each account takes the virtual participation of a contest ONCE.')),
-    el('li', {}, T('Não participe se já viu os problemas ou as soluções, e não consulte editorial, código de outras pessoas nem ajuda durante a prova.', 'Do not take part if you have already seen the problems or solutions, and do not use the editorial, other people\'s code or help during the contest.')),
-    el('li', {}, T('Faça a prova inteira: não use o virtual para resolver um problema só — para isso existe o Treino Livre.', 'Do the whole contest: do not use virtual to solve a single problem — Free Training is for that.')),
+    el('li', {}, T('Cada conta faz a participação virtual de uma prova UMA vez.', 'Each account takes the virtual participation of a contest ONCE.', 'Cada cuenta hace la participación virtual de una competencia UNA sola vez.')),
+    el('li', {}, T('Não participe se já viu os problemas ou as soluções, e não consulte editorial, código de outras pessoas nem ajuda durante a prova.', 'Do not take part if you have already seen the problems or solutions, and do not use the editorial, other people\'s code or help during the contest.', 'No participes si ya viste los problemas o las soluciones, y no consultes el editorial, el código de otras personas ni ayuda durante la competencia.')),
+    el('li', {}, T('Faça a prova inteira: não use o virtual para resolver um problema só — para isso existe o Treino Livre.', 'Do the whole contest: do not use virtual to solve a single problem — Free Training is for that.', 'Haz la competencia completa: no uses el virtual para resolver un solo problema — para eso está el Entrenamiento Libre.')),
     el('li', {}, fin
-      ? el('b', {}, T('Esta é a sua largada DEFINITIVA: não há mais como desistir — o resultado será gravado.', 'This is your FINAL start: you cannot give up any more — the result will be recorded.'))
+      ? el('b', {}, T('Esta é a sua largada DEFINITIVA: não há mais como desistir — o resultado será gravado.', 'This is your FINAL start: you cannot give up any more — the result will be recorded.', 'Este es tu inicio DEFINITIVO: ya no puedes desistir — el resultado se registrará.'))
       : T(`Você pode DESISTIR sem gravar nada nos primeiros ${mins} minutos, ou enquanto não tiver nenhum problema aceito. Desistir devolve a tentativa — no máximo ${info.rules.max_discards} vezes (restam ${me.discards_left}); depois disso a largada é definitiva. Terminar o tempo sem nenhum aceito conta como desistência.`,
-          `You may GIVE UP without recording anything in the first ${mins} minutes, or while you have no accepted problem. Giving up returns the attempt — at most ${info.rules.max_discards} times (${me.discards_left} left); after that the start is final. Running out of time with nothing accepted counts as giving up.`)),
-    me.official ? el('li', { class: 'muted' }, T('Você competiu nesta prova oficialmente — a sua linha virtual sai marcada com isso.', 'You competed in this contest officially — your virtual row is marked accordingly.')) : ''));
+          `You may GIVE UP without recording anything in the first ${mins} minutes, or while you have no accepted problem. Giving up returns the attempt — at most ${info.rules.max_discards} times (${me.discards_left} left); after that the start is final. Running out of time with nothing accepted counts as giving up.`,
+          `Puedes DESISTIR sin registrar nada en los primeros ${mins} minutos, o mientras no tengas ningún problema aceptado. Desistir devuelve el intento — como máximo ${info.rules.max_discards} veces (quedan ${me.discards_left}); después de eso el inicio es definitivo. Terminar el tiempo sin ningún aceptado cuenta como desistir.`)),
+    me.official ? el('li', { class: 'muted' }, T('Você competiu nesta prova oficialmente — a sua linha virtual sai marcada com isso.', 'You competed in this contest officially — your virtual row is marked accordingly.', 'Competiste en esta competencia oficialmente — tu fila virtual queda marcada así.')) : ''));
   const acc = el('input', { type: 'checkbox', id: 'vacc' });
   const at = el('input', { type: 'datetime-local' });
   const err = el('div', { class: 'small', style: 'color:#c0392b' });
   const go = async (when) => {
     err.textContent = '';
-    if (!acc.checked) { err.textContent = T('Marque que leu e aceita as regras.', 'Tick that you have read and accept the rules.'); return; }
+    if (!acc.checked) { err.textContent = T('Marque que leu e aceita as regras.', 'Tick that you have read and accept the rules.', 'Marca que leíste y aceptas las reglas.'); return; }
     const body = { contest: CID, action: 'start', accept: true };
-    if (when) { const ep = Math.floor(new Date(at.value).getTime() / 1000); if (!ep) { err.textContent = T('Escolha data e hora.', 'Pick a date and time.'); return; } body.at = ep; }
-    else if (!confirm(T('Começar AGORA? O relógio parte imediatamente.', 'Start NOW? The clock starts immediately.'))) return;
+    if (when) { const ep = Math.floor(new Date(at.value).getTime() / 1000); if (!ep) { err.textContent = T('Escolha data e hora.', 'Pick a date and time.', 'Elige una fecha y hora.'); return; } body.at = ep; }
+    else if (!confirm(T('Começar AGORA? O relógio parte imediatamente.', 'Start NOW? The clock starts immediately.', '¿Empezar AHORA? El reloj arranca de inmediato.'))) return;
     try { const d = await apiPost('/treino/virtual/run', body, A); setMe(d.me); await enter(); } catch (e) { err.textContent = e.message; }
   };
-  box.append(el('p', {}, el('label', {}, acc, ' ', T('Li e aceito as regras acima.', 'I have read and accept the rules above.'))),
+  box.append(el('p', {}, el('label', {}, acc, ' ', T('Li e aceito as regras acima.', 'I have read and accept the rules above.', 'Leí y acepto las reglas de arriba.'))),
     el('div', { class: 'row', style: 'gap:.6rem;flex-wrap:wrap;align-items:center' },
-      el('button', { class: 'btn', onclick: () => go(false) }, T('Começar agora', 'Start now')),
-      el('span', { class: 'muted' }, T('ou agendar para', 'or schedule for')), at,
-      el('button', { class: 'btn ghost', onclick: () => go(true) }, T('Agendar', 'Schedule'))), err);
+      el('button', { class: 'btn', onclick: () => go(false) }, T('Começar agora', 'Start now', 'Empezar ahora')),
+      el('span', { class: 'muted' }, T('ou agendar para', 'or schedule for', 'o programar para')), at,
+      el('button', { class: 'btn ghost', onclick: () => go(true) }, T('Agendar', 'Schedule', 'Programar'))), err);
 }
 function renderScheduled() {
   const box = $('vstart'); box.innerHTML = ''; box.classList.remove('hidden');
-  box.append(el('h2', {}, T('Participação agendada', 'Participation scheduled')),
-    el('p', {}, T('Começa em ', 'Starts at ') + new Date(me.start * 1000).toLocaleString() + T('. Deixe esta página aberta ou volte na hora.', '. Keep this page open or come back on time.')),
+  box.append(el('h2', {}, T('Participação agendada', 'Participation scheduled', 'Participación programada')),
+    el('p', {}, T('Começa em ', 'Starts at ', 'Empieza el ') + new Date(me.start * 1000).toLocaleString(uiLocale()) + T('. Deixe esta página aberta ou volte na hora.', '. Keep this page open or come back on time.', '. Deja esta página abierta o vuelve a tiempo.')),
     el('button', { class: 'btn ghost', onclick: async () => {
-      if (!confirm(T('Cancelar o agendamento?', 'Cancel the schedule?'))) return;
+      if (!confirm(T('Cancelar o agendamento?', 'Cancel the schedule?', '¿Cancelar la programación?'))) return;
       try { const d = await apiPost('/treino/virtual/run', { contest: CID, action: 'cancel' }, A); setMe(d.me); await enter(); } catch (e) { alert(e.message); }
-    } }, T('Cancelar agendamento', 'Cancel schedule')));
+    } }, T('Cancelar agendamento', 'Cancel schedule', 'Cancelar programación')));
 }
 
 async function discard() {
@@ -174,8 +177,8 @@ async function discard() {
 async function finish() {
   const zero = !me.solved && !me.final;
   if (!confirm(zero
-    ? T('Encerrar agora sem nenhum problema aceito conta como DESISTÊNCIA (nada é gravado). Encerrar?', 'Finishing now with nothing accepted counts as GIVING UP (nothing is recorded). Finish?')
-    : T('Encerrar a participação agora? O resultado será gravado e não dá para voltar.', 'Finish the participation now? The result is recorded and cannot be undone.'))) return;
+    ? T('Encerrar agora sem nenhum problema aceito conta como DESISTÊNCIA (nada é gravado). Encerrar?', 'Finishing now with nothing accepted counts as GIVING UP (nothing is recorded). Finish?', 'Terminar ahora sin nada aceptado cuenta como DESISTIR (no se registra nada). ¿Terminar?')
+    : T('Encerrar a participação agora? O resultado será gravado e não dá para voltar.', 'Finish the participation now? The result is recorded and cannot be undone.', '¿Terminar la participación ahora? El resultado se registra y no se puede deshacer.'))) return;
   try { const d = await apiPost('/treino/virtual/run', { contest: CID, action: 'finish' }, A); setMe(d.me); await enter(); } catch (e) { alert(e.message); }
 }
 
@@ -228,34 +231,34 @@ async function loadStatement(p, body) {
 function sendForm(p) {
   const exts = (p.languages && p.languages.length ? p.languages : []).flatMap((id) => { const L = langById(id); return (L && L.exts ? L.exts : [id]).map((x) => '.' + x); });
   const file = el('input', { type: 'file', class: 'hidden', accept: exts.join(',') });
-  const name = el('span', { class: 'muted small' }, T('nenhum arquivo', 'no file'));
+  const name = el('span', { class: 'muted small' }, T('nenhum arquivo', 'no file', 'ningún archivo'));
   const msg = el('span', { class: 'small' });
-  const send = el('button', { class: 'btn', disabled: true }, T('Enviar', 'Submit') + ' ' + p.letter);
-  file.addEventListener('change', () => { const f = file.files[0]; name.textContent = f ? f.name : T('nenhum arquivo', 'no file'); send.disabled = !f; msg.textContent = ''; });
+  const send = el('button', { class: 'btn', disabled: true }, T('Enviar', 'Submit', 'Enviar') + ' ' + p.letter);
+  file.addEventListener('change', () => { const f = file.files[0]; name.textContent = f ? f.name : T('nenhum arquivo', 'no file', 'ningún archivo'); send.disabled = !f; msg.textContent = ''; });
   send.addEventListener('click', async () => {
     const f = file.files[0]; if (!f) return;
-    send.disabled = true; msg.style.color = ''; msg.textContent = T('enviando…', 'sending…');
+    send.disabled = true; msg.style.color = ''; msg.textContent = T('enviando…', 'sending…', 'enviando…');
     try {
       await apiPost('/submit?contest=treino', { problem_id: p.id, filename: f.name, code_b64: await fileToBase64(f), source: 'file', virtual: CID }, A);
-      msg.textContent = T('enviado — aguarde o veredicto', 'sent — wait for the verdict'); file.value = ''; name.textContent = T('nenhum arquivo', 'no file');
+      msg.textContent = T('enviado — aguarde o veredicto', 'sent — wait for the verdict', 'enviado — espera el veredicto'); file.value = ''; name.textContent = T('nenhum arquivo', 'no file', 'ningún archivo');
       await refreshRun();
     } catch (e) { msg.style.color = '#c0392b'; msg.textContent = e.message; send.disabled = false; }
   });
   return el('div', { class: 'vr-send' }, file,
-    el('button', { class: 'btn ghost', onclick: () => file.click() }, T('Escolher arquivo…', 'Choose file…')), name, send, msg,
-    exts.length ? el('span', { class: 'muted small' }, T('aceita: ', 'accepts: ') + exts.join(' ')) : '');
+    el('button', { class: 'btn ghost', onclick: () => file.click() }, T('Escolher arquivo…', 'Choose file…', 'Elegir archivo…')), name, send, msg,
+    exts.length ? el('span', { class: 'muted small' }, T('aceita: ', 'accepts: ', 'acepta: ') + exts.join(' ')) : '');
 }
 function renderSubs() {
   const box = $('vsubs'); const runs = (me && me.runs) || [];
   const sig = JSON.stringify(runs); if (box.dataset.sig === sig) return; box.dataset.sig = sig;
   box.innerHTML = '';
-  if (!runs.length) { box.append(el('span', { class: 'muted small' }, T('Nenhuma submissão ainda.', 'No submissions yet.'))); return; }
+  if (!runs.length) { box.append(el('span', { class: 'muted small' }, T('Nenhuma submissão ainda.', 'No submissions yet.', 'Aún no hay envíos.'))); return; }
   box.append(el('table', { class: 'moj' },
-    el('thead', {}, el('tr', {}, el('th', { class: 'n' }, T('tempo', 'time')), el('th', {}, T('problema', 'problem')), el('th', {}, T('linguagem', 'language')), el('th', {}, T('veredicto', 'verdict')))),
+    el('thead', {}, el('tr', {}, el('th', { class: 'n' }, T('tempo', 'time', 'tiempo')), el('th', {}, T('problema', 'problem', 'problema')), el('th', {}, T('linguagem', 'language', 'lenguaje')), el('th', {}, T('veredicto', 'verdict', 'veredicto')))),
     el('tbody', {}, ...runs.slice().reverse().map((r) => el('tr', {},
       el('td', { class: 'n' }, mmss(r[0])), el('td', {}, problems && problems[r[1]] ? problems[r[1]].letter : String(r[1])),
       el('td', {}, (r[5] || '').toLowerCase()),
-      el('td', {}, el('span', { class: 'verdict ' + verdictClass(r[3] || '') }, isPending(r[3] || '') ? T('julgando…', 'judging…') : (r[3] || ''))))))));
+      el('td', {}, el('span', { class: 'verdict ' + verdictClass(r[3] || '') }, isPending(r[3] || '') ? T('julgando…', 'judging…', 'evaluando…') : (r[3] || ''))))))));
 }
 
 // ---------------------------------------------------------------- placar
@@ -281,7 +284,7 @@ function paintBoard(force, user) {
   const live = me && (me.state === 'running' || me.state === 'judging');
   // "Virtuais:" todos | só o meu | nenhum — a linha de uma run AO VIVO aparece sempre
   const vs = pickVirtuals(virtuals.filter((v) => !(live && v.you)), flt.virt, friends);
-  if (live) vs.push({ login: who || T('você', 'you'), name: whoName || who || T('você', 'you'), runs: me.runs || [], you: true });
+  if (live) vs.push({ login: who || T('você', 'you', 'tú'), name: whoName || who || T('você', 'you', 'tú'), runs: me.runs || [], you: true });
   const sig = JSON.stringify(flt) + '|' + [...friends].sort().join(',') + '|' + runsUpTo(idx, t) + '|' + vs.map((v) => v.login + ':' + (v.runs || []).filter((r) => r[0] <= t).map((r) => r[1] + r[2]).join('')).join(',') + '|' + (t === Infinity);
   if (!force && sig === lastSig) return;
   // placar de 2000 times = tabela de 2000 linhas: o MOTOR custa ~8 ms, o DOM é que pesa. No pico de
@@ -297,7 +300,7 @@ function paintBoard(force, user) {
   const table = renderICPC(parsed, { style: 'icon', regionFn: keep, teamExtra: pinButton });
   const cnt = $('fCount');
   if (cnt) { const sh = Number(table.dataset.shown || 0), tot = Number(table.dataset.total || 0);
-    cnt.textContent = (sh === tot && !keep) ? T(`${tot} linhas`, `${tot} rows`) : T(`Mostrando ${sh} de ${tot}`, `Showing ${sh} of ${tot}`) + (keep ? T(' · ★ = 1º do recorte', ' · ★ = 1st in selection') : ''); }
+    cnt.textContent = (sh === tot && !keep) ? T(`${tot} linhas`, `${tot} rows`, `${tot} filas`) : T(`Mostrando ${sh} de ${tot}`, `Showing ${sh} of ${tot}`, `Mostrando ${sh} de ${tot}`) + (keep ? T(' · ★ = 1º do recorte', ' · ★ = 1st in selection', ' · ★ = 1º del recorte') : ''); }
   const box = $('vboard'); const y = window.scrollY;
   box.replaceChildren(el('div', { class: 'board-wrap' }, table));
   window.scrollTo(0, y);
@@ -327,13 +330,13 @@ function pinButton(t) {
   if (!t.virtual || t.you || !t.vlogin) return null;
   const on = friends.has(t.vlogin);
   return el('button', { class: 'pinbtn', type: 'button', 'aria-pressed': on ? 'true' : 'false',
-    title: on ? T('Tirar dos meus escolhidos', 'Remove from my picks') : T('Fixar: mostrar sempre esta pessoa no placar virtual', 'Pin: always show this person on the virtual scoreboard'),
+    title: on ? T('Tirar dos meus escolhidos', 'Remove from my picks', 'Quitar de mis elegidos') : T('Fixar: mostrar sempre esta pessoa no placar virtual', 'Pin: always show this person on the virtual scoreboard', 'Fijar: mostrar siempre a esta persona en el marcador virtual'),
     onclick: (ev) => { ev.preventDefault(); ev.stopPropagation(); setFriend(t.vlogin, !on); } }, '📌');
 }
 // botão "📌 Escolhidos (N)" + caixa de gestão — atualizados EM LUGAR (a barra não é reconstruída)
 let friendsQ = '';
 function paintFriendsUI() {
-  const btn = $('fFriends'); if (btn) btn.textContent = '📌 ' + T('Escolhidos', 'Picks') + ' (' + friends.size + ')';
+  const btn = $('fFriends'); if (btn) btn.textContent = '📌 ' + T('Escolhidos', 'Picks', 'Elegidos') + ' (' + friends.size + ')';
   const box = $('vfriends'); if (!box || box.classList.contains('hidden')) return;
   const list = box.querySelector('[data-k=list]'); if (!list) return;
   const q = friendsQ.trim().toLowerCase();
@@ -344,22 +347,22 @@ function paintFriendsUI() {
     ...here.map((v) => el('label', { class: 'vr-fr' },
       el('input', { type: 'checkbox', checked: friends.has(v.login) ? '' : null, onchange: (e) => setFriend(v.login, e.target.checked) }),
       ' ', v.name || v.login, ' ', el('span', { class: 'muted small' }, v.login + ' · ' + v.solved + ' / ' + v.penalty))),
-    ...(here.length ? [] : [el('p', { class: 'muted small' }, q ? T('Ninguém com esse nome fez o virtual desta prova.', 'Nobody with that name did this contest\'s virtual.') : T('Ninguém mais terminou o virtual desta prova ainda.', 'Nobody else has finished this contest\'s virtual yet.'))]),
-    ...(away.length ? [el('div', { class: 'muted small', style: 'margin-top:.5rem' }, T('Escolhidos que não fizeram o virtual DESTA prova:', 'Picks who have not done THIS contest\'s virtual:')),
+    ...(here.length ? [] : [el('p', { class: 'muted small' }, q ? T('Ninguém com esse nome fez o virtual desta prova.', 'Nobody with that name did this contest\'s virtual.', 'Nadie con ese nombre hizo el virtual de esta competencia.') : T('Ninguém mais terminou o virtual desta prova ainda.', 'Nobody else has finished this contest\'s virtual yet.', 'Todavía nadie más terminó el virtual de esta competencia.'))]),
+    ...(away.length ? [el('div', { class: 'muted small', style: 'margin-top:.5rem' }, T('Escolhidos que não fizeram o virtual DESTA prova:', 'Picks who have not done THIS contest\'s virtual:', 'Elegidos que no hicieron el virtual de ESTA competencia:')),
       el('div', { class: 'row', style: 'flex-wrap:wrap;gap:.3rem' }, ...away.map((l) => el('span', { class: 'pill' }, l, ' ',
-        el('button', { class: 'pinbtn', type: 'button', 'aria-pressed': 'true', title: T('tirar', 'remove'), onclick: () => setFriend(l, false) }, '✕'))))] : []));
+        el('button', { class: 'pinbtn', type: 'button', 'aria-pressed': 'true', title: T('tirar', 'remove', 'quitar'), onclick: () => setFriend(l, false) }, '✕'))))] : []));
   // caixa marcada via atributo não reflete estado em nó novo: acerta a propriedade
   list.querySelectorAll('input[type=checkbox]').forEach((c, i) => { c.checked = friends.has(here[i].login); });
 }
 function buildFriendsBox() {
   const box = $('vfriends'); if (!box || box.dataset.built) return; box.dataset.built = '1'; box.innerHTML = '';
-  const q = el('input', { class: 'filter', type: 'search', placeholder: T('buscar por nome ou login…', 'search by name or login…') });
+  const q = el('input', { class: 'filter', type: 'search', placeholder: T('buscar por nome ou login…', 'search by name or login…', 'buscar por nombre o usuario…') });
   q.addEventListener('input', () => { friendsQ = q.value; paintFriendsUI(); });
-  const add = el('input', { class: 'filter', type: 'text', placeholder: T('adicionar pelo login…', 'add by login…'), style: 'width:12rem' });
+  const add = el('input', { class: 'filter', type: 'text', placeholder: T('adicionar pelo login…', 'add by login…', 'agregar por usuario…'), style: 'width:12rem' });
   const addBtn = el('button', { type: 'button', class: 'btn ghost small', onclick: () => {
     const l = add.value.trim(); if (!/^[A-Za-z0-9._@+-]{1,64}$/.test(l)) { add.focus(); return; }
     add.value = ''; setFriend(l, true);
-  } }, T('adicionar', 'add'));
+  } }, T('adicionar', 'add', 'agregar'));
   add.addEventListener('keydown', (e) => { if (e.key === 'Enter') addBtn.click(); });
   box.append(el('p', { class: 'small muted', style: 'margin:0 0 .5rem' }, T(
     'Quem você escolher aparece SEMPRE no placar virtual, em qualquer filtro — para se comparar com os amigos. A lista é da sua conta e vale para todas as provas' + (logged() ? '.' : ' (sem entrar na conta, ela fica só neste navegador).'),
@@ -378,71 +381,71 @@ function renderFilters() {
   F.applyTeamsDir(full, teamsDir, CID); F.applyTeamsMeta(full, teamsMeta);
   const views = feed.views || [], hasGuests = feed.teams.some((tm) => tm[5]);
   if (views.length > 1 || hasGuests) {
-    const sel = el('select', { id: 'fView' }, el('option', { value: '' }, T('Geral (todos)', 'Overall (everyone)')),
+    const sel = el('select', { id: 'fView' }, el('option', { value: '' }, T('Geral (todos)', 'Overall (everyone)', 'General (todos)')),
       ...(views.length > 1 ? views.map((v) => el('option', { value: v.id }, v.name || v.id))
-        : [el('option', { value: '!guests' }, T('Oficial (sem convidados)', 'Official (no guests)'))]));
+        : [el('option', { value: '!guests' }, T('Oficial (sem convidados)', 'Official (no guests)', 'Oficial (sin invitados)'))]));
     if (![...sel.options].some((o) => o.value === flt.view)) flt.view = '';
-    sel.value = flt.view; on(sel, (v) => { flt.view = v; }); bar.append(lab(T('Placar:', 'Board:'), sel));
+    sel.value = flt.view; on(sel, (v) => { flt.view = v; }); bar.append(lab(T('Placar:', 'Board:', 'Marcador:'), sel));
   } else flt.view = '';
   const flags = [...new Set(full.teams.map((t) => String(t._country || '').toLowerCase()).filter(Boolean))];
   if (flags.length) {
     const byC = new Map();
     flags.forEach((c) => { const cc = c.split('-')[0]; if (!byC.has(cc)) byC.set(cc, []); if (c !== cc) byC.get(cc).push(c); });
-    const sel = el('select', { id: 'fFlag' }, el('option', { value: '' }, T('todas', 'all')));
+    const sel = el('select', { id: 'fFlag' }, el('option', { value: '' }, T('todas', 'all', 'todas')));
     [...byC.keys()].sort((a, b) => flagName(a).localeCompare(flagName(b))).forEach((cc) => {
       sel.append(el('option', { value: cc }, flagName(cc)));
       byC.get(cc).sort((a, b) => flagName(a).localeCompare(flagName(b))).forEach((stt) => sel.append(el('option', { value: stt }, '\u00a0\u00a0' + flagName(stt))));
     });
     if (![...sel.options].some((o) => o.value === flt.country)) flt.country = '';
-    sel.value = flt.country; on(sel, (v) => { flt.country = v; }); bar.append(lab(T('Bandeira:', 'Flag:'), sel));
+    sel.value = flt.country; on(sel, (v) => { flt.country = v; }); bar.append(lab(T('Bandeira:', 'Flag:', 'Bandera:'), sel));
   } else flt.country = '';
   const schools = [...new Set(full.teams.map((t) => t._school).filter(Boolean))].sort();
   if (schools.length) {
-    const sel = el('select', { id: 'fUniv' }, el('option', { value: '' }, T('todas', 'all')), ...schools.map((x) => el('option', { value: x }, x)));
+    const sel = el('select', { id: 'fUniv' }, el('option', { value: '' }, T('todas', 'all', 'todas')), ...schools.map((x) => el('option', { value: x }, x)));
     if (!schools.includes(flt.school)) flt.school = '';
-    sel.value = flt.school; on(sel, (v) => { flt.school = v; }); bar.append(lab(T('Universidade:', 'University:'), sel));
+    sel.value = flt.school; on(sel, (v) => { flt.school = v; }); bar.append(lab(T('Universidade:', 'University:', 'Universidad:'), sel));
   } else flt.school = '';
   const rops = F.regionOptions(regions, full.teams);
   if (rops.length) {
-    const sel = el('select', { id: 'fRegion' }, el('option', { value: '' }, T('todas', 'all')),
+    const sel = el('select', { id: 'fRegion' }, el('option', { value: '' }, T('todas', 'all', 'todas')),
       ...rops.map((r, i) => el('option', { value: String(i) }, '\u00a0'.repeat(r.depth * 2) + (r.name || r.regex))));
     const cur = rops.findIndex((r) => flt.region && (r.name || '') === (flt.region.name || '') && (r.regex || '') === (flt.region.regex || ''));
     if (cur < 0) flt.region = null;
     sel.value = cur >= 0 ? String(cur) : '';
     on(sel, (v) => { flt.region = v === '' ? null : { name: rops[Number(v)].name, regex: rops[Number(v)].regex }; });
-    bar.append(lab(T('Sede:', 'Site:'), sel));
+    bar.append(lab(T('Sede:', 'Site:', 'Sede:'), sel));
   } else flt.region = null;
-  const vsel = el('select', { id: 'fVirt' }, el('option', { value: 'all' }, T('todos', 'all')),
-    el('option', { value: 'friends' }, T('só os escolhidos', 'only my picks')),
-    el('option', { value: 'mine' }, T('só o meu', 'only mine')), el('option', { value: 'none' }, T('nenhum', 'none')));
+  const vsel = el('select', { id: 'fVirt' }, el('option', { value: 'all' }, T('todos', 'all', 'todos')),
+    el('option', { value: 'friends' }, T('só os escolhidos', 'only my picks', 'solo mis elegidos')),
+    el('option', { value: 'mine' }, T('só o meu', 'only mine', 'solo el mío')), el('option', { value: 'none' }, T('nenhum', 'none', 'ninguno')));
   if (!['all', 'friends', 'mine', 'none'].includes(flt.virt)) flt.virt = 'all';
-  vsel.value = flt.virt; on(vsel, (v) => { flt.virt = v; }); bar.append(lab(T('Virtuais:', 'Virtuals:'), vsel));
-  bar.append(el('button', { id: 'fFriends', type: 'button', title: T('Escolher quem aparece sempre no placar virtual', 'Choose who always shows on the virtual scoreboard'),
+  vsel.value = flt.virt; on(vsel, (v) => { flt.virt = v; }); bar.append(lab(T('Virtuais:', 'Virtuals:', 'Virtuales:'), vsel));
+  bar.append(el('button', { id: 'fFriends', type: 'button', title: T('Escolher quem aparece sempre no placar virtual', 'Choose who always shows on the virtual scoreboard', 'Elegir quién aparece siempre en el marcador virtual'),
     onclick: () => { const b = $('vfriends'); b.classList.toggle('hidden'); if (!b.classList.contains('hidden')) { buildFriendsBox(); paintFriendsUI(); } } }, '📌'));
-  const q = el('input', { id: 'fQ', class: 'filter', type: 'search', placeholder: T('buscar time, universidade, login…', 'search team, university, login…') });
+  const q = el('input', { id: 'fQ', class: 'filter', type: 'search', placeholder: T('buscar time, universidade, login…', 'search team, university, login…', 'buscar equipo, universidad, usuario…') });
   q.value = flt.q || ''; q.addEventListener('input', () => { flt.q = q.value; saveFlt(); paintBoard(true); });
   bar.append(q, el('button', { id: 'fClear', type: 'button', onclick: () => {
     flt = { view: '', country: '', school: '', region: null, q: '', virt: 'all' }; saveFlt(); bar.dataset.built = ''; renderFilters(); paintBoard(true);
-  } }, T('limpar filtros', 'clear filters')), el('span', { class: 'fcount', id: 'fCount' }, ''));
+  } }, T('limpar filtros', 'clear filters', 'limpiar filtros')), el('span', { class: 'fcount', id: 'fCount' }, ''));
   paintFriendsUI();
 }
 function renderReplay() {
   const box = $('vreplay'); box.classList.remove('hidden'); if (box.dataset.built) return; box.dataset.built = '1';
   const dur = info.duration;
   const rng = el('input', { type: 'range', min: '0', max: String(dur), step: '60', value: String(dur) });
-  const lab = el('b', { style: 'font-variant-numeric:tabular-nums;min-width:5.5em' }, T('final', 'final'));
-  const play = el('button', { class: 'btn ghost' }, '▶ ' + T('Replay', 'Replay'));
-  const set = (v) => { replayT = v >= dur ? Infinity : v; rng.value = String(Math.min(v, dur)); lab.textContent = v >= dur ? T('final', 'final') : hms(v); paintSoon(); };
+  const lab = el('b', { style: 'font-variant-numeric:tabular-nums;min-width:5.5em' }, T('final', 'final', 'final'));
+  const play = el('button', { class: 'btn ghost' }, '▶ ' + T('Replay', 'Replay', 'Replay'));
+  const set = (v) => { replayT = v >= dur ? Infinity : v; rng.value = String(Math.min(v, dur)); lab.textContent = v >= dur ? T('final', 'final', 'final') : hms(v); paintSoon(); };
   rng.addEventListener('input', () => { stop(); set(Number(rng.value)); });
   rng.addEventListener('change', () => set(Number(rng.value)));   // soltou a barra: garante a posição final
-  const stop = () => { if (playing) { clearInterval(playing); playing = null; play.textContent = '▶ ' + T('Replay', 'Replay'); } };
+  const stop = () => { if (playing) { clearInterval(playing); playing = null; play.textContent = '▶ ' + T('Replay', 'Replay', 'Replay'); } };
   play.addEventListener('click', () => {
     if (playing) { stop(); return; }
     if (Number(rng.value) >= dur) set(0);
-    play.textContent = '⏸ ' + T('Pausar', 'Pause');
+    play.textContent = '⏸ ' + T('Pausar', 'Pause', 'Pausar');
     playing = setInterval(() => { const v = Number(rng.value) + 60; if (v >= dur) { set(dur); stop(); } else set(v); }, 250);   // 1 min de prova a cada 250 ms
   });
-  box.append(play, rng, lab, el('span', { class: 'muted small' }, T('arraste para ver o placar em qualquer minuto da prova', 'drag to see the scoreboard at any minute of the contest')));
+  box.append(play, rng, lab, el('span', { class: 'muted small' }, T('arraste para ver o placar em qualquer minuto da prova', 'drag to see the scoreboard at any minute of the contest', 'arrastra para ver el marcador en cualquier minuto de la competencia')));
 }
 
 // ---------------------------------------------------------------- ciclo
@@ -471,18 +474,18 @@ async function enter() {
   if (st === 'scheduled') renderScheduled();
   else if (st === 'none' || st === 'discarded' || st === 'forbidden' || st === 'anon') renderStart();
   if (st !== 'running' && st !== 'scheduled') { replayT = Infinity; renderReplay(); }
-  $('vboardtitle').textContent = st === 'running' ? T('Placar no seu tempo de prova', 'Scoreboard at your contest time') : T('Placar — oficial + participações virtuais', 'Scoreboard — official + virtual participations');
+  $('vboardtitle').textContent = st === 'running' ? T('Placar no seu tempo de prova', 'Scoreboard at your contest time', 'Marcador en tu tiempo de competencia') : T('Placar — oficial + participações virtuais', 'Scoreboard — official + virtual participations', 'Marcador — oficial + participaciones virtuales');
   $('vfilters').dataset.built = ''; renderFilters();
   paintHead(); paintBoard(true);
 }
 
 async function boot() {
-  if (!CID) { $('vhead').textContent = T('Contest não informado.', 'No contest given.'); return; }
+  if (!CID) { $('vhead').textContent = T('Contest não informado.', 'No contest given.', 'No se indicó ninguna competencia.'); return; }
   try {
     [feed] = await Promise.all([apiGet('/treino/virtual/feed?contest=' + enc(CID), {})]);
   } catch (e) {
-    $('vhead').innerHTML = ''; $('vhead').append(el('h2', {}, T('Participação virtual indisponível', 'Virtual participation unavailable')),
-      el('p', { class: 'muted' }, T('Este contest não oferece participação virtual (ou ainda não terminou).', 'This contest does not offer virtual participation (or has not ended yet).')));
+    $('vhead').innerHTML = ''; $('vhead').append(el('h2', {}, T('Participação virtual indisponível', 'Virtual participation unavailable', 'Participación virtual no disponible')),
+      el('p', { class: 'muted' }, T('Este contest não oferece participação virtual (ou ainda não terminou).', 'This contest does not offer virtual participation (or has not ended yet).', 'Esta competencia no ofrece participación virtual (o todavía no terminó).')));
     return;
   }
   idx = indexFeed(feed);

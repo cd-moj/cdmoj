@@ -47,9 +47,9 @@ export function renderGeneric(parsed, opts) {
   // larguras por <colgroup> (table-layout:fixed) — o placar não rola para o lado
   scoreColsGeneric(table, parsed.header, { iFlag: parsed.iFlag, iUser: parsed.iUser, iTeam: parsed.iTeam });
   const headRow = el('tr', {}, el('th', {}, '#',
-    filtered ? el('span', { class: 'plg' }, T('Geral', 'Overall')) : null));
+    filtered ? el('span', { class: 'plg' }, T('Geral', 'Overall', 'General')) : null));
   parsed.header.forEach((h, i) => {
-    if (i === parsed.iFlag) { headRow.append(el('th', { title: T('Bandeira', 'Flag') }, '')); return; }
+    if (i === parsed.iFlag) { headRow.append(el('th', { title: T('Bandeira', 'Flag', 'Bandera') }, '')); return; }
     headRow.append(el('th', {}, h));
   });
   table.append(el('thead', {}, headRow));
@@ -59,7 +59,7 @@ export function renderGeneric(parsed, opts) {
     const tr = el('tr', {});
     tr.append(el('td', { class: 'cl-place' }, String(filtered ? r._slice : r._place),
       filtered ? el('span', { class: 'plg',
-        title: T('Posição no placar completo (sem o filtro)', 'Position in the full scoreboard (without the filter)') }, String(r._place)) : null));
+        title: T('Posição no placar completo (sem o filtro)', 'Position in the full scoreboard (without the filter)', 'Posición en el marcador completo (sin el filtro)') }, String(r._place)) : null));
     parsed.header.forEach((_, i) => {
       const val = r[i] != null ? r[i] : '';
       if (i === parsed.iFlag) {

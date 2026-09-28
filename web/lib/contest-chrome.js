@@ -43,8 +43,8 @@ export async function mountChrome(contest, basic, { auth = true } = {}) {
   if (cdEl) {
     const tick = () => {
       const left = (basic.end_time || 0) - Math.floor(Date.now() / 1000);
-      if (left > 0) { cdEl.textContent = T('Termina em: ', 'Ends in: ') + fmtLeft(left); setTimeout(tick, 1000); }
-      else cdEl.textContent = T('Competição encerrada', 'Contest ended');
+      if (left > 0) { cdEl.textContent = T('Termina em: ', 'Ends in: ', 'Termina en: ') + fmtLeft(left); setTimeout(tick, 1000); }
+      else cdEl.textContent = T('Competição encerrada', 'Contest ended', 'Competencia terminada');
     };
     tick();
   }

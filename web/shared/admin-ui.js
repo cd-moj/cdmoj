@@ -69,7 +69,7 @@ export function downloadText(filename, text, mime) {
 // <a href> puro não consegue (não manda o header).
 export async function downloadAuthed(contest, path, filename) {
   const r = await fetch('/api/v1' + path, { headers: { Authorization: 'Bearer ' + (getToken(contest) || '') } });
-  if (!r.ok) { alert(T('Falha no download (HTTP ', 'Download failed (HTTP ') + r.status + ')'); return; }
+  if (!r.ok) { alert(T('Falha no download (HTTP ', 'Download failed (HTTP ', 'Error de descarga (HTTP ') + r.status + ')'); return; }
   const blob = await r.blob(); const url = URL.createObjectURL(blob);
   const a = el('a', { href: url, download: filename }); document.body.append(a); a.click();
   setTimeout(() => { a.remove(); URL.revokeObjectURL(url); }, 0);

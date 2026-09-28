@@ -11,18 +11,18 @@ let all = [], page = 0; const PER = 24;
 function render() {
   const f = norm(document.getElementById('filter').value);
   const items = f ? all.filter((c) => norm((c.title || c.name || c.id || '') + ' ' + (c.id || '')).includes(f)) : all;
-  document.getElementById('count').textContent = f ? T(`${items.length} de ${all.length}`, `${items.length} of ${all.length}`) : String(all.length);
+  document.getElementById('count').textContent = f ? T(`${items.length} de ${all.length}`, `${items.length} of ${all.length}`, `${items.length} de ${all.length}`) : String(all.length);
   const pages = Math.max(1, Math.ceil(items.length / PER));
   if (page >= pages) page = 0;
   const box = document.getElementById('list'); box.innerHTML = '';
-  if (!items.length) { box.innerHTML = T('<div class="muted">nenhum contest encerrado encontrado.</div>', '<div class="muted">no ended contests found.</div>'); document.getElementById('pager').innerHTML = ''; return; }
+  if (!items.length) { box.innerHTML = T('<div class="muted">nenhum contest encerrado encontrado.</div>', '<div class="muted">no ended contests found.</div>', '<div class="muted">no se encontraron competencias terminadas.</div>'); document.getElementById('pager').innerHTML = ''; return; }
   items.slice(page * PER, page * PER + PER).forEach((c) => box.append(contestCard(c, 'closed')));
   const pg = document.getElementById('pager'); pg.innerHTML = '';
   if (pages > 1) {
     pg.append(
-      el('button', { class: 'btn ghost', onclick: () => { if (page > 0) { page--; render(); window.scrollTo(0, 0); } } }, T('‹ anterior', '‹ previous')),
-      el('span', { class: 'small muted' }, T(` página ${page + 1} de ${pages} `, ` page ${page + 1} of ${pages} `)),
-      el('button', { class: 'btn ghost', onclick: () => { if (page < pages - 1) { page++; render(); window.scrollTo(0, 0); } } }, T('próxima ›', 'next ›')));
+      el('button', { class: 'btn ghost', onclick: () => { if (page > 0) { page--; render(); window.scrollTo(0, 0); } } }, T('‹ anterior', '‹ previous', '‹ anterior')),
+      el('span', { class: 'small muted' }, T(` página ${page + 1} de ${pages} `, ` page ${page + 1} of ${pages} `, ` página ${page + 1} de ${pages} `)),
+      el('button', { class: 'btn ghost', onclick: () => { if (page < pages - 1) { page++; render(); window.scrollTo(0, 0); } } }, T('próxima ›', 'next ›', 'siguiente ›')));
   }
 }
 
@@ -34,7 +34,7 @@ async function boot() {
 
   let j;
   try { j = await apiGet('/index/contests?all=1', {}); }
-  catch { document.getElementById('list').innerHTML = T('<div class="error-box">Não foi possível carregar os contests.</div>', '<div class="error-box">Could not load the contests.</div>'); document.getElementById('count').textContent = '!'; return; }
+  catch { document.getElementById('list').innerHTML = T('<div class="error-box">Não foi possível carregar os contests.</div>', '<div class="error-box">Could not load the contests.</div>', '<div class="error-box">No se pudieron cargar las competencias.</div>'); document.getElementById('count').textContent = '!'; return; }
   all = (j.closed && j.closed.items) || (Array.isArray(j.closed) ? j.closed : []);
   document.getElementById('filter').addEventListener('input', () => { page = 0; render(); });
   render();

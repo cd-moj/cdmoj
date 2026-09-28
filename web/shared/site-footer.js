@@ -20,15 +20,15 @@ function paint(foot, info) {
   const contact = (info && info.contact) || '';
   const link = (href, txt) => el('a', { href, target: '_blank', rel: 'noopener' }, txt);
   const parts = [
-    el('span', {}, 'MOJ ', el('code', { title: T('versão em produção (git)', 'deployed version (git)') }, version)),
-    link(REPO, T('código-fonte', 'source code')),
-    link(REPO + '/issues', T('relatar um problema', 'report an issue')),
+    el('span', {}, 'MOJ ', el('code', { title: T('versão em produção (git)', 'deployed version (git)', 'versión en producción (git)') }, version)),
+    link(REPO, T('código-fonte', 'source code', 'código fuente')),
+    link(REPO + '/issues', T('relatar um problema', 'report an issue', 'reportar un problema')),
   ];
-  if (contact) parts.push(el('a', { href: /^https?:/.test(contact) ? contact : 'mailto:' + contact }, T('contato', 'contact')));
+  if (contact) parts.push(el('a', { href: /^https?:/.test(contact) ? contact : 'mailto:' + contact }, T('contato', 'contact', 'contacto')));
   const sep = () => el('span', { class: 'muted' }, '·');
   const inner = el('div', { class: 'container sitefoot-in' });
   parts.forEach((p, i) => { if (i) inner.append(sep()); inner.append(p); });
-  inner.append(el('span', { class: 'sitefoot-credits' }, T('Bandeiras: ', 'Flags: '),
+  inner.append(el('span', { class: 'sitefoot-credits' }, T('Bandeiras: ', 'Flags: ', 'Banderas: '),
     link('https://github.com/lipis/flag-icons', 'flag-icons'), ' (MIT) · ',
     link('https://commons.wikimedia.org/', 'Wikimedia Commons')));
   foot.append(inner);

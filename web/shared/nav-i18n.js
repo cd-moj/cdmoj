@@ -1,9 +1,10 @@
-// shared/nav-i18n.js — rótulos BILÍNGUES da nav do contest. O servidor (navbuttons.sh)
+// shared/nav-i18n.js — rótulos TRILÍNGUES (pt/en/es) da nav do contest. O servidor (navbuttons.sh)
 // manda o label em PT; a URL é o identificador estável — aqui ela vira o rótulo no idioma
 // corrente (T resolve na RENDERIZAÇÃO; quem pinta a nav re-renderiza no evento moj:lang).
 // Botão sem entrada no mapa cai no label do servidor (botão novo nunca some — só fica PT
-// até ganhar a linha aqui). Entradas só onde PT != EN (Contest/Score/Backup/jplag/Logout/
-// Animeitor são neutros). SEM EMOJI nos botões da nav (issue #28, 2026-09-15): a barra
+// até ganhar a linha aqui). Entrada onde algum idioma difere do label do servidor — Contest/
+// Score/Clarification/Backup/Logout são iguais em PT e EN, mas não em espanhol; jplag e
+// Animeitor são nomes próprios (neutros). SEM EMOJI nos botões da nav (issue #28, 2026-09-15): a barra
 // misturava "⚙ Administração" com "Score" e "jplag"; emoji fica nos títulos de painel/seção.
 import { T } from '/shared/i18n.js';
 
@@ -20,6 +21,11 @@ const MAP = {
   '/contest/badges/':           ['Etiquetas', 'Badges', 'Etiquetas'],
   '/contest/docs/':             ['Documentos', 'Documents', 'Documentos'],
   '/contest/print/':            ['Impressão', 'Printing', 'Impresión'],
+  '/':                          ['Contest', 'Contest', 'Competencia'],
+  '/contest/score/':            ['Score', 'Score', 'Marcador'],
+  '/contest/clarification/':    ['Clarification', 'Clarification', 'Aclaraciones'],
+  '/contest/backup/':           ['Backup', 'Backup', 'Respaldo'],
+  '/logout':                    ['Logout', 'Logout', 'Salir'],
 };
 
 export function navLabel(url, serverLabel) {

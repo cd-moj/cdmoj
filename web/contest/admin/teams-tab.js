@@ -42,13 +42,13 @@ export function makeTeamsTab(CONTEST) {
   async function sendFiles(files, kind, msgEl, after) {
     const errs = [];
     for (let i = 0; i < files.length; i++) {
-      msgEl.className = 'small'; msgEl.textContent = T('Enviando ', 'Sending ') + kind + ' ' + (i + 1) + '/' + files.length + ' (' + files[i].name + ')…';
+      msgEl.className = 'small'; msgEl.textContent = T('Enviando ', 'Sending ', 'Enviando ') + kind + ' ' + (i + 1) + '/' + files.length + ' (' + files[i].name + ')…';
       try { await postAsset({ kind, filename: files[i].name, file_b64: await fileToBase64(files[i]) }); }
-      catch (e) { errs.push(files[i].name + ': ' + (e.message || T('falha', 'failed'))); }
+      catch (e) { errs.push(files[i].name + ': ' + (e.message || T('falha', 'failed', 'fallido'))); }
     }
     msgEl.className = errs.length ? 'small error-box' : 'small';
-    msgEl.textContent = '✓ ' + (files.length - errs.length) + '/' + files.length + ' ' + kind + T('(s) salvas.', '(s) saved.') +
-      (errs.length ? T(' Falhas: ', ' Failures: ') + errs.join(' · ') : '');
+    msgEl.textContent = '✓ ' + (files.length - errs.length) + '/' + files.length + ' ' + kind + T('(s) salvas.', '(s) saved.', '(s) guardado(s).') +
+      (errs.length ? T(' Falhas: ', ' Failures: ', ' Fallos: ') + errs.join(' · ') : '');
     if (after) after();
   }
 
@@ -67,7 +67,7 @@ export function makeTeamsTab(CONTEST) {
     const flagBox = el('span', {});
     const syncFlag = () => { flagBox.innerHTML = ''; const fi = flagEl(r.vals.country, { height: 14 }); if (fi) flagBox.append(fi); };
     country.addEventListener('change', syncFlag); syncFlag();
-    const region = mk('region', T('sede', 'site'), 'width:7rem'); region.setAttribute('list', 'teams-regions-dl');
+    const region = mk('region', T('sede', 'site', 'sede'), 'width:7rem'); region.setAttribute('list', 'teams-regions-dl');
 
     // brasão: preview + enviar/remover
     const logoBox = el('span', {});
@@ -82,14 +82,14 @@ export function makeTeamsTab(CONTEST) {
     logoInp.addEventListener('change', async () => {
       const f = logoInp.files[0]; logoInp.value = ''; if (!f) return;
       try { await postAsset({ kind: 'logo', filename: r.login + '.png', file_b64: await fileToBase64(f) }); r.has_logo = true; r.stamp = Date.now(); syncLogo(); }
-      catch (e) { alert(e.message || T('falha', 'failed')); }
+      catch (e) { alert(e.message || T('falha', 'failed', 'fallido')); }
     });
     const logoDel = () => postAsset({ action: 'delete', kind: 'logo', login: r.login }).then(() => { r.has_logo = false; syncLogo(); }).catch(() => {});
     // foto: status + enviar/ver/remover
     const photoBox = el('span', {});
     const syncPhoto = () => {
       photoBox.innerHTML = '';
-      if (r.has_photo) photoBox.append(mediaLink(assetUrl('photo', r.login, r.stamp), { title: T('ver foto', 'view photo') }, '📷'));
+      if (r.has_photo) photoBox.append(mediaLink(assetUrl('photo', r.login, r.stamp), { title: T('ver foto', 'view photo', 'ver foto') }, '📷'));
       else photoBox.append(el('span', { class: 'muted' }, '—'));
     };
     syncPhoto();
@@ -97,33 +97,33 @@ export function makeTeamsTab(CONTEST) {
     photoInp.addEventListener('change', async () => {
       const f = photoInp.files[0]; photoInp.value = ''; if (!f) return;
       try { await postAsset({ kind: 'photo', filename: r.login + '.png', file_b64: await fileToBase64(f) }); r.has_photo = true; r.stamp = Date.now(); syncPhoto(); }
-      catch (e) { alert(e.message || T('falha', 'failed')); }
+      catch (e) { alert(e.message || T('falha', 'failed', 'fallido')); }
     });
     const photoDel = () => postAsset({ action: 'delete', kind: 'photo', login: r.login }).then(() => { r.has_photo = false; syncPhoto(); }).catch(() => {});
 
     return el('tr', {},
       el('td', { class: 'small', style: 'font-family:var(--mono)' }, r.login),
-      el('td', {}, mk('fullname', T('nome do time', 'team name'), 'width:11rem')),
+      el('td', {}, mk('fullname', T('nome do time', 'team name', 'nombre del equipo'), 'width:11rem')),
       el('td', {}, country, ' ', flagBox),
       el('td', {}, region),
       el('td', {}, mk('univ_short', 'UnB', 'width:5rem')),
-      el('td', {}, mk('univ_full', T('Universidade…', 'University…'), 'width:12rem')),
+      el('td', {}, mk('univ_full', T('Universidade…', 'University…', 'Universidad…'), 'width:12rem')),
       el('td', {}, logoBox, ' ',
-        el('button', { class: 'btn ghost small', title: T('enviar brasão', 'upload logo'), onclick: () => logoInp.click() }, '⬆'), logoInp,
-        el('button', { class: 'btn ghost small', title: T('remover brasão', 'remove logo'), onclick: logoDel }, '✕')),
+        el('button', { class: 'btn ghost small', title: T('enviar brasão', 'upload logo', 'subir logo'), onclick: () => logoInp.click() }, '⬆'), logoInp,
+        el('button', { class: 'btn ghost small', title: T('remover brasão', 'remove logo', 'quitar logo'), onclick: logoDel }, '✕')),
       el('td', {}, photoBox, ' ',
-        el('button', { class: 'btn ghost small', title: T('enviar foto', 'upload photo'), onclick: () => photoInp.click() }, '⬆'), photoInp,
-        el('button', { class: 'btn ghost small', title: T('remover foto', 'remove photo'), onclick: photoDel }, '✕')));
+        el('button', { class: 'btn ghost small', title: T('enviar foto', 'upload photo', 'subir foto'), onclick: () => photoInp.click() }, '⬆'), photoInp,
+        el('button', { class: 'btn ghost small', title: T('remover foto', 'remove photo', 'quitar foto'), onclick: photoDel }, '✕')));
   }
 
   async function load() {
     STAMP = Date.now();          // um carimbo por CARGA (o por-linha só muda quem trocou de asset)
     // o acervo de mídia em MASSA (galeria, lote, música, pacote .zip) é a mesa do telão — aqui
     // fica a identidade tabular do time. O admin entra lá com os mesmos poderes do .animeitor.
-    panel.innerHTML = ''; panel.append(el('h2', {}, T('👥 Times', '👥 Teams'), ' ',
+    panel.innerHTML = ''; panel.append(el('h2', {}, T('👥 Times', '👥 Teams', '👥 Equipos'), ' ',
       el('a', { class: 'btn ghost', style: 'font-size:.85rem; font-weight:400', target: '_blank',
         href: '/contest/animeitor/?c=' + enc(CONTEST) },
-        T('🎥 Fotos e músicas no telão', '🎥 Photos & music on the big screen'))));
+        T('🎥 Fotos e músicas no telão', '🎥 Photos & music on the big screen', '🎥 Fotos y música en la pantalla'))));
     let usersR, teamsR, regionsR;
     try {
       [usersR, teamsR, regionsR] = await Promise.all([
@@ -132,19 +132,20 @@ export function makeTeamsTab(CONTEST) {
         apiGet('/contest/regions?contest=' + enc(CONTEST), G).catch(() => ({ regions: [] })),
       ]);
       if (!FLAGS) FLAGS = await flagManifest().catch(() => null);
-    } catch (e) { panel.append(el('div', { class: 'error-box' }, T('Falha: ', 'Failed: ') + (e.message || T('erro', 'error')))); return; }
+    } catch (e) { panel.append(el('div', { class: 'error-box' }, T('Falha: ', 'Failed: ', 'Error: ') + (e.message || T('erro', 'error', 'error')))); return; }
 
     if (usersR.shared) {
       // ⚠ aqui o telão não é um atalho, é o ÚNICO caminho: /contest/admin/team-assets recusa
       // contest com USERS_FROM, mas as rotas do .animeitor aceitam (foto/música são asset LOCAL).
       panel.append(el('div', { class: 'error-box' },
-        T('Este contest usa usuários COMPARTILHADOS (users_from) — a gerência de times por-usuário não se aplica. ', 'This contest uses SHARED users (users_from) — per-user team management does not apply. '),
-        T('Use as regras por regex em Evento › Sedes & escolas (teams-meta/regiões).', 'Use the regex rules in Event › Sites & schools (teams-meta/regions).')));
+        T('Este contest usa usuários COMPARTILHADOS (users_from) — a gerência de times por-usuário não se aplica. ', 'This contest uses SHARED users (users_from) — per-user team management does not apply. ', 'Esta competencia usa usuarios COMPARTIDOS (users_from) — la gestión de equipos por usuario no aplica. '),
+        T('Use as regras por regex em Evento › Sedes & escolas (teams-meta/regiões).', 'Use the regex rules in Event › Sites & schools (teams-meta/regions).', 'Usa las reglas regex en Evento › Sedes & escuelas (teams-meta/regiones).')));
       panel.append(el('p', { class: 'note' },
         T('As fotos e músicas dos times continuam sendo geridas na mesa do telão: ',
-          'Team photos and music are still managed from the big-screen desk: '),
+          'Team photos and music are still managed from the big-screen desk: ',
+          'Las fotos y música de los equipos se siguen gestionando desde el escritorio de la pantalla: '),
         el('a', { class: 'btn ghost', target: '_blank', href: '/contest/animeitor/?c=' + enc(CONTEST) },
-          T('🎥 abrir o telão', '🎥 open the big screen'))));
+          T('🎥 abrir o telão', '🎥 open the big screen', '🎥 abrir la pantalla'))));
       return;
     }
 
@@ -171,36 +172,36 @@ export function makeTeamsTab(CONTEST) {
     const tb = el('tbody');
     ROWS.forEach((r) => tb.append(rowEl(r)));
     const table = el('div', { class: 'chart-wrap' }, el('table', { class: 'moj' },
-      el('thead', {}, el('tr', {}, el('th', {}, 'Login'), el('th', {}, T('Nome (time)', 'Name (team)')), el('th', {}, T('País', 'Country')),
-        el('th', {}, T('Sede', 'Site')), el('th', {}, 'Univ'), el('th', {}, T('Universidade', 'University')),
-        el('th', {}, T('Brasão', 'Logo')), el('th', {}, T('Foto', 'Photo')))), tb));
+      el('thead', {}, el('tr', {}, el('th', {}, 'Login'), el('th', {}, T('Nome (time)', 'Name (team)', 'Nombre (equipo)')), el('th', {}, T('País', 'Country', 'País')),
+        el('th', {}, T('Sede', 'Site', 'Sede')), el('th', {}, 'Univ'), el('th', {}, T('Universidade', 'University', 'Universidad')),
+        el('th', {}, T('Brasão', 'Logo', 'Logo')), el('th', {}, T('Foto', 'Photo', 'Foto')))), tb));
 
-    const save = el('button', { class: 'btn' }, T('Salvar times', 'Save teams'));
+    const save = el('button', { class: 'btn' }, T('Salvar times', 'Save teams', 'Guardar equipos'));
     save.addEventListener('click', async () => {
       const dirty = dirtyRows();
-      if (!dirty.length) { msg.className = 'small'; msg.textContent = T('Nada mudou.', 'Nothing changed.'); return; }
+      if (!dirty.length) { msg.className = 'small'; msg.textContent = T('Nada mudou.', 'Nothing changed.', 'Nada cambió.'); return; }
       const set = {};
       dirty.forEach((r) => { set[r.login] = { ...r.vals }; });   // "" apaga o campo (semântica do set)
-      save.disabled = true; msg.className = 'small'; msg.textContent = T('Salvando ', 'Saving ') + dirty.length + '…';
+      save.disabled = true; msg.className = 'small'; msg.textContent = T('Salvando ', 'Saving ', 'Guardando ') + dirty.length + '…';
       try {
         const res = await apiPost('/contest/admin/teams?contest=' + enc(CONTEST), { set }, G);
         dirty.forEach((r) => { r.orig = { ...r.vals }; });
-        msg.textContent = '✓ ' + (res.saved || 0) + T(' salvo(s)', ' saved') +
-          ((res.skipped || []).length ? T(' · pulados: ', ' · skipped: ') + res.skipped.join(', ') : '');
-      } catch (e) { msg.className = 'small error-box'; msg.textContent = e.message || T('falha', 'failed'); }
+        msg.textContent = '✓ ' + (res.saved || 0) + T(' salvo(s)', ' saved', ' guardado(s)') +
+          ((res.skipped || []).length ? T(' · pulados: ', ' · skipped: ', ' · saltados: ') + res.skipped.join(', ') : '');
+      } catch (e) { msg.className = 'small error-box'; msg.textContent = e.message || T('falha', 'failed', 'fallido'); }
       save.disabled = false;
     });
 
     // materializar matches (regex teams-meta/regions -> campos vazios, de uma vez)
-    const mat = el('button', { class: 'btn ghost' }, T('🪄 Materializar matches', '🪄 Materialize matches'));
+    const mat = el('button', { class: 'btn ghost' }, T('🪄 Materializar matches', '🪄 Materialize matches', '🪄 Materializar coincidencias'));
     mat.addEventListener('click', async () => {
-      if (!confirm(T('Aplicar as regras por regex (Evento › Sedes & escolas: teams-meta + regiões) aos campos VAZIOS de cada time? Campos já preenchidos não mudam.', 'Apply the regex rules (Event › Sites & schools: teams-meta + regions) to the EMPTY fields of each team? Already-filled fields do not change.'))) return;
-      mat.disabled = true; msg.className = 'small'; msg.textContent = T('Materializando…', 'Materializing…');
+      if (!confirm(T('Aplicar as regras por regex (Evento › Sedes & escolas: teams-meta + regiões) aos campos VAZIOS de cada time? Campos já preenchidos não mudam.', 'Apply the regex rules (Event › Sites & schools: teams-meta + regions) to the EMPTY fields of each team? Already-filled fields do not change.', '¿Aplicar las reglas regex (Evento › Sedes & escuelas: teams-meta + regiones) a los campos VACÍOS de cada equipo? Los campos ya llenos no cambian.'))) return;
+      mat.disabled = true; msg.className = 'small'; msg.textContent = T('Materializando…', 'Materializing…', 'Materializando…');
       try {
         const r = await apiPost('/contest/admin/teams?contest=' + enc(CONTEST), { action: 'materialize' }, G);
-        msg.textContent = T('✓ preencheu ', '✓ filled ') + (r.materialized || 0) + T(' time(s).', ' team(s).');
+        msg.textContent = T('✓ preencheu ', '✓ filled ', '✓ llenó ') + (r.materialized || 0) + T(' time(s).', ' team(s).', ' equipo(s).');
         await load();
-      } catch (e) { mat.disabled = false; msg.className = 'small error-box'; msg.textContent = e.message || T('falha', 'failed'); }
+      } catch (e) { mat.disabled = false; msg.className = 'small error-box'; msg.textContent = e.message || T('falha', 'failed', 'fallido'); }
     });
 
     // import/export CSV (cabeçalho, ordem livre) — casa por login
@@ -210,7 +211,7 @@ export function makeTeamsTab(CONTEST) {
       const rd = new FileReader();
       rd.onload = () => {
         const rich = parseRichCsv(String(rd.result || ''));
-        if (!rich) { msg.className = 'small error-box'; msg.textContent = T('CSV sem cabeçalho reconhecido (precisa da coluna login + time/pais/sede/univ…).', 'CSV without a recognized header (needs the login column + team/country/site/univ…).'); return; }
+        if (!rich) { msg.className = 'small error-box'; msg.textContent = T('CSV sem cabeçalho reconhecido (precisa da coluna login + time/pais/sede/univ…).', 'CSV without a recognized header (needs the login column + team/country/site/univ…).', 'CSV sin encabezado reconocido (necesita la columna login + equipo/país/sede/univ…).'); return; }
         const byLogin = {}; ROWS.forEach((r) => { byLogin[r.login.toLowerCase()] = r; });
         let hit = 0; const missed = [];
         rich.forEach((u) => {
@@ -220,8 +221,8 @@ export function makeTeamsTab(CONTEST) {
           FIELDS.forEach((k) => { if (u[k] !== undefined) { r.vals[k] = u[k]; if (r.els[k]) r.els[k].value = u[k]; } });
         });
         msg.className = missed.length ? 'small error-box' : 'small';
-        msg.textContent = hit + T(' linha(s) aplicadas na tabela (confira e clique Salvar).', ' line(s) applied to the table (review and click Save).') +
-          (missed.length ? T(' Sem usuário: ', ' No user: ') + missed.join(', ') : '');
+        msg.textContent = hit + T(' linha(s) aplicadas na tabela (confira e clique Salvar).', ' line(s) applied to the table (review and click Save).', ' línea(s) aplicadas a la tabla (revisa y haz clic en Guardar).') +
+          (missed.length ? T(' Sem usuário: ', ' No user: ', ' Sin usuario: ') + missed.join(', ') : '');
       };
       rd.readAsText(f);
     });
@@ -231,7 +232,7 @@ export function makeTeamsTab(CONTEST) {
       const rows = ROWS.map((r) => [r.login, r.vals.fullname, r.vals.country, r.vals.region, r.vals.univ_short, r.vals.univ_full].map(esc).join(','));
       const blob = new Blob([head + '\n' + rows.join('\n')], { type: 'text/csv' });
       const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = CONTEST + '-times.csv'; a.click(); URL.revokeObjectURL(a.href);
-    } }, T('⬇ Exportar CSV', '⬇ Export CSV'));
+    } }, T('⬇ Exportar CSV', '⬇ Export CSV', '⬇ Exportar CSV'));
 
     // fotos/brasões em LOTE: nome do arquivo = login
     const phInp = el('input', { type: 'file', accept: 'image/*', multiple: true, style: 'display:none' });
@@ -241,18 +242,18 @@ export function makeTeamsTab(CONTEST) {
 
     panel.append(
       el('p', { class: 'muted small' },
-        T('O NOME é um só: é o nome do time (ou do aluno — usuário de contest É o time). ', 'The NAME is a single one: it is the team name (or the student — a contest user IS the team). '),
-        T('Cada linha é a identidade no account.json (placar, crachás e impressão leem daqui; ', 'Each row is the identity in account.json (scoreboard, badges and printing read from here; '),
-        T('o que faltar continua sendo completado pelas regras regex de Evento › Sedes & escolas). ', 'whatever is missing keeps being completed by the regex rules in Event › Sites & schools). '),
-        T('Fotos/brasões em lote: cada arquivo se chama <login>.<ext>.', 'Photos/logos in bulk: each file is named <login>.<ext>.')),
+        T('O NOME é um só: é o nome do time (ou do aluno — usuário de contest É o time). ', 'The NAME is a single one: it is the team name (or the student — a contest user IS the team). ', 'El NOMBRE es uno solo: es el nombre del equipo (o del estudiante — un usuario de la competencia ES el equipo). '),
+        T('Cada linha é a identidade no account.json (placar, crachás e impressão leem daqui; ', 'Each row is the identity in account.json (scoreboard, badges and printing read from here; ', 'Cada fila es la identidad en account.json (el marcador, las etiquetas y la impresión leen de aquí; '),
+        T('o que faltar continua sendo completado pelas regras regex de Evento › Sedes & escolas). ', 'whatever is missing keeps being completed by the regex rules in Event › Sites & schools). ', 'lo que falte lo siguen completando las reglas regex de Evento › Sedes & escuelas). '),
+        T('Fotos/brasões em lote: cada arquivo se chama <login>.<ext>.', 'Photos/logos in bulk: each file is named <login>.<ext>.', 'Fotos/logos en lote: cada archivo se llama <login>.<ext>.')),
       el('div', { class: 'row', style: 'gap:.5rem;flex-wrap:wrap;margin-bottom:.5rem' },
         save, mat,
-        el('button', { class: 'btn ghost', onclick: () => csvInp.click() }, T('📥 Importar CSV', '📥 Import CSV')), csvInp, csvExp,
-        el('button', { class: 'btn ghost', onclick: () => phInp.click() }, T('📷 Fotos em lote', '📷 Photos in bulk')), phInp,
-        el('button', { class: 'btn ghost', onclick: () => lgInp.click() }, T('🛡️ Brasões em lote', '🛡️ Logos in bulk')), lgInp,
+        el('button', { class: 'btn ghost', onclick: () => csvInp.click() }, T('📥 Importar CSV', '📥 Import CSV', '📥 Importar CSV')), csvInp, csvExp,
+        el('button', { class: 'btn ghost', onclick: () => phInp.click() }, T('📷 Fotos em lote', '📷 Photos in bulk', '📷 Fotos en lote')), phInp,
+        el('button', { class: 'btn ghost', onclick: () => lgInp.click() }, T('🛡️ Brasões em lote', '🛡️ Logos in bulk', '🛡️ Logos en lote')), lgInp,
         msg),
       flagsDl, regionsDl, table);
-    if (!ROWS.length) panel.append(el('div', { class: 'muted', style: 'margin-top:.5rem' }, T('Nenhum competidor ainda — crie as contas em Pessoas › Contas.', 'No competitor yet — create the accounts in People › Accounts.')));
+    if (!ROWS.length) panel.append(el('div', { class: 'muted', style: 'margin-top:.5rem' }, T('Nenhum competidor ainda — crie as contas em Pessoas › Contas.', 'No competitor yet — create the accounts in People › Accounts.', 'Ningún competidor todavía — crea las cuentas en Personas › Cuentas.')));
   }
 
   return { panel, load };

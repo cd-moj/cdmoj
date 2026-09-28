@@ -8,7 +8,7 @@ import { T, getLang } from '/shared/i18n.js';
 
 export const STMT_LANGS = ['pt', 'en', 'es'];
 export const STMT_SHORT = { pt: 'PT', en: 'EN', es: 'ES' };
-export const stmtName = (l) => ({ pt: T('Português', 'Portuguese'), en: T('Inglês', 'English'), es: T('Espanhol', 'Spanish') }[l] || l);
+export const stmtName = (l) => ({ pt: T('Português', 'Portuguese', 'Portugués'), en: T('Inglês', 'English', 'Inglés'), es: T('Espanhol', 'Spanish', 'Español') }[l] || l);
 export const stmtHtmlLang = (l) => (l === 'en' ? 'en' : l === 'es' ? 'es' : 'pt-br');
 const KEY = 'moj_stmt_lang';
 
@@ -27,7 +27,7 @@ export function pickStmtLang(avail, def) {
 
 // makeStmtLangChips(disponíveis, atual, onPick) -> <div class="stmt-chips"> (vazio se só 1 idioma)
 export function makeStmtLangChips(avail, cur, onPick) {
-  const box = el('div', { class: 'stmt-chips', role: 'group', 'aria-label': T('Idioma do enunciado', 'Statement language') });
+  const box = el('div', { class: 'stmt-chips', role: 'group', 'aria-label': T('Idioma do enunciado', 'Statement language', 'Idioma del enunciado') });
   const list = (avail && avail.length) ? avail : ['pt'];
   if (list.length < 2) return box;
   list.forEach((l) => {

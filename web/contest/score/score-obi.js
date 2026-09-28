@@ -70,9 +70,9 @@ export function renderOBI(parsed, opts) {
   // larguras por <colgroup> (table-layout:fixed) — o placar não rola para o lado
   scoreCols(table, parsed.probShorts.length, { flag: !!parsed.hasFlag, penalty: false });
   const headRow = el('tr', {}, el('th', {}, '#',
-    (filtered || genPlace) ? el('span', { class: 'plg' }, T('Geral', 'Overall')) : null));
-  if (parsed.hasFlag) headRow.append(el('th', { title: T('Bandeira', 'Flag') }, ''));
-  headRow.append(el('th', {}, T('Equipe', 'Team')));
+    (filtered || genPlace) ? el('span', { class: 'plg' }, T('Geral', 'Overall', 'General')) : null));
+  if (parsed.hasFlag) headRow.append(el('th', { title: T('Bandeira', 'Flag', 'Bandera') }, ''));
+  headRow.append(el('th', {}, T('Equipe', 'Team', 'Equipo')));
   const sonic = sonicEnabled(parsed.balloons);
   parsed.probShorts.forEach(pb => headRow.append(sonic
     ? el('th', { class: 'prob', html: sonicImgHTML(pb) + ' ' + escHtml(pb) })
@@ -86,12 +86,12 @@ export function renderOBI(parsed, opts) {
     if (filtered) {
       tr.append(el('td', { class: 'cl-place' }, String(sliceMap.get(t.username) || ''),
         el('span', { class: 'plg',
-          title: T('Posição no placar completo (sem o filtro)', 'Position in the full scoreboard (without the filter)') }, String(t.place))));
+          title: T('Posição no placar completo (sem o filtro)', 'Position in the full scoreboard (without the filter)', 'Posición en el marcador completo (sin el filtro)') }, String(t.place))));
     } else {
       const gp = genPlace ? genPlace[t.username] : null;
       tr.append(el('td', { class: 'cl-place' }, String(t.place),
         gp != null ? el('span', { class: 'plg',
-          title: T('Posição no placar geral', 'Position in the overall scoreboard') }, String(gp)) : null));
+          title: T('Posição no placar geral', 'Position in the overall scoreboard', 'Posición en el marcador general') }, String(gp)) : null));
     }
     if (parsed.hasFlag) {
       const flagTd = el('td', {});
@@ -113,7 +113,7 @@ export function renderOBI(parsed, opts) {
     // 📷 = foto do time, SÓ com o placar aberto (opts.showPhotos = !frozen — R4, 2026-08-30)
     if (showPhotos && t.photoUrl) {
       teamTd.append(' ', mediaLink(t.photoUrl,
-        { title: T('Ver a foto do time', 'View team photo'), style: 'text-decoration:none' }, '📷'));
+        { title: T('Ver a foto do time', 'View team photo', 'Ver la foto del equipo'), style: 'text-decoration:none' }, '📷'));
     }
     tr.append(teamTd);
     parsed.probShorts.forEach(sn => {

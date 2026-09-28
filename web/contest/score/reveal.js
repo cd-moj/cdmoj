@@ -56,9 +56,9 @@ function render(highlight) {
   // mesmas larguras do placar (table-layout:fixed): no projetor TODAS as colunas aparecem —
   // antes a página não tinha nem embrulho e o body{overflow-x:clip} CORTAVA as últimas.
   scoreCols(table, probShorts.length, { flag: true, penalty: true });
-  const hr = el('tr', {}, el('th', {}, '#'), el('th', {}, ''), el('th', {}, T('Equipe', 'Team')));
+  const hr = el('tr', {}, el('th', {}, '#'), el('th', {}, ''), el('th', {}, T('Equipe', 'Team', 'Equipo')));
   probShorts.forEach(sn => hr.append(el('th', { class: 'prob' }, sn)));
-  hr.append(el('th', {}, 'Total'), el('th', {}, T('Penal.', 'Pen.')));
+  hr.append(el('th', {}, 'Total'), el('th', {}, T('Penal.', 'Pen.', 'Pen.')));
   table.append(el('thead', {}, hr));
   const tb = el('tbody');
   // ranking de competição na cerimônia: empatados (solved+penalty — a tupla do
@@ -82,7 +82,7 @@ function render(highlight) {
     if (i === cursor && !finished) tr.style.outline = '3px solid #1e57c4';
     if (highlight && highlight.user === t.username) tr.classList.add(highlight.up ? 'placing-up' : 'placing-down');
     tr.append(el('td', { class: 'cl-place' }, places[i] != null ? String(places[i])
-      : (gplaces[i] != null ? el('span', { class: 'gplace', title: T('posição entre os convidados', 'position among guest teams') }, String(gplaces[i])) : '–')));
+      : (gplaces[i] != null ? el('span', { class: 'gplace', title: T('posição entre os convidados', 'position among guest teams', 'posición entre los equipos invitados') }, String(gplaces[i])) : '–')));
     const ftd = el('td', {}); if (t.flag) { const fi = flagEl(t.flag, { height: 16, title: flagName(t.flag) }); if (fi) ftd.append(fi); }
     tr.append(ftd);
     tr.append(el('td', { class: 'team', title: [t.univFull || '', t.username].filter(Boolean).join(' · ') },
@@ -118,9 +118,9 @@ function render(highlight) {
   table.append(tb);
   box.append(el('div', { class: 'board-wrap' }, table));
   const st = document.getElementById('status');
-  st.textContent = finished ? T('Cerimônia concluída — placar final revelado. 🎉', 'Ceremony complete — final scoreboard revealed. 🎉')
-    : cursor < 0 ? T('Pronto. Espaço/→ (ou ▶ Auto) para revelar de baixo para cima.', 'Ready. Space/→ (or ▶ Auto) to reveal from bottom to top.')
-    : `${T('Revelando: ', 'Revealing: ')}${ordered[cursor]?.teamName || ordered[cursor]?.username || ''} (${cursor + 1}${T('º', '')})`;
+  st.textContent = finished ? T('Cerimônia concluída — placar final revelado. 🎉', 'Ceremony complete — final scoreboard revealed. 🎉', 'Ceremonia completa — marcador final revelado. 🎉')
+    : cursor < 0 ? T('Pronto. Espaço/→ (ou ▶ Auto) para revelar de baixo para cima.', 'Ready. Space/→ (or ▶ Auto) to reveal from bottom to top.', 'Listo. Espacio/→ (o ▶ Auto) para revelar de abajo hacia arriba.')
+    : `${T('Revelando: ', 'Revealing: ', 'Revelando: ')}${ordered[cursor]?.teamName || ordered[cursor]?.username || ''} (${cursor + 1}${T('º', '', '')})`;
 }
 
 // um passo da cerimônia: revela a próxima célula pendente do time do cursor; sem pendências,
@@ -147,16 +147,16 @@ function step() {
 }
 
 async function unfreezeAll() {
-  if (!confirm(T('Descongelar TUDO: o placar público passa a mostrar o resultado completo (freeze desligado). Continuar?', 'Unfreeze EVERYTHING: the public scoreboard will show the full result (freeze off). Continue?'))) return;
+  if (!confirm(T('Descongelar TUDO: o placar público passa a mostrar o resultado completo (freeze desligado). Continuar?', 'Unfreeze EVERYTHING: the public scoreboard will show the full result (freeze off). Continue?', 'Descongelar TODO: el marcador público pasará a mostrar el resultado completo (freeze apagado). ¿Continuar?'))) return;
   try {
     await apiPost('/contest/admin/settings?contest=' + enc(CONTEST), { freeze: 0 }, G);
-    document.getElementById('status').textContent = T('✓ freeze desligado — o placar público já mostra tudo.', '✓ freeze off — the public scoreboard now shows everything.');
-  } catch (e) { alert(e.message || T('falha (precisa ser admin)', 'failed (must be admin)')); }
+    document.getElementById('status').textContent = T('✓ freeze desligado — o placar público já mostra tudo.', '✓ freeze off — the public scoreboard now shows everything.', '✓ freeze apagado — el marcador público ahora muestra todo.');
+  } catch (e) { alert(e.message || T('falha (precisa ser admin)', 'failed (must be admin)', 'falló (debe ser admin)')); }
 }
 
 async function main() {
-  if (!CONTEST) { app.textContent = T('Faltou ?c=<contest>', 'Missing ?c=<contest>'); return; }
-  if (!getToken(CONTEST)) { app.textContent = T('Faça login no contest primeiro (admin/juiz/chefe de sede).', 'Log in to the contest first (admin/judge/site chief).'); return; }
+  if (!CONTEST) { app.textContent = T('Faltou ?c=<contest>', 'Missing ?c=<contest>', 'Falta ?c=<contest>'); return; }
+  if (!getToken(CONTEST)) { app.textContent = T('Faça login no contest primeiro (admin/juiz/chefe de sede).', 'Log in to the contest first (admin/judge/site chief).', 'Inicia sesión en la competencia primero (admin/juez/jefe de sede).'); return; }
   // /contest/basic UMA vez, antes de qualquer texto: o LOCALE do contest impõe o idioma (como nas
   // outras páginas de contest) e dele saem também o estilo do balão, a penalidade e o fim.
   let basic = null;
@@ -172,13 +172,13 @@ async function main() {
       apiGetText('/contest/score?contest=' + enc(CONTEST) + '&view=public' + scopeQ, G),
       apiGetText('/contest/score?contest=' + enc(CONTEST) + scopeQ, G),
     ]);
-  } catch (e) { app.textContent = T('Falha ao carregar o placar: ', 'Failed to load the scoreboard: ') + (e.message || T('erro', 'error')); return; }
+  } catch (e) { app.textContent = T('Falha ao carregar o placar: ', 'Failed to load the scoreboard: ', 'Error al cargar el marcador: ') + (e.message || T('erro', 'error', 'error')); return; }
   const fl = frozenTxt.split('\n'), ul = fullTxt.split('\n');
   // linha 1 pode trazer a flag `s` (célula em SEGUNDOS, R6) — o parseICPC converte a
   // exibição p/ minutos, então daqui p/ baixo nada muda (penalidade/ordem em minutos ICPC)
   const modeWords = (s) => (s || '').trim().toLowerCase().split(/\s+/);
   if (modeWords(fl[0])[0] !== 'icpc' || modeWords(ul[0])[0] !== 'icpc') {
-    app.textContent = T('A cerimônia é só para contests em modo icpc.', 'The ceremony is only for contests in icpc mode.'); return;
+    app.textContent = T('A cerimônia é só para contests em modo icpc.', 'The ceremony is only for contests in icpc mode.', 'La ceremonia es solo para competencias en modo icpc.'); return;
   }
   // .balloons do envelope (como score.js/contest.js) — guardar o envelope inteiro deixava a
   // cerimônia sem cor nenhuma (balloons.A era undefined)
@@ -195,7 +195,7 @@ async function main() {
   }
   const frozen = parseICPC(fl.slice(1), balloons, modeWords(fl[0]).includes('s'), modeWords(fl[0]).includes('g'));
   const full = parseICPC(ul.slice(1), balloons, modeWords(ul[0]).includes('s'), modeWords(ul[0]).includes('g'));
-  if (!frozen || !full) { app.textContent = T('Placar vazio.', 'Empty scoreboard.'); return; }
+  if (!frozen || !full) { app.textContent = T('Placar vazio.', 'Empty scoreboard.', 'Marcador vacío.'); return; }
   probShorts = full.probShorts; GUEST_NUM = !!full.guestNumbering;
   const fmap = {}; full.teams.forEach(t => { fmap[t.username] = t; });
   teams = frozen.teams.map(t => ({
@@ -217,17 +217,17 @@ async function main() {
   if (CSTAFF && totalPend === 0) {
     // sem basic: segue (0 pendências com contest encerrado é cerimônia vazia legítima)
     if (basic && (basic.end_time || 0) > Math.floor(Date.now() / 1000)) {
-      app.textContent = T('A revelação da sua sede abre quando o contest termina para todas as sedes.', "Your site's reveal opens when the contest ends for all sites.");
+      app.textContent = T('A revelação da sua sede abre quando o contest termina para todas as sedes.', "Your site's reveal opens when the contest ends for all sites.", "La revelación de tu sede se abre cuando la competencia termina para todas las sedes.");
       return;
     }
   }
 
   app.innerHTML = '';
-  const stepBtn = el('button', { class: 'btn', onclick: () => step() }, T('⏭ Passo (espaço)', '⏭ Step (space)'));
+  const stepBtn = el('button', { class: 'btn', onclick: () => step() }, T('⏭ Passo (espaço)', '⏭ Step (space)', '⏭ Paso (espacio)'));
   const autoBtn = el('button', { class: 'btn ghost' }, '▶ Auto');
   autoBtn.addEventListener('click', () => {
     if (timer) { clearInterval(timer); timer = null; autoBtn.textContent = '▶ Auto'; return; }
-    autoBtn.textContent = T('⏸ Pausar', '⏸ Pause');
+    autoBtn.textContent = T('⏸ Pausar', '⏸ Pause', '⏸ Pausar');
     timer = setInterval(() => { if (!step()) { clearInterval(timer); timer = null; autoBtn.textContent = '▶ Auto'; } }, 1400);
   });
   // descongelar é POST admin-only — o botão só aparece p/ admin (juiz/cstaff não podem).
@@ -235,23 +235,23 @@ async function main() {
   // servidor recusa com 409 freeze_locked de qualquer jeito — aqui é só p/ explicar a hora).
   let unfreezeBtn = '';
   if (st.is_admin) {
-    unfreezeBtn = el('button', { class: 'btn danger ghost', onclick: unfreezeAll }, T('🔓 Descongelar tudo (público)', '🔓 Unfreeze all (public)'));
+    unfreezeBtn = el('button', { class: 'btn danger ghost', onclick: unfreezeAll }, T('🔓 Descongelar tudo (público)', '🔓 Unfreeze all (public)', '🔓 Descongelar todo (público)'));
     try {
       const cfg = await apiGet('/contest/admin/settings?contest=' + enc(CONTEST), G);
       const at = +(cfg && cfg.freeze_release_at) || 0;
       if (at && Math.floor(Date.now() / 1000) < at) {
         unfreezeBtn.disabled = true;
         const hh = new Date(at * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-        unfreezeBtn.title = T('disponível a partir de ', 'available from ') + hh + T(' (fim para todas as sedes + 1 min)', ' (end for every site + 1 min)');
-        unfreezeBtn.textContent = T('🔒 Descongelar a partir de ', '🔒 Unfreeze from ') + hh;
+        unfreezeBtn.title = T('disponível a partir de ', 'available from ', 'disponible a partir de ') + hh + T(' (fim para todas as sedes + 1 min)', ' (end for every site + 1 min)', ' (fin para todas las sedes + 1 min)');
+        unfreezeBtn.textContent = T('🔒 Descongelar a partir de ', '🔒 Unfreeze from ', '🔒 Descongelar a partir de ') + hh;
       }
     } catch { /* sem leitura das configurações: o servidor decide */ }
   }
   app.append(
     el('div', { class: 'row', style: 'gap:.5rem;align-items:center;margin-bottom:.6rem;flex-wrap:wrap' },
       stepBtn, autoBtn, unfreezeBtn,
-      el('span', { class: 'muted small' }, totalPend + T(' célula(s) pendente(s)', ' pending cell(s)')
-        + (CSTAFF ? T(' · recorte da sede de ', ' · site scope of ') + (st.login || '') : ''))),
+      el('span', { class: 'muted small' }, totalPend + T(' célula(s) pendente(s)', ' pending cell(s)', ' celda(s) pendiente(s)')
+        + (CSTAFF ? T(' · recorte da sede de ', ' · site scope of ', ' · alcance de sede de ') + (st.login || '') : ''))),
     el('div', { id: 'status', class: 'small', style: 'margin-bottom:.5rem;font-weight:600' }),
     el('div', { id: 'board' }));
   document.addEventListener('keydown', (e) => {

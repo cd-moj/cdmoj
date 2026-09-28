@@ -50,7 +50,7 @@ export function mountSiteHeader(opts = {}) {
   brand.append(
     el('img', { src: '/shared/assets/logo_moj.svg', alt: 'MOJ' }),
     document.createTextNode(' MOJ '),
-    el('span', { class: 'slogan' }, T('Melhor Online Judge', 'Best Online Judge')),
+    el('span', { class: 'slogan' }, T('Melhor Online Judge', 'Best Online Judge', 'Mejor Online Judge')),
     document.createTextNode(' '),
     el('span', { class: 'badge-beta' }, 'BETA'),
   );

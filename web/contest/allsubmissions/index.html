@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="pt-br" data-en-doctitle="All submissions — Contest — MOJ">
+<html lang="pt-br" data-en-doctitle="All submissions — Contest — MOJ" data-es-doctitle="Todos los envíos — Competencia — MOJ">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -23,7 +23,7 @@
           <span class="badge-beta">BETA</span></a>
         <div class="spacer"></div>
         <span class="countdown" id="contestCountdown"></span>
-        <a class="btn ghost" id="backBtn" href="#">Contest</a>
+        <a class="btn ghost" id="backBtn" href="#" data-en="Contest" data-es="Competencia">Contest</a>
       </div>
     </div>
   </header>
@@ -31,21 +31,21 @@
 
   <main class="container">
     <div class="section">
-      <h2 data-en="All submissions">Todas as Submissões</h2>
+      <h2 data-en="All submissions" data-es="Todos los envíos">Todas as Submissões</h2>
       <div class="tools">
-        <button class="btn ghost" data-group="all" data-en="All">Todas</button>
-        <button class="btn ghost" data-group="user" data-en="By user">Por usuário</button>
-        <button class="btn ghost" data-group="problem" data-en="By problem">Por problema</button>
-        <button class="btn ghost" data-group="lang" data-en="By language">Por linguagem</button>
-        <input id="fUser" placeholder="🔍 usuário…" data-en-ph="🔍 user…" style="max-width:150px">
+        <button class="btn ghost" data-group="all" data-en="All" data-es="Todos">Todas</button>
+        <button class="btn ghost" data-group="user" data-en="By user" data-es="Por usuario">Por usuário</button>
+        <button class="btn ghost" data-group="problem" data-en="By problem" data-es="Por problema">Por problema</button>
+        <button class="btn ghost" data-group="lang" data-en="By language" data-es="Por lenguaje">Por linguagem</button>
+        <input id="fUser" placeholder="🔍 usuário…" data-en-ph="🔍 user…" data-es-ph="🔍 usuario…" style="max-width:150px">
         <select id="fProblem" style="max-width:230px"></select>
         <select id="fVerdict" style="max-width:180px"></select>
         <select id="fLang" style="max-width:160px"></select>
-        <button class="btn secondary" id="markAll" data-en="Mark all">Marcar todos</button>
-        <button class="btn" id="rejudgeBtn" data-en="Rejudge selected">Rejulgar selecionados</button>
+        <button class="btn secondary" id="markAll" data-en="Mark all" data-es="Marcar todo">Marcar todos</button>
+        <button class="btn" id="rejudgeBtn" data-en="Rejudge selected" data-es="Rejuzgar seleccionados">Rejulgar selecionados</button>
         <span class="submit-steps" id="rejudgeMsg"></span>
       </div>
-      <div id="adminContainer"><span class="muted" data-en="Loading…">carregando…</span></div>
+      <div id="adminContainer"><span class="muted" data-en="Loading…" data-es="Cargando…">carregando…</span></div>
     </div>
   </main>
   <script type="module" src="/shared/i18n-dom.js"></script>

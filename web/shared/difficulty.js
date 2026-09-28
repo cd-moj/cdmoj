@@ -51,6 +51,8 @@ export function userRateOf(p) {
 export function dirtTone(d) { if (d == null) return ''; return d <= 0.2 ? 'dirt-low' : d <= 0.5 ? 'dirt-mid' : 'dirt-high'; }
 export function dirtText(d) { return d == null ? '—' : Math.round(d * 100) + '%'; }
 export const dirtHelp = () => T('dirt: parte das submissões de quem RESOLVEU que estava errada (métrica do resolver do ICPC). Alto = o problema pune erros.',
-  'dirt: the part of the SOLVERS’ submissions that was wrong (ICPC resolver metric). High = the problem punishes mistakes.');
+  'dirt: the part of the SOLVERS’ submissions that was wrong (ICPC resolver metric). High = the problem punishes mistakes.',
+  'dirt: la parte de los envíos de quienes RESOLVIERON que estaba mal (métrica del resolver de ICPC). Alto = el problema castiga los errores.');
 export const difficultyHelp = () => T('dificuldade: quem tenta consegue? Taxa por usuário (resolveram ÷ tentaram): ≥90% muito fácil · ≥70% fácil · ≥50% médio · <50% difícil.',
-  'difficulty: do those who try succeed? Per-user rate (solved ÷ attempted): ≥90% very easy · ≥70% easy · ≥50% medium · <50% hard.');
+  'difficulty: do those who try succeed? Per-user rate (solved ÷ attempted): ≥90% very easy · ≥70% easy · ≥50% medium · <50% hard.',
+  'dificultad: ¿quienes lo intentan lo logran? Tasa por usuario (resolvieron ÷ intentaron): ≥90% muy fácil · ≥70% fácil · ≥50% medio · <50% difícil.');

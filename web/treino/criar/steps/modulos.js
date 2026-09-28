@@ -20,20 +20,21 @@ export function makeStepModulos(ctx) {
         el('div', { style: 'flex:1' },
           el('h4', { style: 'margin:0' }, m.icon + ' ' + m.name),
           el('div', { class: 'small muted', style: 'margin:.2rem 0' }, m.desc),
-          el('div', { class: 'small' }, T('Abre: ', 'Opens: '), m.panels.join(' · ')))));
+          el('div', { class: 'small' }, T('Abre: ', 'Opens: ', 'Abre: '), m.panels.join(' · ')))));
   };
   const presets = el('div', { class: 'row', style: 'gap:.4rem;flex-wrap:wrap;align-items:center;margin:.4rem 0' },
-    el('span', { class: 'small muted' }, T('Pré-marcar:', 'Pre-select:')),
+    el('span', { class: 'small muted' }, T('Pré-marcar:', 'Pre-select:', 'Preseleccionar:')),
     ...PRESETS().map((p) => el('button', { class: 'btn ghost small', title: p.hint, onclick: () => {
       Object.entries(checks).forEach(([id, cb]) => { cb.checked = p.mods.includes(id); }); sync();
-      msg.textContent = T(`preset «${p.name}»: `, `preset "${p.name}": `) + p.hint;
+      msg.textContent = T(`preset «${p.name}»: `, `preset "${p.name}": `, `preset "${p.name}": `) + p.hint;
     } }, p.name)));
 
   const root = el('div', { class: 'section' },
-    el('h2', {}, T('7 · Módulos ', '7 · Modules '), el('span', { class: 'small muted' }, T('(opcional)', '(optional)'))),
+    el('h2', {}, T('7 · Módulos ', '7 · Modules ', '7 · Módulos '), el('span', { class: 'small muted' }, T('(opcional)', '(optional)', '(opcional)'))),
     el('p', { class: 'muted small' },
       T('Um módulo é um grupo de recursos que este contest usa. Sem nenhum, o painel do admin mostra só o comum: problemas, contas, sessões, placar, staff e juízes. Ligar mostra os painéis, as checagens e os cartões correspondentes; tudo pode ser ligado ou desligado depois em Central › Módulos, sem perder dado.',
-        'A module is a group of features this contest uses. With none, the admin panel shows only the common part: problems, accounts, sessions, scoreboard, staff and judges. Turning one on shows the matching panels, checks and cards; everything can be turned on or off later in Home › Modules, without losing data.')),
+        'A module is a group of features this contest uses. With none, the admin panel shows only the common part: problems, accounts, sessions, scoreboard, staff and judges. Turning one on shows the matching panels, checks and cards; everything can be turned on or off later in Home › Modules, without losing data.',
+        'Un módulo es un grupo de funciones que usa esta competencia. Sin ninguno, el panel del admin muestra solo lo común: problemas, cuentas, sesiones, marcador, staff y jueces. Activar uno muestra los paneles, las verificaciones y las tarjetas correspondientes; todo se puede activar o desactivar después en Central › Módulos, sin perder datos.')),
     presets, msg,
     el('div', { class: 'tcards' }, ...MODULES().map(card)));
   return { el: root };

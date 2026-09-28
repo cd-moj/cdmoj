@@ -1626,8 +1626,10 @@ mexa na outra. O índice separa as coleções por `\u001f` (nome é texto livre:
   resolve o par pt/en na renderização (os 4 renderizadores de nav — `contest-shell.js`,
   `lib/contest-chrome.js`, `contest.js`, `score/score.js` — re-pintam no evento `moj:lang`).
   **Botão novo no `navbuttons.sh` ⇒ linha nova no mapa do `nav-i18n.js`** (sem a linha ele cai no
-  label PT do servidor — não some, mas vira string só-PT, que é bug). Datas: `toLocaleString()` SEM
-  `'pt-BR'` fixo (o formato segue `document.documentElement.lang`, que o `applyHtmlLang` ajusta).
+  label PT do servidor — não some, mas vira string só-PT, que é bug). Datas: `toLocaleString(uiLocale())` (e
+  `toLocaleDateString`/`TimeString` idem) — NUNCA sem argumento: sem locale o formato é o do NAVEGADOR,
+  não o da interface (o `lang` do documento não governa o `Intl`), e um contest em espanhol aberto
+  num navegador em inglês mostrava data americana.
 - **Painel de admin do contest = SHELL + nav por MÓDULOS + painéis.** `web/contest/admin/admin.js`
   só renderiza; a navegação vive em **`nav.js`** (puro, testável em gjs): `GROUPS()` (4 grupos
   comuns `central|prova|pessoas|operacao` + os de EVENTO `evento|maquinas`, que só aparecem com

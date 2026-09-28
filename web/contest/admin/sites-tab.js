@@ -18,40 +18,42 @@ export function makeSitesTab(CONTEST) {
   const panel = el('div', { class: 'section' });
   async function load() {
     panel.innerHTML = '';
-    panel.append(el('h2', {}, T('🏫 Sedes & escolas', '🏫 Sites & schools')));
+    panel.append(el('h2', {}, T('🏫 Sedes & escolas', '🏫 Sites & schools', '🏫 Sedes y escuelas')));
     let cfg, ur;
     try {
       [cfg, ur] = await Promise.all([
         apiGet('/contest/admin/config?contest=' + enc(CONTEST), G),
         apiGet('/contest/admin/users?contest=' + enc(CONTEST), G).catch(() => null),
       ]);
-    } catch (e) { panel.append(el('div', { class: 'error-box' }, T('Falha: ', 'Failed: ') + (e.message || T('erro', 'error')))); return; }
+    } catch (e) { panel.append(el('div', { class: 'error-box' }, T('Falha: ', 'Failed: ', 'Error: ') + (e.message || T('erro', 'error', 'error')))); return; }
     // logins p/ o preview de matches (só quem entra no placar — sem contas privilegiadas)
     const logins = ((ur && ur.users) || []).map((u) => u.login).filter((l) => !PRIV.test(l || ''));
 
     const regionsEd = makeRegionsEditor({ initial: cfg.regions || [] });
     const teamsEd = await makeTeamsEditor({ initial: cfg.teams_meta || [], logins });
     const msg = el('div', { class: 'small', style: 'margin:.5rem 0' });
-    const save = el('button', { class: 'btn' }, T('Salvar sedes e escolas', 'Save sites and schools'));
+    const save = el('button', { class: 'btn' }, T('Salvar sedes e escolas', 'Save sites and schools', 'Guardar sedes y escuelas'));
     save.addEventListener('click', async () => {
-      save.disabled = true; msg.className = 'small'; msg.textContent = T('Salvando…', 'Saving…');
+      save.disabled = true; msg.className = 'small'; msg.textContent = T('Salvando…', 'Saving…', 'Guardando…');
       try {
         await apiPost('/contest/admin/config?contest=' + enc(CONTEST),
           { regions: regionsEd.getValue(), teams_meta: teamsEd.getValue() }, G);
-        msg.textContent = T('✓ salvo', '✓ saved');
-      } catch (e) { msg.className = 'small error-box'; msg.textContent = e.message || T('falha', 'failed'); }
+        msg.textContent = T('✓ salvo', '✓ saved', '✓ guardado');
+      } catch (e) { msg.className = 'small error-box'; msg.textContent = e.message || T('falha', 'failed', 'fallido'); }
       save.disabled = false;
     });
     const hh = (t, sub) => el('div', {}, el('h3', { style: 'margin:1rem 0 .2rem' }, t),
       el('p', { class: 'small muted', style: 'margin:0 0 .3rem' }, sub));
     panel.append(
-      hh(T('🏫 Sedes (regiões)', '🏫 Sites (regions)'),
+      hh(T('🏫 Sedes (regiões)', '🏫 Sites (regions)', '🏫 Sedes (regiones)'),
         T('Cada sede é um nome + uma regex no login. A sede alimenta o filtro do placar, o escopo do staff (staff-filters), as etiquetas e o gate de navegador por sede.',
-          'Each site is a name + a regex on the login. The site feeds the scoreboard filter, the staff scope (staff-filters), the badges and the per-site browser gate.')),
+          'Each site is a name + a regex on the login. The site feeds the scoreboard filter, the staff scope (staff-filters), the badges and the per-site browser gate.',
+          'Cada sede es un nombre + un regex sobre el login. La sede alimenta el filtro del marcador, el alcance del staff (staff-filters), las etiquetas y el gate de navegador por sede.')),
       regionsEd.el,
-      hh(T('🏳️ Países e escolas (por regex no login)', '🏳️ Countries and schools (by login regex)'),
+      hh(T('🏳️ Países e escolas (por regex no login)', '🏳️ Countries and schools (by login regex)', '🏳️ Países y escuelas (por regex de login)'),
         T('Preenche bandeira/universidade dos times que casarem — conveniência de carga; o valor por time pode ser editado em 👥 Times.',
-          'Fills flag/university for matching teams — a bulk convenience; the per-team value can be edited in 👥 Teams.')),
+          'Fills flag/university for matching teams — a bulk convenience; the per-team value can be edited in 👥 Teams.',
+          'Completa bandera/universidad de los equipos que coincidan — una conveniencia masiva; el valor por equipo se puede editar en 👥 Equipos.')),
       teamsEd.el,
       el('div', { class: 'row', style: 'margin-top:.7rem' }, save, msg));
     // ⏱ prorrogação de vigência por sede/grupo: é decisão de SEDE (estava em Regras até 05/09)

@@ -18,7 +18,7 @@ export function makeColorsEditor(opts = {}) {
   const rows = el('div', {});
   function rebuild() {
     rows.innerHTML = '';
-    if (!letters.length) { rows.append(el('p', { class: 'muted small' }, T('Sem problemas ainda — adicione problemas e clique “sincronizar”.', 'No problems yet — add problems and click “sync”.'))); return; }
+    if (!letters.length) { rows.append(el('p', { class: 'muted small' }, T('Sem problemas ainda — adicione problemas e clique “sincronizar”.', 'No problems yet — add problems and click “sync”.', 'Todavía no hay problemas — agrega problemas y haz clic en “sincronizar”.'))); return; }
     letters.forEach((L) => {
       const hex = state[L] || norm(initial[L]) || PALETTE[L] || 'CCCCCC';
       state[L] = hex;
@@ -33,7 +33,7 @@ export function makeColorsEditor(opts = {}) {
   rebuild();
 
   const panel = el('div', {},
-    el('label', { style: 'font-weight:400;display:block;margin-bottom:.4rem' }, sonic, T(' 🦔 Modo secreto do Sonic (balões viram GIFs)', ' 🦔 Sonic secret mode (balloons become GIFs)')),
+    el('label', { style: 'font-weight:400;display:block;margin-bottom:.4rem' }, sonic, T(' 🦔 Modo secreto do Sonic (balões viram GIFs)', ' 🦔 Sonic secret mode (balloons become GIFs)', ' 🦔 Modo secreto de Sonic (los globos se vuelven GIFs)')),
     rows);
   return {
     el: panel,

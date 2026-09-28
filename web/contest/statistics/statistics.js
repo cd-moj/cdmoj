@@ -57,35 +57,36 @@ function filterBar() {
   const bar = el('div', { class: 'fbar' });
   let selR = null; let selC = null;
   if (regs.length) {
-    selR = el('select', { id: 'fRegion' }, el('option', { value: '' }, T('todas', 'all')),
+    selR = el('select', { id: 'fRegion' }, el('option', { value: '' }, T('todas', 'all', 'todas')),
       ...regs.map((r) => el('option', { value: r.name }, '  '.repeat(r.depth) + r.name)));
     selR.value = dim.kind === 'r' ? dim.key : '';
     selR.addEventListener('change', () => {
       dim = selR.value ? { kind: 'r', key: selR.value } : { kind: '', key: '' };
       render();
     });
-    bar.append(el('label', {}, T('Sede:', 'Site:'), selR));
+    bar.append(el('label', {}, T('Sede:', 'Site:', 'Sede:'), selR));
   }
   if (ctys.length) {
-    selC = el('select', { id: 'fFlag' }, el('option', { value: '' }, T('todos', 'all')),
+    selC = el('select', { id: 'fFlag' }, el('option', { value: '' }, T('todos', 'all', 'todos')),
       ...ctys.map((c) => el('option', { value: c }, flagLabel(c))));
     selC.value = dim.kind === 'c' ? dim.key : '';
     selC.addEventListener('change', () => {
       dim = selC.value ? { kind: 'c', key: selC.value } : { kind: '', key: '' };
       render();
     });
-    bar.append(el('label', {}, T('País:', 'Country:'), selC));
+    bar.append(el('label', {}, T('País:', 'Country:', 'País:'), selC));
   }
   const note = el('span', { class: 'fcount', id: 'fCount' });
   if (dim.kind) {
     const s = currentStats();
     const nm = dim.kind === 'c' ? flagLabel(dim.key) : dim.key;
     note.textContent = T(`Recorte: ${nm} — ${s.totals.users} de ${statsAll.totals.users} participantes`,
-      `Selection: ${nm} — ${s.totals.users} of ${statsAll.totals.users} participants`);
+      `Selection: ${nm} — ${s.totals.users} of ${statsAll.totals.users} participants`,
+      `Selección: ${nm} — ${s.totals.users} de ${statsAll.totals.users} participantes`);
     bar.append(el('button', { type: 'button', onclick: () => { dim = { kind: '', key: '' }; render(); } },
-      T('limpar', 'clear')));
+      T('limpar', 'clear', 'limpiar')));
   } else {
-    note.textContent = T(`${statsAll.totals.users} participantes`, `${statsAll.totals.users} participants`);
+    note.textContent = T(`${statsAll.totals.users} participantes`, `${statsAll.totals.users} participants`, `${statsAll.totals.users} participantes`);
   }
   bar.append(note);
   return bar;
@@ -124,7 +125,7 @@ function render() {
 }
 
 async function boot() {
-  if (!CONTEST) { app.innerHTML = '<div class="error-box">' + T('Contest não informado.', 'Contest not specified.') + '</div>'; return; }
+  if (!CONTEST) { app.innerHTML = '<div class="error-box">' + T('Contest não informado.', 'Contest not specified.', 'Competencia no especificada.') + '</div>'; return; }
   let basic = null;
   try { basic = await apiGet('/contest/basic?contest=' + enc(CONTEST), {}); } catch { /* segue */ }
   try { await mountChrome(CONTEST, basic); } catch { /* nav opcional */ }
@@ -132,8 +133,8 @@ async function boot() {
   try { s = await apiGet('/contest/statistics?contest=' + enc(CONTEST), { contest: CONTEST, auth: true }); }
   catch (e) {
     app.innerHTML = '';
-    app.append(el('div', { class: 'section' }, el('h2', {}, T('🔒 Restrito', '🔒 Restricted')),
-      el('p', { class: 'muted' }, T('Estatísticas são visíveis a admin, juiz ou monitor do contest. (', 'Statistics are visible to the contest admin, judge or monitor. (') + (e.message || T('erro', 'error')) + ')')));
+    app.append(el('div', { class: 'section' }, el('h2', {}, T('🔒 Restrito', '🔒 Restricted', '🔒 Restringido')),
+      el('p', { class: 'muted' }, T('Estatísticas são visíveis a admin, juiz ou monitor do contest. (', 'Statistics are visible to the contest admin, judge or monitor. (', 'Las estadísticas son visibles para el admin, juez o monitor de la competencia. (') + (e.message || T('erro', 'error', 'error')) + ')')));
     return;
   }
   try { const pr = await apiGet('/contest/problems?contest=' + enc(CONTEST), { contest: CONTEST, auth: true }); (pr.problems || []).forEach((p) => { probMap[p.problem_id] = p.short_name; }); } catch { /* sem map */ }

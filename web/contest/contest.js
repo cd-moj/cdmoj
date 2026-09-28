@@ -129,7 +129,7 @@ async function downloadAuthed(path, filename) {
     const blob = await r.blob();
     const a = el('a', { href: URL.createObjectURL(blob), download: filename });
     document.body.append(a); a.click(); a.remove();
-  } catch { alert(T('Falha ao baixar arquivo/log.', 'Failed to download file/log.')); }
+  } catch { alert(T('Falha ao baixar arquivo/log.', 'Failed to download file/log.', 'No se pudo descargar el archivo/registro.')); }
 }
 async function openLogAuthed(path) {
   try {
@@ -141,7 +141,7 @@ async function openLogAuthed(path) {
     pre.textContent = txt;
     w.document.body.append(pre);
     w.document.close();
-  } catch { alert(T('Falha ao abrir o log.', 'Failed to open log.')); }
+  } catch { alert(T('Falha ao abrir o log.', 'Failed to open log.', 'No se pudo abrir el registro.')); }
 }
 
 // abre o report.html do julgamento numa aba nova (openHtmlReport: blob, nunca srcdoc — é o que
@@ -150,7 +150,7 @@ async function openReportAuthed(path) {
   try {
     const r = await fetch('/api/v1' + path, { headers: { 'Authorization': 'Bearer ' + getToken(CONTEST) } });
     openHtmlReport(await r.text());
-  } catch { alert(T('Falha ao abrir o report.', 'Failed to open the report.')); }
+  } catch { alert(T('Falha ao abrir o report.', 'Failed to open the report.', 'No se pudo abrir el informe.')); }
 }
 
 // ============================================================================
@@ -161,16 +161,18 @@ function renderLoginStatic() {
   document.getElementById('loginContestName').textContent = basic.contest_name || 'Contest';
   document.getElementById('loginTimes').innerHTML =
     T(`Início: ${fmtDate(basic.start_time)}<br>Término: ${fmtDate(basic.end_time)}`,
-      `Start: ${fmtDate(basic.start_time)}<br>End: ${fmtDate(basic.end_time)}`);
-  document.getElementById('loginUserLbl').textContent = T('Usuário', 'Username');
-  document.getElementById('loginPassLbl').textContent = T('Senha', 'Password');
-  document.getElementById('loginBtn').textContent = T('Entrar', 'Log in');
-  document.getElementById('loginCountdownLbl').textContent = T('Abertura em', 'Opens in');
+      `Start: ${fmtDate(basic.start_time)}<br>End: ${fmtDate(basic.end_time)}`,
+      `Inicio: ${fmtDate(basic.start_time)}<br>Fin: ${fmtDate(basic.end_time)}`);
+  document.getElementById('loginUserLbl').textContent = T('Usuário', 'Username', 'Usuario');
+  document.getElementById('loginPassLbl').textContent = T('Senha', 'Password', 'Contraseña');
+  document.getElementById('loginBtn').textContent = T('Entrar', 'Log in', 'Iniciar sesión');
+  document.getElementById('loginCountdownLbl').textContent = T('Abertura em', 'Opens in', 'Abre en');
   const ol = document.getElementById('orgLoginLink');
   if (ol) {
-    ol.textContent = T('organização', 'organization');
+    ol.textContent = T('organização', 'organization', 'organización');
     ol.title = T('Entrar como organização (admin, juiz, staff) antes da abertura',
-                 'Log in as organization (admin, judge, staff) before the opening');
+                 'Log in as organization (admin, judge, staff) before the opening',
+                 'Inicia sesión como organización (admin, juez, staff) antes de la apertura');
     if (!ol.dataset.wired) { ol.dataset.wired = '1';
       ol.addEventListener('click', (e) => { e.preventDefault(); enableOrgLogin(); }); }
   }
@@ -244,7 +246,7 @@ function bootLogin() {
       const nx = safeNext(qs.get('next'));
       if (nx) location.replace(nx); else location.reload();
     } catch (ex) {
-      err.textContent = ex && ex.message ? ex.message : T('Erro de login, tente novamente', 'Login error, try again');
+      err.textContent = ex && ex.message ? ex.message : T('Erro de login, tente novamente', 'Login error, try again', 'Error de inicio de sesión, intenta de nuevo');
       // A PORTA do contest (roster/janela): a mensagem sozinha não resolve — quem não se
       // inscreveu precisa do link, e a inscrição mora no site principal (outro domínio).
       const code = ex && ex.code;
@@ -252,7 +254,7 @@ function bootLogin() {
         const base = location.host.replace(/^[^.]+\./, '');   // <id>.moj.x → moj.x
         const a = document.createElement('a');
         a.href = location.protocol + '//' + base + '/contests/inscricao/?c=' + encodeURIComponent(CONTEST);
-        a.textContent = T(' Inscreva-se aqui →', ' Register here →');
+        a.textContent = T(' Inscreva-se aqui →', ' Register here →', ' Inscríbete aquí →');
         a.style.marginLeft = '.4rem';
         err.append(a);
       }
@@ -271,10 +273,10 @@ function startContestCountdown() {
     const now = Math.floor(Date.now() / 1000);
     const left = (basic.end_time || 0) - now;
     if (left > 0) {
-      eln.textContent = T('Termina em: ', 'Ends in: ') + fmtLeft(left);
+      eln.textContent = T('Termina em: ', 'Ends in: ', 'Termina en: ') + fmtLeft(left);
       setTimeout(tick, 1000);
     } else {
-      eln.textContent = T('Competição encerrada', 'Contest ended');
+      eln.textContent = T('Competição encerrada', 'Contest ended', 'Competencia terminada');
     }
   };
   tick();
@@ -336,28 +338,30 @@ function renderUser() {
     box.append(el('a', { class: 'btn ghost', href: '/contest/ajuda/competidor.html', target: '_blank',
       rel: 'noopener', style: 'float:right;margin:.2rem 0 0',
       title: T('As telas da prova explicadas: sanfona, envio, clarification e placar',
-               'The contest screens explained: accordion, submitting, clarifications and scoreboard') },
-      T('📖 Como funciona a prova', '📖 How the contest works')));
+               'The contest screens explained: accordion, submitting, clarifications and scoreboard',
+               'Las pantallas de la competencia explicadas: acordeón, envío, aclaraciones y marcador') },
+      T('📖 Como funciona a prova', '📖 How the contest works', '📖 Cómo funciona la competencia')));
   }
   box.append(
     el('div', { style: 'font-size:1.2rem; font-weight:800; color:var(--blue-dark)' },
       userinfo.name || userinfo.login),
     el('div', { class: 'small muted' }, 'Login: ', el('b', {}, userinfo.login),
       userinfo.is_admin ? '  · admin' : (userinfo.is_judge ? '  · judge'
-        : (userinfo.is_staff ? '  · staff' : (userinfo.is_cstaff ? '  · ' + T('chefe de sede', 'site chief')
-          : (userinfo.is_animeitor ? '  · ' + T('placar/telão', 'scoreboard/screen') : ''))))),
+        : (userinfo.is_staff ? '  · staff' : (userinfo.is_cstaff ? '  · ' + T('chefe de sede', 'site chief', 'jefe de sede')
+          : (userinfo.is_animeitor ? '  · ' + T('placar/telão', 'scoreboard/screen', 'marcador/pantalla') : ''))))),
     // sessão de TIME: quem está no teclado é o `actor`, mas quem compete é o time
     userinfo.is_team ? el('div', { class: 'small' },
-      T('👥 Você entrou como ', '👥 You logged in as '), el('b', {}, userinfo.actor || ''),
+      T('👥 Você entrou como ', '👥 You logged in as ', '👥 Iniciaste sesión como '), el('b', {}, userinfo.actor || ''),
       T(' e está competindo pelo time acima — as submissões contam para o time.',
-        ' and you are competing for the team above — submissions count for the team.')) : '',
+        ' and you are competing for the team above — submissions count for the team.',
+        ' y estás compitiendo por el equipo de arriba — los envíos cuentan para el equipo.')) : '',
   );
 }
 
 function renderNews(items) {
   if (!Array.isArray(items) || !items.length) { hide('newsSection'); return; }
   show('newsSection');
-  document.getElementById('newsTitle').textContent = T('Informações & Notícias', 'Info & News');
+  document.getElementById('newsTitle').textContent = T('Informações & Notícias', 'Info & News', 'Información y noticias');
   const ul = document.getElementById('newsList'); ul.innerHTML = '';
   items.forEach(n => {
     const li = el('li', { style: 'margin:.4rem 0' },
@@ -386,17 +390,17 @@ function openAuthed(url) {
       if (!resp.ok) throw new Error('HTTP ' + resp.status);
       const u = URL.createObjectURL(await resp.blob());
       if (w) w.location = u; else window.open(u, '_blank');
-    } catch (e) { if (w) w.close(); alert(T('Falha ao abrir o arquivo.', 'Failed to open the file.')); }
+    } catch (e) { if (w) w.close(); alert(T('Falha ao abrir o arquivo.', 'Failed to open the file.', 'No se pudo abrir el archivo.')); }
   };
 }
 
 // nome de cada documento NO IDIOMA DA INTERFACE (o `label` do servidor vem no idioma do
 // DOCUMENTO e traz o sufixo " (pt)" — aqui o idioma virou chip, o rótulo é do tipo)
 const DOC_NAME = {
-  'contest':    () => T('📘 Caderno de problemas', '📘 Problem set'),
-  'info-sheet': () => T('📋 Ambiente de julgamento', '📋 Judging environment'),
-  'times':      () => T('⏱️ Limites de tempo', '⏱️ Time limits'),
-  'editorial':  () => T('📝 Editorial', '📝 Editorial'),
+  'contest':    () => T('📘 Caderno de problemas', '📘 Problem set', '📘 Cuadernillo de problemas'),
+  'info-sheet': () => T('📋 Ambiente de julgamento', '📋 Judging environment', '📋 Entorno de evaluación'),
+  'times':      () => T('⏱️ Limites de tempo', '⏱️ Time limits', '⏱️ Límites de tiempo'),
+  'editorial':  () => T('📝 Editorial', '📝 Editorial', '📝 Editorial'),
 };
 
 function renderResources(items) {
@@ -481,8 +485,8 @@ function renderNotifyBanner() {
   if (cU) links.push(el('a', { href: '/contest/clarification/?c=' + encodeURIComponent(CONTEST), onclick: () => markSeen('clar') },
     '💬 ' + cU + ' ' + T(cU > 1 ? 'clarifications respondidas' : 'clarification respondida', cU > 1 ? 'answered clarifications' : 'answered clarification', cU > 1 ? 'aclaraciones respondidas' : 'aclaración respondida')));
   const sep = links.length > 1 ? [links[0], ' · ', links[1]] : links;
-  bar.append(el('span', {}, T('Novidades: ', 'Updates: ')), ...sep,
-    el('button', { class: 'btn ghost', type: 'button', style: 'margin-left:auto', title: T('Marcar tudo como visto', 'Mark all as seen'),
+  bar.append(el('span', {}, T('Novidades: ', 'Updates: ', 'Novedades: ')), ...sep,
+    el('button', { class: 'btn ghost', type: 'button', style: 'margin-left:auto', title: T('Marcar tudo como visto', 'Mark all as seen', 'Marcar todo como visto'),
       onclick: () => { markSeen('news'); markSeen('clar'); } }, '✕'));
 }
 
@@ -550,12 +554,12 @@ function openTabThen(fill) {
   if (w) {
     try {
       w.document.write('<!DOCTYPE html><meta charset="utf-8"><body style="font:16px system-ui;padding:2rem">'
-        + T('carregando o enunciado…', 'loading the statement…') + '</body>');
+        + T('carregando o enunciado…', 'loading the statement…', 'cargando el enunciado…') + '</body>');
       w.document.close();
     } catch { /* alguns navegadores não deixam escrever em about:blank */ }
   }
   return fill(w).catch(() => {
-    if (w) { try { w.document.body.textContent = T('não deu para abrir o enunciado.', 'could not open the statement.'); } catch { /* */ } }
+    if (w) { try { w.document.body.textContent = T('não deu para abrir o enunciado.', 'could not open the statement.', 'no se pudo abrir el enunciado.'); } catch { /* */ } }
   });
 }
 async function openStatementNewTab(p) {
@@ -592,10 +596,10 @@ async function downloadSamples(p, link) {
   if (link) link.textContent = '…';
   try {
     const s = (await fetchSamples(p)).filter((x) => x && !x.too_big);   // too_big: acima do teto, sem bytes
-    if (!s.length) { alert(T('Este problema não tem exemplos para baixar. Se ele tem exemplo, está no texto do enunciado.', 'This problem has no samples to download. If it has an example, it is in the statement text.')); return; }
+    if (!s.length) { alert(T('Este problema não tem exemplos para baixar. Se ele tem exemplo, está no texto do enunciado.', 'This problem has no samples to download. If it has an example, it is in the statement text.', 'Este problema no tiene ejemplos para descargar. Si tiene un ejemplo, está en el texto del enunciado.')); return; }
     const L = String(p.short_name || 'X').replace(/[^A-Za-z0-9._-]/g, '_');
     downloadSamplesZip(s, L, L + '-exemplos.zip');
-  } catch (e) { alert(T('Não deu para baixar os exemplos: ', 'Could not download the samples: ') + (e.message || '')); }
+  } catch (e) { alert(T('Não deu para baixar os exemplos: ', 'Could not download the samples: ', 'No se pudieron descargar los ejemplos: ') + (e.message || '')); }
   finally { if (link) link.textContent = before; }
 }
 function openHtmlTab(p) {
@@ -620,7 +624,7 @@ function renderProblems() {
   const list = document.getElementById('problemList');
   list.innerHTML = '';
   const visible = problems.filter(p => p.show !== false);
-  if (!visible.length) { list.innerHTML = `<span class="muted">${T('Nenhum problema disponível.', 'No problems available.')}</span>`; return; }
+  if (!visible.length) { list.innerHTML = `<span class="muted">${T('Nenhum problema disponível.', 'No problems available.', 'No hay problemas disponibles.')}</span>`; return; }
 
   visible.forEach(p => {
     const accepted = problemAccepted(p);
@@ -639,19 +643,19 @@ function renderProblems() {
       // crédito do autor: a API só manda depois que a prova acaba (durante a prova o nome
       // do autor é pista) — ver SHOW_AUTHOR em handlers/contest/problems.sh
       p.author ? el('span', { class: 'small muted', style: 'margin-left:.5rem' },
-        T('· autor: ', '· author: ') + p.author) : null,
-      accepted ? el('span', { class: 'pill ok prob-ok' }, T('✔ resolvido', '✔ solved')) : null);
+        T('· autor: ', '· author: ', '· autor: ') + p.author) : null,
+      accepted ? el('span', { class: 'pill ok prob-ok' }, T('✔ resolvido', '✔ solved', '✔ resuelto')) : null);
 
     // links de enunciado (HTML/PDF em nova aba)
     const linksWrap = el('span', { class: 'row' });
-    if (p.url) linksWrap.append(el('a', { href: p.url, target: '_blank' }, T('Enunciado', 'Statement')));
+    if (p.url) linksWrap.append(el('a', { href: p.url, target: '_blank' }, T('Enunciado', 'Statement', 'Enunciado')));
     if (p.has_statement_html) linksWrap.append(el('a', { href: '#', onclick: (e) => { e.preventDefault(); openHtmlTab(p); } }, 'HTML'));
     if (p.has_statement_pdf) linksWrap.append(el('a', { href: '#', onclick: (e) => { e.preventDefault(); openPdfTab(p); } }, 'PDF'));
     // ⬇ Exemplos: /contest/samples (o MESMO conjunto que o enunciado mostra; gate do enunciado) num zip.
     // has_samples:false = o problema não tem exemplo p/ baixar (SAMPLE=no ou sem sample*): sem link.
     // Ausente (enunciado enviado à mão, servidor antigo) = o link fica, como antes.
-    if ((p.has_statement_html || p.has_statement_pdf) && p.has_samples !== false) linksWrap.append(el('a', { href: '#', title: T('Baixa entrada e saída de cada exemplo (.in/.out) num zip', 'Downloads each sample input and output (.in/.out) in a zip'),
-      onclick: (e) => { e.preventDefault(); downloadSamples(p, e.currentTarget); } }, T('Exemplos', 'Samples')));
+    if ((p.has_statement_html || p.has_statement_pdf) && p.has_samples !== false) linksWrap.append(el('a', { href: '#', title: T('Baixa entrada e saída de cada exemplo (.in/.out) num zip', 'Downloads each sample input and output (.in/.out) in a zip', 'Descarga la entrada y salida de cada ejemplo (.in/.out) en un zip'),
+      onclick: (e) => { e.preventDefault(); downloadSamples(p, e.currentTarget); } }, T('Exemplos', 'Samples', 'Ejemplos')));
 
     // form de submit ao lado (editor abre no detalhe; aqui só upload rápido + botão)
     const submitWrap = renderSubmitInline(p);
@@ -684,7 +688,7 @@ function retintProblems() {
     // o "✔ resolvido" aparecer sem recarregar a página
     let pill = item.querySelector('.prob-ok');
     if (accepted && !pill) {
-      pill = el('span', { class: 'pill ok prob-ok' }, T('✔ resolvido', '✔ solved'));
+      pill = el('span', { class: 'pill ok prob-ok' }, T('✔ resolvido', '✔ solved', '✔ resuelto'));
       const left = item.querySelector('.prob-left'); if (left) left.append(pill);
     } else if (!accepted && pill) pill.remove();
   });
@@ -711,11 +715,11 @@ function toggleDetail(p, item, toggle, submitWrap) {
     } else {
       chips = Object.keys(tl)
         .sort((a, b) => (a === 'default' ? -1 : b === 'default' ? 1 : a.localeCompare(b)))
-        .map((k) => ({ label: k === 'default' ? T('padrão', 'default') : (langById(k).label || k), time: tl[k] }));
+        .map((k) => ({ label: k === 'default' ? T('padrão', 'default', 'predeterminado') : (langById(k).label || k), time: tl[k] }));
     }
     if (chips.length) {
       const tlBlock = el('div', { class: 'tl-block' },
-        el('span', { class: 'tl-label' }, '⏱ ' + T('Tempo limite', 'Time limit')));
+        el('span', { class: 'tl-label' }, '⏱ ' + T('Tempo limite', 'Time limit', 'Límite de tiempo')));
       chips.forEach((c) => tlBlock.append(el('span', { class: 'tl-chip' },
         el('b', {}, c.label), el('span', { class: 'tl-time' }, fmtTime(c.time)))));
       detail.append(tlBlock);
@@ -728,13 +732,13 @@ function toggleDetail(p, item, toggle, submitWrap) {
       // a coluna nasce agora (o layout não pode pular quando o texto chegar) e o corpo é
       // preenchido quando a rede responde — é a 1ª vez que ESTE time pede ESTE enunciado
       const stmtDiv = el('div', { class: 'statement-content' },
-        el('span', { class: 'muted' }, T('carregando o enunciado…', 'loading the statement…')));
+        el('span', { class: 'muted' }, T('carregando o enunciado…', 'loading the statement…', 'cargando el enunciado…')));
       stmtCol = el('div', { class: 'prob-statement-col' }, stmtDiv);
       // chips de idioma (só quando ESTE problema oferece mais de um); a troca vale p/ a prova toda
       const av = (Array.isArray(p.statement_langs) && p.statement_langs.length) ? p.statement_langs : ['pt'];
       const chips = makeStmtLangChips(av, stmtLangFor(p), (l) => setStmtLang(l));
       if (av.length > 1) stmtCol.prepend(el('div', { class: 'row', style: 'align-items:center;gap:.5rem;margin-bottom:.4rem' },
-        el('span', { class: 'small muted' }, T('Idioma:', 'Language:')), chips));
+        el('span', { class: 'small muted' }, T('Idioma:', 'Language:', 'Lenguaje:')), chips));
       const fill = () => {
         const l = stmtLangFor(p); setChipsActive(chips, l);
         statementHtml(p, l).then((html) => {
@@ -746,7 +750,8 @@ function toggleDetail(p, item, toggle, submitWrap) {
           stmtDiv.setAttribute('lang', stmtHtmlLang(l));
         }).catch(() => {
           stmtDiv.textContent = T('não deu para carregar o enunciado — recarregue a página.',
-                                 'could not load the statement — reload the page.');
+                                 'could not load the statement — reload the page.',
+                                 'no se pudo cargar el enunciado — recarga la página.');
         });
       };
       _stmtRefresh.set(p.problem_id, fill);
@@ -757,9 +762,9 @@ function toggleDetail(p, item, toggle, submitWrap) {
       const cols = el('div', { class: 'prob-cols' }, ...(stmtCol ? [stmtCol] : []), edCol);
       // seletor de 3 estados: lado a lado (padrão) | só enunciado | só editor
       const vm = el('div', { class: 'prob-viewmode' });
-      const MODES = [['both', T('Lado a lado', 'Side by side')],
-        ['only-statement', T('Só enunciado', 'Statement only')],
-        ['only-editor', T('Só editor', 'Editor only')]];
+      const MODES = [['both', T('Lado a lado', 'Side by side', 'Lado a lado')],
+        ['only-statement', T('Só enunciado', 'Statement only', 'Solo enunciado')],
+        ['only-editor', T('Só editor', 'Editor only', 'Solo editor')]];
       const setMode = (m) => {
         cols.classList.toggle('only-statement', m === 'only-statement');
         cols.classList.toggle('only-editor', m === 'only-editor');
@@ -789,14 +794,14 @@ function toggleDetail(p, item, toggle, submitWrap) {
 function renderSubmitInline(p) {
   // envia ao juiz; problem_id já é a forma canônica 'coleção#problema' (vinda de /contest/problems)
   async function doSubmit(payload, stepsEl, btnEl) {
-    btnEl.disabled = true; stepsEl.textContent = T('Enviando…', 'Sending…');
+    btnEl.disabled = true; stepsEl.textContent = T('Enviando…', 'Sending…', 'Enviando…');
     try {
       await apiPost('/submit?contest=' + encodeURIComponent(CONTEST),
         { problem_id: p.problem_id, ...payload }, { contest: CONTEST, auth: true });
-      stepsEl.textContent = T('✓ Enviado!', '✓ Sent!');
+      stepsEl.textContent = T('✓ Enviado!', '✓ Sent!', '✓ ¡Enviado!');
       setTimeout(loadSubmissions, 1200);
     } catch (ex) {
-      stepsEl.innerHTML = `<span class="error-box">${T('Erro: ', 'Error: ') + (ex && ex.message ? ex.message : T('falha ao enviar', 'failed to send'))}</span>`;
+      stepsEl.innerHTML = `<span class="error-box">${T('Erro: ', 'Error: ', 'Error: ') + (ex && ex.message ? ex.message : T('falha ao enviar', 'failed to send', 'no se pudo enviar'))}</span>`;
     } finally { btnEl.disabled = false; }
   }
 
@@ -809,18 +814,18 @@ function renderSubmitInline(p) {
   const acceptExts = [...new Set(acceptLangs.flatMap((l) => (l.exts && l.exts.length) ? l.exts : [l.id]))].map((e) => '.' + e).join(',');
   const fileInput = el('input', { type: 'file', style: 'display:none', accept: acceptExts });
   const fileName = el('span', { class: 'small muted', style: 'max-width:12rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap' });
-  const pick = el('button', { class: 'btn ghost', type: 'button', onclick: () => fileInput.click() }, T('Escolher arquivo', 'Choose file'));
+  const pick = el('button', { class: 'btn ghost', type: 'button', onclick: () => fileInput.click() }, T('Escolher arquivo', 'Choose file', 'Elegir archivo'));
   fileInput.addEventListener('change', () => { fileName.textContent = (fileInput.files && fileInput.files[0]) ? fileInput.files[0].name : ''; fileName.title = fileName.textContent; });
   const steps = el('span', { class: 'submit-steps' });
-  const btn = el('button', { class: 'btn', type: 'button' }, T('Enviar', 'Submit'));
+  const btn = el('button', { class: 'btn', type: 'button' }, T('Enviar', 'Submit', 'Enviar'));
   const row = el('span', { class: 'prob-submit' }, fileInput, pick, fileName, btn, steps);
   btn.addEventListener('click', async () => {
     if (fileInput.files && fileInput.files[0]) {
       const f = fileInput.files[0];
-      steps.textContent = T('Preparando…', 'Preparing…');
+      steps.textContent = T('Preparando…', 'Preparing…', 'Preparando…');
       doSubmit({ filename: f.name, code_b64: await fileToBase64(f), source: 'file' }, steps, btn);
     } else {
-      steps.innerHTML = `<span class="muted small">${T('Escolha um arquivo ou escreva no editor (abra os detalhes ▼).', 'Choose a file or write in the editor (open details ▼).')}</span>`;
+      steps.innerHTML = `<span class="muted small">${T('Escolha um arquivo ou escreva no editor (abra os detalhes ▼).', 'Choose a file or write in the editor (open details ▼).', 'Elige un archivo o escribe en el editor (abre los detalles ▼).')}</span>`;
     }
   });
 
@@ -838,27 +843,28 @@ function renderSubmitInline(p) {
   const editorMount = el('div');
   const editorBox = el('div', { class: 'editor-box', style: 'height:520px' }, editorMount);   // ~26 linhas
   const edSteps = el('span', { class: 'submit-steps' });
-  const edBtn = el('button', { class: 'btn', type: 'button' }, T('Enviar solução', 'Submit solution'));
+  const edBtn = el('button', { class: 'btn', type: 'button' }, T('Enviar solução', 'Submit solution', 'Enviar solución'));
   let editor = null;
   const refreshEd = () => { if (editor && typeof editor.refresh === 'function') editor.refresh(); };
   const focusEd = () => { if (editor && typeof editor.focus === 'function') editor.focus(); };
 
   // ⛶ Tela cheia (dialog no top layer) e ⧉ Nova janela (?editoronly=1&prob=<id>).
-  const expandBtn = el('button', { class: 'btn ghost', type: 'button', title: T('Editor em tela cheia', 'Fullscreen editor') }, '⛶ ' + T('Tela cheia', 'Fullscreen'));
-  const popBtn = el('button', { class: 'btn ghost', type: 'button', title: T('Abrir só o editor numa nova janela', 'Open only the editor in a new window'),
-    onclick: () => { const u = new URL(location.href); u.searchParams.set('editoronly', '1'); u.searchParams.set('prob', p.problem_id); window.open(u.toString(), '_blank', 'width=900,height=820'); } }, '⧉ ' + T('Nova janela', 'New window'));
-  const closeFullBtn = el('button', { class: 'btn ghost', type: 'button', title: T('Sair da tela cheia (Esc)', 'Exit fullscreen (Esc)'), onclick: () => exitFull() }, '✕ ' + T('Fechar', 'Close'));
+  const expandBtn = el('button', { class: 'btn ghost', type: 'button', title: T('Editor em tela cheia', 'Fullscreen editor', 'Editor en pantalla completa') }, '⛶ ' + T('Tela cheia', 'Fullscreen', 'Pantalla completa'));
+  const popBtn = el('button', { class: 'btn ghost', type: 'button', title: T('Abrir só o editor numa nova janela', 'Open only the editor in a new window', 'Abrir solo el editor en una ventana nueva'),
+    onclick: () => { const u = new URL(location.href); u.searchParams.set('editoronly', '1'); u.searchParams.set('prob', p.problem_id); window.open(u.toString(), '_blank', 'width=900,height=820'); } }, '⧉ ' + T('Nova janela', 'New window', 'Ventana nueva'));
+  const closeFullBtn = el('button', { class: 'btn ghost', type: 'button', title: T('Sair da tela cheia (Esc)', 'Exit fullscreen (Esc)', 'Salir de pantalla completa (Esc)'), onclick: () => exitFull() }, '✕ ' + T('Fechar', 'Close', 'Cerrar'));
   closeFullBtn.style.display = 'none';
 
   // ajuda no PONTO DE USO, igual ao treino. O contest-guard abre uma exceção p/ /treino/ajuda/
   // (página estática de instrução), senão o competidor ficaria sem saber como se lê a entrada.
   const helpLink = el('a', { class: 'small', href: '/treino/ajuda/', target: '_blank', rel: 'noopener',
     title: T('Entrada e saída, extensões e o código inicial de cada linguagem',
-             'Input and output, extensions and the starter code for each language') },
-    T('📖 Como enviar', '📖 How to submit'));
+             'Input and output, extensions and the starter code for each language',
+             'Entrada y salida, extensiones y el código inicial de cada lenguaje') },
+    T('📖 Como enviar', '📖 How to submit', '📖 Cómo enviar'));
   const wrap = el('div', { class: 'editor-wrap' },
     el('div', { class: 'editor-bar' },
-      el('label', { class: 'small' }, T('Linguagem: ', 'Language: ')), sel, helpLink,
+      el('label', { class: 'small' }, T('Linguagem: ', 'Language: ', 'Lenguaje: ')), sel, helpLink,
       el('span', { style: 'flex:1' }), expandBtn, popBtn, closeFullBtn),
     editorBox,
     el('div', { class: 'row', style: 'margin-top:.3rem' }, edBtn, edSteps));
@@ -900,17 +906,17 @@ function renderSubmitInline(p) {
       if (p.languages && p.languages.length) {
         const fext = f.name.includes('.') ? f.name.split('.').pop() : '';
         if (!p.languages.map(extCanon).includes(extCanon(fext))) {
-          edSteps.innerHTML = `<span class="error-box">${T(`Este problema só aceita: ${p.languages.join(', ')} — o arquivo .${fext || '?'} não pode ser enviado.`, `This problem only accepts: ${p.languages.join(', ')} — the .${fext || '?'} file cannot be submitted.`)}</span>`;
+          edSteps.innerHTML = `<span class="error-box">${T(`Este problema só aceita: ${p.languages.join(', ')} — o arquivo .${fext || '?'} não pode ser enviado.`, `This problem only accepts: ${p.languages.join(', ')} — the .${fext || '?'} file cannot be submitted.`, `Este problema solo acepta: ${p.languages.join(', ')} — el archivo .${fext || '?'} no se puede enviar.`)}</span>`;
           return;
         }
       }
-      edSteps.textContent = T('Preparando…', 'Preparing…');
+      edSteps.textContent = T('Preparando…', 'Preparing…', 'Preparando…');
       doSubmit({ filename: f.name, code_b64: await fileToBase64(f), source: 'file' }, edSteps, edBtn);
       return;
     }
     const txt = editor ? editor.getValue() : '';
-    if (!txt.trim()) { edSteps.innerHTML = `<span class="error-box">${T('Escreva código ou escolha um arquivo.', 'Write code or choose a file.')}</span>`; return; }
-    edSteps.textContent = T('Preparando…', 'Preparing…');
+    if (!txt.trim()) { edSteps.innerHTML = `<span class="error-box">${T('Escreva código ou escolha um arquivo.', 'Write code or choose a file.', 'Escribe código o elige un archivo.')}</span>`; return; }
+    edSteps.textContent = T('Preparando…', 'Preparing…', 'Preparando…');
     doSubmit({ filename: 'solution.' + sel.value, code_b64: textToBase64(txt), source: 'web' }, edSteps, edBtn);
   });
 
@@ -938,9 +944,10 @@ function renderRoundBanner() {
   if (!r || !r.warmup) return;
   const main = document.querySelector('main.container') || document.body;
   main.prepend(el('div', { id: 'roundBanner', class: 'alert', style: 'font-weight:600' },
-    '🔁 ' + T('AQUECIMENTO', 'WARM-UP') + ' — ' + (r.name || r.slug) + '. '
+    '🔁 ' + T('AQUECIMENTO', 'WARM-UP', 'CALENTAMIENTO') + ' — ' + (r.name || r.slug) + '. '
     + T('Esta rodada serve para testar o ambiente e a sua conta: o placar dela NÃO é o da prova.',
-        'This round is for testing the environment and your account: its scoreboard is NOT the contest one.')));
+        'This round is for testing the environment and your account: its scoreboard is NOT the contest one.',
+        'Esta ronda sirve para probar el entorno y tu cuenta: su marcador NO es el de la competencia.')));
 }
 
 function renderRoundsLink(archived) {
@@ -951,7 +958,8 @@ function renderRoundsLink(archived) {
   ul.append(el('li', { style: 'margin:.3rem 0' },
     el('a', { href: '/contest/rounds/?c=' + encodeURIComponent(CONTEST), target: '_blank' },
       '🔁 ' + T('Rodadas encerradas (placar e submissões do aquecimento)',
-                'Finished rounds (warm-up scoreboard and submissions)'))));
+                'Finished rounds (warm-up scoreboard and submissions)',
+                'Rondas terminadas (marcador y envíos del calentamiento)'))));
 }
 
 async function bootMain() {
@@ -1014,7 +1022,7 @@ async function loadContestBody() {
     try { j = await apiGet('/contest/problems?contest=' + encodeURIComponent(CONTEST), { contest: CONTEST, auth: true }); break; }
     catch {
       if (tent === 4) break;
-      if (lista) lista.innerHTML = `<span class="muted">${T('Carregando a prova…', 'Loading the contest…')}</span>`;
+      if (lista) lista.innerHTML = `<span class="muted">${T('Carregando a prova…', 'Loading the contest…', 'Cargando la competencia…')}</span>`;
       await new Promise(r => setTimeout(r, 350 * Math.pow(2, tent) + Math.random() * 700));
     }
   }
@@ -1025,7 +1033,7 @@ async function loadContestBody() {
     stmtLang = pickStmtLang(STMT_OFFERED, STMT_DEFAULT);
     _stmtRefresh.clear();
   } else {
-    if (lista) lista.innerHTML = `<span class="error-box">${T('Falha ao carregar problemas. Recarregue a página.', 'Failed to load problems. Reload the page.')}</span>`;
+    if (lista) lista.innerHTML = `<span class="error-box">${T('Falha ao carregar problemas. Recarregue a página.', 'Failed to load problems. Reload the page.', 'No se pudieron cargar los problemas. Recarga la página.')}</span>`;
     problems = [];
   }
   renderProblems();
@@ -1045,9 +1053,10 @@ function renderPreStart() {
   const title = document.getElementById('prestartTitle');
   const cd = document.getElementById('prestartCountdown');
   const hint = document.getElementById('prestartHint');
-  if (title) title.textContent = T('A competição ainda não começou', 'The contest has not started yet');
+  if (title) title.textContent = T('A competição ainda não começou', 'The contest has not started yet', 'La competencia todavía no empezó');
   if (hint) hint.textContent = T('Os problemas aparecem automaticamente quando a competição iniciar.',
-    'Problems appear automatically when the contest starts.');
+    'Problems appear automatically when the contest starts.',
+    'Los problemas aparecen automáticamente cuando empieza la competencia.');
   const tick = async () => {
     clearTimeout(preStartTimer);
     const left = (basic.start_time || 0) - Math.floor(Date.now() / 1000);
@@ -1080,13 +1089,13 @@ function renderPreStart() {
 // ============================================================================
 async function boot() {
   if (!CONTEST) {
-    document.body.innerHTML = '<div class="container"><div class="error-box">' + T('Contest não informado (use ?c=&lt;id&gt;).', 'No contest specified (use ?c=&lt;id&gt;).') + '</div></div>';
+    document.body.innerHTML = '<div class="container"><div class="error-box">' + T('Contest não informado (use ?c=&lt;id&gt;).', 'No contest specified (use ?c=&lt;id&gt;).', 'No se indicó ninguna competencia (usa ?c=&lt;id&gt;).') + '</div></div>';
     return;
   }
   try {
     basic = await apiGet('/contest/basic?contest=' + encodeURIComponent(CONTEST), {});
   } catch (e) {
-    document.body.innerHTML = '<div class="container"><div class="error-box">' + T('Contest não encontrado.', 'Contest not found.') + '</div></div>';
+    document.body.innerHTML = '<div class="container"><div class="error-box">' + T('Contest não encontrado.', 'Contest not found.', 'Competencia no encontrada.') + '</div></div>';
     return;
   }
   if (basic.locale) setLang(basic.locale, { persist: false });
@@ -1127,7 +1136,7 @@ async function bootEditorOnly() {
   const host = el('div', { class: 'editor-only-host' });
   const p = list.find((x) => x.problem_id === ONLY_PROB) || list[0];
   if (!p) {
-    host.append(el('div', { class: 'error-box' }, T('Problema não encontrado.', 'Problem not found.')));
+    host.append(el('div', { class: 'error-box' }, T('Problema não encontrado.', 'Problem not found.', 'Problema no encontrado.')));
     mv.append(host); return;
   }
   host.append(el('div', { class: 'row', style: 'margin:.1rem 0 .3rem' },

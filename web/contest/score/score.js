@@ -13,7 +13,7 @@ import { parseICPC, renderICPC } from './score-icpc.js';
 import * as F from './score-filters.js';
 import { parseOBI, renderOBI } from './score-obi.js';
 import { parseGeneric, renderGeneric } from './score-generic.js';
-import { T, setLang, getLang } from '/shared/i18n.js';
+import { T, setLang, getLang, uiLocale } from '/shared/i18n.js';
 import { navLabel } from '/shared/nav-i18n.js';
 
 const qs = new URLSearchParams(location.search);
@@ -90,7 +90,7 @@ function startCountdown() {
     // o aviso + a contagem regressiva até o start. Ao zerar, busca o placar de verdade.
     const toStart = (basic.start_time || 0) - now;
     if (toStart > 0) {
-      eln.textContent = T('Começa em: ', 'Starts in: ') + fmtLeft(toStart);
+      eln.textContent = T('Começa em: ', 'Starts in: ', 'Comienza en: ') + fmtLeft(toStart);
       preLeft.textContent = fmtLeft(toStart);
       pre.classList.remove('hidden');
       wasBefore = true;
@@ -99,8 +99,8 @@ function startCountdown() {
     }
     if (wasBefore) { wasBefore = false; pre.classList.add('hidden'); pollScore(); }
     const left = (basic.end_time || 0) - now;
-    if (left > 0) { eln.textContent = T('Termina em: ', 'Ends in: ') + fmtLeft(left); setTimeout(tick, 1000); }
-    else eln.textContent = T('Competição encerrada', 'Contest ended');
+    if (left > 0) { eln.textContent = T('Termina em: ', 'Ends in: ', 'Termina en: ') + fmtLeft(left); setTimeout(tick, 1000); }
+    else eln.textContent = T('Competição encerrada', 'Contest ended', 'Competencia terminada');
   };
   tick();
 }
@@ -171,17 +171,17 @@ function renderFilters() {
   // mesma coisa nos dois lugares, e é por eles que a bancada de teste mexe nos controles.
   if (coh && (coh.views || []).length > 1) {
     viewSel = el('select', { id: 'fView' },
-      el('option', { value: 'geral' }, T('Geral (com convidados)', 'Overall (with guests)')),
-      el('option', { value: 'oficial' }, T('Oficial', 'Official')));
+      el('option', { value: 'geral' }, T('Geral (com convidados)', 'Overall (with guests)', 'General (con invitados)')),
+      el('option', { value: 'oficial' }, T('Oficial', 'Official', 'Oficial')));
     viewSel.value = cohortView || 'geral';
   } else if (svs.length > 1) {
-    viewSel = el('select', { id: 'fView' }, el('option', { value: '' }, T('Geral (todos)', 'Overall (everyone)')),
+    viewSel = el('select', { id: 'fView' }, el('option', { value: '' }, T('Geral (todos)', 'Overall (everyone)', 'General (todos)')),
       ...svs.map((v) => el('option', { value: v.id }, v.name || v.id)));
     viewSel.value = cohortView || '';
   }
   if (viewSel) {
     viewSel.addEventListener('change', () => { cohortView = viewSel.value; pollScore(); });
-    bar.append(fLabel(T('Placar:', 'Board:'), viewSel));
+    bar.append(fLabel(T('Placar:', 'Board:', 'Marcador:'), viewSel));
   }
 
   const rops = isBoard ? regionOptions() : [];
@@ -193,7 +193,7 @@ function renderFilters() {
     if (flags.length) {
       const byC = new Map();
       flags.forEach(c => { const cc = c.split('-')[0]; if (!byC.has(cc)) byC.set(cc, []); if (c !== cc) byC.get(cc).push(c); });
-      const sel = el('select', { id: 'fFlag' }, el('option', { value: '' }, T('todas', 'all')));
+      const sel = el('select', { id: 'fFlag' }, el('option', { value: '' }, T('todas', 'all', 'todas')));
       [...byC.keys()].sort((a, b) => flagLabel(a).localeCompare(flagLabel(b))).forEach(cc => {
         sel.append(el('option', { value: cc }, flagLabel(cc)));
         byC.get(cc).sort((a, b) => flagLabel(a).localeCompare(flagLabel(b)))
@@ -201,35 +201,35 @@ function renderFilters() {
       });
       sel.value = activeCountry;
       sel.addEventListener('change', () => { activeCountry = sel.value; reRender(); });
-      bar.append(fLabel(T('Bandeira:', 'Flag:'), sel));
+      bar.append(fLabel(T('Bandeira:', 'Flag:', 'Bandera:'), sel));
     }
     if (schools.length) {
-      const sel = el('select', { id: 'fUniv' }, el('option', { value: '' }, T('todas', 'all')),
+      const sel = el('select', { id: 'fUniv' }, el('option', { value: '' }, T('todas', 'all', 'todas')),
         ...schools.map(s => el('option', { value: s }, s)));
       sel.value = activeSchool;
       sel.addEventListener('change', () => { activeSchool = sel.value; reRender(); });
-      bar.append(fLabel(T('Universidade:', 'University:'), sel));
+      bar.append(fLabel(T('Universidade:', 'University:', 'Universidad:'), sel));
     }
     if (rops.length) {
-      const sel = el('select', { id: 'fRegion' }, el('option', { value: '' }, T('todas', 'all')),
+      const sel = el('select', { id: 'fRegion' }, el('option', { value: '' }, T('todas', 'all', 'todas')),
         ...rops.map((r, i) => el('option', { value: String(i) },
           ' '.repeat(r.depth * 2) + (r.name || r.regex))));
       const cur = rops.findIndex(r => (r.name || '') === ((activeRegion && activeRegion.name) || '') &&
                                       (r.regex || '') === ((activeRegion && activeRegion.regex) || ''));
       sel.value = activeRegion && cur >= 0 ? String(cur) : '';
       sel.addEventListener('change', () => setRegion(sel.value === '' ? null : rops[Number(sel.value)]));
-      bar.append(fLabel(T('Sede:', 'Site:'), sel));
+      bar.append(fLabel(T('Sede:', 'Site:', 'Sede:'), sel));
     }
   }
 
   const q = el('input', { id: 'fQ', class: 'filter', type: 'search',
-    placeholder: T('buscar time, universidade, login…', 'search team, university, login…') });
+    placeholder: T('buscar time, universidade, login…', 'search team, university, login…', 'buscar equipo, universidad, usuario…') });
   q.value = searchTerm;
   q.addEventListener('input', () => { searchTerm = q.value; reRender(); });
   bar.append(q);
   bar.append(el('button', { id: 'fClear', type: 'button', onclick: () => {
     activeCountry = ''; activeSchool = ''; searchTerm = ''; setRegion(null); renderFilters();
-  } }, T('limpar filtros', 'clear filters')));
+  } }, T('limpar filtros', 'clear filters', 'limpiar filtros')));
   bar.append(el('span', { class: 'fcount', id: 'fCount' }, ''));
 
   // sincroniza os CONTROLES EXISTENTES com o estado (caminho do "não reconstruir"): só
@@ -265,15 +265,15 @@ function updateCount(shown, total, filtered) {
   const c = document.getElementById('fCount');
   if (!c) return;
   c.textContent = (shown === total && !filtered)
-    ? T(`${total} times`, `${total} teams`)
-    : T(`Mostrando ${shown} de ${total} times`, `Showing ${shown} of ${total} teams`)
-      + (filtered && parsed && parsed.mode === 'icpc' ? T(' · ★ = 1º do recorte', ' · ★ = 1st in selection') : '');
+    ? T(`${total} times`, `${total} teams`, `${total} equipos`)
+    : T(`Mostrando ${shown} de ${total} times`, `Showing ${shown} of ${total} teams`, `Mostrando ${shown} de ${total} equipos`)
+      + (filtered && parsed && parsed.mode === 'icpc' ? T(' · ★ = 1º do recorte', ' · ★ = 1st in selection', ' · ★ = 1º del recorte') : '');
 }
 
 // ---- placar anônimo (agregado: distribuição + quartis, sem nomes) ------------
 function renderAnon(p) {
   const box = document.getElementById('scoreContainer'); box.innerHTML = '';
-  if (!(p.mode === 'icpc' || p.mode === 'obi')) { box.innerHTML = `<span class="muted">${T('Modo anônimo é só p/ ICPC/OBI.', 'Anonymous mode is ICPC/OBI only.')}</span>`; return; }
+  if (!(p.mode === 'icpc' || p.mode === 'obi')) { box.innerHTML = `<span class="muted">${T('Modo anônimo é só p/ ICPC/OBI.', 'Anonymous mode is ICPC/OBI only.', 'El modo anónimo es solo para ICPC/OBI.')}</span>`; return; }
   const isSolved = p.mode === 'icpc' ? (v) => /^\d+\/\d+\/?\*?$/.test(v || '') : (v) => { const n = parseInt(v, 10); return v !== '' && n > 0; };
   const teams = p.teams || [];
   const solves = teams.map((t) => p.probShorts.filter((sn) => isSolved(t.probs[sn])).length);
@@ -285,28 +285,28 @@ function renderAnon(p) {
     el('div', { style: 'font-size:1.7rem;font-weight:800;line-height:1' }, String(big)), el('div', { style: 'color:#64748b;font-size:.82rem' }, sub));
   const bar = (pc) => el('span', { style: 'display:inline-block;height:.7em;background:#1e57c4;border-radius:3px;min-width:2px;vertical-align:middle;width:' + pc + '%' });
   box.append(el('div', { style: 'background:#eef3fb;border-radius:8px;padding:.5rem .7rem;margin-bottom:.6rem;color:#334155' },
-    '🔒 ' + T('Placar anônimo — desempenho individual oculto.', 'Anonymous scoreboard — individual performance hidden.')));
+    '🔒 ' + T('Placar anônimo — desempenho individual oculto.', 'Anonymous scoreboard — individual performance hidden.', 'Marcador anónimo — desempeño individual oculto.')));
   box.append(el('div', { style: 'display:flex;gap:.8rem;flex-wrap:wrap;margin-bottom:.4rem' },
-    card(n, T('participantes', 'participants')), card('≥' + at(0.25), T('top 25% resolveu', 'top 25% solved')),
-    card(at(0.5), T('mediana', 'median')), card('≥' + at(0.75), T('75% resolveu ≥', '75% solved ≥')), card(sorted[0] || 0, T('máximo', 'max'))));
+    card(n, T('participantes', 'participants', 'participantes')), card('≥' + at(0.25), T('top 25% resolveu', 'top 25% solved', 'top 25% resolvió')),
+    card(at(0.5), T('mediana', 'median', 'mediana')), card('≥' + at(0.75), T('75% resolveu ≥', '75% solved ≥', '75% resolvió ≥')), card(sorted[0] || 0, T('máximo', 'max', 'máximo'))));
   const dtb = el('tbody');
   Object.keys(dist).map(Number).sort((a, b) => a - b).forEach((k) => {
     const pc = n ? Math.round(dist[k] / n * 100) : 0;
-    dtb.append(el('tr', {}, el('td', {}, k + ' ' + T('problema(s)', 'problem(s)')), el('td', {}, String(dist[k])), el('td', {}, bar(pc), ' ' + pc + '%')));
+    dtb.append(el('tr', {}, el('td', {}, k + ' ' + T('problema(s)', 'problem(s)', 'problema(s)')), el('td', {}, String(dist[k])), el('td', {}, bar(pc), ' ' + pc + '%')));
   });
-  box.append(el('h3', { style: 'margin:1rem 0 .3rem' }, T('Distribuição (quantos resolveram quantos)', 'Distribution')),
-    el('table', { class: 'score' }, el('thead', {}, el('tr', {}, el('th', {}, T('Resolvidos', 'Solved')), el('th', {}, T('Participantes', 'Participants')), el('th', {}, '%'))), dtb));
+  box.append(el('h3', { style: 'margin:1rem 0 .3rem' }, T('Distribuição (quantos resolveram quantos)', 'Distribution', 'Distribución')),
+    el('table', { class: 'score' }, el('thead', {}, el('tr', {}, el('th', {}, T('Resolvidos', 'Solved', 'Resueltos')), el('th', {}, T('Participantes', 'Participants', 'Participantes')), el('th', {}, '%'))), dtb));
   const ptb = el('tbody');
   probCounts.forEach((x) => { const pc = n ? Math.round(x.c / n * 100) : 0; ptb.append(el('tr', {}, el('td', {}, el('b', {}, x.sn)), el('td', {}, String(x.c)), el('td', {}, bar(pc), ' ' + pc + '%'))); });
-  box.append(el('h3', { style: 'margin:1rem 0 .3rem' }, T('Resolvedores por problema', 'Solvers per problem')),
-    el('table', { class: 'score' }, el('thead', {}, el('tr', {}, el('th', {}, T('Problema', 'Problem')), el('th', {}, T('Resolveram', 'Solved')), el('th', {}, '%'))), ptb));
+  box.append(el('h3', { style: 'margin:1rem 0 .3rem' }, T('Resolvedores por problema', 'Solvers per problem', 'Solucionadores por problema')),
+    el('table', { class: 'score' }, el('thead', {}, el('tr', {}, el('th', {}, T('Problema', 'Problem', 'Problema')), el('th', {}, T('Resolveram', 'Solved', 'Resolvieron')), el('th', {}, '%'))), ptb));
 }
 
 // ---- render principal --------------------------------------------------------
 let parsed = null;
 function reRender() {
   const box = document.getElementById('scoreContainer');
-  if (!parsed) { box.innerHTML = `<span class="muted">${T('Placar indisponível.', 'Scoreboard unavailable.')}</span>`; return; }
+  if (!parsed) { box.innerHTML = `<span class="muted">${T('Placar indisponível.', 'Scoreboard unavailable.', 'Marcador no disponible.')}</span>`; return; }
   // modo anônimo é agregado: filtro de linha não se aplica, então a barra sai de cena (senão
   // ficaria um contador mentindo sobre um placar que não mostra times)
   const fb = document.getElementById('scoreFilters');
@@ -381,7 +381,7 @@ function setFrozenNotice(on) {
   if (!on) return;
   const t = (basic && basic.freeze_time) || 0;
   const el2 = document.getElementById('freezeSince');
-  if (el2) el2.textContent = t ? new Date(t * 1000).toLocaleTimeString() : '';
+  if (el2) el2.textContent = t ? new Date(t * 1000).toLocaleTimeString(uiLocale()) : '';
 }
 
 async function pollScore() {
@@ -399,12 +399,12 @@ async function pollScore() {
     const box = document.getElementById('scoreContainer');
     if (basic && basic.secret && !isAuth) {
       // contest SUPER SECRETO: o placar exige sessão do contest — convite ao login, sem erro cru
-      box.innerHTML = `<div class="section" style="text-align:center"><h2>🔒 ${T('Contest privado', 'Private contest')}</h2>
-        <p class="muted">${T('Entre no contest para ver o placar.', 'Log in to the contest to view the scoreboard.')}</p>
-        <p><a class="btn" href="/contest/?c=${encodeURIComponent(CONTEST)}">${T('Entrar →', 'Log in →')}</a></p></div>`;
+      box.innerHTML = `<div class="section" style="text-align:center"><h2>🔒 ${T('Contest privado', 'Private contest', 'Competencia privada')}</h2>
+        <p class="muted">${T('Entre no contest para ver o placar.', 'Log in to the contest to view the scoreboard.', 'Inicia sesión en la competencia para ver el marcador.')}</p>
+        <p><a class="btn" href="/contest/?c=${encodeURIComponent(CONTEST)}">${T('Entrar →', 'Log in →', 'Iniciar sesión →')}</a></p></div>`;
       return;
     }
-    box.innerHTML = `<span class="error-box">${T('Falha ao carregar o placar.', 'Failed to load scoreboard.')}</span>`; return;
+    box.innerHTML = `<span class="error-box">${T('Falha ao carregar o placar.', 'Failed to load scoreboard.', 'Error al cargar el marcador.')}</span>`; return;
   }
 
   const lines = txt.replace(/\r/g, '').split('\n');
@@ -414,7 +414,7 @@ async function pollScore() {
   if (!dataLines.length) {
     // só o modo (placar ainda não gerado)
     parsed = null;
-    document.getElementById('scoreContainer').innerHTML = `<span class="muted">${T('Placar ainda não gerado.', 'Scoreboard not generated yet.')}</span>`;
+    document.getElementById('scoreContainer').innerHTML = `<span class="muted">${T('Placar ainda não gerado.', 'Scoreboard not generated yet.', 'El marcador aún no se ha generado.')}</span>`;
   } else if (/^icpc/.test(mode)) {
     // flag `s` na linha do modo = células em SEGUNDOS (R6) — o parse exibe minutos
     parsed = parseICPC(dataLines, BALLOONS, mode.split(/\s+/).includes('s'), mode.split(/\s+/).includes('g'));
@@ -439,11 +439,11 @@ async function pollScore() {
 // ---- boot --------------------------------------------------------------------
 let BALLOONS = {};
 async function boot() {
-  if (!CONTEST) { document.body.innerHTML = '<div class="container"><div class="error-box">' + T('Contest não informado (use ?c=&lt;id&gt;).', 'No contest specified (use ?c=&lt;id&gt;).') + '</div></div>'; return; }
+  if (!CONTEST) { document.body.innerHTML = '<div class="container"><div class="error-box">' + T('Contest não informado (use ?c=&lt;id&gt;).', 'No contest specified (use ?c=&lt;id&gt;).', 'No se indicó ninguna competencia (usa ?c=&lt;id&gt;).') + '</div></div>'; return; }
   try { basic = await apiGet('/contest/basic?contest=' + encodeURIComponent(CONTEST), {}); }
-  catch { document.body.innerHTML = '<div class="container"><div class="error-box">' + T('Contest não encontrado.', 'Contest not found.') + '</div></div>'; return; }
+  catch { document.body.innerHTML = '<div class="container"><div class="error-box">' + T('Contest não encontrado.', 'Contest not found.', 'Competencia no encontrada.') + '</div></div>'; return; }
   if (basic.locale) setLang(basic.locale, { persist: false });
-  document.title = T('Placar — ', 'Scoreboard — ') + (basic.contest_name || 'Contest') + ' — MOJ';
+  document.title = T('Placar — ', 'Scoreboard — ', 'Marcador — ') + (basic.contest_name || 'Contest') + ' — MOJ';
   document.getElementById('contestTitle').textContent = basic.contest_name || 'Contest';
   document.getElementById('backBtn').href = '/contest/?c=' + encodeURIComponent(CONTEST);
   startCountdown();
@@ -499,7 +499,7 @@ async function boot() {
     const cb = el('input', { type: 'checkbox' }); cb.checked = anonMode;
     cb.addEventListener('change', () => { anonMode = cb.checked; localStorage.setItem('moj_score_anon_' + CONTEST, cb.checked ? '1' : '0'); reRender(); });
     document.getElementById('noAnim').parentNode.parentNode.append(
-      el('label', { class: 'small', style: 'margin-left:.6rem' }, cb, ' ' + T('Anônimo', 'Anonymous')));
+      el('label', { class: 'small', style: 'margin-left:.6rem' }, cb, ' ' + T('Anônimo', 'Anonymous', 'Anónimo')));
   }
 
   // COORTES: o AVISO p/ quem é convidado (o seletor de placar mora na barra de filtros, junto
@@ -509,7 +509,8 @@ async function boot() {
     const main = document.querySelector('main.container') || document.body;
     main.prepend(el('div', { class: 'alert', style: 'font-weight:600' },
       T(`🏅 Você está na categoria “${coh.name}” (convidado): aparece neste placar, mas fora da classificação oficial.`,
-        `🏅 You are in the “${coh.name}” category (guest): you show up on this scoreboard, but outside the official ranking.`)));
+        `🏅 You are in the “${coh.name}” category (guest): you show up on this scoreboard, but outside the official ranking.`,
+        `🏅 Estás en la categoría “${coh.name}” (invitado): apareces en este marcador, pero fuera de la clasificación oficial.`)));
   }
 
   // ordenação por clique no cabeçalho (delegação)

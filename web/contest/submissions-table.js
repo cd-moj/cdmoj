@@ -41,13 +41,13 @@ export function makeSubmissionsTable({ contest, basic, problems, userinfo, filte
       if (!r.ok) throw new Error('HTTP ' + r.status);
       const a = el('a', { href: URL.createObjectURL(await r.blob()), download: filename });
       document.body.append(a); a.click(); a.remove();
-    } catch { alert(T('Falha ao baixar arquivo/log.', 'Failed to download file/log.')); }
+    } catch { alert(T('Falha ao baixar arquivo/log.', 'Failed to download file/log.', 'No se pudo descargar el archivo/registro.')); }
   }
   async function openReportAuthed(path) {
     try {
       const r = await fetch('/api/v1' + path, { headers: { Authorization: 'Bearer ' + getToken(contest) } });
       openHtmlReport(await r.text());
-    } catch { alert(T('Falha ao abrir o report.', 'Failed to open the report.')); }
+    } catch { alert(T('Falha ao abrir o report.', 'Failed to open the report.', 'No se pudo abrir el informe.')); }
   }
 
   // EM LUGAR (regra da casa): o poll (5–10 s com pendente) só troca o DOM quando a ASSINATURA
@@ -60,7 +60,7 @@ export function makeSubmissionsTable({ contest, basic, problems, userinfo, filte
       const box = el('span', {});
       const mk = (label, val) => box.append(el('span', { class: 'tag' + (subFilter === val ? ' active' : ''),
         onclick: () => { subFilter = val; renderFilter(); renderTable(); } }, label));
-      mk(T('Todos', 'All'), 'ALL');
+      mk(T('Todos', 'All', 'Todos'), 'ALL');
       probs().forEach((p) => mk(p.short_name || p.problem_id, p.problem_id));
       return box;
     });
@@ -81,17 +81,17 @@ export function makeSubmissionsTable({ contest, basic, problems, userinfo, filte
       if (sortField === 'verdict') return sortAsc ? (a.verdict || '').localeCompare(b.verdict || '') : (b.verdict || '').localeCompare(a.verdict || '');
       return 0;
     });
-    if (!rows.length) return el('span', { class: 'muted small' }, T('Nenhuma submissão ainda.', 'No submissions yet.'));
+    if (!rows.length) return el('span', { class: 'muted small' }, T('Nenhuma submissão ainda.', 'No submissions yet.', 'Aún no hay envíos.'));
     const arrow = (f) => sortField === f ? (sortAsc ? ' ▲' : ' ▼') : '';
     const th = (label, f) => el('th', { onclick: () => { sortAsc = (sortField === f) ? !sortAsc : false; sortField = f; renderTable(); } }, label + arrow(f));
     const head = el('thead', {}, el('tr', {},
-      th(T('Tempo', 'Time'), 'epoch'), th(T('Problema', 'Problem'), 'problem'), el('th', {}, T('Arquivo', 'File')),
-      th(T('Resultado', 'Result'), 'verdict'), el('th', {}, T('Data', 'Date')), canLog ? el('th', {}, 'Log') : null));
+      th(T('Tempo', 'Time', 'Tiempo'), 'epoch'), th(T('Problema', 'Problem', 'Problema'), 'problem'), el('th', {}, T('Arquivo', 'File', 'Archivo')),
+      th(T('Resultado', 'Result', 'Resultado'), 'verdict'), el('th', {}, T('Data', 'Date', 'Fecha')), canLog ? el('th', {}, 'Log') : null));
     const tb = el('tbody');
     rows.forEach((s) => {
       const pending = isPending(s.verdict);
       const fileLink = el('a', { href: '#', onclick: (e) => { e.preventDefault();
-        downloadAuthed(`/submission/source?contest=${enc(contest)}&id=${enc(s.subid)}&time=${enc(s.epoch)}`, s.subid + '.' + (s.lang || 'txt').toLowerCase()); } }, T('cód', 'src'));
+        downloadAuthed(`/submission/source?contest=${enc(contest)}&id=${enc(s.subid)}&time=${enc(s.epoch)}`, s.subid + '.' + (s.lang || 'txt').toLowerCase()); } }, T('cód', 'src', 'cód'));
       // detalhe sob o veredicto (pontos/grupos): o servidor redige por modo — em icpc vem null
       const rtxt = pending ? '' : resumoText(subSumm[s.subid]);
       const vcell = el('td', {}, el('span', { class: 'verdict ' + verdictClass(s.verdict) },

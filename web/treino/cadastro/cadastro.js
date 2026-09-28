@@ -30,14 +30,16 @@ async function poll(nonce) {
   $('step2').classList.add('hidden');
   if (st === 'created') {
     showResult('ok', T(`Conta criada! Seu login é <b>${j.login}</b>. Enviamos a senha por mensagem privada no Telegram. <br><a href="/treino/">Ir para o login →</a>`,
-      `Account created! Your login is <b>${j.login}</b>. We sent your password via private message on Telegram. <br><a href="/treino/">Go to login →</a>`));
+      `Account created! Your login is <b>${j.login}</b>. We sent your password via private message on Telegram. <br><a href="/treino/">Go to login →</a>`,
+      `¡Cuenta creada! Tu usuario es <b>${j.login}</b>. Te enviamos la contraseña por mensaje privado en Telegram. <br><a href="/treino/">Ir a iniciar sesión →</a>`));
   } else if (st === 'linked') {
-    showResult('ok', T(`Telegram vinculado à conta <b>${j.login}</b>.`, `Telegram linked to account <b>${j.login}</b>.`));
+    showResult('ok', T(`Telegram vinculado à conta <b>${j.login}</b>.`, `Telegram linked to account <b>${j.login}</b>.`, `Telegram vinculado a la cuenta <b>${j.login}</b>.`));
   } else if (st === 'already_linked') {
     showResult('info', T(`Você já tem uma conta: <b>${j.login}</b>. Se esqueceu a senha, envie <code>/trocarsenha</code> ao bot no Telegram.`,
-      `You already have an account: <b>${j.login}</b>. If you forgot your password, send <code>/trocarsenha</code> to the bot on Telegram.`));
+      `You already have an account: <b>${j.login}</b>. If you forgot your password, send <code>/trocarsenha</code> to the bot on Telegram.`,
+      `Ya tienes una cuenta: <b>${j.login}</b>. Si olvidaste la contraseña, envía <code>/trocarsenha</code> al bot en Telegram.`));
   } else { // expired / desconhecido
-    showResult('err', T('O link de confirmação expirou. Recarregue a página e tente de novo.', 'The confirmation link expired. Reload the page and try again.'));
+    showResult('err', T('O link de confirmação expirou. Recarregue a página e tente de novo.', 'The confirmation link expired. Reload the page and try again.', 'El enlace de confirmación expiró. Vuelve a cargar la página e inténtalo de nuevo.'));
   }
 }
 
@@ -60,11 +62,11 @@ $('form').addEventListener('submit', async (e) => {
   } catch (err) {
     $('submit').disabled = false;
     const code = err.code || '';
-    const msg = code === 'login_taken' ? T('Esse login já está em uso — escolha outro.', 'This login is already taken — choose another.')
-      : code === 'login_reserved' ? T('Esse login não é permitido.', 'This login is not allowed.')
-      : code === 'login_invalid' ? T('Login inválido (2–32 caracteres: letras, números, . _ -).', 'Invalid login (2–32 characters: letters, numbers, . _ -).')
-      : code === 'store_not_v2' ? T('O cadastro está temporariamente indisponível.', 'Sign up is temporarily unavailable.')
-      : (err.message || T('Falha ao iniciar o cadastro.', 'Failed to start sign up.'));
+    const msg = code === 'login_taken' ? T('Esse login já está em uso — escolha outro.', 'This login is already taken — choose another.', 'Ese usuario ya está en uso — elige otro.')
+      : code === 'login_reserved' ? T('Esse login não é permitido.', 'This login is not allowed.', 'Ese usuario no está permitido.')
+      : code === 'login_invalid' ? T('Login inválido (2–32 caracteres: letras, números, . _ -).', 'Invalid login (2–32 characters: letters, numbers, . _ -).', 'Usuario inválido (2–32 caracteres: letras, números, . _ -).')
+      : code === 'store_not_v2' ? T('O cadastro está temporariamente indisponível.', 'Sign up is temporarily unavailable.', 'El registro está temporalmente no disponible.')
+      : (err.message || T('Falha ao iniciar o cadastro.', 'Failed to start sign up.', 'Error al iniciar el registro.'));
     showResult('err', msg);
   }
 });

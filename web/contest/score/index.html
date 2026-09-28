@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="pt-br" data-en-doctitle="Scoreboard — Contest — MOJ">
+<html lang="pt-br" data-en-doctitle="Scoreboard — Contest — MOJ" data-es-doctitle="Marcador — Competencia — MOJ">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -29,7 +29,7 @@
           <span class="badge-beta">BETA</span></a>
         <div class="spacer"></div>
         <span class="countdown" id="contestCountdown"></span>
-        <a class="btn ghost" id="backBtn" href="#">Contest</a>
+        <a class="btn ghost" id="backBtn" href="#" data-en="Contest" data-es="Competencia">Contest</a>
       </div>
     </div>
   </header>
@@ -37,30 +37,30 @@
   <nav class="quicknav"><div class="bar" id="contestNav"></div></nav>
 
   <main class="container">
-    <div class="section notice hidden" id="publicNotice" data-en="You are viewing the scoreboard in public mode (restricted or delayed data).">
+    <div class="section notice hidden" id="publicNotice" data-en="You are viewing the scoreboard in public mode (restricted or delayed data)." data-es="Estás viendo el marcador en modo público (datos restringidos o retrasados).">
       Você está visualizando o placar em modo público (dados restritos ou atrasados).
     </div>
     <div class="section notice hidden" id="prestartNotice">
-      ⏳ <span data-en="The contest has not started yet — this is the roster of registered teams; the full scoreboard appears when it starts. Starts in: ">A competição ainda não começou — este é o quadro de times inscritos; o placar completo aparece no início. Começa em: </span><b id="prestartLeft"></b>
+      ⏳ <span data-en="The contest has not started yet — this is the roster of registered teams; the full scoreboard appears when it starts. Starts in: " data-es="La competencia todavía no ha empezado — esta es la lista de equipos inscritos; el marcador completo aparece cuando empiece. Empieza en: ">A competição ainda não começou — este é o quadro de times inscritos; o placar completo aparece no início. Começa em: </span><b id="prestartLeft"></b>
     </div>
     <!-- quem liga/desliga é o cabeçalho X-MOJ-Frozen do /contest/score (ver score.js): só o
          servidor sabe se ESTE espectador recebeu o placar congelado ou o completo -->
     <div class="section notice hidden" id="freezeNotice">
-      🧊 <b data-en="Scoreboard frozen.">Placar congelado.</b>
-      <span data-en=" From this point on the results stop appearing — everyone sees the standings as they were at ">A partir daqui os resultados deixam de aparecer — todos veem a classificação como estava às </span><b id="freezeSince"></b><span data-en=". Keep solving: your submissions are still being judged normally.">. Continue resolvendo: suas submissões seguem sendo julgadas normalmente.</span>
+      🧊 <b data-en="Scoreboard frozen." data-es="Marcador congelado.">Placar congelado.</b>
+      <span data-en=" From this point on the results stop appearing — everyone sees the standings as they were at " data-es=" Desde este punto los resultados dejan de aparecer — todos ven la clasificación tal como estaba a las ">A partir daqui os resultados deixam de aparecer — todos veem a classificação como estava às </span><b id="freezeSince"></b><span data-en=". Keep solving: your submissions are still being judged normally." data-es=". Sigue resolviendo: tus envíos se siguen evaluando con normalidad.">. Continue resolvendo: suas submissões seguem sendo julgadas normalmente.</span>
     </div>
     <!-- participação virtual (módulo `virtual`): aparece com a prova ENCERRADA; a página mora no
          site principal (o token do treino é de outra origem) — quem decide se vale é a API de lá -->
     <div class="section notice hidden" id="virtualNotice">
-      🕹️ <span data-en="This contest is over. You can redo it against this scoreboard, in your own time: ">Esta prova acabou. Dá para refazê-la contra este placar, no seu tempo: </span><a id="virtualLink" href="#" data-en="virtual participation / replay →">participação virtual / replay →</a>
+      🕹️ <span data-en="This contest is over. You can redo it against this scoreboard, in your own time: " data-es="Esta competencia terminó. Puedes rehacerla contra este marcador, a tu propio ritmo: ">Esta prova acabou. Dá para refazê-la contra este placar, no seu tempo: </span><a id="virtualLink" href="#" data-en="virtual participation / replay →" data-es="participación virtual / repetición →">participação virtual / replay →</a>
     </div>
     <div class="section">
       <div class="row" style="margin-bottom:.6rem">
-        <label class="small"><input type="checkbox" id="noAnim"> <span data-en="Disable animation">Desabilitar animação</span></label>
+        <label class="small"><input type="checkbox" id="noAnim"> <span data-en="Disable animation" data-es="Desactivar animación">Desabilitar animação</span></label>
       </div>
       <!-- coorte + bandeira + universidade + sede + busca + contador: montada pelo score.js -->
       <div class="fbar hidden" id="scoreFilters"></div>
-      <div id="scoreContainer"><span class="muted" data-en="Loading…">carregando…</span></div>
+      <div id="scoreContainer"><span class="muted" data-en="Loading…" data-es="Cargando…">carregando…</span></div>
     </div>
   </main>
 

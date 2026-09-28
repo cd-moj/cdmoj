@@ -319,7 +319,7 @@ export function heatmap(countsByDate, opts = {}) {
       const x = padLeft + c * (cell + gap), y = padTop + r * (cell + gap);
       const rect = svgEl('rect', { x, y, width: cell, height: cell, rx: 2, fill: shade(v) });
       const title = svgEl('title', {});
-      title.textContent = opts.fmt ? opts.fmt(v, tag(cur)) : `${tag(cur)}: ${v} ${v === 1 ? T('submissão', 'submission') : T('submissões', 'submissions')}`;
+      title.textContent = opts.fmt ? opts.fmt(v, tag(cur)) : `${tag(cur)}: ${v} ${v === 1 ? T('submissão', 'submission', 'envío') : T('submissões', 'submissions', 'envíos')}`;
       rect.append(title); svg.append(rect);
       cur.setDate(cur.getDate() + 1);
     }
@@ -331,14 +331,14 @@ export function heatmap(countsByDate, opts = {}) {
   legend.className = 'legend';
   const lg = document.createElement('span');
   lg.style.cssText = 'display:inline-flex;align-items:center;gap:.25rem';
-  lg.append(document.createTextNode(T('menos ', 'less ')));
+  lg.append(document.createTextNode(T('menos ', 'less ', 'menos ')));
   [0, 0.3, 0.5, 0.72, 0.95].forEach(l => {
     const s = document.createElement('span');
     s.className = 'sw';
     s.style.background = l === 0 ? '#eef3fb' : mix('#eef3fb', base, l);
     lg.append(s);
   });
-  lg.append(document.createTextNode(T(' mais', ' more')));
+  lg.append(document.createTextNode(T(' mais', ' more', ' más')));
   legend.append(lg);
   wrap.append(legend);
   return wrap;
@@ -353,7 +353,7 @@ export function heatmap(countsByDate, opts = {}) {
 export function heatmapGrid(cells, opts = {}) {
   const cell = opts.cell || 22, gap = opts.gap || 4;
   const base = opts.color || '#c4314b';
-  const fmt = opts.fmt || ((v) => T('média ', 'avg ') + v + 's');
+  const fmt = opts.fmt || ((v) => T('média ', 'avg ', 'prom ') + v + 's');
   const DAYS = T(['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'],
     ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
     ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb']);
@@ -398,7 +398,7 @@ export function heatmapGrid(cells, opts = {}) {
       const title = svgEl('title', {});
       title.textContent = g
         ? `${DAYS[d]} ${h}h · ${fmt(v)} · ${g.n} ${g.n === 1 ? 'sub' : 'subs'}`
-        : `${DAYS[d]} ${h}h · ${T('sem dados', 'no data')}`;
+        : `${DAYS[d]} ${h}h · ${T('sem dados', 'no data', 'sin datos')}`;
       rect.append(title); svg.append(rect);
     }
   }
@@ -409,14 +409,14 @@ export function heatmapGrid(cells, opts = {}) {
   legend.className = 'legend';
   const lg = document.createElement('span');
   lg.style.cssText = 'display:inline-flex;align-items:center;gap:.25rem';
-  lg.append(document.createTextNode(T('menos ', 'less ')));
+  lg.append(document.createTextNode(T('menos ', 'less ', 'menos ')));
   [0, 0.3, 0.5, 0.72, 0.95].forEach(l => {
     const s = document.createElement('span');
     s.className = 'sw';
     s.style.background = l === 0 ? '#eef3fb' : mix('#eef3fb', base, l);
     lg.append(s);
   });
-  lg.append(document.createTextNode(T(' mais', ' more')));
+  lg.append(document.createTextNode(T(' mais', ' more', ' más')));
   legend.append(lg);
   wrap.append(legend);
   return wrap;
