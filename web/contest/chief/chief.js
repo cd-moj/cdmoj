@@ -10,7 +10,7 @@ import { makeReviewBoard } from '/shared/review-board.js';
 import { makeDocsTab } from '/contest/admin/docs-tab.js';
 import { makeRoundsTab } from '/contest/admin/rounds-tab.js';
 import { makeStatementLangsPanel } from '/contest/admin/statement-langs-panel.js';
-import { T } from '/shared/i18n.js';
+import { T, docHref } from '/shared/i18n.js';
 
 const qs = new URLSearchParams(location.search);
 const CONTEST = (window.__MOJ_CONTEST || qs.get('c') || '');
@@ -80,7 +80,7 @@ const TABS = () => [
   ...(MODS.has('documentos') ? [{ id: 'docs', label: T('📄 Documentos', '📄 Documents', '📄 Documentos'), make: () => makeDocsTab(CONTEST) }] : []),
   ...(MODS.has('rodadas') ? [{ id: 'rounds', label: T('🔁 Rodadas', '🔁 Rounds', '🔁 Rondas'), make: () => makeRoundsTab(CONTEST, { readOnly: true }) }] : []),
 ];
-const MANUAL_LINK = () => ({ href: '/docs/MANUAL-ADMIN.html', label: T('📖 Manual do organizador', "📖 Organizer's manual", "📖 Manual del organizador") });
+const MANUAL_LINK = () => ({ href: docHref('MANUAL-ADMIN'), label: T('📖 Manual do organizador', "📖 Organizer's manual", "📖 Manual del organizador") });
 
 async function boot() {
   if (!CONTEST) { app.innerHTML = '<div class="error-box">' + T('Contest não informado.', 'Contest not specified.', 'Competencia no especificada.') + '</div>'; return; }

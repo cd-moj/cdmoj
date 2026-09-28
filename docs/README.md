@@ -7,6 +7,11 @@ navegação), rode `bash docs/build-html.sh` e abra `docs/html/index.html`.
 > atualiza a doc no **mesmo commit** — rotas/campos em [API.md](API.md) **e** em
 > `../web/api/openapi.json` (os dois em sincronia); arquitetura/fluxo em
 > [OVERVIEW.md](OVERVIEW.md)/[FLOW.md](FLOW.md); regras de trabalho nos `CLAUDE.md`.
+>
+> **Docs em pt · en · es:** os de usuário da lista `DOCS_I18N` (`docs/i18n.sh`) têm tradução em
+> `en/` e `es/`, que muda no **mesmo commit** do PT: `bash docs/i18n.sh diff <DOC>`, aplicar,
+> `bash docs/i18n.sh stamp <DOC>`. O `server/test/smoke-docs-i18n.sh` reprova tradução atrasada.
+> Regras e estilo em [I18N.md](I18N.md), seção "Documentação".
 
 - **[OVERVIEW.md](OVERVIEW.md)** — **comece aqui.** Visão geral: arquitetura, estrutura
   do repositório, camada de API, frontend e tudo o que existe (treino, criação de contest,
@@ -22,7 +27,7 @@ navegação), rode `bash docs/build-html.sh` e abra `docs/html/index.html`.
   O roteiro prático de montar um pacote fica no `README.md` do **mojtools**.
 - **[VIRTUAL.md](VIRTUAL.md)** — participação virtual: refazer um contest encerrado contra o placar oficial (portão, regra de desistência, feed, motor do placar)
 - **[SCOREBOARD.md](SCOREBOARD.md)** — formato do TXT de placar e como adicionar um modo
-- **[I18N.md](I18N.md)** — idiomas da interface (pt · en · es): `T(pt, en, es)`, `data-en`/`data-es`, `LOCALE` do contest, o que o servidor traduz (papel, relatório, DM, Central) e o glossário do espanhol
+- **[I18N.md](I18N.md)** — idiomas da interface (pt · en · es): `T(pt, en, es)`, `data-en`/`data-es`, `LOCALE` do contest, o que o servidor traduz (papel, relatório, DM, Central) e o glossário do espanhol; seção "Documentação": os docs de usuário em en/es e como mantê-los
   (`updatescore-<modo>.sh` + `score-<modo>.js`).
 - **[DEPLOY.md](DEPLOY.md)** — nginx + fcgiwrap + units systemd (daemon `judged`, bot) + juízes
   **pull** e o subdomínio de contest.

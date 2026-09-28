@@ -5,6 +5,7 @@
 //   <input data-en-ph="Search…" data-es-ph="Buscar…" placeholder="Buscar…">    -> placeholder
 //   <a data-en-title="Edit profile" data-es-title="Editar perfil" title="…">   -> title
 //   <h1 data-en-html="Welcome <b>back</b>" data-es-html="…">Bem-vindo…</h1>     -> innerHTML (raro)
+//   <a href="/docs/X.html" data-en-href="/docs/en/X.html" data-es-href="…">      -> href (doc traduzido)
 //   <html data-en-doctitle="MOJ — Home" data-es-doctitle="MOJ — Inicio">       -> document.title
 // O PT fica no conteúdo/atributo normal (idioma base) e é CAPTURADO em data-pt-* na primeira
 // aplicação — assim a troca é REVERSÍVEL (qualquer idioma → PT restaura; antes, abrir com
@@ -21,6 +22,8 @@ const KINDS = [
   ['-html', 'ptHtml', (e) => e.innerHTML, (e, v) => { e.innerHTML = v; }],
   ['-ph', 'ptPh', (e) => e.getAttribute('placeholder') || '', (e, v) => e.setAttribute('placeholder', v)],
   ['-title', 'ptTitle', (e) => e.getAttribute('title') || '', (e, v) => e.setAttribute('title', v)],
+  // getAttribute, nunca `.href` (a propriedade devolve a URL ABSOLUTA e o PT capturado mudaria de forma)
+  ['-href', 'ptHref', (e) => e.getAttribute('href') || '', (e, v) => e.setAttribute('href', v)],
 ];
 
 export function i18nDOM(root = document) {

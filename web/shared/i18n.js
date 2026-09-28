@@ -55,6 +55,15 @@ function applyHtmlLang() {
   try { document.documentElement.lang = LANG === 'pt' ? 'pt-br' : LANG; } catch (_) {}
 }
 
+// DOCUMENTAÇÃO traduzida (docs/I18N.md, "Documentação"): os docs de USUÁRIO que existem em
+// /docs/en/ e /docs/es/. ESPELHO do DOCS_I18N de docs/i18n.sh (paridade no smoke-docs-i18n.sh).
+export const DOCS_I18N = [];
+// docHref('MANUAL-ADMIN') — o link do doc no idioma da tela (o LOCALE do contest manda, como no T());
+// doc não traduzido (ou pt) = o PT de sempre. No HTML estático o par é data-en-href/data-es-href.
+export function docHref(name) {
+  return (LANG !== 'pt' && DOCS_I18N.includes(name)) ? `/docs/${LANG}/${name}.html` : `/docs/${name}.html`;
+}
+
 // uiLocale() — a tag do Intl p/ datas/números no idioma da INTERFACE (toLocaleString(uiLocale(), …)).
 // es-419 = espanhol da América Latina (o público das provas em espanhol).
 export function uiLocale() { return LANG === 'pt' ? 'pt-BR' : (LANG === 'es' ? 'es-419' : 'en-US'); }

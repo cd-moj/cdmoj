@@ -1688,6 +1688,13 @@ mexa na outra. O índice separa as coleções por `\u001f` (nome é texto livre:
 
 - Commits em PT, presente, prefixados pelo componente (ex.: `problemas: …`, `score/stats: …`). O rodapé
   leva **só** `Co-Authored-By:` — **nunca** uma linha `Claude-Session:` (ruído no histórico).
+- **DOCS DE USUÁRIO EM pt · en · es** (`docs/i18n.sh` `DOCS_I18N`, espelho em `web/shared/i18n.js`):
+  mudou um doc da lista ⇒ no MESMO commit `bash docs/i18n.sh diff <DOC>` (o que mudou no PT desde o
+  carimbo), aplicar em `docs/en/` e `docs/es/` (inglês em STE; comando/código byte a byte iguais, só
+  comentário se traduz; rótulo de tela como a UI o mostra) e `bash docs/i18n.sh stamp <DOC>`. Porta:
+  `server/test/smoke-docs-i18n.sh` (também no `make check`). Link da UI p/ doc traduzido: `docHref()` no
+  JS, `data-en-href`/`data-es-href` no HTML (o `i18n-coverage.sh` cobra). Regras: `docs/I18N.md`,
+  "Documentação".
 - **Documentação junto com o código** (doc atrasada = bug): rota/campo novo → `docs/API.md` **e**
   `web/api/openapi.json` (manter os dois em sincronia); arquitetura/fluxo → `docs/OVERVIEW.md`/`docs/FLOW.md`.
   `bash docs/build-html.sh` p/ refazer o HTML.

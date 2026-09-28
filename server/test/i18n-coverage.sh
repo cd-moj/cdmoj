@@ -6,7 +6,9 @@
 #   3. o espanhol não traz marca de português (ã, õ, ç, "não", "você", "-ção"…) — o sintoma de
 #      tradução esquecida ou colada do PT;
 #   4. os textos que o servidor manda à Central (checklist, encerrar evento, bloqueios de rodada)
-#      só usam os helpers trilíngues (add3/_add com 3 idiomas) — o antigo `add` só-PT sumiu.
+#      só usam os helpers trilíngues (add3/_add com 3 idiomas) — o antigo `add` só-PT sumiu;
+#   5. link para doc TRADUZIDO (docs/i18n.sh) abre no idioma da tela: data-en-href/data-es-href no
+#      HTML, docHref() no JS — link novo não nasce só-PT.
 # Roda sem subir nada. Precisa de gjs e python3 (os outros *.gjs.sh já precisam).
 set -u
 ROOT="$(cd "$(dirname "$(readlink -f "$0")")/../.." && pwd)"
@@ -89,6 +91,32 @@ ck "todo data-en* do HTML tem o data-es* na mesma tag" '[[ -z "$MISS" ]]' "$MISS
 python3 -c 'import json,sys; json.dump(json.load(open(sys.argv[1]))["es"], open(sys.argv[2],"w"))' "$T/h.json" "$T/es-h.json"
 PTH="$(python3 "$T/pt.py" "$T/es-h.json")"
 ck "data-es* não tem marca de português" '[[ -z "$PTH" ]]' "$PTH"
+
+# --- 5: link para doc TRADUZIDO (docs/i18n.sh DOCS_I18N) abre no idioma da tela ---------------------
+# HTML: <a href="/docs/X.html"> leva data-en-href="/docs/en/X.html" data-es-href="/docs/es/X.html";
+# JS: nunca a string '/docs/X.html' crua — docHref('X') (web/shared/i18n.js)
+DOCSL="$(bash "$ROOT/docs/i18n.sh" list 2>/dev/null | tr '\n' ' ')"
+cat > "$T/dl.py" <<'EOF'
+import sys, re
+from html.parser import HTMLParser
+docs = set(sys.argv[2].split()); bad = []
+class P(HTMLParser):
+    def __init__(s, f): super().__init__(convert_charrefs=True); s.f = f
+    def handle_starttag(s, tag, attrs):
+        d = dict(attrs); m = re.match(r'^/docs/([^/?#]+)\.html(.*)$', d.get('href') or '')
+        if tag != 'a' or not m or m.group(1) not in docs: return
+        x, rest = m.group(1), m.group(2)
+        for l in ('en', 'es'):
+            if d.get('data-%s-href' % l) != '/docs/%s/%s.html%s' % (l, x, rest):
+                bad.append('%s:%d <a href="/docs/%s.html"> sem data-%s-href="/docs/%s/%s.html"' % (s.f, s.getpos()[0], x, l, l, x))
+for f in open(sys.argv[1]).read().split():
+    p = P(f); p.feed(open(f, encoding='utf-8').read()); p.close()
+print('\n'.join(bad))
+EOF
+DL="$(python3 "$T/dl.py" "$T/html.txt" "$DOCSL")"
+ck "link HTML p/ doc traduzido leva data-en-href/data-es-href" '[[ -z "$DL" ]]' "$DL"
+DJ=""; for x in $DOCSL; do DJ+="$(grep -nE "['\"\`]/docs/$x\.html" $(cat "$T/js.txt") 2>/dev/null)"; done
+ck "JS não cita /docs/<traduzido>.html cru (use docHref)" '[[ -z "$DJ" ]]' "$DJ"
 
 # --- 4: servidor → Central (texto que vira tela) ------------------------------------------------
 A="$ROOT/server/api/v1"

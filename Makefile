@@ -28,10 +28,12 @@ BASE       ?= http://127.0.0.1:8080
 help:
 	@sed -n '1,11p' Makefile
 
-## check — bash -n em todo .sh do server + node --check nos ESM (via .mjs, senão passa falso)
+## check — bash -n em todo .sh do server + docs traduzidos em dia + node --check nos ESM (via .mjs, senão passa falso)
 check:
 	@echo ">> bash -n server/**/*.sh"; \
 	find server -name '*.sh' -print0 | xargs -0 -n1 bash -n && echo "   sintaxe ok"; \
+	echo ">> docs traduzidos (pt·en·es) em dia com o PT — server/test/smoke-docs-i18n.sh"; \
+	o=$$(bash server/test/smoke-docs-i18n.sh 2>&1) || { printf '%s\n' "$$o" | grep -A30 FAIL; exit 1; }; echo "   docs ok"; \
 	echo ">> node --check web/**/*.js (ESM)"; \
 	if command -v node >/dev/null 2>&1; then \
 	  t=$$(mktemp -d); rc=0; \

@@ -14,7 +14,7 @@
 import { el } from '/shared/ui.js';
 import { contestLoginHref, hereAsNext } from '/shared/contest-guard.js';
 import { initContestShell } from '/shared/contest-shell.js';
-import { T } from '/shared/i18n.js';
+import { T, docHref } from '/shared/i18n.js';
 import { resolveHash, panelVisible, EVENT_GROUPS } from './nav.js';
 import { makeCentralTab } from './central-tab.js';
 import { makeModulesTab } from './modules-tab.js';
@@ -98,7 +98,7 @@ async function render() {
   common.forEach((x) => gbar.append(gbtn(x)));
   if (event.length) { gbar.append(el('span', { class: 'groupbar-sep' })); event.forEach((x) => gbar.append(gbtn(x))); }
   gbar.append(el('span', { style: 'flex:1' }),
-    el('a', { class: 'btn ghost', target: '_blank', href: '/docs/MANUAL-ADMIN.html' }, T('📖 Manual', '📖 Manual', '📖 Manual')));
+    el('a', { class: 'btn ghost', target: '_blank', href: docHref('MANUAL-ADMIN') }, T('📖 Manual', '📖 Manual', '📖 Manual')));
 
   snav.innerHTML = '';
   grp.panels.forEach((x) => snav.append(el('button', { class: x.id === pan.id ? 'active' : '', onclick: () => go(grp.id, x.id) }, x.label)));

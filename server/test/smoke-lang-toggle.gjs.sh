@@ -44,7 +44,11 @@ JS
 root.setAttribute('data-en-doctitle','MOJ — the competitor'); root.setAttribute('data-es-doctitle','MOJ — el competidor');
 const span=new FakeNode('span'); span.setAttribute('data-en','Getting in'); span.setAttribute('data-es','Ingresando'); span.textContent='Entrar'; root.append(span);
 const only=new FakeNode('span'); only.setAttribute('data-en','Only English'); only.textContent='Só PT e EN'; root.append(only);
+// link de manual TRADUZIDO (docs/i18n.sh): o href troca junto (data-en-href/data-es-href), e o docHref do JS
+const man=new FakeNode('a'); man.setAttribute('href','/docs/MANUAL-JUIZ.html'); man.setAttribute('data-en-href','/docs/en/MANUAL-JUIZ.html'); man.setAttribute('data-es-href','/docs/es/MANUAL-JUIZ.html'); root.append(man);
+DOCS_I18N.push('MANUAL-JUIZ');
 i18nDOM();   // 1ª aplicação: a página abriu com ?lang=en
+print('href_en=' + man.getAttribute('href') + ' dh_en=' + docHref('MANUAL-JUIZ') + ' dh_nt=' + docHref('API'));
 print('start=' + getLang() + ' text0=' + span.textContent + ' title0=' + document.title + ' stored0=' + localStorage.getItem('moj_lang'));
 const tog=mkLangToggle({ reload:false }); const btn=(l)=>tog.children.find(b=>b.dataset.lang===l);
 const active=()=>tog.children.filter(b=>b.classList.contains('active')).map(b=>b.dataset.lang).join(',');
@@ -58,7 +62,9 @@ print('hdr=' + getLang() + ' hdr_url=' + location.href + ' reloads=' + (globalTh
 // ESPANHOL: o botão ES, a cascata es → en → pt no estático e no T()
 btn('es').click(); print('after_es=' + getLang() + ' text_es=' + span.textContent + ' only_es=' + only.textContent.replace(/ /g,'_') + ' title_es=' + document.title.replace(/ /g,'_') + ' url_es=' + location.href + ' active_es=' + active() + ' html_es=' + root.lang);
 print('t3=' + T('a','b','c') + ' t2=' + T('a','b') + ' loc=' + uiLocale() + ' tkey=' + t('login'));
-btn('pt').click(); print('back_pt_text=' + span.textContent + ' back_pt_only=' + only.textContent.replace(/ /g,'_') + ' back_pt_title=' + document.title.replace(/ /g,'_'));
+print('href_es=' + man.getAttribute('href') + ' dh_es=' + docHref('MANUAL-JUIZ'));
+btn('pt').click(); print('href_pt=' + man.getAttribute('href') + ' dh_pt=' + docHref('MANUAL-JUIZ'));
+print('back_pt_text=' + span.textContent + ' back_pt_only=' + only.textContent.replace(/ /g,'_') + ' back_pt_title=' + document.title.replace(/ /g,'_'));
 JS
 } > "$T/lt.js"
 out="$(gjs "$T/lt.js" 2>&1)" || { echo "$out" >&2; echo "lang-toggle: gjs falhou"; exit 1; }
@@ -95,6 +101,13 @@ check "$(kv tkey)" Ingresar "t(key) tem espanhol"
 check "$(kv back_pt_text)" Entrar "ES → PT restaura o PT"
 check "$(kv back_pt_only)" "Só_PT_e_EN" "ES → PT restaura o PT (elemento só com data-en)"
 check "$(kv back_pt_title)" "MOJ_—_o_competidor" "título volta ao PT"
+check "$(kv href_en)" /docs/en/MANUAL-JUIZ.html "link do manual traduzido em EN (data-en-href)"
+check "$(kv dh_en)" /docs/en/MANUAL-JUIZ.html "docHref em EN"
+check "$(kv dh_nt)" /docs/API.html "docHref de doc NÃO traduzido = o PT"
+check "$(kv href_es)" /docs/es/MANUAL-JUIZ.html "link do manual em ES (data-es-href)"
+check "$(kv dh_es)" /docs/es/MANUAL-JUIZ.html "docHref em ES"
+check "$(kv href_pt)" /docs/MANUAL-JUIZ.html "ES → PT restaura o href PT (getAttribute, não a URL absoluta)"
+check "$(kv dh_pt)" /docs/MANUAL-JUIZ.html "docHref em PT"
 # navegador em espanhol, sem ?lang= nem escolha gravada: abre em ES; francês abre em EN
 for NAVL in es-AR:es fr-FR:en pt-PT:pt; do
   { printf 'globalThis.navigator={language:"%s"}; globalThis.localStorage={getItem(){return null},setItem(){}}; globalThis.location={search:""}; globalThis.document={documentElement:{}, addEventListener(){}, dispatchEvent(){}}; globalThis.CustomEvent=class{};\n' "${NAVL%%:*}"

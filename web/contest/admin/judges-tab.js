@@ -5,7 +5,7 @@
 import { el } from '/shared/ui.js';
 import { makeReviewBoard } from '/shared/review-board.js';
 import { makeVerdictOptionsEditor, makeAutoVerdictEditor } from '/shared/contest-config/verdict-config.js';
-import { T } from '/shared/i18n.js';
+import { T, docHref } from '/shared/i18n.js';
 
 const enc = encodeURIComponent;
 
@@ -23,7 +23,7 @@ export function makeJudgesTab(CONTEST) {
         T('. O modo e o nº de juízes que validam (1–5) ficam em Central › Regras; o juiz-chefe tem a mesma fila no ', '. The mode and how many judges validate (1–5) live in Home › Rules; the chief judge has the same queue in the ', '. El modo y cuántos jueces validan (1–5) están en Central › Configuración; el juez principal tiene la misma cola en el '),
         el('a', { href: '/contest/chief/?c=' + enc(CONTEST) }, T('painel do juiz-chefe', 'chief judge panel', 'panel del juez principal')),
         T('. Papéis, quórum e quantas pessoas você precisa: ', '. Roles, quorum and how many people you need: ', '. Roles, quórum y cuántas personas necesitas: '),
-        el('a', { href: '/docs/MANUAL-ADMIN.html', target: '_blank' }, T('manual do organizador', "organizer's manual", "manual del organizador")), '.'),
+        el('a', { href: docHref('MANUAL-ADMIN'), target: '_blank' }, T('manual do organizador', "organizer's manual", "manual del organizador")), '.'),
       board.el,
       el('h3', { style: 'margin:1.2rem 0 .3rem' }, T('⚙️ Configuração do veredicto manual', '⚙️ Manual verdict configuration', '⚙️ Configuración del veredicto manual')),
       makeVerdictOptionsEditor(CONTEST), makeAutoVerdictEditor(CONTEST));

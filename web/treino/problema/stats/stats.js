@@ -4,7 +4,7 @@ import { el, avatarEl, renderAuthArea } from '/shared/ui.js';
 import { barChart, pieChart, hBarChart, lineChart, heatmap, heatmapGrid, verdictColor } from '/lib/charts.js';
 import { langById } from '/shared/languages.js';
 import { editorLabel } from '/shared/editors.js';
-import { T, uiLocale } from '/shared/i18n.js';
+import { T, uiLocale, docHref } from '/shared/i18n.js';
 import { diffKeyOf, diffLabel, diffClass, dirtText, dirtTone, dirtHelp, difficultyHelp } from '/shared/difficulty.js';
 
 const CONTEST = 'treino';
@@ -56,7 +56,7 @@ async function boot() {
     el('h1', { style: 'margin:0;color:var(--blue-dark)' }, '📊 ', s.title || ID),
     el('p', { class: 'small muted', style: 'margin:.3rem 0 0' }, T('Problema do Treino Livre · ', 'Free Training problem · ', 'Problema de Entrenamiento Libre · '),
       el('a', { href: '/treino/problema/?id=' + encodeURIComponent(ID) }, T('abrir o problema →', 'open the problem →', 'abrir el problema →')),
-      ' · ', el('a', { href: '/docs/ESTATISTICAS-PROBLEMA.html', target: '_blank' },
+      ' · ', el('a', { href: docHref('ESTATISTICAS-PROBLEMA'), target: '_blank' },
         T('ⓘ como calculamos estas estatísticas', 'ⓘ how these statistics are computed', 'ⓘ cómo calculamos estas estadísticas')))));
 
   if (!s.total_submissions) {
