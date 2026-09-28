@@ -136,18 +136,20 @@ export function rgAssign(tree, users) {
       if ((r.site < 0 || nd.depth > bd[k]) && rx[j].test(r.login)) { r.site = nd.i; bd[k] = nd.depth; }
     });
   }
-  const views = nodes.slice(0, n).filter((nd) => nd.view);
   for (const r of rows) {
     if (r.flag === '-' && r.site >= 0) r.flag = nodes[r.site].leaf ? 'r' : 'p';
     const mem = new Set();
     const s = r.site;
-    const sk = s >= 0 ? nodes[s].key : null;
-    if (s >= 0) { mem.add(s); if (s < n) for (let p = nodes[s].parent; p >= 0; p = nodes[p].parent) mem.add(p); }
+    const sk = s >= 0 ? nodes[s].key : '';
+    if (s >= n) mem.add(s);                           // órfã: fora da árvore
     const inv = {};
-    for (let j = views.length - 1; j >= 0; j--) {     // filhos antes dos pais
-      const v = views[j];
-      if (!inv[v.i]) inv[v.i] = v.regex ? rx[v.i].test(r.login) : (s >= 0 && sk === v.key);
-      if (inv[v.i]) { mem.add(v.i); if (v.parent >= 0 && nodes[v.parent].view) inv[v.parent] = true; }
+    for (let j = n - 1; j >= 0; j--) {                // filhos antes dos pais (pré-ordem ao contrário)
+      const nd = nodes[j];
+      if (!inv[j]) {
+        inv[j] = nd.view ? (nd.regex ? rx[j].test(r.login) : (sk !== '' && nd.key === sk))
+          : (s >= 0 && (j === s || (sk !== '' && nd.key === sk)));
+      }
+      if (inv[j]) { mem.add(j); const p = nd.parent; if (p >= 0 && !(nd.view && !nodes[p].view)) inv[p] = true; }
     }
     r.nodes = [...mem].sort((a, b) => a - b);
   }

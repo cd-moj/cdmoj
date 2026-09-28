@@ -1231,11 +1231,13 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   `web/shared/regions-match.js` — mudou um, muda o outro no MESMO commit; `smoke-regions-match.gjs.sh`
   compara os dois (rode com `MOJ_REGIONS_EXTRA=<dir>` apontando árvores reais de produção, que NÃO vão
   para o repo). Gravada vence (órfã vira sede sintética), senão a regex mais FUNDA (pai perdia para a
-  folha: o gate de UA dava "Brasil" p/ teamsp01), pai = soma dos filhos, recorte (`view`) nunca é sede.
+  folha: o gate de UA dava "Brasil" p/ teamsp01), pai = soma dos filhos (exceto recorte→nó comum), nó
+  comum com o nome da sede também a contém (ramos paralelos sem `view`, mdp-teste), recorte nunca é sede.
   Regex no subconjunto seguro (`rg_norm`); casamento no **gawk** (chame `gawk`, não `awk` — a imagem pode
   ter mawk; laço nó × logins p/ compilar cada regex uma vez; `@tsv` dobra a barra invertida da regex —
   use `join("\t")`). Cache `var/regions-{nodes.json,map.tsv}`. Detalhes: `docs/SCOREBOARD.md` (Sedes).
-  ⚠ Em 28/09 NENHUM consumidor usa a lib ainda (fases F3/F4 depois da auditoria F1b na produção).
+  ⚠ Em 28/09 NENHUM consumidor usa a lib ainda. `server/bin/regions-audit.sh <c>` (só lê) diz o que muda
+  em cada consumidor antigo — rodar na produção antes de migrar (em 28/09: zero diferenças nos 3 reais).
 - **ACESSO É RESPONSABILIDADE DA API, NUNCA SÓ DA INTERFACE.** Todo endpoint que devolve
   conteúdo/metadados/**existência** de um recurso CORTA na própria API (`fail 403/404`) quando o
   login não tem permissão. Assuma que clientes (`moj-cli`, `curl`, scripts) vão tentar burlar — a

@@ -56,6 +56,14 @@ mkcase badregex '[{"name":"Dig","regex":"^d\\d{2}$"},{"name":"NC","regex":"^(?:n
   {"name":"Empty","regex":""},{"name":"Bool","regex":false},{"name":7,"regex":"^seven"},"lixo",[1,2],{"subregions":"nao-lista"}]'
 for l in d12 d123 nc_1 NC_2 abx wb1 la1 aaa op seven1; do u badregex $l; done; u badregex wbx 'WB'
 
+# formato mdp-teste-2026: ramos PARALELOS sem `view` que repetem as sedes (Centro-Oeste › DF de novo) e
+# um nó comum (Femininas) filho de país com um recorte dentro
+mkcase paralelo '[{"name":"Brasil","regex":"^br","subregions":[{"name":"DF, Brasília","regex":"^brdf"},{"name":"GO, Goiânia","regex":"^brgo"},
+    {"name":"Fem","view":true,"regex":"^br(df|go)1$"}]},
+  {"name":"Centro-Oeste","regex":"^br(df|go)","subregions":[{"name":"DF, Brasília","regex":"^brdf"},{"name":"GO, Goiânia","regex":"^brgo"}]},
+  {"name":"Bolivia","regex":"^bo"}]'
+for l in brdf1 brdf2 brgo1 bo1; do u paralelo $l; done; u paralelo gx 'go, goiânia'; u paralelo bx 'Bolivia'
+
 # formato "LATAM": 3 países → supersedes (regex com alternância) → sedes; recortes que REPETEM nomes de sede
 # (Supersede) e "Times femininos" com folhas "Brasil"; logins em 3 variantes de caixa
 latam="$(jq -nc '
@@ -146,6 +154,9 @@ ck "animeitor: Brasília/goiânia gravadas casam os nós sem regex; teammx01 →
 ck "regex normalizada: \\d{2} casa d12 e não d123; (?: vira (; []x] casa abx" '[[ "$(site badregex d12)" == Dig && "$(site badregex d123)" == - && "$(site badregex NC_2)" == NC && "$(site badregex abx)" == Cls ]]'
 ck "regex recusada (\\b, (?=, a**, (op) fica sem regex, com err; só entra por nome" '[[ "$(jq -c "[.[] | select(.err != null) | .err]" "$CONTESTSDIR/badregex/var/regions-nodes.json")" == "[\"word_boundary\",\"group_ext\",\"double_quantifier\",\"invalid\"]" && "$(site badregex wb1)" == - && "$(site badregex wbx)" == WB ]]'
 ck "nó com name numérico/lixo na lista não derruba o mapa (7 → \"7\")" '[[ "$(site badregex seven1)" == 7 ]]'
+ck "paralelo sem view: DF, Brasília (1ª em pré-ordem) é a sede; a cópia em Centro-Oeste e o Centro-Oeste também a contêm" '[[ "$(site paralelo brdf2)" == "DF, Brasília" && "$(innames paralelo brdf2)" == "Brasil|DF, Brasília|Centro-Oeste|DF, Brasília|" ]]'
+ck "paralelo: sede gravada (gx) também soma no ramo paralelo; Bolivia não" '[[ "$(innames paralelo gx)" == "Brasil|GO, Goiânia|Centro-Oeste|GO, Goiânia|" && "$(innames paralelo bx)" == "Bolivia|" ]]'
+ck "paralelo: recorte Fem dentro do Brasil NÃO sobe p/ o pai comum além do que já era (brgo1 no Fem)" '[[ "$(innames paralelo brgo1)" == "Brasil|GO, Goiânia|Fem|Centro-Oeste|GO, Goiânia|" ]]'
 ck "latam: maiúsculas, folha mais funda, recorte que repete nome" '[[ "$(site latamlike TEAMBRNAA3)" == BRNAA && "$(site latamlike TeamMxScc9)" == MXSCC && "$(innames latamlike teambrnaa1)" == "Brasil|Super brn|BRNAA|Supersede BR-N|BRNAA|Times femininos|3 competidoras|Brasil|" ]]'
 ck "latam: 2 competidoras (recorte sem regex) soma o filho por regex E o filho sem regex pelo nome (brsaa gravada)" '[[ "$(innames latamlike teambosbb2)" == *"2 competidoras|Bolivia|"* && "$(innames latamlike expl-1)" == *"2 competidoras|BRSAA|"* ]]'
 ck "latam: teambrx1 casa só o país (p); teambr (sem dígito) idem" '[[ "$(site latamlike teambrx1)" == Brasil && "$(flag latamlike teambrx1)" == p ]]'

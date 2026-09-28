@@ -17,10 +17,16 @@
 #   2. senão, o nó NÃO-recorte MAIS FUNDO cuja regex casa o login (sem diferenciar maiúsculas); empate =
 #      o 1º em pré-ordem. Se ele não é folha, o login "parou no pai" (flag p — a prévia mostra);
 #   3. senão, sem sede.
-# PERTENÇA (quem está "em" cada nó): a sede + todos os ancestrais dela (pai = soma dos filhos) +
-#   os recortes: recorte COM regex = a regex casa o login; recorte SEM regex = o nome é o da sede do
-#   login; recorte pai = também quem está em algum recorte filho. (Recorte com regex NÃO puxa por nome:
-#   na LATAM há recortes "Brasil" dentro de "Times femininos" — por nome, todo time do Brasil entraria.)
+# PERTENÇA (quem está "em" cada nó), direto:
+#   • a própria sede;
+#   • nó comum com o MESMO NOME da sede (árvores que repetem a sede em ramos paralelos SEM `view` — o
+#     mdp-teste-2026 tem Brasil › DF, Brasília e também Centro-Oeste › DF, Brasília);
+#   • recorte COM regex: a regex casa o login; recorte SEM regex: o nome é o da sede. (Recorte com regex
+#     NÃO entra por nome: na LATAM há recortes "Brasil" dentro de "Times femininos" — por nome, todo time
+#     com sede "Brasil" entraria.)
+#   … e soma dos filhos: quem está num filho está no pai — exceto de recorte p/ nó comum (um time dos
+#   "Times femininos" com sede na Bolívia não passa a contar no Brasil por isso). A regex de um nó comum
+#   NÃO dá pertença (só decide a sede): quem foi gravado em outro ramo não é puxado de volta.
 # REGEX = subconjunto SEGURO, que casa igual em JS, jq (Oniguruma), gawk e PCRE (rg_norm):
 #   \d \w \s (e as negações) viram classes; (?: vira (; recusa \b (backspace no gawk!), outros escapes
 #   alfanuméricos (\p \k \1 …), (?= (?! (?<, [:classe:], quantificador preguiçoso, { } fora de {m,n},
@@ -219,12 +225,15 @@ END {
   for (k = 1; k <= u; k++) {
     if (fl[k] == "-" && site[k] >= 0) fl[k] = (lf[site[k]] == 1) ? "r" : "p"
     delete mem; delete inv
-    s = site[k]; sk = (s >= n) ? synkey[s] : key[s]
-    if (s >= 0) { mem[s] = 1; if (s < n) for (p = par[s]; p >= 0; p = par[p]) mem[p] = 1 }
-    for (j = nv; j >= 1; j--) {                          # recortes: filhos antes dos pais (pré-ordem ao contrário)
-      v = V[j]
-      if (!inv[v]) inv[v] = (re[v] != "") ? ((v, k) in own) : (s >= 0 && sk == key[v])
-      if (inv[v]) { mem[v] = 1; if (par[v] >= 0 && vw[par[v]] == 1) inv[par[v]] = 1 }
+    s = site[k] + 0; sk = (s < 0) ? "" : ((s >= n) ? synkey[s] : key[s])
+    if (s >= n) mem[s] = 1                              # órfã: fora da árvore
+    for (j = n; j >= 1; j--) {                          # filhos antes dos pais (pré-ordem ao contrário)
+      i = I[j]
+      if (!inv[i]) {
+        if (vw[i] == 0) inv[i] = (s >= 0 && (i + 0 == s || (sk != "" && key[i] == sk)))
+        else inv[i] = (re[i] != "") ? ((i, k) in own) : (sk != "" && key[i] == sk)
+      }
+      if (inv[i]) { mem[i] = 1; p = par[i] + 0; if (p >= 0 && !(vw[i] == 1 && vw[p] == 0)) inv[p] = 1 }
     }
     cs = ""; m = 0
     for (x in mem) arr[++m] = x + 0

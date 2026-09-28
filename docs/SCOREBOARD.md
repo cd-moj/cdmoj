@@ -329,8 +329,10 @@ Maratona inclusive, com `MOJ_REGIONS_EXTRA`) exigindo saída idêntica:
   (minúsculas ASCII, sem espaço nas pontas); nome fora da árvore vira sede **órfã** sintética. Senão, o
   nó não-recorte **mais fundo** cuja regex casa o login, sem diferenciar maiúsculas (empate: o 1º em
   pré-ordem); se ele não é folha, o login "parou no pai" (flag `p`).
-- **Pertença**: a sede + todos os ancestrais (**pai = soma dos filhos**) + os recortes — recorte com
-  regex entra pela regex; sem regex, pelo nome da sede; recorte pai soma os filhos.
+- **Pertença**: a sede; o nó comum com o **mesmo nome** da sede (árvores que repetem as sedes em ramos
+  paralelos sem `view`, como a do mdp-teste-2026); o recorte com regex pela regex, e sem regex pelo nome
+  da sede; e **pai = soma dos filhos**, exceto de recorte para nó comum. A regex de nó comum decide só a
+  SEDE: não puxa de volta quem foi gravado em outro ramo.
 - **Regex** = subconjunto seguro que casa igual em JS, jq, gawk e PCRE (`\d`/`\w`/`\s` viram classes,
   `(?:` vira `(`; `\b`, lookaround, classes POSIX, preguiçosos, hífen ambíguo em `[...]` e não-ASCII são
   recusados). Nó com regex recusada fica sem regex e com `err` no `nodes.json`.
@@ -338,8 +340,10 @@ Maratona inclusive, com `MOJ_REGIONS_EXTRA`) exigindo saída idêntica:
   refeitos quando muda o `regions.json`, o `registrations.json`, a lista de contas ou um `account.json`
   — submissão não refaz. 2000 contas × 68 nós ≈ 0,1 s (regex compilada uma vez por nó).
 
-**Fase F1:** a lib existe e está testada, mas os consumidores ainda usam as regras antigas. Eles
-migram depois da auditoria na produção (F1b), que mostra o que muda em cada um.
+**Fase F1/F1b:** a lib existe e está testada, mas os consumidores ainda usam as regras antigas.
+`server/bin/regions-audit.sh <c>` mostra o que muda (sede no gate/materialize e nas etiquetas, membros
+de cada nó no placar e na estatística, e quem cada `.staff`/`.cstaff` com `region:<nome>` passa a ver).
+Em 28/09/2026, sobre os dados de produção (LATAM, mdp-teste e esquenta): **zero** diferenças.
 
 ## Recursos do placar (web/contest/score/)
 
