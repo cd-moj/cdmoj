@@ -77,7 +77,7 @@ painel dele) tem dois modos:
 
 | Painel | O que faz |
 |---|---|
-| **Contas** | Criar/resetar/desabilitar/remover contas (individual e em lote por .txt/.csv), trocar a senha de todos e o atalho das **Etiquetas de credenciais**. É AQUI que você cria as contas de papel (seção 3). |
+| **Contas** | Criar/resetar/desabilitar/remover contas (individual e em lote por .txt/.csv), trocar a senha de todos e o atalho das **Etiquetas de credenciais**. É AQUI que você cria as contas de papel (seção 3). Em contest com usuários **compartilhados do Treino Livre**, o cartão **🔗 Contas compartilhadas** converte tudo em contas próprias (seção 8¾). |
 | **Inscrições** (módulo `inscricoes`) | O **roster** do contest (só inscrito entra) e a **janela**: quando abre, quando fecha (default: o início da prova) e quantos minutos de entrada atrasada. Lista times e individuais, dissolve time, inscreve à mão, **cutuca convite pendente por DM** (🔔) e exporta CSV. A seção 8½ explica. |
 | **Sessões** | Quem está logado agora, com deslogar; **🚪 sair em massa e trava de login** (fechar o login, derrubar todo mundo, reabrir — é o fim de uma prova de sala e a troca de rodada); e o log de acessos por dia. Vale para qualquer contest. |
 
@@ -212,6 +212,10 @@ operações em massa (reset de senha, desabilitar) **pulam** contas privilegiada
 
 Regra de ouro: **nenhuma conta com sufixo de papel entra no placar ou nas estatísticas** —
 crie quantas precisar sem medo de sujar o resultado.
+
+> Contest com usuários **compartilhados do Treino Livre**: uma conta de papel do treino **não**
+> entra com o papel aqui. Só entram o `.admin` de quem criou o contest e os superadmins do treino.
+> Juiz, staff e co-organizador = conta criada **neste** contest (seção 8¾).
 
 ## 4. Correção validada por juízes (veredicto manual)
 
@@ -736,6 +740,55 @@ qualquer um pelas ações `team-meta`/`individual-meta` do painel — sem regra 
 > Dica de dia de prova: o checklist da Central mostra quantos se inscreveram e **quantos convites
 > ficaram pendentes** — convite não aceito significa gente achando que está no time e que, na
 > hora, não entra.
+
+## 8¾. Contas compartilhadas com o Treino Livre: escolher e desfazer
+
+Na criação (passo 3 do wizard) você escolhe entre **contas próprias** do contest e **usuários
+compartilhados do Treino Livre**. No compartilhado, cada pessoa entra com a conta e a senha do
+treino. É prático para lista de exercícios. Numa prova, saiba o que isso implica:
+
+1. Login e senha são os do Treino Livre. Você não os vê nem os redefine, e as etiquetas saem sem
+   senha.
+2. Qualquer conta do Treino Livre entra. Para limitar, ligue o módulo **Inscrições** (seção 8½).
+3. Só o **seu** `.admin` (o de quem criou o contest) e os superadmins do treino entram com papel.
+   Juiz, staff e co-organizador precisam de conta **própria** do contest (Pessoas › Contas, seção 3).
+4. Não existe troca de senha geral da prova: quem sabe a senha do treino de alguém entra como essa
+   pessoa aqui também.
+5. Dá para desfazer, convertendo em contas próprias (abaixo). A conversão não tem volta.
+
+O wizard só cria o contest compartilhado depois do **☐ Entendi**. A Central mostra o item
+**Contas compartilhadas** enquanto o contest estiver assim.
+
+**Agir num participante compartilhado.** Em Pessoas › Contas, quem entra pela conta do treino
+aparece com **🔗 treino**. **Desabilitar** barra a pessoa neste contest (a conta do treino
+continua valendo lá) e **reabilitar** desfaz. **Desclassificar** tira do placar. **Remover** barra
+de vez: a pessoa não volta pela conta do treino. Uma conta que você criou ou resetou aqui passa a
+valer com a senha **daqui**: a do treino deixa de abrir essa conta neste contest.
+
+**Converter em contas próprias** (Pessoas › Contas › cartão **🔗 Contas compartilhadas**):
+
+1. **Ver prévia da conversão.** Nada é gravado. A prévia conta quem ganha conta (quem tem pasta no
+   contest, sessão aberta, registro no log de acessos ou inscrição), os times, os membros de time
+   que perdem o login e os avisos.
+2. Confirme. Antes da prova, marque **☐ Entendi**. Com a prova já começada, digite o **id do
+   contest**. Se a lista mudou entre a prévia e a confirmação (alguém entrou), a tela mostra a
+   prévia nova e pede a confirmação de novo.
+3. **Baixe o CSV** das credenciais na hora. As senhas novas só aparecem ali e nas **Etiquetas**.
+
+O que a conversão faz:
+
+- cada participante ganha conta própria com senha **nova** (do treino só vem o nome);
+- cada **time** vira **uma** conta (login `time-…`) com senha única, e os membros deixam de entrar
+  com as contas deles; membro que já submeteu vira conta desabilitada, e a linha dele no placar fica;
+- o seu `.admin` do treino vira `.admin` próprio do contest com senha nova (a tela mostra);
+- a inscrição é encerrada e o roster fica arquivado;
+- o histórico e o placar ficam. Quem entrou sem submeter passa a aparecer zerado;
+- quem nunca entrou no contest não ganha conta (acrescente em ➕ Adicionar);
+- os superadmins do treino deixam de entrar neste contest;
+- as sessões abertas continuam. A opção **derrubar as sessões** faz todos entrarem de novo com a
+  senha nova.
+
+Na CLI: `moj-contest -c <id> users convert` (prévia) e `users convert --apply --csv creds.csv`.
 
 ## 9. Template de usuários (habilita todas as funções)
 

@@ -1,4 +1,4 @@
-<!-- i18n-source: MANUAL-ADMIN.md blob:474fa84b23b4d19cbe7bb2ab7dc8a28bea53e367 -->
+<!-- i18n-source: MANUAL-ADMIN.md blob:56a8fbba348cb41e635b2e3887113bf90f28b7b4 -->
 # MOJ: Manual del organizador (el panel .admin de la competencia)
 
 > **Nota de traducción.** Este manual es una traducción del original en portugués. Las herramientas de línea de comandos (`moj`, `moj-contest`, `moj-comp`) muestran sus mensajes en portugués, y los ejemplos de comandos son idénticos al original.
@@ -80,7 +80,7 @@ su panel) tiene dos modos:
 
 | Panel | Qué hace |
 |---|---|
-| **Cuentas** | Crear/restablecer/deshabilitar/quitar cuentas (individualmente y en lote por .txt/.csv), cambiar la contraseña de todos y el atajo a las **Etiquetas de credenciales**. AQUÍ creas las cuentas de rol (sección 3). |
+| **Cuentas** | Crear/restablecer/deshabilitar/quitar cuentas (individualmente y en lote por .txt/.csv), cambiar la contraseña de todos y el atajo a las **Etiquetas de credenciales**. AQUÍ creas las cuentas de rol (sección 3). En una competencia con usuarios **compartidos con Entrenamiento libre**, la tarjeta **🔗 Cuentas compartidas** convierte todo en cuentas propias (sección 8¾). |
 | **Inscripciones** (módulo `inscricoes`) | El **roster** de la competencia (solo entra quien está inscrito) y la **ventana**: cuándo abre, cuándo cierra (predeterminado: el inicio de la competencia) y cuántos minutos de entrada tardía. Lista equipos e individuales, disuelve equipos, inscribe a mano, **recuerda por DM las invitaciones pendientes** (🔔) y exporta CSV. La sección 8½ lo explica. |
 | **Sesiones** | Quién tiene la sesión iniciada ahora, con la opción de cerrarla; **🚪 salir en masa y bloqueo de login** (cerrar el login, desconectar a todos, reabrir: es el final de una competencia en sala y el cambio de ronda); y el registro de accesos por día. Vale para cualquier competencia. |
 
@@ -216,6 +216,11 @@ operaciones en masa (restablecer contraseña, deshabilitar) **se saltan** las cu
 
 Regla de oro: **ninguna cuenta con sufijo de rol entra en el marcador ni en las estadísticas**:
 crea todas las que necesites sin miedo de ensuciar el resultado.
+
+> Competencia con usuarios **compartidos con Entrenamiento libre**: una cuenta de rol del
+> entrenamiento **no** entra con el rol aquí. Solo entran el `.admin` de quien creó la competencia y
+> los superadmins del entrenamiento. Juez, staff y co-organizador = una cuenta creada **en esta**
+> competencia (sección 8¾).
 
 ## 4. Corrección validada por jueces (veredicto manual)
 
@@ -741,6 +746,63 @@ cualquiera de ellos con las acciones `team-meta`/`individual-meta` del panel, si
 > Consejo para el día de la competencia: el checklist de la Central muestra cuántos se inscribieron y **cuántas invitaciones
 > quedaron pendientes**: una invitación no aceptada significa gente que cree que está en el equipo y que, a la
 > hora de la verdad, no entra.
+
+## 8¾. Cuentas compartidas con Entrenamiento libre: elegir y deshacer
+
+Al crear la competencia (paso 3 del asistente) eliges entre **cuentas propias** de la competencia y
+**usuarios compartidos con Entrenamiento libre**. En el modo compartido, cada persona entra con la
+cuenta y la contraseña del entrenamiento. Es práctico para una lista de ejercicios. En un examen,
+ten en cuenta lo que implica:
+
+1. El usuario y la contraseña son los de Entrenamiento libre. No los ves ni los restableces, y las
+   etiquetas salen sin contraseña.
+2. Cualquier cuenta de Entrenamiento libre entra. Para limitarlo, activa el módulo **Inscripciones**
+   (sección 8½).
+3. Solo **tu** `.admin` (el de quien creó la competencia) y los superadmins del entrenamiento entran
+   con rol. Juez, staff y co-organizador necesitan una cuenta **propia** de la competencia
+   (Personas › Cuentas, sección 3).
+4. No existe cambio masivo de contraseña del examen: quien conoce la contraseña del entrenamiento de
+   alguien entra como esa persona aquí también.
+5. Se puede deshacer convirtiendo en cuentas propias (abajo). La conversión no tiene vuelta atrás.
+
+El asistente solo crea la competencia compartida después de **☐ Entendido**. La Central muestra el
+ítem **Cuentas compartidas** mientras la competencia siga así.
+
+**Actuar sobre un participante compartido.** En Personas › Cuentas, quien entra con la cuenta del
+entrenamiento aparece con **🔗 entrenamiento**. **Deshabilitar** bloquea a la persona en esta
+competencia (la cuenta del entrenamiento sigue valiendo allá) y **reactivar** lo deshace.
+**Descalificar** la saca del marcador. **Quitar** la bloquea para siempre: no vuelve con la cuenta
+del entrenamiento. Una cuenta que creaste o restableciste aquí vale con la contraseña **de aquí**: la
+del entrenamiento ya no abre esa cuenta en esta competencia.
+
+**Convertir en cuentas propias** (Personas › Cuentas › tarjeta **🔗 Cuentas compartidas**):
+
+1. **Ver vista previa de la conversión.** No se graba nada. La vista previa cuenta quién recibe
+   cuenta (quien tiene carpeta en la competencia, sesión abierta, registro en el log de accesos o
+   inscripción), los equipos, los miembros de equipo que pierden el login y los avisos.
+2. Confirma. Antes de la competencia, marca **☐ Entendido**. Con la competencia ya empezada, escribe
+   el **id de la competencia**. Si la lista cambió entre la vista previa y la confirmación (alguien
+   entró), la pantalla muestra la vista previa nueva y pide confirmar de nuevo.
+3. **Descarga el CSV** de las credenciales en el momento. Las contraseñas nuevas solo aparecen ahí y
+   en las **Etiquetas**.
+
+Lo que hace la conversión:
+
+- cada participante recibe una cuenta propia con contraseña **nueva** (del entrenamiento solo viene
+  el nombre);
+- cada **equipo** pasa a ser **una** cuenta (usuario `time-…`) con contraseña única, y los miembros
+  dejan de entrar con sus propias cuentas; el miembro que ya envió pasa a ser una cuenta
+  deshabilitada, y su fila en el marcador se mantiene;
+- tu `.admin` del entrenamiento pasa a ser un `.admin` propio de la competencia con contraseña nueva
+  (la pantalla la muestra);
+- la inscripción se cierra y el roster queda archivado;
+- el historial y el marcador se mantienen. Quien entró sin enviar pasa a aparecer en cero;
+- quien nunca entró en la competencia no recibe cuenta (agrégalo en ➕ Agregar);
+- los superadmins del entrenamiento dejan de entrar en esta competencia;
+- las sesiones abiertas siguen. La opción **cerrar las sesiones** hace que todos vuelvan a entrar con
+  la contraseña nueva.
+
+En la CLI: `moj-contest -c <id> users convert` (vista previa) y `users convert --apply --csv creds.csv`.
 
 ## 9. Plantilla de usuarios (habilita todas las funciones)
 

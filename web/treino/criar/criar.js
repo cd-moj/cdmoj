@@ -52,7 +52,7 @@ function newDraft(perm) {
     // problems: {kind:'bank'|'id', bank_id?|source+problem_id, name, _letter?, _stmt? (texto),
     //            _stmt_b64?/_stmt_pdf_b64? (herdados de export/template), languages?, _private?, _hasStmt?}
     problems: [],
-    userMode: 'own', users: [], usersFrom: 'treino',
+    userMode: 'own', users: [], usersFrom: 'treino', sharedAck: false,
     admin: { login: me ? (me.endsWith('.admin') ? me : me + '.admin') : '', password: '', fullname: perm.name || '' },
     // opts alimenta o settings-editor (shape do GET /contest/admin/settings + priority do create)
     opts: { locale: 'pt', login_enabled: true, priority: 'lista-publica' },
@@ -94,7 +94,7 @@ function showResult(res) {
   card.append(el('p', { class: 'small muted' }, T('É com essa conta que se entra no PAINEL do contest (o seu login comum entra como competidor).',
     'That is the account that opens the contest ADMIN panel (your ordinary login enters as a competitor).',
     'Con esta cuenta se entra al PANEL de la competencia (tu usuario común entra como competidor).')));
-  if (res.users_from) card.append(el('p', { class: 'small muted' }, T('Usuários: compartilhados do "', 'Users: shared from "', 'Usuarios: compartidos de "') + res.users_from + T('" (login com a conta do Treino Livre).', '" (log in with your Free Training account).', '" (inicia sesión con tu cuenta de Entrenamiento libre).')));
+  if (res.users_from) card.append(el('div', { class: 'notice small', style: 'margin:.4rem 0' }, T('Usuários: compartilhados do "', 'Users: shared from "', 'Usuarios: compartidos de "') + res.users_from + T('" (login com a conta do Treino Livre). Para uma prova, converta em contas próprias em Pessoas › Contas — senhas novas, sem volta.', '" (log in with the Free Training account). For an exam, convert them into own accounts in People › Accounts — new passwords, no way back.', '" (inicia sesión con la cuenta de Entrenamiento libre). Para un examen, conviértelas en cuentas propias en Personas › Cuentas — contraseñas nuevas, sin vuelta atrás.')));
   if (res.users && res.users.length > 1) {
     card.append(el('p', {}, res.users.length + T(' contas criadas. ', ' accounts created. ', ' cuentas creadas. '),
       el('button', { class: 'btn ghost', onclick: () => downloadCsv(res.contest_id + '-credenciais.csv', res.users) }, T('⬇ baixar credenciais (CSV)', '⬇ download credentials (CSV)', '⬇ descargar credenciales (CSV)'))));
@@ -258,7 +258,7 @@ async function boot() {
     d.opts = o;
     { const mm = modulesFromSpec(spec); d.visual = mm.visual; d.modules = mm.on; d.moduleSections = mm.sections; }
     d.problems = (spec.problems || []).map(fromSpecProblem);
-    if (spec.users_from) { d.userMode = 'shared'; d.usersFrom = spec.users_from; }
+    if (spec.users_from) { d.userMode = 'shared'; d.usersFrom = spec.users_from; d.sharedAck = false; }   // template/duplicata: confirma de novo
     ctx.resetEditors();
   }
 
@@ -279,6 +279,7 @@ async function boot() {
     if (!(d.name || '').trim()) { msg.className = 'small error-box'; msg.textContent = T('Informe o nome (passo 1).', 'Enter the name (step 1).', 'Ingresa el nombre (paso 1).'); return; }
     if (!(d.admin.login || '').trim()) { msg.className = 'small error-box'; msg.textContent = T('Defina o login do admin (passo 4).', 'Set the admin login (step 4).', 'Define el usuario del admin (paso 4).'); return; }
     if (!allowEmpty && !d.problems.length) { msg.className = 'small error-box'; msg.textContent = T('Adicione problemas (passo 2), ou use "Criar vazio".', 'Add problems (step 2), or use "Create empty".', 'Agrega problemas (paso 2), o usa "Crear vacía".'); return; }
+    if (d.userMode === 'shared' && !d.sharedAck) { msg.className = 'small error-box'; msg.textContent = T('Usuários compartilhados (passo 3): leia as consequências e marque "Entendi".', 'Shared users (step 3): read the consequences and tick "I understand".', 'Usuarios compartidos (paso 3): lee las consecuencias y marca "Entendido".'); return; }
     const rbad = ctx.editors.regions && ctx.editors.regions.validate ? ctx.editors.regions.validate() : '';
     if (rbad) { msg.className = 'small error-box'; msg.textContent = T('Sedes (passo 6 · Visual): ', 'Sites (step 6 · Appearance): ', 'Sedes (paso 6 · Apariencia): ') + rbad; return; }
     msg.className = 'small'; msg.textContent = T('Criando…', 'Creating…', 'Creando…');

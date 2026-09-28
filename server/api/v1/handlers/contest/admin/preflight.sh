@@ -403,7 +403,22 @@ fi
 users_n="$(find "$cdir/users" -maxdepth 2 -name account.json 2>/dev/null \
   | grep -vcE '\.(admin|judge|cjudge|staff|cstaff|mon|animeitor)/account\.json$')"
 users_n="${users_n//[^0-9]/}"; users_n="${users_n:-0}"
-if (( users_n > 0 )); then
+src_users="$(_users_source "$contest")"
+if [[ "$src_users" != "$contest" ]]; then
+  # COMPARTILHADO (USERS_FROM): as contas moram no treino — "nenhum competidor" seria falso. O aviso é
+  # o que ninguém adivinha: a senha é a do treino e desfazer é converter (Pessoas › Contas, sem volta).
+  if declare -F mod_on >/dev/null && mod_on "$contest" inscricoes && [[ -s "$cdir/registrations.json" ]]; then
+    who_pt="só os inscritos entram"; who_en="only registered people get in"; who_es="solo entran los inscritos"
+  else
+    who_pt="qualquer conta de lá entra"; who_en="any account from there gets in"; who_es="cualquier cuenta de allí entra"
+  fi
+  add3 shared_users warn "Contas compartilhadas com \"$src_users\"" \
+    "login e senha são os de \"$src_users\" ($who_pt); para uma prova, converta em contas próprias em Pessoas › Contas — senhas novas, sem volta" \
+    "Accounts shared with \"$src_users\"" \
+    "login and password are the \"$src_users\" ones ($who_en); for an exam, convert them into own accounts in People › Accounts — new passwords, no way back" \
+    "Cuentas compartidas con \"$src_users\"" \
+    "el usuario y la contraseña son los de \"$src_users\" ($who_es); para un examen, conviértelas en cuentas propias en Personas › Cuentas — contraseñas nuevas, sin vuelta atrás"
+elif (( users_n > 0 )); then
   add3 users ok "Contas de competidores" "$users_n conta(s)" \
     "Contestant accounts" "$users_n account(s)" \
     "Cuentas de competidores" "$users_n cuenta(s)"

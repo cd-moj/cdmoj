@@ -1,4 +1,4 @@
-<!-- i18n-source: MANUAL-ADMIN.md blob:474fa84b23b4d19cbe7bb2ab7dc8a28bea53e367 -->
+<!-- i18n-source: MANUAL-ADMIN.md blob:56a8fbba348cb41e635b2e3887113bf90f28b7b4 -->
 # MOJ: Organizer manual (the contest .admin panel)
 
 > **Translation note.** This manual is a translation of the Portuguese original. The command-line tools (`moj`, `moj-contest`, `moj-comp`) print their messages in Portuguese, and the command examples below are identical to the original.
@@ -82,7 +82,7 @@ the **🌐 Languages** tab of the chief judge panel) has two modes:
 
 | Panel | What it does |
 |---|---|
-| **Accounts** | Create/reset/disable/remove accounts (one by one, or in bulk from a .txt/.csv file). Change the password of all accounts. The shortcut to the **Credential badges**. You create the role accounts HERE (section 3). |
+| **Accounts** | Create/reset/disable/remove accounts (one by one, or in bulk from a .txt/.csv file). Change the password of all accounts. The shortcut to the **Credential badges**. You create the role accounts HERE (section 3). In a contest with users **shared with Free Training**, the **🔗 Shared accounts** card converts all of them into own accounts (section 8¾). |
 | **Registrations** (module `inscricoes`) | The contest **roster** (only registered persons get in) and the **window**: when it opens, when it closes (default: the contest start) and how many minutes of late entry. It lists teams and individuals. It can dissolve a team, register a person manually, **nudge a pending invitation by DM** (🔔) and export CSV. Section 8½ explains it. |
 | **Sessions** | Who is logged in now, with logout. **🚪 Mass logout and login lock**: close the login, log everybody out, reopen. This is the end of a room exam and the round change. It also has the access log per day. It applies to any contest. |
 
@@ -222,6 +222,11 @@ privileged accounts on purpose.
 
 Golden rule: **no account with a role suffix goes to the scoreboard or to the statistics**. Create
 as many as you need: they do not change the result.
+
+> Contest with users **shared with Free Training**: a role account of the training site does **not**
+> get in with its role here. Only the `.admin` of the person who created the contest and the
+> training superadmins get in. A judge, a staff member or a co-organizer = an account that you
+> create **in this** contest (section 8¾).
 
 ## 4. Grading validated by judges (manual verdict)
 
@@ -792,6 +797,64 @@ mechanism continues to apply only as a visual overlay).
 > Contest-day tip: the Home checklist shows how many persons registered and **how many invitations
 > are pending**. A pending invitation means a person who thinks that he or she is in the team and
 > who, at the time of the contest, cannot get in.
+
+## 8¾. Accounts shared with Free Training: choose and undo
+
+When you create the contest (step 3 of the wizard), you choose between **own accounts** of the
+contest and **users shared with Free Training**. With shared users, each person logs in with the
+account and the password of the training site. This is practical for an exercise list. For an
+exam, know the consequences:
+
+1. The login and the password are the Free Training ones. You cannot see or reset them, and the
+   badges show no password.
+2. Any Free Training account gets in. To limit this, turn on the **Registrations** module
+   (section 8½).
+3. Only **your** `.admin` (the one of the person who created the contest) and the training
+   superadmins get in with a role. A judge, a staff member and a co-organizer need an **own**
+   account of the contest (People › Accounts, section 3).
+4. There is no exam-wide password change. A person who knows the training password of another
+   person also gets in as that person here.
+5. You can undo this: convert to own accounts (below). You cannot undo the conversion.
+
+The wizard creates a shared contest only after you tick **☐ I understand**. While the contest stays
+shared, the Home shows the item **Shared accounts**.
+
+**Act on a shared participant.** In People › Accounts, a person who logs in with the training
+account shows **🔗 training**. **Disable** blocks the person in this contest (the training account
+continues to work on the training site). **Re-enable** undoes this. **Disqualify** removes the
+person from the scoreboard. **Remove** blocks the person permanently: the person cannot come back
+with the training account. When you create or reset an account here, the password **of this
+contest** applies: the training password does not open that account in this contest any more.
+
+**Convert to own accounts** (People › Accounts › the **🔗 Shared accounts** card):
+
+1. **Preview the conversion.** Nothing is written. The preview counts who gets an account (the
+   persons with a folder in the contest, an open session, a line in the access log or a
+   registration), the teams, the team members who lose their login, and the warnings.
+2. Confirm. Before the contest, tick **☐ I understand**. After the start, type the **contest id**.
+   If the list changes between the preview and the confirmation (a person logged in), the screen
+   shows the new preview and asks you to confirm again.
+3. **Download the CSV** with the credentials immediately. The new passwords show only there and on
+   the **Badges**.
+
+What the conversion does:
+
+- Each participant gets an own account with a **new** password. Only the name comes from the
+  training site.
+- Each **team** becomes **one** account (login `time-…`) with one password. The members cannot log
+  in with their own accounts any more. A member who submitted becomes a disabled account, and the
+  scoreboard row of that member stays.
+- Your training `.admin` becomes an own `.admin` of the contest with a new password (the screen
+  shows it).
+- The registration closes and the roster goes to the archive.
+- The history and the scoreboard stay. A person who logged in and did not submit now shows with
+  zero on the scoreboard.
+- A person who never entered the contest gets no account (add that person in ➕ Add).
+- The training superadmins cannot get in to this contest any more.
+- The open sessions continue. The option **log out the sessions** makes all participants log in
+  again with the new password.
+
+In the CLI: `moj-contest -c <id> users convert` (preview) and `users convert --apply --csv creds.csv`.
 
 ## 9. User template (enables all functions)
 

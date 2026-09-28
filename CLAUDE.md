@@ -147,6 +147,10 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   do `time-<slug>` vira senha real; membro com history = conta local desabilitada); roster arquivado em
   `var/`; ponto de commit = tirar `USERS_FROM` (retomável: conta com `converted_at` não ganha outra senha).
   Nada de processo por conta (2000 contas ≈ 4 s no smoke). Teste: `smoke-users-convert.sh`.
+  Clientes: cartão **🔗 Contas compartilhadas** em Pessoas › Contas (`web/contest/admin/users-convert.js`,
+  teste `smoke-users-convert-card.gjs.sh`), `moj-contest users convert [--apply]`; o wizard só cria
+  compartilhado com o ☐ "Entendi" (5 consequências, `steps/usuarios.js`); Central = item `shared_users`;
+  Inscrições avisam o roster arquivado (`converted` no GET).
   Rename no treino leva o dir de TODO contest compartilhado (`shared_rename_login`, + as sessões dele;
   submissão pendente lá = 409). `duplicate` não herda `users_from`. Teste: `smoke-shared-accounts.sh`.
   **Derrubar as sessões de um login = `remove_contest_sessions[_v] <c> <login…>`** (`lib/auth.sh`): um `grep`

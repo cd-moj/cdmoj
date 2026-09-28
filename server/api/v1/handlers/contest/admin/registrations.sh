@@ -4,7 +4,9 @@
 # O competidor inscrito é materializado no store por-usuário (lib/registration.sh), então o
 # placar/impressão/balões já enxergam sem saber que existe roster.
 #
-# GET  -> {enabled, window, team_max, teams_allowed, teams:[…], individuals:[…], totals}
+# GET  -> {enabled, window, team_max, teams_allowed, teams:[…], individuals:[…], totals, converted?}
+#         converted = {at, from, archived}: o contest virou de contas próprias (users-convert) e o roster
+#         foi arquivado em var/
 # POST {action}:
 #   enable        — liga o registro (cria o roster vazio + semeia as coortes individual/times)
 #   disable       — desliga (o roster vai p/ registrations.json.off; ninguém é desmaterializado)
@@ -92,6 +94,12 @@ _emit(){   # [<json-extra p/ mesclar na resposta>]
                                 | select(($tgs[0] | index($l)) == null)] | length) } }')"
   rm -f "$invf"
   [[ -n "$out" ]] || fail 500 "Falha ao montar as inscrições" "reg_render_failed"
+  # contest CONVERTIDO em contas próprias (users-convert): o roster foi arquivado — a tela diz isso
+  if [[ -s "$cdir/var/users-convert.json" ]]; then
+    out="$(jq -c --slurpfile cv "$cdir/var/users-convert.json" \
+             '. + {converted:($cv[0] | {at:(.converted_at // 0), from:(.from // ""), archived:.registrations_archived})}' <<<"$out")" \
+      || fail 500 "Falha ao montar as inscrições" "reg_render_failed"
+  fi
   if [[ -n "$extra" ]]; then
     out="$(jq -c --argjson x "$extra" '. + $x' <<<"$out")" \
       || fail 500 "Falha ao montar as inscrições" "reg_render_failed"

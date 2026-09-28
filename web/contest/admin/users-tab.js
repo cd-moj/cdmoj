@@ -7,6 +7,7 @@ import { apiGet, apiPost } from '/shared/api.js';
 import { parseUsers, parseRichCsv, downloadCsv } from '/shared/users-batch.js';
 import { mkBool, PRIV_RE as PRIV } from '/shared/admin-ui.js';
 import { T } from '/shared/i18n.js';
+import { makeConvertCard } from './users-convert.js';
 
 const enc = encodeURIComponent;
 
@@ -16,6 +17,7 @@ export function makeUsersTab(CONTEST) {
   const list = el('div', {});
   let USERS = [], built = false;
   const call = (path, body) => apiPost('/contest/admin/' + path + '?contest=' + enc(CONTEST), body, G);
+  const conv = makeConvertCard(CONTEST, { onDone: () => loadList() });   // contest compartilhado (USERS_FROM)
 
   // filtros (sobrevivem ao re-render da lista) — essenciais em contest com 1000+ usuários
   const fQ = el('input', { type: 'search', placeholder: T('login / nome / email…', 'login / name / email…', 'login / nombre / email…'), style: 'min-width:200px' });
@@ -29,6 +31,8 @@ export function makeUsersTab(CONTEST) {
   function userRow(u) {
     const acts = el('div', { class: 'row-actions' });
     acts.append(el('button', { class: 'btn ghost', title: T('encerrar sessões', 'end sessions', 'finalizar sesiones'), onclick: async () => { try { await call('logout-user', { login: u.login }); } catch (e) { alert(e.message); } } }, T('deslogar', 'log out', 'cerrar sesión')));
+    // compartilhado desabilitado: {undo} apaga o bloqueio e ele volta a entrar com a senha do treino
+    if (u.shared && u.disabled) acts.append(el('button', { class: 'btn ghost', onclick: async () => { try { await call('user-disable', { login: u.login, undo: true }); loadList(); } catch (e) { alert(e.message); } } }, T('reabilitar', 're-enable', 'reactivar')));
     if (!u.admin && !u.disabled) acts.append(el('button', { class: 'btn ghost', onclick: async () => { if (!confirm(T('Desabilitar ', 'Disable ', 'Deshabilitar ') + u.login + '?')) return; try { await call('user-disable', { login: u.login }); loadList(); } catch (e) { alert(e.message); } } }, T('desabilitar', 'disable', 'deshabilitar')));
     // desclassificar ≠ desabilitar: a conta continua existindo/logando, mas some do
     // placar E da estatística (flag .disqualified — mesma população nas duas telas)
@@ -42,6 +46,7 @@ export function makeUsersTab(CONTEST) {
     acts.append(el('button', { class: 'btn danger', onclick: async () => { if (!confirm(T('Remover ', 'Remove ', 'Quitar ') + u.login + '?')) return; try { await call('user-remove', { login: u.login }); loadList(); } catch (e) { alert(e.message); } } }, T('remover', 'remove', 'quitar')));
     return el('tr', {},
       el('td', {}, u.login, u.admin ? el('span', { class: 'small muted' }, ' (admin)') : '',
+        u.shared ? el('span', { class: 'small muted', title: T('entra com a conta do Treino Livre', 'logs in with the Free Training account', 'entra con la cuenta de Entrenamiento libre') }, T(' 🔗 treino', ' 🔗 training', ' 🔗 entrenamiento')) : '',
         u.disabled ? el('span', { class: 'flag-anom small' }, T(' (desabilitado)', ' (disabled)', ' (deshabilitado)')) : '',
         u.disqualified ? el('span', { class: 'flag-anom small', style: 'font-weight:600' }, T(' (desclassificado)', ' (disqualified)', ' (descalificado)')) : ''),
       el('td', {}, u.fullname || ''), el('td', { class: 'small' }, u.email || ''), el('td', {}, acts));
@@ -69,8 +74,7 @@ export function makeUsersTab(CONTEST) {
     let r;
     try { r = await apiGet('/contest/admin/users?contest=' + enc(CONTEST), G); }
     catch { list.innerHTML = ''; list.append(el('div', { class: 'error-box' }, T('Falha.', 'Failed.', 'Falló.'))); return; }
-    panel.querySelectorAll('.shared-note').forEach((n) => n.remove());
-    if (r.shared) panel.insertBefore(el('div', { class: 'small muted shared-note', style: 'margin-bottom:.4rem' }, T('Usuários compartilhados de "', 'Users shared from "', 'Usuarios compartidos de "') + r.shared + T('" — só o admin é próprio deste contest.', '" — only the admin is specific to this contest.', '" — solo el admin es propio de esta competencia.')), list);
+    conv.show(r.shared || '');
     USERS = r.users || []; renderList();
   }
 
@@ -126,7 +130,7 @@ export function makeUsersTab(CONTEST) {
     built = true;
     panel.append(el('h2', {}, T('👥 Contas & senhas ', '👥 Accounts & passwords ', '👥 Cuentas y contraseñas '),
       el('a', { class: 'btn ghost', style: 'font-size:.85rem; font-weight:400', target: '_blank',
-        href: '/contest/badges/?c=' + enc(CONTEST) }, T('🏷️ Etiquetas de credenciais', '🏷️ Credential badges', '🏷️ Etiquetas de credenciales'))));
+        href: '/contest/badges/?c=' + enc(CONTEST) }, T('🏷️ Etiquetas de credenciais', '🏷️ Credential badges', '🏷️ Etiquetas de credenciales'))), conv.el);
     panel.append(el('div', { class: 'row', style: 'margin:.3rem 0' }, el('span', { class: 'small muted' }, T('Filtrar:', 'Filter:', 'Filtrar:')), fQ, fSel,
       el('button', { class: 'btn ghost', onclick: () => loadList() }, '↻')), list);
     // add/reset (individual)

@@ -180,6 +180,14 @@ export function makeRegistrationsTab(CONTEST) {
   function render() {
     panel.innerHTML = '';
     const t = DATA.totals || {};
+    // convertido em contas próprias (Pessoas › Contas): o roster foi arquivado e ninguém mais se inscreve pela web
+    if (DATA.converted) panel.append(el('div', { class: 'notice', style: 'margin:.4rem 0' },
+      T('Este contest foi convertido em contas próprias em ', 'This contest was converted into own accounts on ', 'Esta competencia se convirtió en cuentas propias el ') + fmtDate(DATA.converted.at) +
+      T(' (as contas vinham de "', ' (the accounts came from "', ' (las cuentas venían de "') + (DATA.converted.from || '') + '"). ' +
+      (DATA.converted.archived
+        ? T('O roster da inscrição foi arquivado em ', 'The registration roster was archived in ', 'El roster de la inscripción se archivó en ') + DATA.converted.archived + T(' e os times viraram contas próprias.', ' and the teams became own accounts.', ' y los equipos pasaron a ser cuentas propias.')
+        : '') +
+      T(' A inscrição pela web não vale mais: novas contas, em Pessoas › Contas.', ' Web registration no longer applies: new accounts go in People › Accounts.', ' La inscripción por la web ya no vale: las cuentas nuevas van en Personas › Cuentas.')));
     panel.append(
       el('div', { class: 'row', style: 'align-items:baseline; gap:.6rem; flex-wrap:wrap' },
         el('h2', { style: 'margin:.2rem 0' }, T('📝 Inscrições', '📝 Registrations', '📝 Inscripciones')),

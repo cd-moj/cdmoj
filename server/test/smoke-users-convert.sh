@@ -69,6 +69,8 @@ ck "o admin do treino ganha conta local; dave (nunca tocou) fora" '[[ "$(J .prev
 ck "avisos: membros perdem o login, inscrição fecha, superadmins perdem acesso" '[[ "$(J ".preview.warnings|index(\"team_members_lose_login\")")" != null && "$(J ".preview.warnings|index(\"registration_closes\")")" != null && "$(J ".preview.warnings|index(\"superadmins_lose_access\")")" != null ]]'
 ck "a prévia NÃO grava nada" '[[ "$(tree_sum cv)" == "$SUM0" ]]'
 PID="$(J .preview.plan_id)"
+call /contest/admin/preflight GET '' adm 'contest=cv'
+ck "Central: checagem shared_users (warn, pt/en/es, só os inscritos entram)" '[[ "$(J ".checks[]|select(.id==\"shared_users\")|.level")" == warn && -n "$(J ".checks[]|select(.id==\"shared_users\")|.detail_es")" && -z "$(J ".checks[]|select(.id==\"users\")|.id")" ]]'
 
 echo "== execução =="
 call /contest/admin/users-convert POST '{"dry_run":false,"plan_id":"errado","confirm":true}' adm 'contest=cv'
@@ -101,6 +103,10 @@ login cv ivo s-ivo;                ck "…e não entra" '[[ "$(st)" != 200 ]]'
 ck "o DESCLASSIFICADO ganha conta mas segue desclassificado (fora do placar)" '[[ "$(jq -r .disqualified "$U/jose/account.json")" == true && -n "$(pw jose)" ]] && ! grep -qw jose <<<"$ROWS1"'
 call /contest/badges GET '' adm 'contest=cv'
 ck "etiquetas saem com a senha nova (conta própria)" '[[ "$(J "[..|objects|select(.login?==\"bia\")|.password][0]")" == "$(pw bia)" ]]'
+call /contest/admin/preflight GET '' adm 'contest=cv'
+ck "Central depois: sem shared_users, volta a checagem de contas" '[[ -z "$(J ".checks[]|select(.id==\"shared_users\")|.id")" && "$(J ".checks[]|select(.id==\"users\")|.level")" == ok ]]'
+call /contest/admin/registrations GET '' adm 'contest=cv'
+ck "Inscrições: converted {from, archived} p/ o aviso de roster arquivado" '[[ "$(J .converted.from)" == treino && "$(J .converted.archived)" == var/registrations.converted-* && "$(J .enabled)" == false ]]'
 call /contest/admin/users-convert POST '{}' adm 'contest=cv'
 ck "2ª chamada → 409 already_converted, com o resumo (sem senha)" '[[ "$(st)" == 409 && "$(J .error.code)" == already_converted ]] && ! grep -q "$(pw bia)" <<<"$BODY"'
 

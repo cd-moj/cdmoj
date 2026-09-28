@@ -5860,7 +5860,7 @@
         "tags": [
           "contest-admin"
         ],
-        "summary": "Inscrições do contest (roster + janela): times, individuais (com univ/flag/ai), convites pendentes — cada um com invited_meta (desde quando espera, se tem Telegram vinculado, quando foi avisado) — e totais",
+        "summary": "Inscrições do contest (roster + janela): times, individuais (com univ/flag/ai), convites pendentes — cada um com invited_meta (desde quando espera, se tem Telegram vinculado, quando foi avisado) — e totais; converted {at, from, archived} quando o contest foi convertido em contas próprias (roster arquivado)",
         "security": [
           {
             "bearerAuth": []

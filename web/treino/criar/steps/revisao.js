@@ -14,7 +14,7 @@ export function makeStepRevisao(ctx) {
 
   const probs = (spec.problems || []);
   const users = d.userMode === 'shared'
-    ? T('compartilhados de "', 'shared from "', 'compartidos de "') + (d.usersFrom || 'treino') + '"'
+    ? T('compartilhados de "', 'shared from "', 'compartidos de "') + (d.usersFrom || 'treino') + T('" — login e senha do Treino Livre; para prova, converta depois em Pessoas › Contas (sem volta)', '" — Free Training login and password; for an exam, convert later in People › Accounts (no way back)', '" — usuario y contraseña de Entrenamiento libre; para un examen, convierte después en Personas › Cuentas (sin vuelta atrás)')
     : (spec.users || []).length + T(' conta(s) própria(s)', ' own account(s)', ' cuenta(s) propia(s)');
   const optsBits = [];
   if (spec.secret) optsBits.push(T('🕵️ SUPER SECRETO (não listado; placar exige login)', '🕵️ SUPER SECRET (not listed; scoreboard requires login)', '🕵️ SUPER SECRETO (no listada; el marcador exige inicio de sesión)'));
@@ -32,6 +32,7 @@ export function makeStepRevisao(ctx) {
   if (!(spec.name || '').trim()) issues.push(T('Falta o nome (passo 1).', 'Name is missing (step 1).', 'Falta el nombre (paso 1).'));
   if (!(spec.admin.login || '').trim()) issues.push(T('Falta o login do admin (passo 4).', 'Admin login is missing (step 4).', 'Falta el usuario del admin (paso 4).'));
   if (!probs.length) issues.push(T('Sem problemas (passo 2) — só dá para criar vazio.', 'No problems (step 2) — you can only create empty.', 'Sin problemas (paso 2) — solo se puede crear vacía.'));
+  if (d.userMode === 'shared' && !d.sharedAck) issues.push(T('Usuários compartilhados: marque "Entendi" nas consequências (passo 3).', 'Shared users: tick "I understand" on the consequences (step 3).', 'Usuarios compartidos: marca "Entendido" en las consecuencias (paso 3).'));
   if (spec.end <= spec.start) issues.push(T('Fim antes do início (passo 1).', 'End before start (step 1).', 'El fin es antes del inicio (paso 1).'));
 
   const row = (k, v) => el('tr', {}, el('td', { class: 'small muted', style: 'white-space:nowrap' }, k), el('td', {}, v));
