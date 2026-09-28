@@ -30,6 +30,7 @@ const MAP = {
 
 export function navLabel(url, serverLabel) {
   const p = String(url || '').split('?')[0].split('#')[0];
-  const pair = MAP[p] || MAP[p.replace(/\/*$/, '/')];
+  // URL vazia não vira '/' (a entrada '/' é o botão Contest): sem par, fica o label do servidor
+  const pair = MAP[p] || (p ? MAP[p.replace(/\/*$/, '/')] : null);
   return pair ? T(pair[0], pair[1], pair[2]) : (serverLabel || p);
 }

@@ -177,6 +177,6 @@ Os poderes dele se limitam a: julgamento, veredictos, notícias/respostas, estat
 
 ## Tutorial web com screenshots
 
-As telas deste manual, passo a passo e com imagens (PT/EN), estão em
+As telas deste manual, passo a passo e com imagens (texto em PT/EN/ES; as telas das fotos estão em inglês), estão em
 `/contest/ajuda/judge.html` e `/contest/ajuda/cjudge.html` — o botão
 **📖 Como funciona este papel** na sua tela abre direto.

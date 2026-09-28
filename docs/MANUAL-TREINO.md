@@ -44,7 +44,7 @@ No topo fica a **barra de menu** com os itens:
 | **Status** | Situação dos juízes e do sistema |
 | **Docs** | Manuais e documentação |
 
-Ao lado do menu há o **seletor de idioma PT/EN** — o site inteiro é bilíngue. À
+Ao lado do menu há o **seletor de idioma PT · EN · ES** — o site inteiro existe nos três idiomas. À
 **direita** fica a área de login: antes de entrar, os campos de usuário e senha; depois,
 o seu **avatar**, que abre um menu com atalhos (Minhas estatísticas, Perfil, Sair…).
 

@@ -3,7 +3,7 @@
 Este é o manual de quem **opera o telão** de uma competição no MOJ: o placar no projetor, as
 fotos e músicas que animam a virada, e a cerimônia de revelação.
 
-> **Tutorial web com screenshots** (PT/EN): `/contest/ajuda/animeitor.html` — abre pelo botão
+> **Tutorial web com screenshots** (PT/EN/ES): `/contest/ajuda/animeitor.html` — abre pelo botão
 > **📖 Como funciona este papel** na própria tela do telão.
 > **Documento técnico**: a integração pela API do Animeitor em [ANIMEITOR.md](ANIMEITOR.md); o pacote
 > legado (formato BOCA) em [WEBCAST.md](WEBCAST.md).

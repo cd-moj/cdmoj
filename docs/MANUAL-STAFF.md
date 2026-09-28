@@ -250,7 +250,7 @@ enquanto ninguém está sob pressão.
 
 ## Ponteiros
 
-- **Tutorial web do seu papel** (com screenshots das telas, PT/EN): `/contest/ajuda/staff.html`
+- **Tutorial web do seu papel** (com screenshots das telas, PT/EN/ES): `/contest/ajuda/staff.html`
   e `/contest/ajuda/cstaff.html` — abre pelo botão **📖 Como funciona este papel** na sua tela.
 - **[MANUAL-ANIMEITOR.md](MANUAL-ANIMEITOR.md)**: quem opera o telão (o dono da foto/música padrão
   e das chaves de webcast que vocês NÃO têm).

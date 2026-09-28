@@ -64,7 +64,7 @@ moj/
   descongelado, fotos/músicas de todos os times, as chaves de webcast e as estatísticas — não
   submete, não vê enunciado, e não é coberto por `is_judge`: os handlers testam
   `is_judge || is_animeitor` explicitamente). Cada papel tem **tutorial próprio com screenshots**
-  em `/contest/ajuda/<papel>.html` (pt/en), alcançável pelo botão *📖 Como funciona este papel*
+  em `/contest/ajuda/<papel>.html` (pt/en/es), alcançável pelo botão *📖 Como funciona este papel*
   na tela dele; os manuais de usuário são `MANUAL-{STAFF,JUIZ,ANIMEITOR}.md`. **Login SEM sufixo
   é o COMPETIDOR**, e ele também tem o seu — `/contest/ajuda/competidor.html`, pelo botão *📖 Como
   funciona a prova* da página da prova (só p/ quem não tem papel: organização e juiz já têm o

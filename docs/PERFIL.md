@@ -64,8 +64,8 @@ As conquistas são **dados, não código**: um registro JSON servido por
 - **Registro vivo**: `contests/treino/var/achievements.json` — criado quando um admin salva
   pela aba 🏅 do painel. Ausente ou corrompido ⇒ vale o **default embarcado**
   (`server/api/v1/lib/achievements-default.json`, versionado no repo).
-- Cada conquista: `{id, icon, pt, en, kind, params, enabled}`. O rótulo exibido é `pt`/`en`
-  conforme o idioma do usuário. `enabled:false` esconde sem apagar.
+- Cada conquista: `{id, icon, pt, en, es?, kind, params, enabled}`. O rótulo exibido é `pt`/`en`/`es`
+  conforme o idioma do usuário (`es` ausente cai no `en`). `enabled:false` esconde sem apagar.
 - **Travada** aparece acinzentada com o progresso (ex.: `62/100`); conquistada aparece
   dourada. Nenhuma é persistida no servidor — são recalculadas a cada visita (mudou o
   registro, TODOS os perfis refletem na hora).
@@ -108,7 +108,7 @@ As conquistas são **dados, não código**: um registro JSON servido por
 Aba **🏅 Conquistas** do painel `/treino/admin/`:
 
 1. **➕ Nova conquista**: escolha o `kind`, preencha ícone (emoji), `id`
-   (`minúsculas/dígitos/hífen`), nomes **pt e en** (obrigatórios — a UI é bilíngue) e os
+   (`minúsculas/dígitos/hífen`), nomes **pt e en** (obrigatórios) e **es** (opcional: vazio = o espanhol mostra o en) e os
    parâmetros do tipo. Ex.: "🐍 Pythonista" não dá para fazer por linguagem hoje (não há
    kind por linguagem — ver §4.4), mas "🏁 OBI completa" é
    `collection_named {collection:"Olimpíada Brasileira de Informática"}`.
@@ -124,7 +124,7 @@ Exemplo de item novo, pronto para colar:
 
 ```json
 { "id": "obi-completa", "icon": "🏁",
-  "pt": "OBI completa", "en": "Full OBI",
+  "pt": "OBI completa", "en": "Full OBI", "es": "OBI completa",
   "kind": "collection_named",
   "params": { "collection": "Olimpíada Brasileira de Informática" },
   "enabled": true }
@@ -141,7 +141,7 @@ Um kind novo (ex.: `lang_solved_gte` — resolvidos numa linguagem específica) 
    renderiza em cliente antigo — seguro para publicar registro antes do deploy do cliente.
 2. **Validação** — `server/api/v1/handlers/treino/admin/achievements.sh`, função `perr` do
    jq: o ramo do kind com a checagem dos params (o POST recusa kind desconhecido).
-3. **Formulário do admin** — `web/treino/admin/admin.js`, tabela `ACH_KINDS`: rótulo pt/en
+3. **Formulário do admin** — `web/treino/admin/admin.js`, tabela `ACH_KINDS`: rótulo pt/en/es
    + lista de campos (`number`/`text`/`select`).
 4. **Esta doc** (§4.2) — e, se a conquista entrar no padrão,
    `server/api/v1/lib/achievements-default.json`.
