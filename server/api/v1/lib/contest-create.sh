@@ -336,7 +336,7 @@ cc_create(){
       '{login:$l,password:$p,fullname:$n,email:$e,created_at:$t,updated_at:$t,status:"active",uname_changes:[]}
        + (if ($tm|length) > 0 then {team:$tm} else {} end)' \
       > "$d/account.json" || return 1
-    : > "$d/history"
+    [[ -f "$d/history" ]] || : > "$d/history"
   }
   declare -a CREDS
   if [[ "$admin_local" == true ]]; then

@@ -270,7 +270,8 @@ plano das outras. Promover (`POST /contest/admin/rounds {action:"promote"}`, `li
 é **arquivar + zerar + reapontar**, sob `flock` em `var/.round.lock`:
 
 1. **checklist** — recusa (409 `not_ready`) com job no spool/fila, veredicto pendente, review
-   aberto, daemon caído, sem rodada planejada ou contas compartilhadas (`USERS_FROM`);
+   aberto, daemon caído ou sem rodada planejada (contest com contas compartilhadas, `USERS_FROM`, promove
+   normalmente — a inscrição cuida de quem entra na prova);
 2. `pr_reconcile_balloons` → `build.sh` → `stats-gen.sh` (fecha os números da rodada);
 3. `report-gen.sh` → `rounds/<slug>/relatorio/` — **antes** de mover qualquer coisa;
 4. `mv` do que é dado de rodada (`users/<l>/{history,metrics.json,submissions,mojlog,results}`,

@@ -4929,7 +4929,7 @@
         "tags": [
           "contest-admin"
         ],
-        "summary": "Usuários do contest (sem senha)",
+        "summary": "Usuários do contest (sem senha); em contest compartilhado inclui quem só tem dir (shared, dir_only)",
         "parameters": [
           {
             "$ref": "#/components/parameters/contest"
@@ -6338,7 +6338,7 @@
         "tags": [
           "contest-admin"
         ],
-        "summary": "Desabilita (bloqueia) um usuário",
+        "summary": "Desabilita (bloqueia) um usuário — também participante compartilhado (overlay com senha !…); {undo:true} reabilita o compartilhado",
         "parameters": [
           {
             "$ref": "#/components/parameters/contest"
@@ -6427,7 +6427,7 @@
         "tags": [
           "contest-admin"
         ],
-        "summary": "Senha única para todos os não-privilegiados",
+        "summary": "Senha única para todos os não-privilegiados (contest compartilhado = 409 shared_users)",
         "parameters": [
           {
             "$ref": "#/components/parameters/contest"

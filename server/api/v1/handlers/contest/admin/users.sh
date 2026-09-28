@@ -5,18 +5,30 @@ require_contest "$contest"
 require_auth_contest "$contest"
 is_admin || fail 403 "Apenas o admin do contest" "admin_required"
 
-shared="$(grep -m1 '^USERS_FROM=' "$CONTESTSDIR/$contest/conf" 2>/dev/null | cut -d= -f2-)"
-shared="${shared%\'}"; shared="${shared#\'}"; shared="${shared%\"}"; shared="${shared#\"}"
+src="$(_users_source "$contest")"; shared=""; [[ "$src" != "$contest" ]] && shared="$src"
 # batch: find|xargs jq sobre users/*/account.json (sem ARG_MAX, sem fork por usuário)
 d="$CONTESTSDIR/$contest/users"
 users='[]'
 if [[ -d "$d" ]]; then
-  users="$(find "$d" -mindepth 2 -maxdepth 2 -name account.json -print0 2>/dev/null \
-    | xargs -0 -r jq -c '{login:(.login//""), fullname:(.fullname//""), email:(.email//""),
+  # `shared`: entra pela conta do TREINO (sem senha local — overlay de inscrição ou de bloqueio).
+  # Contest COMPARTILHADO: os participantes que só têm DIR (entraram/submeteram sem account.json local)
+  # também são listados — antes eram invisíveis no painel e não havia como agir neles. A identidade vem
+  # da fonte POR CAMINHO (um xargs jq sobre os account.json deles), NUNCA varrendo o treino (18/08).
+  users="$( { find "$d" -mindepth 2 -maxdepth 2 -name account.json -print0 2>/dev/null \
+      | xargs -0 -r jq -c --arg sh "$shared" '{login:(.login//""), fullname:(.fullname//""), email:(.email//""),
                           admin:((.login//"")|endswith(".admin")),
                           disabled:((.password//"")|startswith("!")),
-                          disqualified:(.disqualified == true)}' \
-    | jq -cs 'map(select(.login != "")) | sort_by(.login)')"
+                          disqualified:(.disqualified == true),
+                          shared:($sh != "" and ((.shared_overlay == true) or ((.password//"") == "")))}'
+    if [[ -n "$shared" ]]; then
+      find "$d" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' 2>/dev/null | while IFS= read -r l; do
+        [[ -f "$d/$l/account.json" ]] && continue
+        valid_id "$l" && [[ -f "$CONTESTSDIR/$shared/users/$l/account.json" ]] \
+          && printf '%s\0' "$CONTESTSDIR/$shared/users/$l/account.json"
+      done | xargs -0 -r jq -c '{login:(.login//""), fullname:(.fullname//""), email:"",
+                                 admin:((.login//"")|endswith(".admin")), disabled:false, disqualified:false,
+                                 shared:true, dir_only:true}'
+    fi; } | jq -cs 'map(select(.login != "")) | unique_by(.login) | sort_by(.login)')"
   [[ -n "$users" ]] || users='[]'
 fi
 # ⚠ a lista cresce com o nº de CONTAS (um objeto por conta): num contest de 2354 contas ela

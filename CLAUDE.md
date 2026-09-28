@@ -132,6 +132,16 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   co-organizador de contest compartilhado = conta LOCAL. `USERS_FROM`/`SHARED_ADMIN` lidos por
   `conf_value` (caminho quente). O `SHARED_ADMIN` segue o rename (`owner_rename_fast`); auditoria antes
   do deploy: `server/bin/shared-admin-audit.sh [--apply]`. Teste: `smoke-shared-roles.sh`.
+  **Agir num participante compartilhado** (dir local sem `account.json`): `shared_overlay_ensure <c> <l>
+  [new]` (`lib/users.sh`) cria o overlay local SEM senha — só `fullname` vem da fonte, history intocado;
+  sem `new` exige o dir (quem nunca entrou não ganha linha no placar). Com ele, `user-disable` grava `!…`
+  (`{undo}` apaga a senha e ele volta pelo treino), `user-disqualify` marca, e `user-remove` deixa um
+  TOMBSTONE (`!…` + desclassificado) — senão a pessoa voltava na hora pela conta do treino.
+  `admin/users` lista também quem só tem dir (`shared`, `dir_only`); `users-set-password` recusa (409
+  `shared_users`). ⚠ **Criar conta nunca zera um `history` que já existe** (`user_create`, `users-bulk`,
+  `_cc_stage_user`: `[[ -f history ]] || : > history`) — era como "converter na mão" apagava o histórico.
+  Rename no treino leva o dir de TODO contest compartilhado (`shared_rename_login`, + as sessões dele;
+  submissão pendente lá = 409). `duplicate` não herda `users_from`. Teste: `smoke-shared-accounts.sh`.
   **Derrubar as sessões de um login = `remove_contest_sessions[_v] <c> <login…>`** (`lib/auth.sh`): um `grep`
   acha os arquivos com a linha `LOGIN=<login>` e só eles são confirmados por `source`. NUNCA um
   `$( source "$f" )` por arquivo de sessão: a sessão não expira e o diretório só cresce (21.254 em
