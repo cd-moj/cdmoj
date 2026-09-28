@@ -22,6 +22,7 @@ navegação), rode `bash docs/build-html.sh` e abra `docs/html/index.html`.
   O roteiro prático de montar um pacote fica no `README.md` do **mojtools**.
 - **[VIRTUAL.md](VIRTUAL.md)** — participação virtual: refazer um contest encerrado contra o placar oficial (portão, regra de desistência, feed, motor do placar)
 - **[SCOREBOARD.md](SCOREBOARD.md)** — formato do TXT de placar e como adicionar um modo
+- **[I18N.md](I18N.md)** — idiomas da interface (pt · en · es): `T(pt, en, es)`, `data-en`/`data-es`, `LOCALE` do contest, o que o servidor traduz (papel, relatório, DM, Central) e o glossário do espanhol
   (`updatescore-<modo>.sh` + `score-<modo>.js`).
 - **[DEPLOY.md](DEPLOY.md)** — nginx + fcgiwrap + units systemd (daemon `judged`, bot) + juízes
   **pull** e o subdomínio de contest.
