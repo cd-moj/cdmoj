@@ -75,22 +75,19 @@ print_enabled() {
 
 # logins .staff ∪ .cstaff (únicos), um por linha: "login\tfullname\tdisabled(true|false)".
 # É a lista de CHAVES válidas do staff-filters — o admin escopa os dois papéis por aqui.
+# Só contas LOCAIS (28/09/2026): num contest compartilhado, conta de papel do treino não entra mais
+# (lib/auth.sh _shared_role_ok) — listá-las aqui mostraria chefes de sede fantasmas no escopo e nas etiquetas.
 pr_staff_logins() {
-  local c="$1" s
+  local c="$1"
   { _pr_role_accounts "$CONTESTSDIR/$c/users" '*.staff'
     _pr_role_accounts "$CONTESTSDIR/$c/users" '*.cstaff'
-    s="$(_users_source "$c")"
-    [[ "$s" != "$c" ]] && { _pr_role_accounts "$CONTESTSDIR/$s/users" '*.staff'
-                            _pr_role_accounts "$CONTESTSDIR/$s/users" '*.cstaff'; }
   } | awk -F'\t' '!seen[$1]++'
 }
 
 # logins .cstaff (únicos) — alimenta o seletor "arquivo de uma sede" das etiquetas.
 pr_cstaff_logins() {
-  local c="$1" s
-  { _pr_role_accounts "$CONTESTSDIR/$c/users" '*.cstaff'
-    s="$(_users_source "$c")"; [[ "$s" != "$c" ]] && _pr_role_accounts "$CONTESTSDIR/$s/users" '*.cstaff'
-  } | awk -F'\t' '!seen[$1]++'
+  local c="$1"
+  _pr_role_accounts "$CONTESTSDIR/$c/users" '*.cstaff' | awk -F'\t' '!seen[$1]++'
 }
 
 # --- contador sequencial (monotônico, sob flock) --------------------------

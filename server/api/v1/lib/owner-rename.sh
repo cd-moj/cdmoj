@@ -58,6 +58,16 @@ owner_rename_fast(){
     [[ "$(head -1 "$of" 2>/dev/null)" == "$OR_OLD" ]] || continue
     printf '%s\n' "$OR_NEW" > "$of.tmp.$BASHPID" && mv -f "$of.tmp.$BASHPID" "$of" && n=$((n+1))
   done < <(find "$CONTESTSDIR" -mindepth 2 -maxdepth 2 -name owner -type f -print0 2>/dev/null)
+  # contests COMPARTILHADOS: o `.admin` do treino que administra (SHARED_ADMIN no conf) também segue o
+  # rename — senão o dono perde a administração da prova ao trocar de username (lib/auth.sh _shared_role_ok).
+  # O conf é sourced: grava com %q (o login é valid_id, mas o molde é sempre este).
+  local cf t
+  while IFS= read -r -d '' cf; do
+    t="$cf.tmp.$BASHPID"
+    { grep -v '^SHARED_ADMIN=' "$cf"; printf 'SHARED_ADMIN=%q\n' "$OR_NEW"; } > "$t" 2>/dev/null \
+      && cat "$t" > "$cf"; rm -f "$t"
+  done < <(find "$CONTESTSDIR" -mindepth 2 -maxdepth 2 -name conf -type f -print0 2>/dev/null \
+             | xargs -0 -r grep -lxF -- "SHARED_ADMIN=$OR_OLD" 2>/dev/null | tr '\n' '\0')
   declare -F treino_list_dirty >/dev/null && treino_list_dirty
   printf '%s' "$n"
 }

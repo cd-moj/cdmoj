@@ -312,7 +312,13 @@ cc_create(){
   if [[ -n "$sa_pass" ]]; then
     adminpass="$sa_pass"                         # [a] senha digitada -> autoritativa
   elif [[ "$shared_has_admin" == true ]]; then
-    admin_reused=true; admin_local=false; adminpass=""   # [b][c] reusa, não grava local
+    # [b][c] reusa — mas SÓ o `.admin` do PRÓPRIO criador (28/09/2026). Antes qualquer `.admin` do treino
+    # servia: indicar o de outro professor, sem senha, dava a ele a administração do contest. O admin
+    # reusado fica gravado em SHARED_ADMIN: é o único papel do treino que a auth deixa entrar num contest
+    # compartilhado (além dos SUPERADMINS) — ver _shared_role_ok em lib/auth.sh.
+    [[ "$adminlogin" == "${creator%.admin}.admin" ]] \
+      || { rm -rf "$stg"; fail 422 "Esse login .admin é de outra conta do treino — informe uma senha (cria uma conta local do contest)" "admin_login_foreign"; }
+    admin_reused=true; admin_local=false; adminpass=""
   else
     adminpass="$(cc_genpass)"                     # padrão: gera
   fi
@@ -377,6 +383,7 @@ cc_create(){
     printf '%s\n' "$probs"
     [[ -n "$langs" ]] && printf 'LANGUAGES=%q\n' "$langs"
     [[ -n "$shared" ]] && printf 'USERS_FROM=%q\n' "$shared"
+    [[ -n "$shared" && "$admin_reused" == true ]] && printf 'SHARED_ADMIN=%q\n' "$adminlogin"
     [[ -n "$b_locale" ]] && contest_locale_ok "$b_locale" && printf 'LOCALE=%q\n' "$b_locale"
     [[ "$b_lstart" =~ ^[0-9]+$ ]] && printf 'LOGIN_START_TIME=%q\n' "$b_lstart"
     [[ "$b_lenabled" == n ]] && printf 'LOGIN_ENABLED=%q\n' "n"

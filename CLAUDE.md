@@ -121,6 +121,17 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   Espelho disso: **conta renomeada arrasta TODAS as sessões** (`rename_contest_sessions`), não só
   o token da requisição — foi o furo que fez uma sessão velha submeter com o login antigo e
   RECRIAR o diretório do fantasma (`server/bin/user-merge.sh` conserta o resíduo).
+  **CONTEST COMPARTILHADO × PAPÉIS (28/09/2026)**: com `USERS_FROM` a senha pode ser conferida no
+  treino e o papel vem só do sufixo — qualquer `.admin/.judge/.staff` do treino entrava com o papel em
+  todo contest compartilhado (produção: 9 `.admin` × 14 contests; o admin de um professor administrava
+  a prova de outro). Agora `verify_password`: senha LOCAL não-vazia é AUTORITATIVA (sem fallback — é o
+  que faz o tombstone `!…` de bloqueio funcionar); pela fonte, papel só com **`_shared_role_ok`** = o
+  `SHARED_ADMIN` do conf (gravado pelo `cc_create` quando reusa o admin, que só pode ser o
+  `<criador>.admin` — o de outro = 422 `admin_login_foreign`) ou, em contest antigo, `<owner>.admin`, ou
+  um SUPERADMIN. `_session_account_alive` aplica o mesmo à sessão aberta (vira 401). Juiz/staff/
+  co-organizador de contest compartilhado = conta LOCAL. `USERS_FROM`/`SHARED_ADMIN` lidos por
+  `conf_value` (caminho quente). O `SHARED_ADMIN` segue o rename (`owner_rename_fast`); auditoria antes
+  do deploy: `server/bin/shared-admin-audit.sh [--apply]`. Teste: `smoke-shared-roles.sh`.
   **Derrubar as sessões de um login = `remove_contest_sessions[_v] <c> <login…>`** (`lib/auth.sh`): um `grep`
   acha os arquivos com a linha `LOGIN=<login>` e só eles são confirmados por `source`. NUNCA um
   `$( source "$f" )` por arquivo de sessão: a sessão não expira e o diretório só cresce (21.254 em
@@ -236,7 +247,8 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   **e as SESSÕES também** (`rename_contest_sessions`, resposta `sessions_updated`) **e as
   INSCRIÇÕES** (`reg_rename_login`) **e os snapshots de participação virtual** (`vr_rename_login`) **e a POSSE** (`lib/owner-rename.sh`,
   2026-09-18: dono de problema — `.moj-meta.json` + índice + overlay —, de contest (`contests/<c>/owner`), de
-  coleção e as permissões de criar contest; o barato é síncrono, os metas — 1 commit por pacote — vão
+  coleção e as permissões de criar contest, e — 28/09 — o `SHARED_ADMIN` dos contests compartilhados
+  (senão o dono perde a administração da prova ao trocar de handle); o barato é síncrono, os metas — 1 commit por pacote — vão
   destacados e são retomáveis. ⚠ `owner` CONCEDE acesso (`owners_visible`, `problems_denied_for`): dono
   apontando p/ login que não existe mais é posse SOLTA, e os problemas somem de "Meus" — foi o relato do
   Daniel Saad, 201 problemas + 87 contests no login antigo. Passado se conserta com
