@@ -87,7 +87,9 @@ export function makeSitesTab(CONTEST, opts = {}) {
     moves.forEach((m) => changes.push('«' + m.from + '» → «' + m.to + '»: ' + m.n + T(' time(s) gravados mudam de nome junto', ' stored team(s) are renamed along', ' equipo(s) grabados cambian de nombre también')));
     if (changes.length) prev.append(el('div', { class: 'notice small', style: 'margin:.4rem 0' }, el('b', {}, T('A salvar: ', 'To save: ', 'Por guardar: ')), changes.join(' · ')));
   }
-  const changed = () => { renderPreview(); };
+  // toda mudança refaz a prévia E os botões de modo: uma edição no JSON do Avançado pode fazer a árvore deixar de
+  // caber no Simples/Intermediário — o botão tem de desabilitar na hora (senão a volta perderia a regex)
+  const changed = () => { renderPreview(); drawModeButtons(); };
 
   // ---------- Simples ----------
   function viewSimple() {
@@ -130,10 +132,12 @@ export function makeSitesTab(CONTEST, opts = {}) {
       const sel = mkSel(''), out = el('span', { class: 'small' });
       const known = new Set(users.map((u) => u.login));
       const go1 = el('button', { class: 'btn', type: 'button', onclick: () => {
+        // não barra aqui quem não está no mapa: membro de time inscrito não tem pasta, e o servidor grava a sede
+        // no TIME dele; o que não existir volta em "não atribuídos" ao salvar
         const ls = ta.value.split(/[\s,;]+/).map((x) => x.trim()).filter(Boolean);
-        const bad = ls.filter((l) => !known.has(l)); ls.filter((l) => known.has(l)).forEach((l) => pending.set(l, sel.value));
-        out.textContent = (ls.length - bad.length) + T(' time(s) atribuído(s) — salve para gravar', ' team(s) assigned — save to store', ' equipo(s) asignado(s) — guarda para grabar')
-          + (bad.length ? T('; fora do contest: ', '; not in the contest: ', '; fuera de la competencia: ') + bad.slice(0, 20).join(', ') : '');
+        const unk = ls.filter((l) => !known.has(l)); ls.forEach((l) => pending.set(l, sel.value));
+        out.textContent = ls.length + T(' login(s) atribuído(s) — salve para gravar', ' login(s) assigned — save to store', ' usuario(s) asignado(s) — guarda para grabar')
+          + (unk.length ? T('; sem pasta no contest (membro de time vai p/ o time; o resto o servidor recusa ao salvar): ', '; no folder in the contest (a team member goes to the team; the server refuses the rest on save): ', '; sin carpeta en la competencia (un miembro de equipo va al equipo; el servidor rechaza el resto al guardar): ') + unk.slice(0, 20).join(', ') : '');
         ta.value = ''; changed(); drawNone();
       } }, T('Atribuir', 'Assign', 'Asignar'));
       const noneBox = el('div', {});
@@ -222,8 +226,7 @@ export function makeSitesTab(CONTEST, opts = {}) {
       advEd.el, assignBox(leaves));
   }
 
-  function drawMode() {
-    view.innerHTML = ''; advEd = null;
+  function drawModeButtons() {
     modeBar.innerHTML = '';
     MODES().forEach(([k, label, sub]) => {
       const why = k === 'simple' ? SM.fitSimple(tree) : (k === 'rules' ? SM.fitRules(tree) : '');
@@ -232,6 +235,10 @@ export function makeSitesTab(CONTEST, opts = {}) {
       if (why) b.disabled = true;
       modeBar.append(b);
     });
+  }
+  function drawMode() {
+    view.innerHTML = ''; advEd = null;
+    drawModeButtons();
     if (mode === 'simple') viewSimple(); else if (mode === 'rules') viewRules(); else viewTree();
     renderPreview();
   }

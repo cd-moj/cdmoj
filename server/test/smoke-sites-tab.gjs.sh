@@ -64,13 +64,13 @@ const inputs=(p)=>p.all().filter((n)=>n.tagName==='input');
   const ta=P.all().filter((n)=>n.tagName==='textarea')[0]; ta.value='zz1\nninguem';
   const sels=P.all().filter((n)=>n.tagName==='select'); const sel=sels.find((s)=>s.children.some((o)=>o.attrs && o.attrs.value==='POA'));
   sel.value='POA'; await btn(P,'Atribuir').fire('click');
-  ck('colar: zz1 atribuído; "ninguem" avisado como fora do contest', P.textContent.includes('1 time(s) atribuído(s)') && P.textContent.includes('fora do contest: ninguem'));
+  ck('colar: os dois vão (membro de time não tem pasta — o servidor decide); "ninguem" avisado como sem pasta', P.textContent.includes('2 login(s) atribuído(s)') && P.textContent.includes('sem pasta no contest') && P.textContent.includes(': ninguem'));
   await btn(P,'Salvar sedes').fire('click');
   const b=POSTS[POSTS.length-1].body;
   ck('salvar = UM POST com a árvore nova, o modo, o sig lido e as atribuições (renomeio + colado)',
     POSTS[POSTS.length-1].path.includes('/contest/admin/regions?contest=c1') && b.mode==='simple' && b.expect_sig==='sig1'
     && J(b.tree.map((n)=>[n.name,n.regex]))===J([['CWB','^ctba'],['POA','^(poa|zz)']])
-    && J(b.assign.sort((x,y)=>x.login<y.login?-1:1))===J([{login:'xx9',region:'CWB'},{login:'zz1',region:'POA'}]), J(b));
+    && J(b.assign.sort((x,y)=>x.login<y.login?-1:1))===J([{login:'ninguem',region:'POA'},{login:'xx9',region:'CWB'},{login:'zz1',region:'POA'}]), J(b));
   // 409
   NEXT=new ApiError(409,'mudou','regions_changed',{sig:'sig2'});
   const nm2=inputs(P)[0]; nm2.value='CWB2'; await nm2.fire('input');
@@ -82,6 +82,15 @@ const inputs=(p)=>p.all().filter((n)=>n.tagName==='input');
   ck('árvore com recorte: modo guardado (Simples) não cabe → abre no Avançado e avisa', btn(P2,'Avançado').className==='btn' && P2.textContent.includes('não cabe mais no modo guardado'));
   ck('Simples e Intermediário desabilitados com o motivo', btn(P2,'Simples').disabled && btn(P2,'Simples').attrs.title.includes('Não cabe neste modo: a árvore tem subregiões') && btn(P2,'Intermediário').disabled);
   ck('prévia do Avançado: Brasil › DF com 1', P2.textContent.includes('1 de 1 times com sede'));
+  // 2b) Avançado com árvore que cabe no Intermediário: editar o JSON (acrescentar um recorte) desabilita o
+  //     Intermediário NA HORA — senão voltar p/ ele perderia a regex do recorte
+  const bubble=async (n,t)=>{ for (let x=n; x; x=x.parentNode) await x.fire(t); };
+  STATE={ tree:[{name:'G',subregions:[{name:'S',regex:'^s'}]}], mode:'tree', map:[{login:'s1',site:'S',flag:'r'}] };
+  const t4=makeSitesTab('c4', {}); await t4.load(); const P4=t4.panel;
+  ck('Avançado (guardado) com a árvore cabendo no Intermediário: Intermediário habilitado', btn(P4,'Avançado').className==='btn' && !btn(P4,'Intermediário').disabled);
+  const ta4=P4.all().filter((n)=>n.tagName==='textarea')[0];
+  ta4.value='[{"name":"G","subregions":[{"name":"S","regex":"^s"}]},{"name":"V","view":true,"regex":"^v"}]'; await bubble(ta4,'input');
+  ck('…JSON ganha um recorte: Intermediário DESABILITADO na hora, com o motivo', btn(P4,'Intermediário').disabled && btn(P4,'Intermediário').attrs.title.includes('recortes'), btn(P4,'Intermediário').attrs.title);
   // 3) grupos › sedes: Intermediário; regra nova com erro de regex aparece inline
   STATE={ tree:[{name:'Sul',subregions:[{name:'CTBA',regex:'^ctba'}]}], mode:'', map:[{login:'ctba1',site:'CTBA',flag:'r'}] };
   const t3=makeSitesTab('c3', {}); await t3.load(); const P3=t3.panel;
