@@ -143,7 +143,7 @@ function buildTree() {
       { label: name, colls: new Set([name]), count: counts.get(name) || 0, kids: [], leaf: true }));
     const kids = [...ownLeaves, ...kidNodes]
       .sort((a, b) => a.label.localeCompare(b.label, 'pt', { numeric: true }));
-    const sample = [...all].reduce((a, b) => (a.length <= b.length ? a : b));
+    const sample = all.size ? [...all].reduce((a, b) => (a.length <= b.length ? a : b)) : "";
     return { label: (cutTokens(sample, depth) || sample), colls: all, count: probCount(all), kids, leaf: false };
   }
   const top = toDisplay(root, 0);
