@@ -74,6 +74,17 @@ RD '{"action":"promote","to":"prova","force":true}'
 ck "force NÃO passa por cima do problem_denied" '[[ "$OUT" == *"Status: 409"* && "$(J ".blockers | map(.code) | index(\"problem_denied\")")" != null ]]'
 ck "e nada foi materializado do privado alheio" '[[ ! -f "$C/enunciados/priv#other.html" ]]'
 jq -c '.rounds |= map(if .slug=="prova" then .problems |= map(select(.bank_id != "priv#other")) else . end)' "$C/rounds.json" > "$C/rounds.json.t" && mv -f "$C/rounds.json.t" "$C/rounds.json"
+# LETRA REPETIDA (PR #36): a porta `problems` recusa (sem diferenciar caixa); o que entrou por outra
+# porta (rounds.json de antes da regra) é bloqueador DURO letter_dup — o rd_apply_obj grava a janela
+# antes do cc_set_probs, então recusar lá dentro deixaria a promoção pela metade
+RD '{"action":"problems","slug":"prova","problems":[{"bank_id":"bankprob","letter":"A"},{"bank_id":"myorg#p","letter":"a"}]}'
+ck "letra repetida (outra caixa) na rodada: 422 letter_dup" '[[ "$OUT" == *"Status: 422"* && "$(J .error.code)" == letter_dup ]]'
+jq -c '.rounds |= map(if .slug=="prova" then .problems += [{"bank_id":"bankprob","letter":"b"}] else . end)' "$C/rounds.json" > "$C/rounds.json.t" && mv -f "$C/rounds.json.t" "$C/rounds.json"
+call /contest/admin/rounds GET '' cadm "$Q"
+ck "promoção bloqueada por letter_dup, trilíngue" '[[ "$(J ".promote_ready.blockers | map(.code) | index(\"letter_dup\")")" != null && "$(J "[.promote_ready.blockers[] | select(.code==\"letter_dup\") | .detail_en, .detail_es] | map(select(length > 0)) | length")" == 2 && "$(J "$BLK_I18N")" == 0 ]]'
+RD '{"action":"promote","to":"prova","force":true}'
+ck "force NÃO passa por cima do letter_dup" '[[ "$OUT" == *"Status: 409"* && "$(J ".blockers | map(.code) | index(\"letter_dup\")")" != null ]]'
+jq -c '.rounds |= map(if .slug=="prova" then .problems |= map(select(.letter != "b")) else . end)' "$C/rounds.json" > "$C/rounds.json.t" && mv -f "$C/rounds.json.t" "$C/rounds.json"
 
 echo "== rodada ATIVA: mesma regra, e vai pro conf =="
 call /contest/admin/rounds GET '' cadm "$Q"

@@ -107,6 +107,14 @@ ck "privado alheio no topo: 404 problem_denied" '[[ "$OUT" == *"Status: 404"* &&
 call /treino/contest-create/create POST "{\"name\":\"Z\",\"mode\":\"icpc\",\"end\":$FUT,\"problems\":[{\"bank_id\":\"bankprob\",\"name\":\"B\"}],\"modules\":{\"rodadas\":{\"rounds\":[{\"slug\":\"r2\",\"start\":$((FUT+10)),\"end\":$((FUT+100)),\"problems\":[{\"bank_id\":\"priv#other2\"}]}]}}}" reg
 ck "privado alheio numa rodada do spec: 404" '[[ "$OUT" == *"Status: 404"* && "$(jq -r .error.code <<<"$BODY")" == problem_denied ]]'
 ck "e o contest NÃO nasceu"  '[[ ! -d "$FIX/z" && -z "$(ls -d "$FIX"/*/ 2>/dev/null | xargs -n1 basename 2>/dev/null | grep -x z)" ]]'
+# LETRA (PR #36): a automática é a 1ª LIVRE — pela POSIÇÃO, [{letter:B},{}] dava "B B"; letra repetida
+# (sem diferenciar caixa) no topo ou numa rodada do spec = 422, e nada nasce
+call /treino/contest-create/create POST "{\"id\":\"let-free\",\"name\":\"Letras\",\"mode\":\"icpc\",\"end\":$FUT,\"problems\":[{\"problem_id\":\"a/b\",\"name\":\"AB\",\"letter\":\"B\"},{\"problem_id\":\"a/c\",\"name\":\"AC\"}]}" reg
+ck "create [B, sem letra]: a sem letra recebe A (1ª livre), nunca B de novo" '[[ "$(jq -r .success <<<"$BODY")" == true ]] && ( . "$FIX/let-free/conf"; [[ "${PROBS[3]}" == B && "${PROBS[8]}" == A ]] )'
+call /treino/contest-create/create POST "{\"id\":\"let-dup\",\"name\":\"Dup\",\"mode\":\"icpc\",\"end\":$FUT,\"problems\":[{\"problem_id\":\"a/b\",\"name\":\"AB\",\"letter\":\"A\"},{\"problem_id\":\"a/c\",\"name\":\"AC\",\"letter\":\"a\"}]}" reg
+ck "create com letra repetida (outra caixa): 422 letter_dup, nada criado" '[[ "$OUT" == *"Status: 422"* && "$(jq -r .error.code <<<"$BODY")" == letter_dup && ! -d "$FIX/let-dup" ]]'
+call /treino/contest-create/create POST "{\"id\":\"let-rdup\",\"name\":\"RDup\",\"mode\":\"icpc\",\"end\":$FUT,\"problems\":[{\"bank_id\":\"bankprob\",\"name\":\"B\"}],\"modules\":{\"rodadas\":{\"rounds\":[{\"slug\":\"r2\",\"start\":$((FUT+10)),\"end\":$((FUT+100)),\"problems\":[{\"bank_id\":\"bankprob\",\"letter\":\"C\"},{\"bank_id\":\"bankprob\",\"letter\":\"C\"}]}]}}}" reg
+ck "rodada do spec com letra repetida: 422, nada criado" '[[ "$OUT" == *"Status: 422"* && "$(jq -r .error.message <<<"$BODY")" == *repetida* && ! -d "$FIX/let-rdup" ]]'
 call /treino/contest-create/create POST "{\"name\":\"Z\",\"mode\":\"icpc\",\"end\":$FUT,\"problems\":[{\"bank_id\":\"bankprob\",\"name\":\"B\"}],\"modules\":{\"foo\":true}}" reg
 ck "módulo desconhecido no spec: 422" '[[ "$OUT" == *"Status: 422"* ]]'
 call /treino/contest-create/create POST "{\"name\":\"Z\",\"mode\":\"icpc\",\"end\":$FUT,\"problems\":[{\"bank_id\":\"bankprob\",\"name\":\"B\"}],\"modules\":{\"rodadas\":{\"rounds\":[{\"slug\":\"r2\",\"start\":$((FUT+100)),\"end\":$((FUT+10))}]}}}" reg

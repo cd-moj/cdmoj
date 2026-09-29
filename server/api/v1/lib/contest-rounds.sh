@@ -177,6 +177,17 @@ rd_promote_blockers(){
       fi
     fi
   fi
+  # letra REPETIDA na rodada planejada: DURO (o `force` não passa). O rd_apply_obj grava a janela no
+  # conf ANTES do cc_set_probs, então recusar lá dentro deixaria a promoção pela metade — a porta é
+  # aqui. A lista pode ter vindo do spec unificado ou de um rounds.json anterior à regra.
+  if [[ -n "$next" ]]; then
+    declare -F cc_letters_dup >/dev/null || source "${BASH_SOURCE[0]%/*}/contest-create.sh" 2>/dev/null || true
+    local _ldup
+    _ldup="$(cc_letters_dup "$(jq -c --arg s "$next" '[ (.rounds // [])[] | select(.slug == $s) | (.problems // [])[] ]' <<<"$(rd_get "$c")" 2>/dev/null)" 2>/dev/null)"
+    [[ -n "$_ldup" ]] && _add letter_dup "a rodada '$next' tem letra de problema repetida ($_ldup) — renomeie antes de promover" \
+      "round '$next' has a repeated problem letter ($_ldup) — rename it before promoting" \
+      "la ronda '$next' tiene una letra de problema repetida ($_ldup) — renómbrala antes de promover"
+  fi
   n="$(rd_jobs_in_flight "$c")"
   (( n > 0 )) && _add jobs_in_flight "$n job(s) deste contest no spool/fila do juiz — espere drenar" \
     "$n job(s) of this contest in the spool/judge queue — wait for it to drain" \

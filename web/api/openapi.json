@@ -3511,7 +3511,7 @@
         "tags": [
           "contest-create"
         ],
-        "summary": "Cria e publica o contest (no ar na hora) SPEC UNIFICADO (2026-09-05): modules:{<id>: true | {on?, …seção…}} leva os DADOS de cada módulo — sedes{regions,teams_meta,time_overrides}, baloes{colors,during_freeze}, coortes{cohorts}, maquinas{ua_gate,site_lock{enabled,grace},nutella_url}, rodadas{active,rounds}, documentos{config}, inscricoes{enabled,window}, telao{views} (chaves NOVAS de webcast), classificacao{algorithm,config}. Seção presente = módulo ligado (salvo on:false); tipo errado = 422 modules_spec_invalid; segredo nunca entra. colors/regions/teams_meta no topo continuam aceitos (compat).",
+        "summary": "Cria e publica o contest (no ar na hora) SPEC UNIFICADO (2026-09-05): modules:{<id>: true | {on?, …seção…}} leva os DADOS de cada módulo — sedes{regions,teams_meta,time_overrides}, baloes{colors,during_freeze}, coortes{cohorts}, maquinas{ua_gate,site_lock{enabled,grace},nutella_url}, rodadas{active,rounds}, documentos{config}, inscricoes{enabled,window}, telao{views} (chaves NOVAS de webcast), classificacao{algorithm,config}. Seção presente = módulo ligado (salvo on:false); tipo errado = 422 modules_spec_invalid; segredo nunca entra. colors/regions/teams_meta no topo continuam aceitos (compat). Letra de problema: sem letter = a 1ª LIVRE; repetida (sem diferenciar caixa) = 422 letter_dup (numa rodada do spec, 422 modules_spec_invalid).",
         "requestBody": {
           "required": true,
           "content": {
@@ -5413,7 +5413,7 @@
         "tags": [
           "contest-admin"
         ],
-        "summary": "add|remove|reorder|rename|langs|judges|statement (langs -> problem-langs.json; judges -> problem-judges.json, pool por problema, vazio herda o do contest; add de privado: só se o dono do contest é dono/colaborador — senão 404) — rename {letter,name?,new_letter?} troca o identificador (migra a cor do balão); reorder preserva letra customizada (só re-letra sequência automática)",
+        "summary": "add|remove|reorder|rename|langs|judges|statement (langs -> problem-langs.json; judges -> problem-judges.json, pool por problema, vazio herda o do contest; add de privado: só se o dono do contest é dono/colaborador — senão 404) — rename {letter,name?,new_letter?} troca o identificador (migra a cor do balão); reorder preserva letra customizada (só re-letra sequência automática); add sem letter = a 1ª letra LIVRE, letter já em uso (sem diferenciar caixa) = 422 letter_taken; rename idem e muda só a 1ª entrada (desfaz letra repetida antiga); reorder com letra repetida = 422 letter_dup",
         "parameters": [
           {
             "$ref": "#/components/parameters/contest"
@@ -5542,7 +5542,7 @@
         "tags": [
           "contest-admin"
         ],
-        "summary": "Rodadas + checklist de promocao (admin ou juiz-chefe). POST: problems segue a permissão do DONO do contest (público/dono/colaborador/org, 403 problem_denied); set aceita colors (cores de balão da rodada; null = herdar); promote recusa freeze_locked mesmo com force",
+        "summary": "Rodadas + checklist de promocao (admin ou juiz-chefe). POST: problems segue a permissão do DONO do contest (público/dono/colaborador/org, 403 problem_denied); set aceita colors (cores de balão da rodada; null = herdar); promote recusa freeze_locked mesmo com force; problems com letra repetida (sem diferenciar caixa) = 422 letter_dup, e letra repetida na rodada planejada é bloqueador DURO letter_dup (o force não passa)",
         "security": [
           {
             "bearerAuth": []

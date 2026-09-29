@@ -136,6 +136,9 @@ case "$action" in
     probs="$(jq -c '.problems // []' "$bodyf")"
     jq -e 'type == "array"' <<<"$probs" >/dev/null 2>&1 || fail 422 "problems deve ser array" "problems_invalid"
     (( $(jq 'length' <<<"$probs") <= 200 )) || fail 422 "máximo de 200 problemas" "too_many"
+    # letra repetida (sem diferenciar caixa): a letra é a chave do problema na rodada ativa
+    ldup="$(cc_letters_dup "$probs")"
+    [[ -z "$ldup" ]] || fail 422 "Letra de problema repetida: $ldup" "letter_dup"
     # guarda de problema PRIVADO: a MESMA de Prova › Problemas e do wizard (problems_denied_for):
     # público, ou o DONO do contest é dono/colaborador/membro da org. Vale igual p/ rodada ativa e
     # planejada (a planejada só tem esta porta). Negado: 404 SEM a lista — a existência de um
@@ -195,10 +198,11 @@ case "$action" in
     force=false; jq -e '.force == true' "$bodyf" >/dev/null 2>&1 && force=true
     bl="$(rd_promote_blockers "$contest")"; [[ -n "$bl" ]] || bl='[]'
     # `force` ignora tudo menos o que tornaria a promoção INCORRETA (sem rodada planejada) ou
-    # descongelaria o placar antes da hora (freeze_locked: fim geral + 1 min, 2026-09-14).
+    # descongelaria o placar antes da hora (freeze_locked: fim geral + 1 min, 2026-09-14), nem
+    # o privado que o dono não vê (problem_denied) nem letra repetida na rodada (letter_dup).
     # `shared_users` saiu da lista: contest com USERS_FROM promove normalmente — o arquivamento
     # só mexe nos diretórios LOCAIS (ver lib/contest-rounds.sh).
-    hard="$(jq -c '[ .[] | select(.code == "no_next_round" or .code == "freeze_locked" or .code == "problem_denied") ]' <<<"$bl")"
+    hard="$(jq -c '[ .[] | select(.code == "no_next_round" or .code == "freeze_locked" or .code == "problem_denied" or .code == "letter_dup") ]' <<<"$bl")"
     if [[ "$force" == true ]]; then blk="$hard"; else blk="$bl"; fi
     if [[ "$(jq 'length' <<<"$blk")" != 0 ]]; then
       emit_json 409 Conflict

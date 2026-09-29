@@ -212,13 +212,15 @@ cc_create(){
   allow_empty="$(jq -r 'if .allow_empty==true then 1 else 0 end' <<<"$spec")"
   if (( np < 1 )) && [[ "$allow_empty" != 1 ]]; then fail 422 "Inclua ao menos um problema (ou marque criar vazio)" "no_problems"; fi
   (( np <= 200 )) || fail 422 "Máximo de 200 problemas" "too_many"
+  local ldup; ldup="$(cc_letters_dup "$(jq -c '.problems // []' <<<"$spec")")"
+  [[ -z "$ldup" ]] || fail 422 "Letra de problema repetida: $ldup" "letter_dup"
 
   local stg="$CONTESTSDIR/.staging-$id-${BASHPID}-$RANDOM"
   rm -rf "$stg"
   mkdir -p "$stg"/{users,enunciados,var} || fail 500 "Falha ao preparar diretório" "mkdir_fail"
 
   local probs="PROBS=(" i=0
-  local letterauto=( {A..Z} {A..Z}{A..Z} )   # A..Z, depois AA,AB,…
+  local lused; lused="$(cc_letters_used "$(jq -c '.problems // []' <<<"$spec")")"
   local p pid src pname letter bankid stmt_b64 stmt_file skey bf html
   local pdf_b64 pdf_file larr plangs='{}' jarr pjudges='{}'
   while IFS= read -r p; do
@@ -240,7 +242,7 @@ cc_create(){
     { [[ "$pid" =~ ^[A-Za-z0-9._/#@+-]+$ ]] && [[ "$pid" != *..* ]]; } || { rm -rf "$stg"; fail 422 "id de problema inválido: $pid" "prob_id_invalid"; }
     [[ "$src" =~ ^[A-Za-z0-9._-]+$ ]] || { rm -rf "$stg"; fail 422 "source de problema inválido" "src_invalid"; }
     (( ${#pname} <= 160 )) || { rm -rf "$stg"; fail 422 "nome de problema muito longo" "pname_long"; }
-    [[ -z "$letter" ]] && letter="${letterauto[$i]:-$((i+1))}"
+    [[ -n "$letter" ]] || cc_letter_next lused letter || letter="$((i+1))"
     [[ "$letter" =~ ^[A-Za-z0-9]{1,3}$ ]] || { rm -rf "$stg"; fail 422 "letra inválida" "letter_invalid"; }
     skey="${pid//\//#}"
     { [[ "$skey" =~ ^[A-Za-z0-9._#@+-]+$ ]] && [[ "$skey" != *..* ]]; } || { rm -rf "$stg"; fail 422 "chave de enunciado inválida" "skey_invalid"; }
@@ -505,6 +507,12 @@ cc_apply_modules_spec(){
       and ((.kind // "official") | IN("warmup","official","extra")))' >/dev/null 2>&1 <<<"$v" \
       || { CC_MOD_ERR="rodadas.rounds: slug (minúsculas), start/end em epoch com fim > início, freeze 0 ou dentro da janela, kind warmup|official|extra"; return 1; }
     (( $(jq 'length' <<<"$v") <= 50 )) || { CC_MOD_ERR="rodadas.rounds: máximo de 50 rodadas"; return 1; }
+    # letra repetida numa rodada (sem diferenciar caixa) — a mesma regra de cc_letters_dup
+    local rdup; rdup="$(jq -r '[ .[] | (.slug // "") as $s
+        | ((.problems // []) | [ .[]? | objects | (.letter // "") | tostring | ascii_upcase | select(length > 0) ]
+           | group_by(.) | map(select(length > 1) | .[0])) as $d
+        | select(($d | length) > 0) | "\($s): \($d | join(" "))" ] | join("; ")' <<<"$v" 2>/dev/null)"
+    [[ -z "$rdup" ]] || { CC_MOD_ERR="rodadas.rounds: letra de problema repetida ($rdup)"; return 1; }
     local act; act="$(jq -r '.modules.rodadas.active // ""' <<<"$spec")"
     jq -c --arg a "$act" '{version:1, active:$a,
       rounds:[ .[] | select(type=="object" and ((.slug // "") | test("^[a-z0-9][a-z0-9_-]{0,31}$")) and .state != "archived")
@@ -726,7 +734,7 @@ cc_regions_fail(){
 }
 
 # cc_build_probs <target_dir> <problems_json_array> [enun_src_dir] -> ecoa "PROBS=(...)"
-# e grava os enunciados em <target_dir>/enunciados/. Letra: usa .letter se válida, senão A,B,...
+# e grava os enunciados em <target_dir>/enunciados/. Letra: usa .letter se válida, senão a 1ª LIVRE (cc_letter_next).
 # Retorna 1 em validação inválida.
 # **CC_KEEP_STATEMENTS=1**: não re-busca o enunciado do banco quando o contest JÁ tem
 # `enunciados/<skey>.html`. Sem isso, um problema sem `statement_b64` no spec faz o helper
@@ -741,10 +749,37 @@ cc_prob_title(){
   t="${t//[$'\r\n\t']/ }"; t="${t:0:160}"
   printf '%s' "${t:-$2}"
 }
+# LETRA DO PROBLEMA — nunca repetida, SEM diferenciar caixa (o editor de cores e o placar a mostram em
+# maiúscula). A letra é a chave de rename/remove/reorder, das clarifications e da cor de balão; com
+# duplicata, renomear mexia nas duas, remover tirava as duas e o reorder (map({(.letter): .})) perdia uma
+# em silêncio. A automática era pela POSIÇÃO (letterauto[$i]) e colidia sempre que a sequência tinha
+# lacuna: remover o C e acrescentar outro problema dava DUAS entradas com a mesma letra (caso real em
+# 2026-09-09, contest atividade-ead-2; PR #36). Hoje a automática é a PRIMEIRA LIVRE, pela MESMA regra nos
+# dois laços (cc_create e cc_build_probs — mexeu num, mexa no outro), e toda porta que recebe letra
+# explícita recusa repetida (422 letter_taken/letter_dup; na promoção de rodada, bloqueador letter_dup).
+# cc_letters_used <problems_json> -> " A B W1 " (as explícitas, em MAIÚSCULA, entre espaços)
+cc_letters_used(){
+  printf ' %s ' "$(jq -r '[.[]? | objects | (.letter // "") | tostring | ascii_upcase | select(length > 0)] | join(" ")' <<<"$1" 2>/dev/null)"
+}
+# cc_letters_dup <problems_json> -> as letras repetidas (maiúsculas, separadas por espaço) ou vazio
+cc_letters_dup(){
+  jq -r '[.[]? | objects | (.letter // "") | tostring | ascii_upcase | select(length > 0)]
+         | group_by(.) | map(select(length > 1) | .[0]) | join(" ")' <<<"$1" 2>/dev/null
+}
+# cc_letter_next <var-usadas> <var-saída> — a 1ª letra livre de A..Z, AA..ZZ; acrescenta-a às usadas.
+# rc 1 quando as 702 estão ocupadas (o chamador cai na posição numérica).
+cc_letter_next(){
+  local -n _ccl_u="$1" _ccl_o="$2"; local _ccl_c
+  for _ccl_c in {A..Z} {A..Z}{A..Z}; do
+    [[ "$_ccl_u" == *" $_ccl_c "* ]] && continue
+    _ccl_o="$_ccl_c"; _ccl_u+="$_ccl_c "; return 0
+  done
+  return 1
+}
 cc_build_probs(){
   local tdir="$1" spec="$2" enun="${3:-}" probs="PROBS=(" i=0
-  local letterauto=( {A..Z} {A..Z}{A..Z} )   # A..Z, depois AA,AB,…
   local p pid src pname letter bankid stmt_b64 stmt_file skey bf html
+  local lused; lused="$(cc_letters_used "$spec")"
   mkdir -p "$tdir/enunciados"
   while IFS= read -r p; do
     [[ -n "$p" ]] || continue
@@ -757,7 +792,7 @@ cc_build_probs(){
     [[ -n "$pid" ]] || { ((i++)); continue; }
     { [[ "$pid" =~ ^[A-Za-z0-9._/#@+-]+$ ]] && [[ "$pid" != *..* ]]; } || return 1
     [[ "$src" =~ ^[A-Za-z0-9._-]+$ ]] || return 1
-    [[ -z "$letter" ]] && letter="${letterauto[$i]:-$((i+1))}"
+    [[ -n "$letter" ]] || cc_letter_next lused letter || letter="$((i+1))"
     [[ "$letter" =~ ^[A-Za-z0-9]{1,3}$ ]] || return 1
     skey="${pid//\//#}"
     { [[ "$skey" =~ ^[A-Za-z0-9._#@+-]+$ ]] && [[ "$skey" != *..* ]]; } || return 1

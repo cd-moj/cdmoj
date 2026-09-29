@@ -30,6 +30,14 @@ case "$action" in
   add)
     prob="$(jq -c '.problem // {}' <<<"$body")"
     [[ "$(jq -r '(.problem_id // .bank_id // "")' <<<"$prob")" != "" ]] || fail 422 "Informe problem_id ou bank_id" "prob_missing"
+    # letra explícita não pode colidir (sem diferenciar caixa): a letra é a CHAVE de
+    # rename/remove/reorder — ver cc_letters_used em lib/contest-create.sh. Sem letra, o
+    # cc_build_probs dá a 1ª LIVRE (antes era a da posição e duplicava com lacuna na sequência).
+    NLADD="$(jq -r '.letter // empty' <<<"$prob")"
+    if [[ -n "$NLADD" ]]; then
+      jq -e --arg n "$NLADD" 'any(.[]; ((.letter // "") | ascii_upcase) == ($n | ascii_upcase))' <<<"$cur" >/dev/null 2>&1 \
+        && fail 422 "Já existe um problema com esse identificador" "letter_taken"
+    fi
     # problema PRIVADO só entra se o DONO do contest (arquivo owner, escrito na criação) é
     # dono/colaborador dele — mesmo guard do create.sh, com o dono do contest como sujeito
     # (o login .admin do contest é um nome arbitrário; usá-lo daria acesso por homonímia).
@@ -57,25 +65,35 @@ case "$action" in
     [[ -n "$L" ]] || fail 400 "Informe a letra" "letter_missing"
     NLCHK="$(jq -r '.new_letter // empty' <<<"$body")"
     if [[ -n "$NLCHK" && "$NLCHK" != "$L" ]]; then
-      jq -e --arg n "$NLCHK" 'any(.[]; .letter == $n)' <<<"$cur" >/dev/null 2>&1 \
+      # sem diferenciar caixa e sem contar a própria entrada ("c" → "C" é legítimo)
+      jq -e --arg l "$L" --arg n "$NLCHK" '([ to_entries[] | select(.value.letter == $l) | .key ][0]) as $k
+        | any(to_entries[]; .key != $k and ((.value.letter // "") | ascii_upcase) == ($n | ascii_upcase))' <<<"$cur" >/dev/null 2>&1 \
         && fail 422 "Já existe um problema com esse identificador" "letter_taken"
     fi
+    # só a PRIMEIRA entrada com a letra: normalmente é a única; num contest que já tem letra repetida
+    # (criado antes do conserto da letra livre), é o que permite desfazer a duplicata pela interface
     new="$(jq -cn --argjson cur "$cur" --argjson b "$body" --arg l "$L" '
-      [ $cur[] | if .letter==$l then
-          (if ($b|has("name")) then .name=$b.name else . end)
-          | (if ($b|has("new_letter")) then .letter=$b.new_letter else . end)
-        else . end ]')"
+      ([ $cur | to_entries[] | select(.value.letter == $l) | .key ][0]) as $k
+      | [ $cur | to_entries[] | if .key == $k then (.value
+            | (if ($b|has("name")) then .name=$b.name else . end)
+            | (if ($b|has("new_letter")) then .letter=$b.new_letter else . end))
+          else .value end ]')"
     # a cor do balão é chaveada pela LETRA (balloons.json): a letra renomeada leva a cor junto
+    # (COPIA em vez de mover quando a letra velha segue em uso — o caso da duplicata desfeita)
     NL="$(jq -r '.new_letter // empty' <<<"$body")"
     if [[ -n "$NL" && "$NL" != "$L" && -s "$CONTESTSDIR/$contest/balloons.json" ]]; then
       bf="$CONTESTSDIR/$contest/balloons.json"
-      jq -c --arg o "$L" --arg n "$NL" \
-        'if (has($o) and (has($n)|not)) then (.[$n] = .[$o] | del(.[$o])) else . end' \
+      still="$(jq -r --arg l "$L" 'any(.[]; .letter == $l)' <<<"$new" 2>/dev/null)"; [[ "$still" == true ]] || still=false
+      jq -c --arg o "$L" --arg n "$NL" --argjson keep "$still" \
+        'if (has($o) and (has($n)|not)) then (.[$n] = .[$o] | if $keep then . else del(.[$o]) end) else . end' \
         "$bf" > "$bf.tmp" 2>/dev/null && mv -f "$bf.tmp" "$bf" || rm -f "$bf.tmp"
     fi
     ;;
   reorder)
     order="$(jq -c '.order // []' <<<"$body")"
+    # letra repetida na ordem duplicaria a entrada (o $by[...] a acha duas vezes) e sumiria com outra
+    odup="$(cc_letters_dup "$(jq -c 'map({letter: .})' <<<"$order" 2>/dev/null)")"
+    [[ -z "$odup" ]] || fail 422 "Letra repetida na ordem: $odup" "letter_dup"
     # letra pela posição: A..Z, depois AA,AB,… ([65+key]|implode puro virava lixo com >26).
     # SÓ re-letra quando as letras atuais JÁ são a sequência automática (contest clássico):
     # letra CUSTOMIZADA (W1..W4, Q/R/S…) sobrevive à reordenação — o ↑/↓ da UI apagava os
