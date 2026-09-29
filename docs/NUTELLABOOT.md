@@ -36,7 +36,7 @@ máquina↔time** (roster/binding).
   home clonada por imagem de disco), `usb.storage|phone|network|other` e `display.multiple` (22/09: mais
   monitores acesos que o campo **Monitores permitidos** do modelo, `MAXMONITORS`, padrão 1; o `detail` diz
   quantos e em quais saídas, ex. `2 monitores: DP-1, HDMI-A-1`). `kind` desconhecido é aceito e aparece
-  cru; tipo conhecido ganha rótulo pt/en nos DOIS mapas da tela (`alertName` de `web/lib/mlinux-view.js`
+  cru; tipo conhecido ganha rótulo pt/en/es nos DOIS mapas da tela (`alertName` de `web/lib/mlinux-view.js`
   e o caso `machine_alert` de `web/contest/admin/anomalies-tab.js`).
 - `status.hwinfo.machine_id` (+ `boot_id`, `image`) é o que o navegador do mlinux manda no
   User-Agent — o **elo máquina↔time** (abaixo). Agente antigo: `Mozilla/5.0 (MLinux/<imagem>/<machine_id>/

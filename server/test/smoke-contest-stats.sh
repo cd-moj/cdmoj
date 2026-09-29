@@ -67,6 +67,8 @@ ck "timeline tem bins"     '[[ "$(jq -r ".timeline|length" <<<"$BODY")" -ge 1 ]]
 echo "== recortes por sede/país (R2) =="
 ck "by_region: sedes + nós da árvore (regex inválida fora)" \
   '[[ "$(jq -c ".by_region|keys|sort" <<<"$BODY")" == "[\"Argentina\",\"Brasil\",\"Buenos Aires\",\"Curitiba\",\"Sul\"]" ]]'
+ck "teams_idx: sede canônica (r) e os nós em que o time está (rs) — a web filtra por eles, sem regex" \
+  '[[ "$(jq -r ".teams_idx.alice.rs | sort | join(\",\")" <<<"$BODY")" == "Brasil,Curitiba,Sul" && "$(jq -r ".teams_idx.carol.rs | sort | join(\",\")" <<<"$BODY")" == "Argentina,Buenos Aires" && "$(jq -r ".teams_idx.carol.r" <<<"$BODY")" == "Buenos Aires" ]]'
 ck "nó Brasil agrega por regex (4 subs, 2 users — zz.judge segue fora)" \
   '[[ "$(jq -r ".by_region.Brasil.totals.submissions" <<<"$BODY")" == 4 && "$(jq -r ".by_region.Brasil.totals.users" <<<"$BODY")" == 2 ]]'
 ck "nó==sede não conta duas vezes (Curitiba users=2)" \

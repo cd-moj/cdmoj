@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="pt-br" data-en-doctitle="Free Training — MOJ">
+<html lang="pt-br" data-en-doctitle="Free Training — MOJ" data-es-doctitle="Entrenamiento libre — MOJ">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -146,23 +146,23 @@
   </header>
 
   <main class="container">
-    <p id="pageLoading" class="muted center" style="margin:2.5rem 0" data-en="loading…">carregando…</p>
+    <p id="pageLoading" class="muted center" style="margin:2.5rem 0" data-en="loading…" data-es="cargando…">carregando…</p>
     <!-- =================== HUB (estado inicial) =================== -->
     <div id="hub" class="hidden">
       <div class="thero">
-        <h1 data-en="Free Training">Treino Livre</h1>
+        <h1 data-en="Free Training" data-es="Entrenamiento libre">Treino Livre</h1>
         <p id="heroSub" class="small muted" style="margin:.1rem 0 0"></p>
         <div class="herosearch">
           <span class="mag">🔎</span>
           <input id="hq" autocomplete="off" placeholder="Busque por título, coleção ou tag…"
-            data-en-ph="Search by title, collection or tag…">
+            data-en-ph="Search by title, collection or tag…" data-es-ph="Buscar por título, colección o etiqueta…">
           <div id="suggest" class="suggest hidden"></div>
         </div>
         <div class="quickchips">
-          <a class="fchip" id="qcRandom" data-en="🎲 random problem">🎲 problema aleatório</a>
-          <a class="fchip" id="qcEasy" data-en="🌱 easy starters">🌱 fáceis para começar</a>
-          <a class="fchip" id="qcUnsolved" data-en="🚀 not solved yet">🚀 ainda não resolvidos</a>
-          <a class="fchip on" id="qcBrowse" data-en="🔬 advanced search">🔬 busca avançada</a>
+          <a class="fchip" id="qcRandom" data-en="🎲 random problem" data-es="🎲 problema aleatorio">🎲 problema aleatório</a>
+          <a class="fchip" id="qcEasy" data-en="🌱 easy starters" data-es="🌱 fáciles para empezar">🌱 fáceis para começar</a>
+          <a class="fchip" id="qcUnsolved" data-en="🚀 not solved yet" data-es="🚀 sin resolver aún">🚀 ainda não resolvidos</a>
+          <a class="fchip on" id="qcBrowse" data-en="🔬 advanced search" data-es="🔬 búsqueda avanzada">🔬 busca avançada</a>
         </div>
       </div>
 
@@ -172,25 +172,25 @@
 
       <section class="section">
         <div class="crow-head">
-          <h2 data-en="📚 Featured collections">📚 Coleções em destaque</h2>
+          <h2 data-en="📚 Featured collections" data-es="📚 Colecciones destacadas">📚 Coleções em destaque</h2>
           <span style="flex:1"></span>
           <button class="arr" id="carPrev" aria-label="anterior">‹</button>
           <button class="arr" id="carNext" aria-label="próximo">›</button>
           <a class="small" id="allColls" href="?browse=1" style="margin-left:.4rem"></a>
         </div>
-        <div id="carousel" class="carousel"><span class="muted" data-en="loading…">carregando…</span></div>
+        <div id="carousel" class="carousel"><span class="muted" data-en="loading…" data-es="cargando…">carregando…</span></div>
       </section>
 
       <div class="hubduo">
         <section class="section" style="margin:0">
-          <h2 style="font-size:1.05rem;margin:.05rem 0 .5rem" data-en="🔥 Most submitted this week">🔥 Mais enviados na semana</h2>
+          <h2 style="font-size:1.05rem;margin:.05rem 0 .5rem" data-en="🔥 Most submitted this week" data-es="🔥 Más enviados esta semana">🔥 Mais enviados na semana</h2>
           <div id="trendList"></div>
         </section>
         <section class="section" style="margin:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.5rem;text-align:center">
           <span style="font-size:1.6rem">🔬</span>
-          <b style="color:var(--blue-dark)" data-en="Looking for something specific?">Procurando algo específico?</b>
+          <b style="color:var(--blue-dark)" data-en="Looking for something specific?" data-es="¿Buscas algo específico?">Procurando algo específico?</b>
           <span id="ctaSub" class="small muted"></span>
-          <a class="btn" id="ctaBrowse" href="?browse=1" data-en="Open the advanced search">Abrir a busca avançada</a>
+          <a class="btn" id="ctaBrowse" href="?browse=1" data-en="Open the advanced search" data-es="Abrir la búsqueda avanzada">Abrir a busca avançada</a>
         </section>
       </div>
     </div>
@@ -198,45 +198,45 @@
     <!-- =================== BUSCA AVANÇADA (browse) =================== -->
     <div id="browse" class="hidden">
       <div class="row" style="margin:.9rem 0 .7rem">
-        <a class="small" id="backHub" href="/treino/" data-en="← Free Training">← Treino Livre</a>
-        <h2 style="margin:0;color:var(--blue-dark)" data-en="🔬 Advanced search">🔬 Busca avançada</h2>
+        <a class="small" id="backHub" href="/treino/" data-en="← Free Training" data-es="← Entrenamiento libre">← Treino Livre</a>
+        <h2 style="margin:0;color:var(--blue-dark)" data-en="🔬 Advanced search" data-es="🔬 Búsqueda avanzada">🔬 Busca avançada</h2>
         <span style="flex:1"></span>
         <span id="mystats" class="small muted"></span>
-        <a class="btn ghost" href="/treino/cli.html" target="_blank" data-en="⌨ CLI">⌨ CLI</a>
+        <a class="btn ghost" href="/treino/cli.html" target="_blank" data-en="⌨ CLI" data-es="⌨ CLI">⌨ CLI</a>
       </div>
 
       <div class="mfilterbar">
-        <input id="mq" placeholder="🔎 Buscar por título…" data-en-ph="🔎 Search by title…">
+        <input id="mq" placeholder="🔎 Buscar por título…" data-en-ph="🔎 Search by title…" data-es-ph="🔎 Buscar por título…">
         <a class="fchip" id="mFilters"></a>
       </div>
 
       <div class="blayout">
         <aside class="rail" id="rail">
           <div class="rail-card">
-            <input id="q" placeholder="🔎 Filtrar por título…" data-en-ph="🔎 Filter by title…">
+            <input id="q" placeholder="🔎 Filtrar por título…" data-en-ph="🔎 Filter by title…" data-es-ph="🔎 Filtrar por título…">
             <a class="small" id="clearAll" style="display:inline-block;margin-top:.4rem;cursor:pointer"
-              data-en="clear all filters">limpar todos os filtros</a>
+              data-en="clear all filters" data-es="limpiar todos los filtros">limpar todos os filtros</a>
           </div>
           <div class="rail-card">
             <details class="fgroup" open id="fStatusGrp">
-              <summary data-en="My status">Meu status</summary>
+              <summary data-en="My status" data-es="Mi estado">Meu status</summary>
               <div class="fbody" id="fStatus"></div>
             </details>
             <details class="fgroup" open>
-              <summary data-en="Difficulty">Dificuldade</summary>
+              <summary data-en="Difficulty" data-es="Dificultad">Dificuldade</summary>
               <div class="fbody" id="fDiff"></div>
             </details>
             <details class="fgroup" open>
-              <summary data-en="Collections">Coleções</summary>
+              <summary data-en="Collections" data-es="Colecciones">Coleções</summary>
               <div class="fbody">
-                <input id="colFilter" placeholder="filtrar coleções…" data-en-ph="filter collections…" style="margin-bottom:.4rem">
+                <input id="colFilter" placeholder="filtrar coleções…" data-en-ph="filter collections…" data-es-ph="filtrar colecciones…" style="margin-bottom:.4rem">
                 <div id="colTree" class="ctree small"></div>
               </div>
             </details>
             <details class="fgroup" open>
-              <summary data-en="Tags">Tags</summary>
+              <summary data-en="Tags" data-es="Etiquetas">Tags</summary>
               <div class="fbody">
-                <input id="tagFilter" placeholder="filtrar tags…" data-en-ph="filter tags…" style="margin-bottom:.4rem">
+                <input id="tagFilter" placeholder="filtrar tags…" data-en-ph="filter tags…" data-es-ph="filtrar etiquetas…" style="margin-bottom:.4rem">
                 <div id="tagCloud" class="tcloud"></div>
               </div>
             </details>
@@ -248,12 +248,12 @@
             <span id="count" class="cnt"></span>
             <span id="active" class="row" style="gap:.3rem"></span>
             <span style="flex:1"></span>
-            <span class="small muted" data-en="sort:">ordenar:</span>
+            <span class="small muted" data-en="sort:" data-es="ordenar:">ordenar:</span>
             <span class="sorttabs" id="sorts"></span>
-            <button id="toggleTags" class="btn ghost" style="padding:.32rem .7rem;font-size:.82rem" data-en="Show tags">Mostrar tags</button>
+            <button id="toggleTags" class="btn ghost" style="padding:.32rem .7rem;font-size:.82rem" data-en="Show tags" data-es="Mostrar etiquetas">Mostrar tags</button>
           </div>
           <div id="pager" class="row" style="margin-bottom:.5rem"></div>
-          <div id="list" class="chart-wrap"><span class="muted" data-en="loading…">carregando…</span></div>
+          <div id="list" class="chart-wrap"><span class="muted" data-en="loading…" data-es="cargando…">carregando…</span></div>
           <div id="pager2" class="row" style="margin-top:.6rem;justify-content:center"></div>
         </div>
       </div>

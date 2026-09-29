@@ -23,39 +23,39 @@ export const EVENT_GROUPS = ['evento', 'maquinas'];
 
 // fábrica preguiçosa: T() no topo congelaria o idioma antes do LOCALE do contest
 export const GROUPS = () => [
-  { id: 'central', label: T('🏁 Central', '🏁 Home'), panels: [
-    { id: 'central', label: T('Central', 'Home') },
-    { id: 'modulos', label: T('Módulos', 'Modules') },
-    { id: 'regras', label: T('Regras', 'Rules') },
+  { id: 'central', label: T('🏁 Central', '🏁 Home', '🏁 Central'), panels: [
+    { id: 'central', label: T('Central', 'Home', 'Central') },
+    { id: 'modulos', label: T('Módulos', 'Modules', 'Módulos') },
+    { id: 'regras', label: T('Regras', 'Rules', 'Reglas') },
   ] },
-  { id: 'prova', label: T('🧩 Prova', '🧩 Contest'), panels: [
-    { id: 'problemas', label: T('Problemas', 'Problems') },
-    { id: 'relatorio', label: T('Relatório', 'Report') },
+  { id: 'prova', label: T('🧩 Prova', '🧩 Contest', '🧩 Competencia'), panels: [
+    { id: 'problemas', label: T('Problemas', 'Problems', 'Problemas') },
+    { id: 'relatorio', label: T('Relatório', 'Report', 'Informe') },
   ] },
-  { id: 'pessoas', label: T('👥 Pessoas', '👥 People'), panels: [
-    { id: 'contas', label: T('Contas', 'Accounts') },
-    { id: 'inscricoes', label: T('Inscrições', 'Registrations') },
-    { id: 'sessoes', label: T('Sessões', 'Sessions') },
+  { id: 'pessoas', label: T('👥 Pessoas', '👥 People', '👥 Personas'), panels: [
+    { id: 'contas', label: T('Contas', 'Accounts', 'Cuentas') },
+    { id: 'inscricoes', label: T('Inscrições', 'Registrations', 'Inscripciones') },
+    { id: 'sessoes', label: T('Sessões', 'Sessions', 'Sesiones') },
   ] },
-  { id: 'operacao', label: T('🎛️ Operação', '🎛️ Operations'), panels: [
-    { id: 'situacao', label: T('Situação', 'Status') },
-    { id: 'staff', label: T('Staff', 'Staff') },
-    { id: 'juizes', label: T('Juízes', 'Judges') },
-    { id: 'auditoria', label: T('Auditoria', 'Audit') },
+  { id: 'operacao', label: T('🎛️ Operação', '🎛️ Operations', '🎛️ Operación'), panels: [
+    { id: 'situacao', label: T('Situação', 'Status', 'Situación') },
+    { id: 'staff', label: T('Staff', 'Staff', 'Staff') },
+    { id: 'juizes', label: T('Juízes', 'Judges', 'Jueces') },
+    { id: 'auditoria', label: T('Auditoria', 'Audit', 'Auditoría') },
   ] },
-  { id: 'evento', label: T('🏟️ Evento', '🏟️ Event'), panels: [
-    { id: 'rodadas', label: T('Rodadas', 'Rounds') },
-    { id: 'documentos', label: T('Documentos', 'Documents') },
-    { id: 'baloes', label: T('Balões', 'Balloons') },
-    { id: 'classificacao', label: T('Classificação', 'Qualification') },
+  { id: 'evento', label: T('🏟️ Evento', '🏟️ Event', '🏟️ Evento'), panels: [
+    { id: 'rodadas', label: T('Rodadas', 'Rounds', 'Rondas') },
+    { id: 'documentos', label: T('Documentos', 'Documents', 'Documentos') },
+    { id: 'baloes', label: T('Balões', 'Balloons', 'Globos') },
+    { id: 'classificacao', label: T('Classificação', 'Qualification', 'Clasificación') },
     { id: 'virtual', label: 'Virtual' },
-    { id: 'times', label: T('Times', 'Teams') },
-    { id: 'coortes', label: T('Coortes', 'Cohorts') },
-    { id: 'sedes', label: T('Sedes & escolas', 'Sites & schools') },
+    { id: 'times', label: T('Times', 'Teams', 'Equipos') },
+    { id: 'coortes', label: T('Coortes', 'Cohorts', 'Cohortes') },
+    { id: 'sedes', label: T('Sedes & escolas', 'Sites & schools', 'Sedes y escuelas') },
   ] },
-  { id: 'maquinas', label: T('🖥️ Máquinas', '🖥️ Machines'), panels: [
-    { id: 'gate', label: T('Gate & trava', 'Gate & lock') },
-    { id: 'anomalias', label: T('Anomalias', 'Anomalies') },
+  { id: 'maquinas', label: T('🖥️ Máquinas', '🖥️ Machines', '🖥️ Máquinas'), panels: [
+    { id: 'gate', label: T('Gate & trava', 'Gate & lock', 'Gate y bloqueo') },
+    { id: 'anomalias', label: T('Anomalias', 'Anomalies', 'Anomalías') },
     { id: 'mlinux', label: 'mlinux' },
   ] },
 ];

@@ -5,7 +5,7 @@ import { toLocalDT, dtToEpoch } from './util.js';
 
 export function makeBasicEditor(opts = {}) {
   const i = opts.initial || {};
-  const locale = el('select', {}, el('option', { value: 'pt' }, 'Português'), el('option', { value: 'en' }, 'English'));
+  const locale = el('select', {}, el('option', { value: 'pt' }, 'Português'), el('option', { value: 'en' }, 'English'), el('option', { value: 'es' }, 'Español'));
   locale.value = i.locale || 'pt';
   const loginStart = el('input', { type: 'datetime-local' }); if (i.login_start) loginStart.value = toLocalDT(i.login_start);
   const loginEnabled = el('input', { type: 'checkbox' }); loginEnabled.checked = i.login_enabled !== false;
@@ -13,11 +13,11 @@ export function makeBasicEditor(opts = {}) {
 
   const panel = el('div', {},
     el('div', { class: 'grid2' },
-      el('div', { class: 'field' }, el('label', {}, T('Idioma do contest', 'Contest language')), locale),
-      el('div', { class: 'field' }, el('label', {}, T('Abertura do login (tela de espera)', 'Login opening (waiting screen)')), loginStart)),
+      el('div', { class: 'field' }, el('label', {}, T('Idioma do contest', 'Contest language', 'Idioma de la competencia')), locale),
+      el('div', { class: 'field' }, el('label', {}, T('Abertura do login (tela de espera)', 'Login opening (waiting screen)', 'Apertura del login (pantalla de espera)')), loginStart)),
     el('div', { class: 'grid2' },
-      el('div', { class: 'field' }, el('label', {}, T('Freeze do placar (congela no fim)', 'Scoreboard freeze (freezes at the end)')), freeze),
-      el('div', { class: 'field' }, el('label', { style: 'font-weight:400' }, loginEnabled, T(' Login habilitado', ' Login enabled')))));
+      el('div', { class: 'field' }, el('label', {}, T('Freeze do placar (congela no fim)', 'Scoreboard freeze (freezes at the end)', 'Congelamiento del marcador (se congela al final)')), freeze),
+      el('div', { class: 'field' }, el('label', { style: 'font-weight:400' }, loginEnabled, T(' Login habilitado', ' Login enabled', ' Login habilitado')))));
   return {
     el: panel,
     getValue() {

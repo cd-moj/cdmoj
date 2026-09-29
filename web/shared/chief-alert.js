@@ -64,7 +64,7 @@ export function startChiefAlert(contest, st) {
   };
   const show = (n) => {
     const b = banner();
-    b.textContent = '⚠ ' + n + T(' conflito(s) de veredicto aguardando o juiz-chefe — clique para resolver', ' verdict conflict(s) awaiting the chief judge — click to resolve');
+    b.textContent = '⚠ ' + n + T(' conflito(s) de veredicto aguardando o juiz-chefe — clique para resolver', ' verdict conflict(s) awaiting the chief judge — click to resolve', ' conflicto(s) de veredicto esperando al juez principal — haz clic para resolver');
     b.classList.add('show'); b.onclick = goConflicts;
   };
   const hide = () => { const b = document.getElementById('mojChiefAlert'); if (b) { b.classList.remove('show'); b.textContent = ''; } };

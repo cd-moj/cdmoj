@@ -677,7 +677,7 @@
         "summary": "Registro de conquistas do perfil (custom do admin ou default embarcado; avaliação no cliente — docs/PERFIL.md)",
         "responses": {
           "200": {
-            "description": "{custom, version, achievements:[{id,icon,pt,en,kind,params,enabled}]}"
+            "description": "{custom, version, achievements:[{id,icon,pt,en,es?,kind,params,enabled}]} (es opcional; ausente = a tela cai no en)"
           }
         }
       }
@@ -2270,7 +2270,7 @@
         ],
         "responses": {
           "200": {
-            "description": "{checks:[{id,level:ok|warn|fail,label,detail[,label_en,detail_en][,action]}], summary:{ok,warn,fail}} — ids: window, show_log, freeze, judges, pool, langs, problems, pool_problems, judges_warm (juiz a juiz: calibrou a versão atual de cada problema? action warm_judges quando há frio), print, staff_filters, balloons, users, daemon, mode, manual, tov, cohorts, ua_gate, next_round, docs. label_en/detail_en = item bilíngue; action = botão da Central"
+            "description": "{checks:[{id,level:ok|warn|fail,label,detail,label_en,detail_en,label_es,detail_es[,action]}], summary:{ok,warn,fail}} — ids: window, show_log, freeze, judges, pool, langs, problems, pool_problems, judges_warm (juiz a juiz: calibrou a versão atual de cada problema? action warm_judges quando há frio), print, staff_filters, balloons, users, daemon, mode, manual, tov, cohorts, ua_gate, next_round, docs. label/detail = PT; *_en/*_es = inglês e espanhol; action = botão da Central"
           }
         }
       }
@@ -2487,7 +2487,7 @@
         "summary": "Checklist pós-prova (o que ainda está fechado) — admin ou juiz-chefe; freeze_release_at = fim geral + 1 min (POST antes disso com freeze = 409 freeze_locked)",
         "responses": {
           "200": {
-            "description": "{checks:[{id,level,label,detail}], summary:{ok,warn,fail}, can_finish, can_act (true só p/ o admin — o POST é dele), pending_docs:[{type,lang}]}"
+            "description": "{checks:[{id,level,label,detail,label_en,detail_en,label_es,detail_es}], summary:{ok,warn,fail}, can_finish, can_act (true só p/ o admin — o POST é dele), pending_docs:[{type,lang}]}"
           },
           "403": {
             "description": "admin_required (nem admin nem juiz-chefe)"
@@ -3591,9 +3591,6 @@
                     "type": "boolean"
                   },
                   "manual_verdict": {
-                    "type": "boolean"
-                  },
-                  "allow_late": {
                     "type": "boolean"
                   },
                   "secret": {
@@ -4888,7 +4885,7 @@
         "tags": [
           "contest-admin"
         ],
-        "summary": "Grava config do contest",
+        "summary": "Grava config do contest (basic.locale fora de pt|en|es = 422 locale_invalid; regions com a forma errada = 422 regions_invalid — ambos antes de qualquer escrita; regions:[] remove)",
         "parameters": [
           {
             "$ref": "#/components/parameters/contest"
@@ -4929,7 +4926,7 @@
         "tags": [
           "contest-admin"
         ],
-        "summary": "Usuários do contest (sem senha)",
+        "summary": "Usuários do contest (sem senha); em contest compartilhado inclui quem só tem dir (shared, dir_only)",
         "parameters": [
           {
             "$ref": "#/components/parameters/contest"
@@ -5237,7 +5234,7 @@
         "tags": [
           "contest-admin"
         ],
-        "summary": "Atualiza configurações (auditado; tz = fuso IANA da prova, 422 tz_invalid se não existir no zoneinfo e null/vazio volta ao padrão da instalação; judges[] = pool de juízes — hostnames do registro, vazio remove: escalonador ESTRITO, pool offline segura a fila; penalty_minutes int default 20, penalty_verdicts array de wa/tle/mle/rte/ce — editar em prova recomputa o placar; show_log:true grava SHOWLOG=1 explícito — religa o log mesmo em modo icpc)",
+        "summary": "Atualiza configurações (auditado; locale = pt|en|es — idioma da interface, do papel impresso e do relatório; outro valor = 422 locale_invalid; tz = fuso IANA da prova, 422 tz_invalid se não existir no zoneinfo e null/vazio volta ao padrão da instalação; judges[] = pool de juízes — hostnames do registro, vazio remove: escalonador ESTRITO, pool offline segura a fila; penalty_minutes int default 20, penalty_verdicts array de wa/tle/mle/rte/ce — editar em prova recomputa o placar; show_log:true grava SHOWLOG=1 explícito — religa o log mesmo em modo icpc)",
         "parameters": [
           {
             "$ref": "#/components/parameters/contest"
@@ -5558,7 +5555,7 @@
         ],
         "responses": {
           "200": {
-            "description": "{active, rounds[], next, promote_ready:{ok,blockers}}"
+            "description": "{active, rounds[], next, promote_ready:{ok,blockers:[{code,detail,detail_en,detail_es}]}}"
           },
           "403": {
             "description": "admin_required"
@@ -5860,7 +5857,7 @@
         "tags": [
           "contest-admin"
         ],
-        "summary": "Inscrições do contest (roster + janela): times, individuais (com univ/flag/ai), convites pendentes — cada um com invited_meta (desde quando espera, se tem Telegram vinculado, quando foi avisado) — e totais",
+        "summary": "Inscrições do contest (roster + janela): times, individuais (com univ/flag/ai), convites pendentes — cada um com invited_meta (desde quando espera, se tem Telegram vinculado, quando foi avisado) — e totais; converted {at, from, archived} quando o contest foi convertido em contas próprias (roster arquivado)",
         "security": [
           {
             "bearerAuth": []
@@ -6049,7 +6046,7 @@
         "tags": [
           "contest-admin"
         ],
-        "summary": "Documentos da prova: estado, textos, capa e PDF PRONTO enviado (admin ou juiz-chefe); pt/en/es. upload {type,lang,pdf_b64|remove_upload} = PDF pronto que vence o gerado e publica sem gerar (listado mesmo sem index.json). info-sheet = Ambiente de julgamento e submissão (padrão SBC); editorial = capa + um problema por página",
+        "summary": "Documentos da prova: estado, textos, capa e PDF PRONTO enviado (admin ou juiz-chefe); pt/en/es. upload {type,lang,pdf_b64|remove_upload} = PDF pronto que vence o gerado e publica sem gerar (listado mesmo sem index.json). info-sheet = Ambiente de julgamento e submissão (padrão SBC); editorial = capa + um problema por página; logo:{present,bytes} = logo do cabeçalho enviado; o caderno segue o molde da SBC (CMU, exemplos em tabela, rodapé evento – Problema X – título)",
         "security": [
           {
             "bearerAuth": []
@@ -6073,7 +6070,7 @@
         "tags": [
           "contest-admin"
         ],
-        "summary": "config | cover | upload (PDF pronto: vence o gerado; remove_upload volta) | generate | publish | unpublish",
+        "summary": "config | cover | logo ({image_b64}|{remove:true}: logo no topo das páginas do caderno/editorial e na capa gerada; PNG/JPEG/WebP/SVG até 5MB, 400 image_invalid) | upload (PDF pronto: vence o gerado; remove_upload volta) | generate | publish | unpublish",
         "security": [
           {
             "bearerAuth": []
@@ -6113,6 +6110,10 @@
                   },
                   "errata": {
                     "type": "string"
+                  },
+                  "samples_table": {
+                    "type": "boolean",
+                    "description": "Exemplos do caderno em tabela \"Exemplo de entrada N | Exemplo de saída N\" (molde SBC). Opt-in; padrão = caixas empilhadas, como no site."
                   },
                   "info_sheet_pt": {
                     "type": "string"
@@ -6334,7 +6335,7 @@
         "tags": [
           "contest-admin"
         ],
-        "summary": "Desabilita (bloqueia) um usuário",
+        "summary": "Desabilita (bloqueia) um usuário — também participante compartilhado (overlay com senha !…); {undo:true} reabilita o compartilhado",
         "parameters": [
           {
             "$ref": "#/components/parameters/contest"
@@ -6361,6 +6362,175 @@
         "responses": {
           "200": {
             "description": "{disabled}"
+          }
+        }
+      }
+    },
+    "/contest/admin/regions": {
+      "get": {
+        "tags": [
+          "contest-admin"
+        ],
+        "summary": "Sedes pela regra única: árvore, sig, resumo; ?login= a sede de um login; ?map=1 login → sede de todos",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          },
+          {
+            "name": "login",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "map",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "1"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{tree, sig, mode, summary} | {login, flag, site, nodes} | {map:[{login,site,flag}]}"
+          },
+          "404": {
+            "description": "login_not_in_contest"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "contest-admin"
+        ],
+        "summary": "Grava árvore e/ou sedes por login (inscrito no roster); dry_run = prévia; expect_sig = trava",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "tree": {
+                    "type": [
+                      "array",
+                      "null"
+                    ],
+                    "description": "lista de {name, regex?, subregions?, view?} — regex no subconjunto seguro"
+                  },
+                  "assign": {
+                    "type": "array",
+                    "maxItems": 5000,
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "login": {
+                          "type": "string"
+                        },
+                        "region": {
+                          "type": "string",
+                          "description": "\"\" tira"
+                        }
+                      },
+                      "required": [
+                        "login"
+                      ]
+                    }
+                  },
+                  "mode": {
+                    "type": "string",
+                    "enum": [
+                      "simple",
+                      "rules",
+                      "tree"
+                    ]
+                  },
+                  "dry_run": {
+                    "type": "boolean",
+                    "default": false
+                  },
+                  "expect_sig": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "{saved|dry_run, sig, summary, assigned:[{login,target}], failed:[{login,code}]}"
+          },
+          "409": {
+            "description": "regions_changed (error.sig) | busy"
+          },
+          "422": {
+            "description": "regions_invalid (error.nodes) | assign_invalid | assign_too_many | mode_invalid"
+          }
+        }
+      }
+    },
+    "/contest/admin/users-convert": {
+      "post": {
+        "tags": [
+          "contest-admin"
+        ],
+        "summary": "Converte contas compartilhadas (USERS_FROM) em contas PRÓPRIAS: prévia (dry_run, padrão) e execução com plan_id + confirmação (id digitado se a prova já começou)",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "dry_run": {
+                    "type": "boolean",
+                    "default": true
+                  },
+                  "plan_id": {
+                    "type": "string",
+                    "description": "o plan_id da prévia (obrigatório ao executar)"
+                  },
+                  "confirm": {
+                    "description": "true antes da prova; o id do contest (string) durante/depois",
+                    "oneOf": [
+                      {
+                        "type": "boolean"
+                      },
+                      {
+                        "type": "string"
+                      }
+                    ]
+                  },
+                  "logout_all": {
+                    "type": "boolean",
+                    "default": false
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "{preview:{contest,phase,plan_id,sessions_live,registration,counts,samples,admin,warnings[]}} | {converted:true,credentials:[{login,fullname,kind,password?,team?,resumed?,late?}],counts,sessions_removed,registrations_archived}"
+          },
+          "409": {
+            "description": "not_shared | already_converted (error.converted) | plan_changed (error.preview) | confirm_required (error.need) | busy"
           }
         }
       }
@@ -6423,7 +6593,7 @@
         "tags": [
           "contest-admin"
         ],
-        "summary": "Senha única para todos os não-privilegiados",
+        "summary": "Senha única para todos os não-privilegiados (contest compartilhado = 409 shared_users)",
         "parameters": [
           {
             "$ref": "#/components/parameters/contest"

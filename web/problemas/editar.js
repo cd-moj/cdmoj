@@ -8,7 +8,7 @@ import { el, renderAuthArea, fmtDate } from '/shared/ui.js';
 import { createEditor } from '/shared/editor.js';
 import { makeLangPicker } from '/shared/contest-config/lang-picker.js';
 import { openHtmlReport } from '/shared/submission-links.js';
-import { T } from '/shared/i18n.js';
+import { T, uiLocale } from '/shared/i18n.js';
 import { STMT_LANGS, STMT_SHORT, stmtName } from '/shared/statement-langs.js';
 import { decorateSamples } from '/shared/statement-samples.js';
 import { makeTestRun, testsTable } from '/problemas/testrun.js';
@@ -72,19 +72,19 @@ const EXT2CM = {
 };
 const cmFor = (fn) => EXT2CM[(String(fn).split('.').pop() || '').toLowerCase()] || '';
 // seletor de linguagem do editor de soluções — uma entrada por linguagem aceita
-const LANG_OPTS = [['', T('texto', 'text')], ['cpp', 'C / C++'], ['python', 'Python'], ['java', 'Java'],
+const LANG_OPTS = [['', T('texto', 'text', 'texto')], ['cpp', 'C / C++'], ['python', 'Python'], ['java', 'Java'],
   ['csharp', 'C#'], ['go', 'Go'], ['rust', 'Rust'], ['haskell', 'Haskell'], ['ocaml', 'OCaml'],
   ['pascal', 'Pascal'], ['prolog', 'Prolog'], ['shell', 'Shell / Bash'], ['apl', 'APL'],
   ['gas', 'Assembly (MIPS / RISC-V)'], ['javascript', 'JavaScript'], ['markdown', 'Markdown']];
-const SOL_CATS = [['good', T('good — deve ser ACEITA', 'good — must be ACCEPTED')], ['wrong', T('wrong — deve FALHAR', 'wrong — must FAIL')], ['slow', T('slow — estoura o TEMPO', 'slow — exceeds the TIME')], ['pass', T('pass — aceitas (não calibram)', 'pass — accepted (do not calibrate)')], ['upcoming', T('upcoming — em desenvolvimento', 'upcoming — in development')]];
+const SOL_CATS = [['good', T('good — deve ser ACEITA', 'good — must be ACCEPTED', 'good — debe ser ACEPTADA')], ['wrong', T('wrong — deve FALHAR', 'wrong — must FAIL', 'wrong — debe FALLAR')], ['slow', T('slow — estoura o TEMPO', 'slow — exceeds the TIME', 'slow — excede el TIEMPO')], ['pass', T('pass — aceitas (não calibram)', 'pass — accepted (do not calibrate)', 'pass — aceptadas (no calibran)')], ['upcoming', T('upcoming — em desenvolvimento', 'upcoming — in development', 'upcoming — en desarrollo')]];
 const DEFNAME = { good: 'sol.cpp', wrong: 'wa.cpp', slow: 'slow.cpp', pass: 'alt.cpp', upcoming: 'wip.cpp' };
 // selo com o resultado que cada categoria de solução deve obter no juiz
 const SOL_BADGE = {
-  good: ['sb-good', T('devem ser aceitas (Accepted) — definem o tempo-limite do problema', 'must be accepted (Accepted) — they define the problem time limit')],
-  wrong: ['sb-wrong', T('devem falhar (Wrong Answer ou erro de execução)', 'must fail (Wrong Answer or runtime error)')],
-  slow: ['sb-slow', T('devem estourar o tempo (Time Limit Exceeded)', 'must exceed the time (Time Limit Exceeded)')],
-  pass: ['sb-pass', T('também são aceitas, mas não entram na calibração do tempo', 'also accepted, but do not enter time calibration')],
-  upcoming: ['sb-upcoming', T('em desenvolvimento — o juiz não as executa', 'in development — the judge does not run them')],
+  good: ['sb-good', T('devem ser aceitas (Accepted) — definem o tempo-limite do problema', 'must be accepted (Accepted) — they define the problem time limit', 'deben ser aceptadas (Accepted) — definen el tiempo límite del problema')],
+  wrong: ['sb-wrong', T('devem falhar (Wrong Answer ou erro de execução)', 'must fail (Wrong Answer or runtime error)', 'deben fallar (Wrong Answer o error de ejecución)')],
+  slow: ['sb-slow', T('devem estourar o tempo (Time Limit Exceeded)', 'must exceed the time (Time Limit Exceeded)', 'deben exceder el tiempo (Time Limit Exceeded)')],
+  pass: ['sb-pass', T('também são aceitas, mas não entram na calibração do tempo', 'also accepted, but do not enter time calibration', 'también son aceptadas, pero no entran en la calibración del tiempo')],
+  upcoming: ['sb-upcoming', T('em desenvolvimento — o juiz não as executa', 'in development — the judge does not run them', 'en desarrollo — el juez no las ejecuta')],
 };
 // DERIVADO de SOL_CATS p/ nunca dessincronizar (a causa do bug que travava a página)
 let solEditors = Object.fromEntries(SOL_CATS.map(([c]) => [c, []]));
@@ -209,10 +209,10 @@ async function ensureModular(l) {
     const H = SEC_HEAD[l] || SEC_HEAD.pt;
     const field = (k, label, sec) => { mounts[k] = el('div', { class: 'editor-mount' + (sec ? ' sec' : '') }); return el('div', { class: 'field' }, el('label', {}, label), mounts[k]); };
     box = el('div', {},
-      field('descricao', T('Descrição', 'Description')),
-      field('entrada', T(`Entrada (vira ## ${H.entrada})`, `Input (becomes ## ${H.entrada})`), true),
-      field('saida', T(`Saída (vira ## ${H.saida})`, `Output (becomes ## ${H.saida})`), true),
-      field('observacoes', T(`Observações (vira ## ${H.observacoes}) — opcional`, `Notes (becomes ## ${H.observacoes}) — optional`), true));
+      field('descricao', T('Descrição', 'Description', 'Descripción')),
+      field('entrada', T(`Entrada (vira ## ${H.entrada})`, `Input (becomes ## ${H.entrada})`, `Entrada (se convierte en ## ${H.entrada})`), true),
+      field('saida', T(`Saída (vira ## ${H.saida})`, `Output (becomes ## ${H.saida})`, `Salida (se convierte en ## ${H.saida})`), true),
+      field('observacoes', T(`Observações (vira ## ${H.observacoes}) — opcional`, `Notes (becomes ## ${H.observacoes}) — optional`, `Observaciones (se convierte en ## ${H.observacoes}) — opcional`), true));
     box.style.display = 'none';
     (transWrap(l) || $('transEdMounts')).append(box);
   }
@@ -233,7 +233,7 @@ function showStmtEditors() {
     if (modBoxes[l]) modBoxes[l].style.display = mod ? '' : 'none';
   }
   const btn = $('stmtToggle');
-  if (btn) btn.textContent = mod ? T('⊟ Juntar num só', '⊟ Merge into one') : T('✂ Separar em seções', '✂ Split into sections');
+  if (btn) btn.textContent = mod ? T('⊟ Juntar num só', '⊟ Merge into one', '⊟ Unir en uno') : T('✂ Separar em seções', '✂ Split into sections', '✂ Separar en secciones');
 }
 async function toggleStmtMode() {
   const l = curStmtLang;
@@ -258,7 +258,7 @@ async function ensureEditorial() {
 const transLangs = () => STMT_LANGS.filter(l => l !== 'pt' && TRANS[l]);
 function stmtChip(l, active, onclick, add) {
   const b = el('button', { type: 'button', class: 'stmt-chip' + (active ? ' active' : '') + (add ? ' add' : ''),
-    title: add ? T('adicionar ', 'add ') + stmtName(l) : stmtName(l), onclick }, (add ? '+ ' : '') + STMT_SHORT[l]);
+    title: add ? T('adicionar ', 'add ', 'agregar ') + stmtName(l) : stmtName(l), onclick }, (add ? '+ ' : '') + STMT_SHORT[l]);
   return b;
 }
 function renderStmtLangBar() {
@@ -276,7 +276,7 @@ function addTransLang(l) {
 }
 function removeTransLang(l) {
   if (!TRANS[l]) return;
-  if (!confirm(T(`Remover a tradução ${STMT_SHORT[l]} (enunciado, editorial, explicações e título)? Efetiva ao salvar.`, `Remove the ${STMT_SHORT[l]} translation (statement, editorial, explanations and title)? Applied on save.`))) return;
+  if (!confirm(T(`Remover a tradução ${STMT_SHORT[l]} (enunciado, editorial, explicações e título)? Efetiva ao salvar.`, `Remove the ${STMT_SHORT[l]} translation (statement, editorial, explanations and title)? Applied on save.`, `¿Quitar la traducción ${STMT_SHORT[l]} (enunciado, editorial, explicaciones y título)? Se aplica al guardar.`))) return;
   delete TRANS[l]; TRANS_REMOVED.add(l);
   delete transEd[l]; delete transEdEd[l]; delete modEds[l]; delete modBoxes[l]; delete transSingle[l]; delete stmtModeOf[l];
   [...$('transEdMounts').children].forEach(d => { if (d.dataset.lang === l) d.remove(); });
@@ -319,9 +319,9 @@ function refreshExampleTrans() {
     box.innerHTML = '';
     langs.forEach(l => {
       const initial = have[l] !== undefined ? have[l] : ((TRANS[l].notes || {})['sample' + (i + 1)] || '');
-      const ta = el('textarea', { class: 'exexpl-l', placeholder: T('vazio = mostra a explicação em português', 'empty = shows the Portuguese explanation'), oninput: updatePkgInfo }, initial);
+      const ta = el('textarea', { class: 'exexpl-l', placeholder: T('vazio = mostra a explicação em português', 'empty = shows the Portuguese explanation', 'vacío = muestra la explicación en portugués'), oninput: updatePkgInfo }, initial);
       ta.dataset.lang = l;
-      box.append(el('div', {}, el('label', { class: 'small' }, T('explicação em ', 'explanation in ') + STMT_SHORT[l] + ' (' + stmtName(l) + ')'), ta));
+      box.append(el('div', {}, el('label', { class: 'small' }, T('explicação em ', 'explanation in ', 'explicación en ') + STMT_SHORT[l] + ' (' + stmtName(l) + ')'), ta));
     });
   });
 }
@@ -356,14 +356,14 @@ function renderEdLangBar() {
   if (rm) {
     // style.display, não só `hidden`: o display do .btn vence o atributo e sobrava um botão vazio em PT
     rm.hidden = curEdLang === 'pt'; rm.style.display = rm.hidden ? 'none' : '';
-    if (curEdLang !== 'pt') rm.textContent = T(`✕ remover o editorial em ${STMT_SHORT[curEdLang]}`, `✕ remove the ${STMT_SHORT[curEdLang]} editorial`);
+    if (curEdLang !== 'pt') rm.textContent = T(`✕ remover o editorial em ${STMT_SHORT[curEdLang]}`, `✕ remove the ${STMT_SHORT[curEdLang]} editorial`, `✕ quitar el editorial en ${STMT_SHORT[curEdLang]}`);
   }
 }
 // esvazia SÓ o editorial do idioma ativo (enunciado, notas e título traduzidos ficam — apagar a tradução
 // inteira é o "✕ remover este idioma" da aba Enunciado). Vazio = o servidor apaga docs/solucao.<l>.md.
 function removeEdLang() {
   const l = curEdLang; if (l === 'pt' || !TRANS[l]) return;
-  if (!confirm(T(`Apagar o editorial em ${STMT_SHORT[l]}? O enunciado traduzido fica. Efetiva ao salvar.`, `Delete the ${STMT_SHORT[l]} editorial? The translated statement stays. Applied on save.`))) return;
+  if (!confirm(T(`Apagar o editorial em ${STMT_SHORT[l]}? O enunciado traduzido fica. Efetiva ao salvar.`, `Delete the ${STMT_SHORT[l]} editorial? The translated statement stays. Applied on save.`, `¿Borrar el editorial en ${STMT_SHORT[l]}? El enunciado traducido se mantiene. Se aplica al guardar.`))) return;
   if (transEdEd[l]) transEdEd[l].setValue('');
   TRANS[l].editorial_md = '';
   updatePkgInfo();
@@ -381,7 +381,7 @@ async function switchEdLang(l) {
   }
 }
 async function edPreview() {
-  const btn = $('edPreview'); btn.disabled = true; setMsg(T('Renderizando…', 'Rendering…'));
+  const btn = $('edPreview'); btn.disabled = true; setMsg(T('Renderizando…', 'Rendering…', 'Renderizando…'));
   try {
     const md = curEdLang === 'pt' ? (editEd ? editEd.getValue() : PENDING_EDITORIAL) : transEditorial(curEdLang);
     const pbody = { kind: 'editorial', markdown: md, lang: curEdLang };
@@ -391,7 +391,7 @@ async function edPreview() {
     try { const d = new DOMParser().parseFromString(html, 'text/html'); pb.innerHTML = d.body ? d.body.innerHTML : html; } catch { pb.innerHTML = html; }
     decorateSamples(pb);   // o preview é o HTML servido: os botões "Copiar" aparecem como para o aluno
     $('previewModal').style.display = ''; setMsg('');
-  } catch (e) { setMsg((e instanceof ApiError ? e.message : T('Falha ao renderizar', 'Failed to render')), 'error'); }
+  } catch (e) { setMsg((e instanceof ApiError ? e.message : T('Falha ao renderizar', 'Failed to render', 'Error al renderizar')), 'error'); }
   finally { btn.disabled = false; }
 }
 
@@ -404,30 +404,31 @@ function readyItems() {
   const nGood = (solEditors.good || []).length;
   const limOK = !!($('cf_memlimit').value.trim() || $('cf_calibrafactor').value.trim());
   const items = [
-    { tab: 'enun', label: T('Enunciado', 'Statement'), s: hasEnun ? 'ok' : 'todo' },
+    { tab: 'enun', label: T('Enunciado', 'Statement', 'Enunciado'), s: hasEnun ? 'ok' : 'todo' },
     $('cf_nosample').checked
-      ? { tab: 'limits', label: T('Sem exemplos (SAMPLE=no)', 'No samples (SAMPLE=no)'), s: 'na' }
-      : { tab: 'tests', label: T('Exemplos', 'Samples'), s: nEx ? 'ok' : 'todo' },
-    { tab: 'tests', label: T('Testes', 'Tests'), s: nTs ? 'ok' : 'todo' },
-    { tab: 'sols', label: T('Solução good', 'good solution'), s: nGood ? 'ok' : 'todo' },
+      ? { tab: 'limits', label: T('Sem exemplos (SAMPLE=no)', 'No samples (SAMPLE=no)', 'Sin ejemplos (SAMPLE=no)'), s: 'na' }
+      : { tab: 'tests', label: T('Exemplos', 'Samples', 'Ejemplos'), s: nEx ? 'ok' : 'todo' },
+    { tab: 'tests', label: T('Testes', 'Tests', 'Pruebas'), s: nTs ? 'ok' : 'todo' },
+    { tab: 'sols', label: T('Solução good', 'good solution', 'Solución good'), s: nGood ? 'ok' : 'todo' },
   ];
-  if (SCORE.enabled) items.push({ tab: 'tests', label: T('Pontuação', 'Scoring'), s: (SCORE.groups.length && scoreSum() > 0) ? 'ok' : 'todo' });
-  items.push({ tab: 'limits', label: T('Limites', 'Limits'), s: limOK ? 'ok' : 'na' });
+  if (SCORE.enabled) items.push({ tab: 'tests', label: T('Pontuação', 'Scoring', 'Puntuación'), s: (SCORE.groups.length && scoreSum() > 0) ? 'ok' : 'todo' });
+  items.push({ tab: 'limits', label: T('Limites', 'Limits', 'Límites'), s: limOK ? 'ok' : 'na' });
   // "Validado" enganava: é a conferência ESTÁTICA do pacote (arquivos, seções, testes emparelhados,
   // exemplos) — não roda solução nenhuma. Quem roda é a calibração: TL + Soluções + Entradas.
-  items.push({ tab: 'pub', label: T('Pacote', 'Package'), s: VAL.validated === 'todo' ? 'bad' : VAL.validated,
+  items.push({ tab: 'pub', label: T('Pacote', 'Package', 'Paquete'), s: VAL.validated === 'todo' ? 'bad' : VAL.validated,
     title: T('Conferência estática do pacote: enunciado, exemplos, testes emparelhados, solução good presente. Não roda nada — quem roda as soluções é a calibração.',
-             'Static check of the package: statement, samples, paired tests, good solution present. It runs nothing — calibration is what runs the solutions.') });
-  items.push({ tab: 'pub', label: T('Calibrado', 'Calibrated'), s: VAL.calibrated,
-    title: T('Um juiz mediu o tempo-limite rodando as soluções good.', 'A judge measured the time limit by running the good solutions.') });
+             'Static check of the package: statement, samples, paired tests, good solution present. It runs nothing — calibration is what runs the solutions.',
+             'Verificación estática del paquete: enunciado, ejemplos, pruebas emparejadas, solución good presente. No ejecuta nada — quien ejecuta las soluciones es la calibración.') });
+  items.push({ tab: 'pub', label: T('Calibrado', 'Calibrated', 'Calibrado'), s: VAL.calibrated,
+    title: T('Um juiz mediu o tempo-limite rodando as soluções good.', 'A judge measured the time limit by running the good solutions.', 'Un juez midió el tiempo límite ejecutando las soluciones good.') });
   items.push({ tab: 'pub', ...solsReady() });
   const inp = inputsReady(); if (inp) items.push({ tab: 'pub', ...inp });
   if (ID && PSTAT) {
     const ni = PSTAT.open_issues || 0;
-    items.push({ tab: 'issues', label: ni ? T(`Issues (${ni} abertas)`, `Issues (${ni} open)`) : 'Issues', s: ni ? 'bad' : 'ok',
-      title: T('Issues abertas precisam ser resolvidas (fechadas) para o problema ficar pronto.', 'Open issues must be resolved (closed) for the problem to be ready.') });
+    items.push({ tab: 'issues', label: ni ? T(`Issues (${ni} abertas)`, `Issues (${ni} open)`, `Issues (${ni} abiertas)`) : 'Issues', s: ni ? 'bad' : 'ok',
+      title: T('Issues abertas precisam ser resolvidas (fechadas) para o problema ficar pronto.', 'Open issues must be resolved (closed) for the problem to be ready.', 'Las issues abiertas deben resolverse (cerrarse) para que el problema quede listo.') });
   }
-  items.push({ tab: 'pub', label: T('Público', 'Public'), s: loadedPublic ? 'ok' : 'na' });
+  items.push({ tab: 'pub', label: T('Público', 'Public', 'Público'), s: loadedPublic ? 'ok' : 'na' });
   return items;
 }
 // relê a linha deste problema no Painel (pending/ready) — depois de mexer nas issues
@@ -442,8 +443,9 @@ async function refreshPstat() {
 function solsReady() {
   const st = PSTAT && PSTAT.sols && PSTAT.sols.state;
   const title = T('Cada solução fez o que a categoria dela pede? (good/pass aceitas no tempo, slow estoura o tempo, wrong é reprovada) — conferido na calibração.',
-                  'Did each solution do what its category requires? (good/pass accepted in time, slow exceeds the time, wrong is rejected) — checked by calibration.');
-  const label = T('Soluções', 'Solutions');
+                  'Did each solution do what its category requires? (good/pass accepted in time, slow exceeds the time, wrong is rejected) — checked by calibration.',
+                  '¿Cada solución hizo lo que su categoría pide? (good/pass aceptadas a tiempo, slow excede el tiempo, wrong es rechazada) — verificado en la calibración.');
+  const label = T('Soluções', 'Solutions', 'Soluciones');
   if (VAL.calibrated === 'run') return { label, s: 'run', title };
   if (st === 'ok' || st === 'note') return { label, s: 'ok', title };
   if (st === 'bad') return { label: label + ` (${PSTAT.sols.bad} ✗)`, s: 'bad', title };
@@ -453,8 +455,8 @@ function solsReady() {
 // ENTRADAS: o validador de entrada (scripts/validator.cpp) que a calibração rodou; sem validador = cinza
 function inputsReady() {
   const i = PSTAT && PSTAT.inputs; if (!i) return null;
-  const label = T('Entradas', 'Inputs');
-  const title = T('O validador de entrada (scripts/validator.cpp, testlib) aprovou todos os testes?', 'Did the input validator (scripts/validator.cpp, testlib) accept every test?');
+  const label = T('Entradas', 'Inputs', 'Entradas');
+  const title = T('O validador de entrada (scripts/validator.cpp, testlib) aprovou todos os testes?', 'Did the input validator (scripts/validator.cpp, testlib) accept every test?', '¿El validador de entrada (scripts/validator.cpp, testlib) aprobó todas las pruebas?');
   if (i.state === 'ok') return { label, s: 'ok', title };
   if (i.state === 'invalid') return { label: label + ` (${i.invalid} ✗)`, s: 'bad', title };
   if (i.state === 'error') return { label, s: 'bad', title: validatorText(i) };
@@ -465,15 +467,15 @@ function inputsReady() {
 function readySeal() {
   if (!ID || !PSTAT || !Array.isArray(PSTAT.pending)) return null;
   const p = PSTAT.pending;
-  if (!p.length) return el('span', { class: 'rdy seal ok', title: T('Pacote conferido, calibrado, soluções e entradas conforme, sem issue aberta.', 'Package checked, calibrated, solutions and inputs as expected, no open issue.') },
-    el('span', { class: 'dot' }), el('span', {}, T('✓ Pronto', '✓ Ready')));
+  if (!p.length) return el('span', { class: 'rdy seal ok', title: T('Pacote conferido, calibrado, soluções e entradas conforme, sem issue aberta.', 'Package checked, calibrated, solutions and inputs as expected, no open issue.', 'Paquete verificado, calibrado, soluciones y entradas conformes, sin issue abierta.') },
+    el('span', { class: 'dot' }), el('span', {}, T('✓ Pronto', '✓ Ready', '✓ Listo')));
   return el('span', { class: 'rdy seal todo', title: p.map(pendingLabel).join('\n') },
-    el('span', { class: 'dot' }), el('span', {}, T(`${p.length} pendência${p.length === 1 ? '' : 's'}`, `${p.length} pending`)));
+    el('span', { class: 'dot' }), el('span', {}, T(`${p.length} pendência${p.length === 1 ? '' : 's'}`, `${p.length} pending`, `${p.length} pendiente(s)`)));
 }
 function updateReady() {
   const box = $('ready'); if (!box) return;
   box.innerHTML = '';
-  readyItems().forEach(it => box.append(el('span', { class: 'rdy ' + it.s, title: it.title || T('ir para a aba', 'go to the tab'), onclick: () => showTab(it.tab) },
+  readyItems().forEach(it => box.append(el('span', { class: 'rdy ' + it.s, title: it.title || T('ir para a aba', 'go to the tab', 'ir a la pestaña'), onclick: () => showTab(it.tab) },
     el('span', { class: 'dot' }), el('span', {}, it.label))));
   const seal = readySeal(); if (seal) { seal.onclick = () => showTab('pub'); box.append(seal); }
   const nEx = $('examples').querySelectorAll('.ex').length, nTs = $('tests').querySelectorAll('.ex').length;
@@ -488,7 +490,8 @@ function updateReady() {
     const busy = calibRunning() && !savedSinceCalib();
     cb.disabled = !!busy;
     cb.title = busy ? T('Já há uma calibração deste problema em andamento — o resultado aparece sozinho.',
-                        'A calibration of this problem is already running — the result shows up by itself.') : '';
+                        'A calibration of this problem is already running — the result shows up by itself.',
+                        'Ya hay una calibración de este problema en curso — el resultado aparece solo.') : '';
   }
 }
 // salvou DEPOIS que a calibração em voo começou? então pedir outra é legítimo (é outra versão)
@@ -499,11 +502,11 @@ const savedSinceCalib = () => CALIB_LIVE.length > 0 && SAVED_AT > 0
 function exampleRow(input = '', output = '', explanation = '') {
   const row = el('div', { class: 'ex' },
     el('div', { class: 'grid2' },
-      el('div', {}, el('label', { class: 'small' }, T('entrada', 'input')), el('textarea', { class: 'exin' }, input)),
-      el('div', {}, el('label', { class: 'small' }, T('saída', 'output')), el('textarea', { class: 'exout' }, output))),
-    el('div', {}, el('label', { class: 'small' }, T('explicação (opcional, Markdown — aparece logo após o exemplo no enunciado)', 'explanation (optional, Markdown — appears right after the sample in the statement)')),
+      el('div', {}, el('label', { class: 'small' }, T('entrada', 'input', 'entrada')), el('textarea', { class: 'exin' }, input)),
+      el('div', {}, el('label', { class: 'small' }, T('saída', 'output', 'salida')), el('textarea', { class: 'exout' }, output))),
+    el('div', {}, el('label', { class: 'small' }, T('explicação (opcional, Markdown — aparece logo após o exemplo no enunciado)', 'explanation (optional, Markdown — appears right after the sample in the statement)', 'explicación (opcional, Markdown — aparece justo después del ejemplo en el enunciado)')),
       el('textarea', { class: 'exexpl', oninput: updateReady }, explanation)),
-    el('button', { class: 'btn ghost', type: 'button', onclick: () => { row.remove(); updatePkgInfo(); } }, T('remover exemplo', 'remove sample')));
+    el('button', { class: 'btn ghost', type: 'button', onclick: () => { row.remove(); updatePkgInfo(); } }, T('remover exemplo', 'remove sample', 'quitar ejemplo')));
   return row;
 }
 const addExample = (i = '', o = '', x = '') => { $('examples').append(exampleRow(i, o, x)); refreshExampleTrans(); updatePkgInfo(); };
@@ -520,13 +523,13 @@ const splitGlobs = (g) => (g || '').split(',').map(s => s.trim()).filter(Boolean
 const matchGroups = (name) => SCORE.groups.filter(g => splitGlobs(g.glob).some(gl => globToRe(gl).test(name)));
 
 function addGroupRow(g = { name: '', weight: '', glob: '' }) {
-  const nameI = el('input', { type: 'text', value: g.name || '', placeholder: T('ex: facil', 'e.g. easy') });
+  const nameI = el('input', { type: 'text', value: g.name || '', placeholder: T('ex: facil', 'e.g. easy', 'ej: facil') });
   const wI = el('input', { type: 'text', value: (g.weight ?? '') + '', placeholder: '0' });
-  const globI = el('input', { type: 'text', value: g.glob || '', placeholder: g.name ? groupKey(g.name) + '_*' : T('nome_*', 'name_*') });
+  const globI = el('input', { type: 'text', value: g.glob || '', placeholder: g.name ? groupKey(g.name) + '_*' : T('nome_*', 'name_*', 'nombre_*') });
   const tr = el('tr', {},
     el('td', {}, nameI), el('td', { class: 'w' }, wI), el('td', {}, globI),
     el('td', { class: 'act' }, el('a', { href: '#', onclick: (e) => { e.preventDefault(); tr.remove(); syncScore(); } }, '✕')));
-  const onName = () => { globI.placeholder = (nameI.value.trim() ? groupKey(nameI.value) + '_*' : T('nome_*', 'name_*')); syncScore(); };
+  const onName = () => { globI.placeholder = (nameI.value.trim() ? groupKey(nameI.value) + '_*' : T('nome_*', 'name_*', 'nombre_*')); syncScore(); };
   nameI.addEventListener('input', onName); wI.addEventListener('input', syncScore); globI.addEventListener('input', syncScore);
   tr._get = () => ({ name: nameI.value.trim(), weight: parseInt(wI.value, 10) || 0, glob: globI.value.trim() || (nameI.value.trim() ? groupKey(nameI.value) + '_*' : '') });
   $('scoreGroups').append(tr);
@@ -539,7 +542,7 @@ function syncScore() {
   $('scoreBox').style.display = SCORE.enabled ? '' : 'none';
   const tot = scoreSum();
   const t = $('scoreTotal');
-  t.textContent = tot > 0 ? `${T('o problema vale', 'the problem is worth')} ${tot} ${T('ponto(s) no total', 'point(s) in total')}` : T('defina os pesos dos grupos', 'set the group weights');
+  t.textContent = tot > 0 ? `${T('o problema vale', 'the problem is worth', 'el problema vale')} ${tot} ${T('ponto(s) no total', 'point(s) in total', 'punto(s) en total')}` : T('defina os pesos dos grupos', 'set the group weights', 'define los pesos de los grupos');
   t.className = 'small gtotal ' + (tot > 0 ? 'ok' : 'no');
   refreshTestGroupSelects(); updateReady(); updatePkgInfo();
 }
@@ -549,7 +552,7 @@ function refreshTestGroupSelects() {
     const gsel = row._gsel; if (!gsel) return;
     const cur = gsel.value || row._wantGroup || ''; row._wantGroup = '';
     gsel.innerHTML = '';
-    gsel.append(el('option', { value: '' }, T('auto (pelo padrão)', 'auto (by pattern)')));
+    gsel.append(el('option', { value: '' }, T('auto (pelo padrão)', 'auto (by pattern)', 'auto (por patrón)')));
     SCORE.groups.forEach(g => { if (g.name) gsel.append(el('option', { value: g.name }, g.name)); });
     gsel.value = SCORE.groups.some(g => g.name === cur) ? cur : '';
     if (row._gwrap) row._gwrap.style.display = show ? '' : 'none';
@@ -559,29 +562,29 @@ function refreshTestGroupSelects() {
 function updateTestHint(row) {
   const ghint = row._ghint, gsel = row._gsel; if (!ghint) return;
   if (!$('scoreEnabled').checked) { ghint.textContent = ''; return; }
-  if (gsel.value) { ghint.textContent = T('(fixado)', '(fixed)'); ghint.style.color = ''; return; }
+  if (gsel.value) { ghint.textContent = T('(fixado)', '(fixed)', '(fijado)'); ghint.style.color = ''; return; }
   const m = matchGroups((row._nameI ? row._nameI.value : '').trim());
   if (m.length === 1) { ghint.textContent = '→ ' + m[0].name; ghint.style.color = '#7ee2a0'; }
-  else if (m.length === 0) { ghint.textContent = T('⚠ sem grupo', '⚠ no group'); ghint.style.color = '#ffd98a'; }
-  else { ghint.textContent = T('⚠ casa ', '⚠ matches ') + m.length + T(' grupos', ' groups'); ghint.style.color = '#ffd98a'; }
+  else if (m.length === 0) { ghint.textContent = T('⚠ sem grupo', '⚠ no group', '⚠ sin grupo'); ghint.style.color = '#ffd98a'; }
+  else { ghint.textContent = T('⚠ casa ', '⚠ matches ', '⚠ coincide con ') + m.length + T(' grupos', ' groups', ' grupos'); ghint.style.color = '#ffd98a'; }
 }
 
 // ---- testes ocultos -----------------------------------------------------------------------
 function testRow(name = '', input = '', output = '', group = '') {
-  const nameI = el('input', { type: 'text', value: name, placeholder: T('nome', 'name'), style: 'max-width:11rem' });
+  const nameI = el('input', { type: 'text', value: name, placeholder: T('nome', 'name', 'nombre'), style: 'max-width:11rem' });
   const inT = el('textarea', { class: 'tin' }, input), outT = el('textarea', { class: 'tout' }, output);
   const li = hiddenFile(false), lo = hiddenFile(false);
   const gsel = el('select', { class: 'tgroup small' });
   const ghint = el('span', { class: 'tghint small muted' });
   const gwrap = el('span', { class: 'tgwrap row', style: 'gap:.3rem;align-items:center;display:none' },
-    el('span', { class: 'small muted' }, T('grupo:', 'group:')), gsel, ghint);
+    el('span', { class: 'small muted' }, T('grupo:', 'group:', 'grupo:')), gsel, ghint);
   const row = el('div', { class: 'ex' },
     el('div', { class: 'row', style: 'gap:.5rem;align-items:center;flex-wrap:wrap' },
-      el('span', { class: 'small' }, T('teste', 'test')), nameI, gwrap,
-      el('button', { class: 'btn ghost', type: 'button', onclick: () => { row.remove(); updatePkgInfo(); } }, T('remover', 'remove'))),
+      el('span', { class: 'small' }, T('teste', 'test', 'prueba')), nameI, gwrap,
+      el('button', { class: 'btn ghost', type: 'button', onclick: () => { row.remove(); updatePkgInfo(); } }, T('remover', 'remove', 'quitar'))),
     el('div', { class: 'grid2' },
-      el('div', {}, el('label', { class: 'small' }, T('entrada ', 'input '), el('span', { class: 'linklike', style: 'cursor:pointer', onclick: () => li.click() }, T('(carregar)', '(load)'))), inT),
-      el('div', {}, el('label', { class: 'small' }, T('saída ', 'output '), el('span', { class: 'linklike', style: 'cursor:pointer', onclick: () => lo.click() }, T('(carregar)', '(load)'))), outT)),
+      el('div', {}, el('label', { class: 'small' }, T('entrada ', 'input ', 'entrada '), el('span', { class: 'linklike', style: 'cursor:pointer', onclick: () => li.click() }, T('(carregar)', '(load)', '(cargar)'))), inT),
+      el('div', {}, el('label', { class: 'small' }, T('saída ', 'output ', 'salida '), el('span', { class: 'linklike', style: 'cursor:pointer', onclick: () => lo.click() }, T('(carregar)', '(load)', '(cargar)'))), outT)),
     li, lo);
   row._nameI = nameI; row._gsel = gsel; row._ghint = ghint; row._gwrap = gwrap; row._wantGroup = group;
   nameI.addEventListener('change', () => { updatePkgInfo(); updateTestHint(row); });
@@ -597,23 +600,23 @@ function testRow(name = '', input = '', output = '', group = '') {
 function omittedTestRow(t) {
   const kb = (n) => (n >= 1048576 ? (n / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round((n || 0) / 1024)) + ' KB');
   const row = el('div', { class: 'ex' });
-  const btn = el('button', { class: 'btn ghost', type: 'button' }, T('carregar conteúdo', 'load content'));
+  const btn = el('button', { class: 'btn ghost', type: 'button' }, T('carregar conteúdo', 'load content', 'cargar contenido'));
   row.append(el('div', { class: 'row', style: 'gap:.5rem;align-items:center;flex-wrap:wrap' },
-    el('span', { class: 'small' }, T('teste', 'test')),
+    el('span', { class: 'small' }, T('teste', 'test', 'prueba')),
     el('b', {}, t.name),
-    el('span', { class: 'small muted' }, `${T('entrada', 'input')} ${kb(t.size_in)} · ${T('saída', 'output')} ${kb(t.size_out)}`),
+    el('span', { class: 'small muted' }, `${T('entrada', 'input', 'entrada')} ${kb(t.size_in)} · ${T('saída', 'output', 'salida')} ${kb(t.size_out)}`),
     btn));
   row._omitted = true; row._name = t.name; row._group = t.group || '';
   btn.addEventListener('click', async () => {
-    btn.disabled = true; btn.textContent = T('carregando…', 'loading…');
+    btn.disabled = true; btn.textContent = T('carregando…', 'loading…', 'cargando…');
     try {
       const j = await apiGet('/problems/test?id=' + encodeURIComponent(ID) + '&name=' + encodeURIComponent(t.name),
         { contest: CONTEST, auth: true });
       const full = testRow(t.name, j.input || '', j.output || '', row._group);
       row.replaceWith(full); refreshTestGroupSelects(); updatePkgInfo();
     } catch (e) {
-      btn.disabled = false; btn.textContent = T('falhou — tentar de novo', 'failed — retry');
-      setMsg(T('Falha ao carregar o teste: ', 'Failed to load test: ') + (e && e.message || e), 'error');
+      btn.disabled = false; btn.textContent = T('falhou — tentar de novo', 'failed — retry', 'falló — reintentar');
+      setMsg(T('Falha ao carregar o teste: ', 'Failed to load test: ', 'Error al cargar la prueba: ') + (e && e.message || e), 'error');
     }
   });
   return row;
@@ -671,11 +674,11 @@ async function renderSols(sols) {
   // sub-aba do MODO DE CORREÇÃO (correção especial, scripts/): mesmo mecanismo das categorias —
   // o painel (#scrPanel, data-cat="scr") vive FORA do wrap p/ sobreviver ao re-render
   nav.append(el('span', { class: 'subsep' }, '·'),
-    el('button', { class: 'subtab', type: 'button', 'data-cat': 'scr', title: T('modo de correção: checker, comparador, interativo… (scripts/ do pacote)', 'grading mode: checker, comparator, interactive… (package scripts/)'), onclick: () => showSolCat('scr') },
-      el('span', { class: 'sol-badge sb-scr' }, T('⚙ correção', '⚙ grading')), el('span', { class: 'subcount', id: 'solcount-scr' })),
+    el('button', { class: 'subtab', type: 'button', 'data-cat': 'scr', title: T('modo de correção: checker, comparador, interativo… (scripts/ do pacote)', 'grading mode: checker, comparator, interactive… (package scripts/)', 'modo de corrección: checker, comparador, interactivo… (scripts/ del paquete)'), onclick: () => showSolCat('scr') },
+      el('span', { class: 'sol-badge sb-scr' }, T('⚙ correção', '⚙ grading', '⚙ corrección')), el('span', { class: 'subcount', id: 'solcount-scr' })),
     // sub-aba do TEST-RUN (solução avulsa no juiz, fora do pacote): painel #trunPanel, também fora do wrap
-    el('button', { class: 'subtab', type: 'button', 'data-cat': 'trun', title: T('roda uma solução avulsa no juiz, fora do pacote (o moj testrun da CLI)', 'runs a loose solution on the judge, outside the package (the CLI moj testrun)'), onclick: () => showSolCat('trun') },
-      el('span', { class: 'sol-badge sb-scr' }, T('🧪 testar no juiz', '🧪 test on the judge'))));
+    el('button', { class: 'subtab', type: 'button', 'data-cat': 'trun', title: T('roda uma solução avulsa no juiz, fora do pacote (o moj testrun da CLI)', 'runs a loose solution on the judge, outside the package (the CLI moj testrun)', 'ejecuta una solución suelta en el juez, fuera del paquete (el moj testrun de la CLI)'), onclick: () => showSolCat('trun') },
+      el('span', { class: 'sol-badge sb-scr' }, T('🧪 testar no juiz', '🧪 test on the judge', '🧪 probar en el juez'))));
   wrap.append(nav);
   for (const [cat] of SOL_CATS) {
     const [, btxt] = SOL_BADGE[cat] || ['', ''];
@@ -684,11 +687,11 @@ async function renderSols(sols) {
     wrap.append(el('div', { class: 'solpanel', 'data-cat': cat, hidden: true },
       el('p', { class: 'small muted', style: 'margin:.2rem 0 .4rem' }, btxt),
       el('div', { class: 'row', style: 'gap:.4rem;flex-wrap:wrap;align-items:center;margin-bottom:.3rem' },
-        el('button', { class: 'btn ghost', type: 'button', onclick: () => addSol(cat, DEFNAME[cat], '', true) }, T('+ arquivo', '+ file')),
-        el('button', { class: 'btn ghost', type: 'button', onclick: () => fi.click() }, T('⬆ enviar', '⬆ upload')), fi,
+        el('button', { class: 'btn ghost', type: 'button', onclick: () => addSol(cat, DEFNAME[cat], '', true) }, T('+ arquivo', '+ file', '+ archivo')),
+        el('button', { class: 'btn ghost', type: 'button', onclick: () => fi.click() }, T('⬆ enviar', '⬆ upload', '⬆ subir')), fi,
         el('span', { style: 'flex:1' }),
-        el('button', { class: 'btn ghost', type: 'button', onclick: () => toggleAllSols(cat, true) }, T('abrir todos', 'open all')),
-        el('button', { class: 'btn ghost', type: 'button', onclick: () => toggleAllSols(cat, false) }, T('fechar todos', 'close all'))),
+        el('button', { class: 'btn ghost', type: 'button', onclick: () => toggleAllSols(cat, true) }, T('abrir todos', 'open all', 'abrir todos')),
+        el('button', { class: 'btn ghost', type: 'button', onclick: () => toggleAllSols(cat, false) }, T('fechar todos', 'close all', 'cerrar todos'))),
       rows));
     for (const s of (sols[cat] || [])) await addSol(cat, s.filename, s.code, false);
   }
@@ -698,7 +701,7 @@ async function addSol(cat, fn, code, expand) {
   const fnInput = el('input', { type: 'text', value: fn || DEFNAME[cat], style: 'max-width:14rem' });
   const langSel = langSelect(cmFor(fnInput.value));
   const mount = el('div', { class: 'editor-mount', style: 'display:none' });
-  const expandBtn = el('button', { class: 'btn ghost small', type: 'button', title: T('abrir/fechar editor', 'open/close editor') }, '▸');
+  const expandBtn = el('button', { class: 'btn ghost small', type: 'button', title: T('abrir/fechar editor', 'open/close editor', 'abrir/cerrar editor') }, '▸');
   const entry = { code: code || '', ed: null, row: null, fnInput, langSel, mount };
   const ensureEd = async () => { if (!entry.ed) entry.ed = await createEditor(mount, { doc: entry.code, cm: langSel.value || null }); };
   entry.setOpen = async (open) => { if (open) await ensureEd(); mount.style.display = open ? '' : 'none'; expandBtn.textContent = open ? '▾' : '▸'; };
@@ -708,10 +711,10 @@ async function addSol(cat, fn, code, expand) {
   langSel.addEventListener('change', remount);
   fnInput.addEventListener('change', () => { langSel.value = cmFor(fnInput.value); remount(); updatePkgInfo(); });
   const row = el('div', { class: 'solrow' },
-    el('div', { class: 'row', style: 'gap:.5rem;align-items:center;flex-wrap:wrap' }, expandBtn, el('span', { class: 'small muted' }, T('arquivo', 'file')), fnInput, langSel,
-      el('button', { class: 'btn ghost', type: 'button', title: T('testar esta versão no juiz, sem salvar (sub-aba 🧪)', 'test this version on the judge, without saving (🧪 sub-tab)'),
+    el('div', { class: 'row', style: 'gap:.5rem;align-items:center;flex-wrap:wrap' }, expandBtn, el('span', { class: 'small muted' }, T('arquivo', 'file', 'archivo')), fnInput, langSel,
+      el('button', { class: 'btn ghost', type: 'button', title: T('testar esta versão no juiz, sem salvar (sub-aba 🧪)', 'test this version on the judge, without saving (🧪 sub-tab)', 'probar esta versión en el juez, sin guardar (subpestaña 🧪)'),
         onclick: async () => { if (!TRUN) return; showSolCat('trun'); await TRUN.prefill(fnInput.value.trim(), entry.ed ? entry.ed.getValue() : entry.code); } }, '🧪'),
-      el('button', { class: 'btn ghost', type: 'button', onclick: () => { row.remove(); solEditors[cat] = (solEditors[cat] || []).filter(x => x !== entry); updateSolCounts(); updatePkgInfo(); } }, T('remover', 'remove'))),
+      el('button', { class: 'btn ghost', type: 'button', onclick: () => { row.remove(); solEditors[cat] = (solEditors[cat] || []).filter(x => x !== entry); updateSolCounts(); updatePkgInfo(); } }, T('remover', 'remove', 'quitar'))),
     mount);
   entry.row = row;
   $('sol-' + cat).append(row);
@@ -730,27 +733,27 @@ function addScript(f, expand) {
   const isLink = !!f.symlink;
   const text = isLink ? null : b64ToUtf8Strict(f.content_b64 || '');
   const isBin = !isLink && text === null;
-  const pathInput = el('input', { type: 'text', value: f.path || '', placeholder: T('ex: compare.sh · c/compile.sh', 'e.g. compare.sh · c/compile.sh'), style: 'max-width:16rem' });
+  const pathInput = el('input', { type: 'text', value: f.path || '', placeholder: T('ex: compare.sh · c/compile.sh', 'e.g. compare.sh · c/compile.sh', 'ej: compare.sh · c/compile.sh'), style: 'max-width:16rem' });
   const entry = { pathInput, symlink: f.symlink || null, b64: f.content_b64 || '', code: text || '', isBin, ed: null };
   let row;
   if (isLink) {
     row = el('div', { class: 'solrow' }, el('div', { class: 'row', style: 'gap:.5rem;align-items:center;flex-wrap:wrap' },
       el('span', { class: 'small muted' }, '🔗'), pathInput, el('span', { class: 'small muted' }, '→ ' + f.symlink),
-      el('button', { class: 'btn ghost', type: 'button', onclick: () => { row.remove(); scrEntries = scrEntries.filter(x => x !== entry); updateSolCounts(); updatePkgInfo(); } }, T('remover', 'remove'))));
+      el('button', { class: 'btn ghost', type: 'button', onclick: () => { row.remove(); scrEntries = scrEntries.filter(x => x !== entry); updateSolCounts(); updatePkgInfo(); } }, T('remover', 'remove', 'quitar'))));
   } else {
     const execCb = el('input', { type: 'checkbox' }); execCb.checked = !!f.exec;
     entry.execCb = execCb;
     const mount = el('div', { class: 'editor-mount', style: 'display:none' });
-    const expandBtn = el('button', { class: 'btn ghost small', type: 'button', title: T('abrir/fechar editor', 'open/close editor') }, '▸');
+    const expandBtn = el('button', { class: 'btn ghost small', type: 'button', title: T('abrir/fechar editor', 'open/close editor', 'abrir/cerrar editor') }, '▸');
     const ensureEd = async () => { if (!entry.ed) entry.ed = await createEditor(mount, { doc: entry.code, cm: cmFor(pathInput.value) || 'shell' }); };
     entry.setOpen = async (open) => { if (open) await ensureEd(); mount.style.display = open ? '' : 'none'; expandBtn.textContent = open ? '▾' : '▸'; };
     expandBtn.onclick = () => entry.setOpen(mount.style.display === 'none');
-    if (isBin) { expandBtn.disabled = true; expandBtn.title = T('binário — preservado como está', 'binary — preserved as is'); }
+    if (isBin) { expandBtn.disabled = true; expandBtn.title = T('binário — preservado como está', 'binary — preserved as is', 'binario — preservado tal cual'); }
     row = el('div', { class: 'solrow' }, el('div', { class: 'row', style: 'gap:.5rem;align-items:center;flex-wrap:wrap' },
-      expandBtn, el('span', { class: 'small muted' }, T('arquivo', 'file')), pathInput,
-      isBin ? el('span', { class: 'small muted' }, `${T('(binário, ', '(binary, ')}${Math.round((entry.b64.length * 3) / 4)} bytes)`) : '',
-      el('label', { class: 'row small', style: 'gap:.3rem' }, execCb, T('executável', 'executable')),
-      el('button', { class: 'btn ghost', type: 'button', onclick: () => { row.remove(); scrEntries = scrEntries.filter(x => x !== entry); updateSolCounts(); updatePkgInfo(); } }, T('remover', 'remove'))),
+      expandBtn, el('span', { class: 'small muted' }, T('arquivo', 'file', 'archivo')), pathInput,
+      isBin ? el('span', { class: 'small muted' }, `${T('(binário, ', '(binary, ', '(binario, ')}${Math.round((entry.b64.length * 3) / 4)} bytes)`) : '',
+      el('label', { class: 'row small', style: 'gap:.3rem' }, execCb, T('executável', 'executable', 'ejecutable')),
+      el('button', { class: 'btn ghost', type: 'button', onclick: () => { row.remove(); scrEntries = scrEntries.filter(x => x !== entry); updateSolCounts(); updatePkgInfo(); } }, T('remover', 'remove', 'quitar'))),
       mount);
     if (expand) entry.setOpen(true);
   }
@@ -799,27 +802,28 @@ async function applyScriptTemplate() {
   // conflito estrutural: interativo (slot run) × submissão-de-função (compile por-lang)
   const tplSlots = new Set(t.slots || []);
   const curSlots = new Set(cur.map(f => slotOfPath(f.path)));
-  let msg = `${T('Adicionar o template "', 'Add template "')}${t.name}"?\n`;
-  msg += T(`• ${(t.files || []).length} arquivo(s) do template entram`, `• ${(t.files || []).length} template file(s) go in`);
-  if (replaced.length) msg += T(` (${replaced.length} substituem arquivos de mesmo nome)`, ` (${replaced.length} replace same-name files)`);
+  let msg = `${T('Adicionar o template "', 'Add template "', 'Agregar la plantilla "')}${t.name}"?\n`;
+  msg += T(`• ${(t.files || []).length} arquivo(s) do template entram`, `• ${(t.files || []).length} template file(s) go in`, `• ${(t.files || []).length} archivo(s) de la plantilla entran`);
+  if (replaced.length) msg += T(` (${replaced.length} substituem arquivos de mesmo nome)`, ` (${replaced.length} replace same-name files)`, ` (${replaced.length} reemplazan archivos del mismo nombre)`);
   msg += '\n';
-  if (kept.length) msg += T(`• ${kept.length} arquivo(s) atuais FICAM (os slots compõem)\n`, `• ${kept.length} current file(s) STAY (slots compose)\n`);
+  if (kept.length) msg += T(`• ${kept.length} arquivo(s) atuais FICAM (os slots compõem)\n`, `• ${kept.length} current file(s) STAY (slots compose)\n`, `• ${kept.length} archivo(s) actuales SE MANTIENEN (los slots componen)\n`);
   if ((tplSlots.has('run') && curSlots.has('compile')) || (tplSlots.has('compile') && curSlots.has('run'))) {
     msg += T('⚠ ATENÇÃO: interativo × submissão-de-função NÃO compõem (o interativo controla a execução por linguagem). Confira o resultado!\n',
-             '⚠ WARNING: interactive × function-submission do NOT compose (interactive owns per-language execution). Review the result!\n');
+             '⚠ WARNING: interactive × function-submission do NOT compose (interactive owns per-language execution). Review the result!\n',
+             '⚠ ATENCIÓN: interactivo × envío-de-función NO componen (el interactivo controla la ejecución por lenguaje). ¡Revisa el resultado!\n');
   }
   if (!confirm(msg)) return;
   renderScripts([...kept, ...(t.files || [])]);
   const hint = $('scrTplHint');
   hint.style.display = '';
   hint.textContent = (t.description ? t.description + ' ' : '') + (t.conf_hints ? '💡 ' + t.conf_hints : '');
-  setMsg(T('Template ADICIONADO (os demais scripts ficaram) — revise e salve.', 'Template ADDED (other scripts kept) — review and save.'), '');
+  setMsg(T('Template ADICIONADO (os demais scripts ficaram) — revise e salve.', 'Template ADDED (other scripts kept) — review and save.', 'Plantilla AGREGADA (los demás scripts se mantuvieron) — revisa y guarda.'), '');
 }
 function clearScripts() {
   if (!scrEntries.length) return;
-  if (!confirm(T(`Remover TODOS os ${scrEntries.length} arquivo(s) de scripts/ (todos os slots)?`, `Remove ALL ${scrEntries.length} scripts/ file(s) (every slot)?`))) return;
+  if (!confirm(T(`Remover TODOS os ${scrEntries.length} arquivo(s) de scripts/ (todos os slots)?`, `Remove ALL ${scrEntries.length} scripts/ file(s) (every slot)?`, `¿Quitar TODOS los ${scrEntries.length} archivo(s) de scripts/ (todos los slots)?`))) return;
   renderScripts([]);
-  setMsg(T('scripts/ limpo — salve para efetivar.', 'scripts/ cleared — save to apply.'), '');
+  setMsg(T('scripts/ limpo — salve para efetivar.', 'scripts/ cleared — save to apply.', 'scripts/ vaciado — guarda para aplicar.'), '');
 }
 
 // ---- árvore do pacote (clicável -> troca de aba e rola até a seção) ------------------------
@@ -835,10 +839,10 @@ const dirNode = (label, ...kids) => el('li', {}, el('span', { class: 'dir' }, la
 function buildTree() {
   const exRows = [...$('examples').querySelectorAll('.ex')], tsRows = [...$('tests').querySelectorAll('.ex')];
   const testKids = [];
-  if (exRows.length) testKids.push(dirNode(T('exemplos/', 'samples/'), ...exRows.map((r, i) => leaf('sample' + (i + 1), r))));
-  if (tsRows.length) testKids.push(dirNode(T('ocultos/', 'hidden/'), ...tsRows.map(r => leaf(((r._nameI ? r._nameI.value : '') || T('teste', 'test')), r))));
+  if (exRows.length) testKids.push(dirNode(T('exemplos/', 'samples/', 'ejemplos/'), ...exRows.map((r, i) => leaf('sample' + (i + 1), r))));
+  if (tsRows.length) testKids.push(dirNode(T('ocultos/', 'hidden/', 'ocultos/'), ...tsRows.map(r => leaf(((r._nameI ? r._nameI.value : '') || T('teste', 'test', 'prueba')), r))));
   if (SCORE.enabled) testKids.push(leaf('score', $('scoreGroups'), () => showTab('tests')));
-  const solKids = SOL_CATS.map(([c]) => (solEditors[c] || []).length ? dirNode(c + '/', ...solEditors[c].map(s => leaf(s.get().filename || T('(sem nome)', '(no name)'), s.row))) : null).filter(Boolean);
+  const solKids = SOL_CATS.map(([c]) => (solEditors[c] || []).length ? dirNode(c + '/', ...solEditors[c].map(s => leaf(s.get().filename || T('(sem nome)', '(no name)', '(sin nombre)'), s.row))) : null).filter(Boolean);
   // scripts/ (correção especial) — editável na sub-aba ⚙ de Soluções & Correção; agrupa por subpasta
   let scrNode = null;
   const scrItems = scrEntries.map(e => ({ p: e.pathInput.value.trim(), row: e.row })).filter(x => x.p);
@@ -873,13 +877,13 @@ function buildTree() {
     testKids.length ? dirNode('tests/', ...testKids) : null,
     solKids.length ? dirNode('sols/', ...solKids) : null,
     scrNode);
-  return el('div', {}, el('div', { class: 'dir' }, ($('prob').value || T('problema', 'problem')) + '/'), tree);
+  return el('div', {}, el('div', { class: 'dir' }, ($('prob').value || T('problema', 'problem', 'problema')) + '/'), tree);
 }
 function updatePkgInfo() {
   if (!$('pkgInfo')) return;
   const ex = $('examples').querySelectorAll('.ex').length, ts = $('tests').querySelectorAll('.ex').length;
   const sc = SOL_CATS.map(([c]) => `${c}:${(solEditors[c] || []).length}`).join(' · ');
-  $('pkgInfo').textContent = `${ex} ${T('exemplo(s)', 'sample(s)')} · ${ts} ${T('teste(s) oculto(s)', 'hidden test(s)')} · ${T('soluções', 'solutions')} ${sc}` + (SCORE.enabled ? ` · ${T('pontuação:', 'scoring:')} ${SCORE.groups.length} ${T('grupo(s)', 'group(s)')}/${scoreSum()}p` : '');
+  $('pkgInfo').textContent = `${ex} ${T('exemplo(s)', 'sample(s)', 'ejemplo(s)')} · ${ts} ${T('teste(s) oculto(s)', 'hidden test(s)', 'prueba(s) oculta(s)')} · ${T('soluções', 'solutions', 'soluciones')} ${sc}` + (SCORE.enabled ? ` · ${T('pontuação:', 'scoring:', 'puntuación:')} ${SCORE.groups.length} ${T('grupo(s)', 'group(s)', 'grupo(s)')}/${scoreSum()}p` : '');
   if ($('pkgTree')) { $('pkgTree').innerHTML = ''; $('pkgTree').append(buildTree()); }
   updateReady();
 }
@@ -892,16 +896,16 @@ function updateRepoHint() {
   const hint = $('repoHint'); if (!hint) return;
   if (!REPOS.length && MODE === 'new') {
     hint.style.display = ''; hint.className = 'small'; hint.style.color = '#ffd98a';
-    hint.innerHTML = T('Você ainda não tem nenhuma <b>org</b>. O problema é salvo <b>dentro de uma org</b> — clique <b>“+ nova org”</b> ali do lado para criar a primeira (ex.: uma por disciplina ou competição). Só depois o botão <b>Salvar</b> funciona.', 'You have no <b>org</b> yet. The problem is saved <b>inside an org</b> — click <b>“+ new org”</b> on the side to create the first one (e.g. one per course or competition). Only then does the <b>Save</b> button work.');
+    hint.innerHTML = T('Você ainda não tem nenhuma <b>org</b>. O problema é salvo <b>dentro de uma org</b> — clique <b>“+ nova org”</b> ali do lado para criar a primeira (ex.: uma por disciplina ou competição). Só depois o botão <b>Salvar</b> funciona.', 'You have no <b>org</b> yet. The problem is saved <b>inside an org</b> — click <b>“+ new org”</b> on the side to create the first one (e.g. one per course or competition). Only then does the <b>Save</b> button work.', 'Todavía no tienes ninguna <b>org</b>. El problema se guarda <b>dentro de una org</b> — haz clic en <b>“+ nueva org”</b> al lado para crear la primera (ej.: una por asignatura o competencia). Solo entonces funciona el botón <b>Guardar</b>.');
   } else if (orgIsPrivate()) {
     hint.style.display = ''; hint.className = 'small'; hint.style.color = '#ffd98a';
-    hint.innerHTML = T('🔒 A org <b>', '🔒 The org <b>') + REPO + T('</b> é <b>privada</b> — problemas nela não podem ficar públicos (anti-vazamento de prova). Um admin da org libera em Gestão de Problemas › Orgs.', '</b> is <b>private</b> — problems in it cannot become public (exam anti-leak). An org admin unlocks it in Problem Management › Orgs.');
+    hint.innerHTML = T('🔒 A org <b>', '🔒 The org <b>', '🔒 La org <b>') + REPO + T('</b> é <b>privada</b> — problemas nela não podem ficar públicos (anti-vazamento de prova). Um admin da org libera em Gestão de Problemas › Orgs.', '</b> is <b>private</b> — problems in it cannot become public (exam anti-leak). An org admin unlocks it in Problem Management › Orgs.', '</b> es <b>privada</b> — los problemas en ella no pueden quedar públicos (anti-filtración de examen). Un admin de la org lo habilita en Gestión de Problemas › Orgs.');
   } else hint.style.display = 'none';
 }
 function fillRepoSelect() {
   const sel = $('repo'); sel.innerHTML = '';
-  if (!REPOS.length && !REPO) sel.append(el('option', { value: '' }, T('— nenhuma org — clique "+ nova org"', '— no org — click "+ new org"')));
-  REPOS.forEach(r => sel.append(el('option', { value: r.repo }, r.repo + (r.mine ? '' : T(' (compartilhado)', ' (shared)')))));
+  if (!REPOS.length && !REPO) sel.append(el('option', { value: '' }, T('— nenhuma org — clique "+ nova org"', '— no org — click "+ new org"', '— ninguna org — haz clic en "+ nueva org"')));
+  REPOS.forEach(r => sel.append(el('option', { value: r.repo }, r.repo + (r.mine ? '' : T(' (compartilhado)', ' (shared)', ' (compartido)')))));
   if (REPO && !REPOS.some(r => r.repo === REPO)) sel.append(el('option', { value: REPO }, REPO));
   if (REPO) sel.value = REPO; else REPO = REPOS.length ? (sel.value || '') : '';
   // a org é o prefixo do id: imutável na edição (selo fixo). Só no modo "novo" dá p/ escolher/criar.
@@ -921,7 +925,7 @@ async function renderForm(d) {
   // template de seções. Os editores PT das seções ficam (mounts fixos); os das traduções vão com o DOM.
   stmtModeOf = {}; Object.keys(modEds).forEach(l => { if (l !== 'pt') { delete modEds[l]; delete modBoxes[l]; } }); transSingle = {};
   $('enunMount').style.display = ''; $('enunModular').style.display = 'none';
-  if ($('stmtToggle')) $('stmtToggle').textContent = T('✂ Separar em seções', '✂ Split into sections');
+  if ($('stmtToggle')) $('stmtToggle').textContent = T('✂ Separar em seções', '✂ Split into sections', '✂ Separar en secciones');
   if (modEds.pt) SEC_KEYS.forEach(k => modEds.pt[k].setValue(''));
   const initMd = (d.enunciado_md && d.enunciado_md.trim()) ? d.enunciado_md : (MODE === 'new' ? STMT_TEMPLATE : '');
   $('enunMount').innerHTML = '';
@@ -952,7 +956,7 @@ async function renderForm(d) {
   FMT = (d.format === 'org' || d.format === 'tex') ? d.format : 'md';
   syncScore();
   renderCollChips(); renderCollManage(); updatePkgInfo();
-  if (FMT !== 'md') showNote(`${T('Enunciado em <b>', 'Statement in <b>')}${FMT === 'org' ? 'Org-mode' : 'LaTeX'}${T('</b> — preservado ao salvar; a pré-visualização renderiza nesse formato.', '</b> — preserved on save; the preview renders in this format.')}`);
+  if (FMT !== 'md') showNote(`${T('Enunciado em <b>', 'Statement in <b>', 'Enunciado en <b>')}${FMT === 'org' ? 'Org-mode' : 'LaTeX'}${T('</b> — preservado ao salvar; a pré-visualização renderiza nesse formato.', '</b> — preserved on save; the preview renders in this format.', '</b> — preservado al guardar; la vista previa se renderiza en ese formato.')}`);
 }
 const collectFields = () => {
   const enabled = $('scoreEnabled').checked;
@@ -970,7 +974,7 @@ const collectFields = () => {
 };
 
 async function preview() {
-  const btn = $('preview'); btn.disabled = true; setMsg(T('Renderizando…', 'Rendering…'));
+  const btn = $('preview'); btn.disabled = true; setMsg(T('Renderizando…', 'Rendering…', 'Renderizando…'));
   try {
     // id junto: o servidor semeia as IMAGENS de docs/ do pacote no render — `![](fig.png)`
     // aparece no preview igual ao servido (imagem colada é data:URI e nunca dependeu disso)
@@ -986,7 +990,7 @@ async function preview() {
     try { const d = new DOMParser().parseFromString(html, 'text/html'); pb.innerHTML = d.body ? d.body.innerHTML : html; } catch { pb.innerHTML = html; }
     decorateSamples(pb);   // o preview é o HTML servido: os botões "Copiar" aparecem como para o aluno
     $('previewModal').style.display = ''; setMsg('');
-  } catch (e) { setMsg((e instanceof ApiError ? e.message : T('Falha ao renderizar', 'Failed to render')), 'error'); }
+  } catch (e) { setMsg((e instanceof ApiError ? e.message : T('Falha ao renderizar', 'Failed to render', 'Error al renderizar')), 'error'); }
   finally { btn.disabled = false; }
 }
 
@@ -1043,7 +1047,7 @@ async function pollTick() {
   const now = RUNNING || calibRunning();
   if (was && !now) {                        // transição rodando -> parado = acabou de verdade
     stopPolling(); renderVal(); updateReady();
-    setMsg(T('Calibração concluída ✓', 'Calibration finished ✓'), 'v-ok');
+    setMsg(T('Calibração concluída ✓', 'Calibration finished ✓', 'Calibración terminada ✓'), 'v-ok');
     return;
   }
   if (!now) { stopPolling(); return; }
@@ -1051,7 +1055,8 @@ async function pollTick() {
   if (elapsed > CALIB_CEIL_MS) {            // não some em silêncio: diz onde olhar (e volta no foco)
     stopPolling();
     setMsg(T('Ainda calibrando depois de 15 min — acompanhe no Painel de problemas.',
-             'Still calibrating after 15 min — follow it on the problems panel.'), '');
+             'Still calibrating after 15 min — follow it on the problems panel.',
+             'Aún calibrando después de 15 min — sigue el progreso en el Panel de problemas.'), '');
     return;
   }
   if (elapsed > 60000 && calibPollMs === 4000) armPolling(8000);   // primeiro minuto rápido, depois calmo
@@ -1071,14 +1076,14 @@ async function openCalibReport(host, name) {
       { headers: { Authorization: 'Bearer ' + getToken(CONTEST) } });
     if (!r.ok) throw new Error('HTTP ' + r.status);
     openHtmlReport(await r.text());   // blob, nunca srcdoc — ver shared/submission-links.js
-  } catch (e) { setMsg(T('Falha ao abrir o report: ', 'Failed to open the report: ') + e.message, 'error'); }
+  } catch (e) { setMsg(T('Falha ao abrir o report: ', 'Failed to open the report: ', 'Error al abrir el report: ') + e.message, 'error'); }
 }
 // nome amigável das linguagens (as chaves de TL são códigos curtos do juiz: c, cpp, py, …)
 const TL_LANG_NAME = { c: 'C', cpp: 'C++', cc: 'C++', cxx: 'C++', py: 'Python', python: 'Python',
-  py3: T('Python 3 (legado)', 'Python 3 (legacy)'), py2: T('Python 2 (legado)', 'Python 2 (legacy)'),
+  py3: T('Python 3 (legado)', 'Python 3 (legacy)', 'Python 3 (legado)'), py2: T('Python 2 (legado)', 'Python 2 (legacy)', 'Python 2 (legado)'),
   java: 'Java', pas: 'Pascal', pascal: 'Pascal', hs: 'Haskell', go: 'Go', rs: 'Rust', js: 'JavaScript',
   cs: 'C#', ml: 'OCaml', sh: 'Shell', bash: 'Shell', apl: 'APL', pl: 'Prolog', prolog: 'Prolog',
-  asm: 'Assembly', gas: 'Assembly', default: T('default (demais)', 'default (others)') };
+  asm: 'Assembly', gas: 'Assembly', default: T('default (demais)', 'default (others)', 'default (los demás)') };
 const tlLangName = (k) => TL_LANG_NAME[k] || k;
 const tlSecs = (v) => { if (v == null || v === '') return '—'; const n = +v; return (Number.isFinite(n) ? +n.toFixed(4) : v) + 's'; };
 // calibração POR EXTENSO de um juiz (h.sols): solução a solução, teste a teste — o mesmo
@@ -1094,8 +1099,8 @@ function solsBlock(h) {
     const pill = expectPill(s.expect);
     const tdet = el('div', { style: 'display:' + (OPEN_SOLS.has(key) ? '' : 'none') });
     if (tests.length) tdet.append(testsTable(tests));   // o MESMO visual do test-run (problemas/testrun.js)
-    else tdet.append(el('p', { class: 'muted', style: 'margin:.1rem 0 .3rem 1.2rem' }, T('sem testes registrados.', 'no recorded tests.')));
-    const lbl = (open) => (open ? T('ocultar testes', 'hide tests') : T('testes', 'tests')) + ' (' + tests.length + ')';
+    else tdet.append(el('p', { class: 'muted', style: 'margin:.1rem 0 .3rem 1.2rem' }, T('sem testes registrados.', 'no recorded tests.', 'sin pruebas registradas.')));
+    const lbl = (open) => (open ? T('ocultar testes', 'hide tests', 'ocultar pruebas') : T('testes', 'tests', 'pruebas')) + ' (' + tests.length + ')';
     const tg = el('a', { href: '#', onclick: (e) => {
       e.preventDefault();
       const open = !OPEN_SOLS.has(key);
@@ -1115,7 +1120,7 @@ function solsBlock(h) {
       // o que a categoria pede × o que aconteceu, DENTRO da caixa da solução (quebra de linha no flex)
       (want || got) ? el('div', { class: 'solexp' },
         want ? el('div', {}, want) : null,
-        got ? el('div', { class: s.expect && s.expect.state === 'ok' ? '' : 'got' }, T('obtido: ', 'got: ') + got) : null) : null),
+        got ? el('div', { class: s.expect && s.expect.state === 'ok' ? '' : 'got' }, T('obtido: ', 'got: ', 'obtenido: ') + got) : null) : null),
       tdet);
   });
   return box;
@@ -1128,15 +1133,15 @@ function validatorBlock(h) {
   const cls = v.state === 'ok' ? 'ok' : (v.state === 'none' ? '' : 'no');
   const line = el('div', { class: 'solrow' },
     cls ? el('span', { class: 'pill ' + cls }, v.state === 'ok' ? '✓' : '✗') : el('span', { class: 'muted' }, '•'),
-    el('b', {}, T('Entradas', 'Inputs')), el('span', { class: v.state === 'none' ? 'muted' : '' }, validatorText(v)));
+    el('b', {}, T('Entradas', 'Inputs', 'Entradas')), el('span', { class: v.state === 'none' ? 'muted' : '' }, validatorText(v)));
   if (!bad.length) return el('div', { class: 'small', style: 'margin-top:.3rem' }, line);
   const tb = el('tbody', {});
   bad.forEach(t => tb.append(el('tr', {}, el('td', {}, t.name || ''), el('td', { class: 'bad' }, t.code || ''),
     el('td', { class: 'vmsg' }, t.msg || ''))));
   return el('div', { class: 'small', style: 'margin-top:.3rem' }, line,
-    el('details', { style: 'margin-left:1.2rem' }, el('summary', {}, T('entradas reprovadas', 'rejected inputs') + ` (${bad.length})`),
-      el('table', { class: 'soltests' }, el('thead', {}, el('tr', {}, el('th', {}, T('teste', 'test')),
-        el('th', {}, T('resultado', 'result')), el('th', {}, T('mensagem do validador', 'validator message')))), tb)));
+    el('details', { style: 'margin-left:1.2rem' }, el('summary', {}, T('entradas reprovadas', 'rejected inputs', 'entradas rechazadas') + ` (${bad.length})`),
+      el('table', { class: 'soltests' }, el('thead', {}, el('tr', {}, el('th', {}, T('teste', 'test', 'prueba')),
+        el('th', {}, T('resultado', 'result', 'resultado')), el('th', {}, T('mensagem do validador', 'validator message', 'mensaje del validador')))), tb)));
 }
 // quadro-resumo: tempo-limite por linguagem em cada juiz; o "servido" (o que o aluno vê) em negrito
 function tlSummaryTable(hosts, served) {
@@ -1149,7 +1154,7 @@ function tlSummaryTable(hosts, served) {
     const vals = hosts.map(h => +((h.tl || {})[lang])).filter(Number.isFinite);
     return vals.length ? Math.max(...vals) : null;   // ainda não indexado: usa o máx entre juízes
   };
-  const thead = el('tr', {}, el('th', {}, T('linguagem', 'language')), el('th', { class: 'served' }, T('servido (aluno)', 'served (student)')),
+  const thead = el('tr', {}, el('th', {}, T('linguagem', 'language', 'lenguaje')), el('th', { class: 'served' }, T('servido (aluno)', 'served (student)', 'servido (estudiante)')),
     ...hosts.map(h => el('th', {}, h.host, cpuOf[h.host] ? el('div', { class: 'cpu' }, cpuOf[h.host]) : null)));
   // TLOVERRIDE no conf: a coluna "servido" deixa de ser a medição e passa a ser a decisão do
   // autor — então cada linha sobreposta leva o selo, com o calibrado no title.
@@ -1162,13 +1167,14 @@ function tlSummaryTable(hosts, served) {
         ? (() => { const s = el('span', { class: 'pill warn', style: 'margin-left:.3rem' }, '⚡');
                    const cal = hosts.map(h => +((h.tl || {})[lang])).filter(Number.isFinite);
                    s.title = T('Definido por você no conf (TLOVERRIDE). Medido pela calibração: ',
-                               'Set by you in the conf (TLOVERRIDE). Measured by calibration: ')
+                               'Set by you in the conf (TLOVERRIDE). Measured by calibration: ',
+                               'Definido por ti en el conf (TLOVERRIDE). Medido por la calibración: ')
                              + (cal.length ? tlSecs(Math.max(...cal)) : '—');
                    return s; })()
         : null),
     ...hosts.map(h => el('td', {}, tlSecs((h.tl || {})[lang])))));
   return el('div', { class: 'tlsummary-wrap' },
-    el('div', { class: 'small muted', style: 'margin:.3rem 0 .2rem' }, T('Resumo por linguagem — em negrito o tempo-limite que o estudante vê no enunciado:', 'Summary per language — in bold the time limit the student sees in the statement:')),
+    el('div', { class: 'small muted', style: 'margin:.3rem 0 .2rem' }, T('Resumo por linguagem — em negrito o tempo-limite que o estudante vê no enunciado:', 'Summary per language — in bold the time limit the student sees in the statement:', 'Resumen por lenguaje — en negrita el tiempo límite que el estudiante ve en el enunciado:')),
     el('table', { class: 'tlsummary' }, el('thead', {}, thead), el('tbody', {}, ...body)));
 }
 // assinatura do que o painel mostra: só reconstrói quando MUDA — senão o polling (a cada 4s)
@@ -1179,9 +1185,9 @@ function calibWhere() {
   if (!CALIB_LIVE.length) return '';
   const named = CALIB_LIVE.filter(c => c.host);
   const parts = (named.length ? named : CALIB_LIVE).map(c => {
-    const m = c.since ? (T(', há ', ', ') + minsSince(c.since) + T(' min', ' min ago')) : '';
-    if (!c.host) return T('na fila', 'queued') + m;
-    return c.host + (c.state === 'queued' ? T(' (na fila)', ' (queued)') : '') + m;
+    const m = c.since ? (T(', há ', ', ', ', hace ') + minsSince(c.since) + T(' min', ' min ago', ' min')) : '';
+    if (!c.host) return T('na fila', 'queued', 'en cola') + m;
+    return c.host + (c.state === 'queued' ? T(' (na fila)', ' (queued)', ' (en cola)') : '') + m;
   });
   return ' · ' + parts.join(' · ') + '.';
 }
@@ -1210,20 +1216,21 @@ function renderVal() {
   const checks = (val && Array.isArray(val.checks)) ? val.checks : [];
   if (!ID || (!checks.length && !hosts.length && !RUNNING && !calibRunning())) { box.style.display = 'none'; return; }
   box.style.display = '';
-  box.append(el('h3', {}, T('Validação & calibração', 'Validation & calibration')));
+  box.append(el('h3', {}, T('Validação & calibração', 'Validation & calibration', 'Validación y calibración')));
   // o aviso conta ONDE e HÁ QUANTO TEMPO: uma calibração leva minutos, e "Calibrando no juiz…" sem
   // mais nada, por 7 min, é indistinguível de "travou" (relatos de 21/09/2026)
   if (RUNNING || calibRunning()) box.append(el('div', { class: 'running' }, el('span', { class: 'spin' }),
-    el('span', {}, (RUNNING === 'publish' ? T('Validando e calibrando no juiz…', 'Validating and calibrating on the judge…') : T('Calibrando no juiz…', 'Calibrating on the judge…'))
-      + calibWhere() + T(' a página atualiza sozinha quando terminar.', ' the page updates itself when done.'))));
+    el('span', {}, (RUNNING === 'publish' ? T('Validando e calibrando no juiz…', 'Validating and calibrating on the judge…', 'Validando y calibrando en el juez…') : T('Calibrando no juiz…', 'Calibrating on the judge…', 'Calibrando en el juez…'))
+      + calibWhere() + T(' a página atualiza sozinha quando terminar.', ' the page updates itself when done.', ' la página se actualiza sola cuando termine.'))));
   // resultado do quality gate (botão Validar) — é do PACOTE: o "validado" antigo levava o autor a achar
   // que as soluções tinham sido conferidas (relato do Arthur Botelho, 22/09/2026)
   if (checks.length) {
-    box.append(el('div', { class: 'small', style: 'margin:.3rem 0 0' }, el('b', {}, T('Pacote', 'Package')), ' — ',
+    box.append(el('div', { class: 'small', style: 'margin:.3rem 0 0' }, el('b', {}, T('Pacote', 'Package', 'Paquete')), ' — ',
       T('conferência estática: enunciado, exemplos, testes com entrada e saída, solução good presente. Não roda solução nenhuma — quem roda é a calibração (abaixo).',
-        'static check: statement, samples, tests with input and output, good solution present. It runs no solution — calibration does (below).')));
+        'static check: statement, samples, tests with input and output, good solution present. It runs no solution — calibration does (below).',
+        'verificación estática: enunciado, ejemplos, pruebas con entrada y salida, solución good presente. No ejecuta ninguna solución — quien la ejecuta es la calibración (abajo).')));
     const list = el('ul', { class: 'checks' });
-    checks.forEach(c => list.append(el('li', {}, el('span', { class: 'pill ' + (c.ok ? 'ok' : 'no') }, c.ok ? 'ok' : T('falha', 'fail')), ' ' + (c.name || '') + (c.detail ? (' — ' + c.detail) : ''))));
+    checks.forEach(c => list.append(el('li', {}, el('span', { class: 'pill ' + (c.ok ? 'ok' : 'no') }, c.ok ? 'ok' : T('falha', 'fail', 'falla')), ' ' + (c.name || '') + (c.detail ? (' — ' + c.detail) : ''))));
     box.append(list);
   }
   // por juiz: tempo-limite calibrado + quando + log (como cada solução se comportou)
@@ -1235,31 +1242,32 @@ function renderVal() {
     // o override não pegou — foi exatamente o relato que gerou esta tela.
     const ovrAll = (info && info.tl_override) || {};
     if (Object.keys(ovrAll).length) box.append(el('div', { class: 'warn small', style: 'margin:.4rem 0' },
-      '⚡ ', el('b', {}, T('Tempo-limite definido por você no conf: ', 'Time limit set by you in the conf: ')),
+      '⚡ ', el('b', {}, T('Tempo-limite definido por você no conf: ', 'Time limit set by you in the conf: ', 'Tiempo límite definido por ti en el conf: ')),
       Object.entries(ovrAll).map(([k, v]) => `${k}=${(+v).toFixed(3)}s`).join(' · '),
       el('div', { class: 'small' },
         T('É ele que o juiz cobra e que o estudante lê. Os tempos dos cartões abaixo são a MEDIÇÃO da calibração, que roda sem o override de propósito — servem para você ver a folga de cada solução.',
-          'That is what the judge enforces and what the student reads. The times in the cards below are the calibration MEASUREMENT, which deliberately runs without the override — they show you the headroom of each solution.'))));
-    box.append(el('div', { class: 'small muted', style: 'margin:.5rem 0 .2rem' }, `${T('Calibrado em ', 'Calibrated on ')}${hosts.length} ${T('juiz(es) — abra "ver log" para o comportamento de cada solução:', 'judge(s) — open "view log" to see each solution behavior:')}`));
+          'That is what the judge enforces and what the student reads. The times in the cards below are the calibration MEASUREMENT, which deliberately runs without the override — they show you the headroom of each solution.',
+          'Es el que el juez exige y el que el estudiante lee. Los tiempos de las tarjetas de abajo son la MEDICIÓN de la calibración, que corre sin el override a propósito — sirven para que veas el margen de cada solución.'))));
+    box.append(el('div', { class: 'small muted', style: 'margin:.5rem 0 .2rem' }, `${T('Calibrado em ', 'Calibrated on ', 'Calibrado el ')}${hosts.length} ${T('juiz(es) — abra "ver log" para o comportamento de cada solução:', 'judge(s) — open "view log" to see each solution behavior:', 'juez(es) — abre "ver log" para ver el comportamiento de cada solución:')}`));
     // SOLUÇÕES × o que a categoria pede, somado entre os juízes da versão atual (o mesmo número do Painel)
     const smt = summaryText(calib && calib.summary);
     if (smt) {
       const sm = calib.summary;
       box.append(el('div', { class: 'solsum ' + (sm.bad ? 'bad' : ((sm.missing || []).length ? 'todo' : 'ok')) },
-        el('b', {}, T('Soluções: ', 'Solutions: ')), smt));
+        el('b', {}, T('Soluções: ', 'Solutions: ', 'Soluciones: ')), smt));
     }
     hosts.forEach(h => {
       const isOpen = OPEN_LOGS.has(h.host);
       const det = el('div', { style: 'margin-top:.3rem;display:' + (isOpen ? '' : 'none') });
-      det.append(h.log ? el('pre', { class: 'caliblog', 'data-host': h.host }, h.log) : el('p', { class: 'small muted' }, T('sem log deste juiz ainda.', 'no log from this judge yet.')));
+      det.append(h.log ? el('pre', { class: 'caliblog', 'data-host': h.host }, h.log) : el('p', { class: 'small muted' }, T('sem log deste juiz ainda.', 'no log from this judge yet.', 'sin log de este juez todavía.')));
       const toggle = el('a', { href: '#', class: 'small', onclick: (e) => {
         e.preventDefault();
         const open = !OPEN_LOGS.has(h.host);
         if (open) OPEN_LOGS.add(h.host); else OPEN_LOGS.delete(h.host);
-        det.style.display = open ? '' : 'none'; toggle.textContent = open ? T('ocultar log', 'hide log') : T('ver log', 'view log');
-      } }, isOpen ? T('ocultar log', 'hide log') : T('ver log', 'view log'));
+        det.style.display = open ? '' : 'none'; toggle.textContent = open ? T('ocultar log', 'hide log', 'ocultar log') : T('ver log', 'view log', 'ver log');
+      } }, isOpen ? T('ocultar log', 'hide log', 'ocultar log') : T('ver log', 'view log', 'ver log'));
       const head = el('div', { class: 'row', style: 'gap:.5rem;align-items:center;flex-wrap:wrap' },
-        el('b', {}, h.host), el('span', { class: 'small muted' }, tlLine(h.tl) || T('sem TL', 'no TL')),
+        el('b', {}, h.host), el('span', { class: 'small muted' }, tlLine(h.tl) || T('sem TL', 'no TL', 'sin TL')),
         h.at ? el('span', { class: 'small muted' }, '· ' + fmtDate(h.at)) : null,
         el('span', { style: 'flex:1' }), toggle);
       // sols estruturado: solução a solução, teste a teste (cada linha já linka o seu report);
@@ -1270,39 +1278,40 @@ function renderVal() {
       if (h.stale) {
         head.append(el('span', { class: 'verdict v-warn', style: 'font-size:.72rem;padding:.1rem .45rem',
           title: T('Este juiz calibrou uma versão anterior do pacote — as soluções mudaram desde então.',
-                   'This judge calibrated an earlier version of the package — the solutions changed since then.') },
-          T('desatualizado — recalibre', 'outdated — recalibrate')));
+                   'This judge calibrated an earlier version of the package — the solutions changed since then.',
+                   'Este juez calibró una versión anterior del paquete — las soluciones cambiaron desde entonces.') },
+          T('desatualizado — recalibre', 'outdated — recalibrate', 'desactualizado — recalibra')));
         // a lista NÃO pode aparecer como se fosse a de agora (é de antes do último Salvar: foi assim
         // que um autor viu solução removida ainda sendo julgada, 20/09) — mas esconder tudo deixava a
         // tela vazia depois de cada Salvar, e o autor lendo "nenhum log atualiza" (relato de 21/09).
         // Fica DOBRADA e rotulada: quem quiser ver o que rodou antes, abre.
         if (sols) sols = el('details', { class: 'small', style: 'margin-top:.25rem;opacity:.75' },
-          el('summary', {}, T('calibração da versão anterior', 'calibration of the previous version')
-            + (h.at ? (T(' · há ', ' · ') + minsSince(h.at) + T(' min', ' min ago')) : '')), sols);
+          el('summary', {}, T('calibração da versão anterior', 'calibration of the previous version', 'calibración de la versión anterior')
+            + (h.at ? (T(' · há ', ' · ', ' · hace ') + minsSince(h.at) + T(' min', ' min ago', ' min')) : '')), sols);
       }
       const reps = el('div', { class: 'small', style: 'margin-top:.25rem' });
       if (!sols && (h.reports || []).length) {
-        reps.append(el('span', { class: 'muted' }, T('report por solução: ', 'report per solution: ')));
+        reps.append(el('span', { class: 'muted' }, T('report por solução: ', 'report per solution: ', 'report por solución: ')));
         h.reports.forEach(rn => reps.append(el('a', { href: '#', style: 'margin-right:.7rem;white-space:nowrap', onclick: (e) => { e.preventDefault(); openCalibReport(h.host, rn); } }, '📄 ' + rn)));
       }
       box.append(el('div', { class: 'judgecard' }, head, sols, h.stale ? null : validatorBlock(h), reps, det));
     });
-  } else if (!RUNNING && !calibRunning()) box.append(el('p', { class: 'small muted' }, T('Ainda não calibrado — clique “Calibrar” na barra de baixo.', 'Not calibrated yet — click “Calibrate” on the bottom bar.')));
+  } else if (!RUNNING && !calibRunning()) box.append(el('p', { class: 'small muted' }, T('Ainda não calibrado — clique “Calibrar” na barra de baixo.', 'Not calibrated yet — click “Calibrate” on the bottom bar.', 'Todavía no calibrado — haz clic en “Calibrar” en la barra de abajo.')));
   // sem juízes calibrados mas com TL servido (legado): mostra o tempo-limite usado na correção
-  if (!hosts.length && Object.keys(served).length) box.append(el('div', { class: 'small', style: 'margin-top:.4rem' }, T('Tempo-limite usado na correção: ', 'Time limit used for grading: ') + tlLine(served)));
+  if (!hosts.length && Object.keys(served).length) box.append(el('div', { class: 'small', style: 'margin-top:.4rem' }, T('Tempo-limite usado na correção: ', 'Time limit used for grading: ', 'Tiempo límite usado en la corrección: ') + tlLine(served)));
   box.querySelectorAll('.caliblog').forEach(p => { if (CALIB_SCROLL[p.dataset.host]) p.scrollTop = CALIB_SCROLL[p.dataset.host]; });   // restaura o scroll
   LAST_RENDER_SIG = valRenderSig();
 }
 
 // ---- pacote: baixar / enviar tar ----------------------------------------------------------
 async function download() {
-  if (!ID) { setMsg(T('Salve o problema antes de baixar.', 'Save the problem before downloading.'), 'error'); return; }
+  if (!ID) { setMsg(T('Salve o problema antes de baixar.', 'Save the problem before downloading.', 'Guarda el problema antes de descargar.'), 'error'); return; }
   try {
     const r = await fetch('/api/v1/problems/download?id=' + encodeURIComponent(ID), { headers: { Authorization: 'Bearer ' + getToken(CONTEST) } });
     if (!r.ok) throw new Error('HTTP ' + r.status);
     const blob = await r.blob(), a = document.createElement('a');
     a.href = URL.createObjectURL(blob); a.download = ID.split('#').pop() + '.tar.gz'; a.click(); URL.revokeObjectURL(a.href);
-  } catch (e) { setMsg(T('Falha ao baixar: ', 'Failed to download: ') + e.message, 'error'); }
+  } catch (e) { setMsg(T('Falha ao baixar: ', 'Failed to download: ', 'Error al descargar: ') + e.message, 'error'); }
 }
 
 // ---- 🕘 histórico git (log, diff -p, baixar versão, restaurar) ----------------------------
@@ -1328,51 +1337,52 @@ async function downloadAt(sha) {
     const blob = await r.blob(), a = document.createElement('a');
     a.href = URL.createObjectURL(blob); a.download = ID.split('#').pop() + '-' + sha.slice(0, 7) + '.tar.gz';
     a.click(); URL.revokeObjectURL(a.href);
-  } catch (e) { setMsg(T('Falha ao baixar a versão: ', 'Failed to download version: ') + e.message, 'error'); }
+  } catch (e) { setMsg(T('Falha ao baixar a versão: ', 'Failed to download version: ', 'Error al descargar la versión: ') + e.message, 'error'); }
 }
 async function restoreAt(sha) {
   const ok = confirm(T('Restaurar a versão ' + sha.slice(0, 7) + '?\nIsso cria um commit NOVO por cima (a história não é reescrita). O flag de público e as coleções atuais são preservados.',
-    'Restore version ' + sha.slice(0, 7) + '?\nThis creates a NEW commit on top (history is not rewritten). Current public flag and collections are preserved.'));
+    'Restore version ' + sha.slice(0, 7) + '?\nThis creates a NEW commit on top (history is not rewritten). Current public flag and collections are preserved.',
+    '¿Restaurar la versión ' + sha.slice(0, 7) + '?\nEsto crea un commit NUEVO encima (la historia no se reescribe). Se conservan la marca de público y las colecciones actuales.'));
   if (!ok) return;
   try {
     const j = await apiPost('/problems/restore', { id: ID, sha, confirm: sha }, { contest: CONTEST, auth: true });
-    setMsg(T('Versão restaurada ✓ (novo commit ', 'Version restored ✓ (new commit ') + (j.sha || '') + ')', 'ok');
+    setMsg(T('Versão restaurada ✓ (novo commit ', 'Version restored ✓ (new commit ', 'Versión restaurada ✓ (nuevo commit ') + (j.sha || '') + ')', 'ok');
     await loadSource(ID);
     await loadHistory(true);
-  } catch (e) { setMsg(T('Falha ao restaurar: ', 'Failed to restore: ') + (e instanceof ApiError ? e.message : e), 'error'); }
+  } catch (e) { setMsg(T('Falha ao restaurar: ', 'Failed to restore: ', 'Error al restaurar: ') + (e instanceof ApiError ? e.message : e), 'error'); }
 }
 async function loadHistory(force) {
   const box = $('histList'); if (!box) return;
   if (HIST_LOADED && !force) return;
-  if (!ID) { box.innerHTML = ''; box.append(el('span', { class: 'muted' }, T('Salve o problema para ter histórico.', 'Save the problem to have history.'))); return; }
-  box.innerHTML = ''; box.append(el('span', { class: 'muted' }, T('Carregando…', 'Loading…')));
+  if (!ID) { box.innerHTML = ''; box.append(el('span', { class: 'muted' }, T('Salve o problema para ter histórico.', 'Save the problem to have history.', 'Guarda el problema para tener historial.'))); return; }
+  box.innerHTML = ''; box.append(el('span', { class: 'muted' }, T('Carregando…', 'Loading…', 'Cargando…')));
   try {
     const j = await apiGet('/problems/history?id=' + encodeURIComponent(ID), { contest: CONTEST, auth: true });
     HIST_LOADED = true;
     box.innerHTML = '';
     const commits = j.commits || [];
-    if (!commits.length) { box.append(el('span', { class: 'muted' }, T('Sem commits ainda.', 'No commits yet.'))); return; }
+    if (!commits.length) { box.append(el('span', { class: 'muted' }, T('Sem commits ainda.', 'No commits yet.', 'Sin commits todavía.'))); return; }
     commits.forEach((c, i) => {
       const stats = (c.files ? c.files + 'a ' : '') + (c.insertions ? '+' + c.insertions + ' ' : '') + (c.deletions ? '−' + c.deletions : '');
       const diffBox = el('div', {});
       let diffOpen = false, diffLoaded = false;
-      const btnDiff = el('button', { class: 'btn ghost', type: 'button', style: 'font-size:.82em;padding:.1rem .5rem' }, T('Ver diff', 'View diff'));
+      const btnDiff = el('button', { class: 'btn ghost', type: 'button', style: 'font-size:.82em;padding:.1rem .5rem' }, T('Ver diff', 'View diff', 'Ver diff'));
       btnDiff.onclick = async () => {
         diffOpen = !diffOpen;
         if (diffOpen && !diffLoaded) {
-          diffBox.append(el('span', { class: 'muted small' }, T('Carregando diff…', 'Loading diff…')));
+          diffBox.append(el('span', { class: 'muted small' }, T('Carregando diff…', 'Loading diff…', 'Cargando diff…')));
           try {
             const d = await apiGet('/problems/history?id=' + encodeURIComponent(ID) + '&sha=' + c.sha, { contest: CONTEST, auth: true });
             diffBox.innerHTML = '';
             diffBox.append(diffPre(b64utf8(d.diff_b64 || '')));
-            if (d.truncated) diffBox.append(el('div', { class: 'small muted' }, T('(diff truncado em 400 KB)', '(diff truncated at 400 KB)')));
+            if (d.truncated) diffBox.append(el('div', { class: 'small muted' }, T('(diff truncado em 400 KB)', '(diff truncated at 400 KB)', '(diff truncado en 400 KB)')));
             diffLoaded = true;
-          } catch (e) { diffBox.innerHTML = ''; diffBox.append(el('span', { class: 'muted' }, T('Falha ao carregar o diff: ', 'Failed to load diff: ') + e.message)); }
+          } catch (e) { diffBox.innerHTML = ''; diffBox.append(el('span', { class: 'muted' }, T('Falha ao carregar o diff: ', 'Failed to load diff: ', 'Error al cargar el diff: ') + e.message)); }
         }
         diffBox.hidden = !diffOpen;
-        btnDiff.textContent = diffOpen ? T('Fechar diff', 'Close diff') : T('Ver diff', 'View diff');
+        btnDiff.textContent = diffOpen ? T('Fechar diff', 'Close diff', 'Cerrar diff') : T('Ver diff', 'View diff', 'Ver diff');
       };
-      const btnDl = el('button', { class: 'btn ghost', type: 'button', style: 'font-size:.82em;padding:.1rem .5rem' }, T('Baixar .tar.gz', 'Download .tar.gz'));
+      const btnDl = el('button', { class: 'btn ghost', type: 'button', style: 'font-size:.82em;padding:.1rem .5rem' }, T('Baixar .tar.gz', 'Download .tar.gz', 'Descargar .tar.gz'));
       btnDl.onclick = () => downloadAt(c.sha);
       const row = el('div', { style: 'border-top:1px solid var(--line,#ddd);padding:.45rem 0' },
         el('div', {},
@@ -1381,15 +1391,15 @@ async function loadHistory(force) {
           el('span', { class: 'small muted' }, (c.author || '?') + ' · ' + (c.at ? fmtDate(c.at) : '') + (stats ? ' · ' + stats : ''))),
         el('div', { style: 'margin:.25rem 0;display:flex;gap:.4rem;flex-wrap:wrap' },
           btnDiff, btnDl,
-          i === 0 ? el('span', { class: 'small muted', style: 'align-self:center' }, T('(versão atual)', '(current version)'))
-                  : (() => { const b = el('button', { class: 'btn ghost', type: 'button', style: 'font-size:.82em;padding:.1rem .5rem' }, T('Restaurar…', 'Restore…')); b.onclick = () => restoreAt(c.sha); return b; })()),
+          i === 0 ? el('span', { class: 'small muted', style: 'align-self:center' }, T('(versão atual)', '(current version)', '(versión actual)'))
+                  : (() => { const b = el('button', { class: 'btn ghost', type: 'button', style: 'font-size:.82em;padding:.1rem .5rem' }, T('Restaurar…', 'Restore…', 'Restaurar…')); b.onclick = () => restoreAt(c.sha); return b; })()),
         diffBox);
       diffBox.hidden = true;
       box.append(row);
     });
   } catch (e) {
     box.innerHTML = '';
-    box.append(el('span', { class: 'muted' }, T('Falha ao carregar o histórico: ', 'Failed to load history: ') + (e instanceof ApiError ? e.message : e)));
+    box.append(el('span', { class: 'muted' }, T('Falha ao carregar o histórico: ', 'Failed to load history: ', 'Error al cargar el historial: ') + (e instanceof ApiError ? e.message : e)));
   }
 }
 async function uploadTar(file) {
@@ -1398,21 +1408,21 @@ async function uploadTar(file) {
   if (ID) body = { id: ID, ...(REV ? { base_rev: REV } : {}) };
   else {
     const prob = $('prob').value.trim(); REPO = $('repo').value;
-    if (!REPO || !/^[a-z0-9][a-z0-9._-]*$/.test(prob)) { setMsg(T('Para enviar um .tar novo, escolha o diretório e o nome do problema.', 'To upload a new .tar, choose the directory and the problem name.'), 'error'); return; }
+    if (!REPO || !/^[a-z0-9][a-z0-9._-]*$/.test(prob)) { setMsg(T('Para enviar um .tar novo, escolha o diretório e o nome do problema.', 'To upload a new .tar, choose the directory and the problem name.', 'Para subir un .tar nuevo, elige el directorio y el nombre del problema.'), 'error'); return; }
     body = { repo: REPO, prob };
   }
-  setMsg(T('Enviando pacote…', 'Uploading package…'));
+  setMsg(T('Enviando pacote…', 'Uploading package…', 'Subiendo paquete…'));
   try {
     body.tar_b64 = await fileToBase64(file);
     const j = await apiPost('/problems/upload', body, { contest: CONTEST, auth: true });
     ID = j.id; MODE = 'edit'; history.replaceState({}, '', '?id=' + encodeURIComponent(ID));
-    $('prob').disabled = true; $('title').textContent = T('Editar: ', 'Edit: ') + ID;
-    await loadSource(ID); HIST_LOADED = false; setMsg(T('Pacote enviado e recarregado ✓', 'Package uploaded and reloaded ✓'), 'v-ok');
+    $('prob').disabled = true; $('title').textContent = T('Editar: ', 'Edit: ', 'Editar: ') + ID;
+    await loadSource(ID); HIST_LOADED = false; setMsg(T('Pacote enviado e recarregado ✓', 'Package uploaded and reloaded ✓', 'Paquete subido y recargado ✓'), 'v-ok');
   } catch (e) {
     if (e instanceof ApiError && e.code === 'stale_rev') {
-      setMsg(T('Não enviado: o problema mudou desde que você o abriu.', 'Not uploaded: the problem changed since you opened it.'), 'error');
-      showConflict(e, async () => { try { await apiPost('/problems/upload', { ...body, force: true }, { contest: CONTEST, auth: true }); await loadSource(ID); HIST_LOADED = false; setMsg(T('Pacote enviado e recarregado ✓', 'Package uploaded and reloaded ✓'), 'v-ok'); } catch (x) { setMsg(x.message || String(x), 'error'); } });
-    } else setMsg((e instanceof ApiError ? e.message : T('Falha no upload', 'Upload failed')) + (e.code ? ` (${e.code})` : ''), 'error');
+      setMsg(T('Não enviado: o problema mudou desde que você o abriu.', 'Not uploaded: the problem changed since you opened it.', 'No subido: el problema cambió desde que lo abriste.'), 'error');
+      showConflict(e, async () => { try { await apiPost('/problems/upload', { ...body, force: true }, { contest: CONTEST, auth: true }); await loadSource(ID); HIST_LOADED = false; setMsg(T('Pacote enviado e recarregado ✓', 'Package uploaded and reloaded ✓', 'Paquete subido y recargado ✓'), 'v-ok'); } catch (x) { setMsg(x.message || String(x), 'error'); } });
+    } else setMsg((e instanceof ApiError ? e.message : T('Falha no upload', 'Upload failed', 'Error al subir')) + (e.code ? ` (${e.code})` : ''), 'error');
   }
 }
 
@@ -1426,14 +1436,14 @@ async function loadShare() {
 }
 function renderShareList(list) {
   const box = $('shareList'); box.innerHTML = '';
-  if (!list.length) { box.textContent = T('ninguém ainda.', 'nobody yet.'); return; }
-  box.append(T('membros: ', 'members: '));
+  if (!list.length) { box.textContent = T('ninguém ainda.', 'nobody yet.', 'nadie todavía.'); return; }
+  box.append(T('membros: ', 'members: ', 'miembros: '));
   list.forEach(u => box.append(el('span', { class: 'pill mut', style: 'margin-right:.3rem' }, u,
     el('a', { href: '#', style: 'margin-left:.3rem', onclick: async (e) => { e.preventDefault(); await share([], [u]); } }, '×'))));
 }
 async function share(add, remove) {
   try { const j = await apiPost('/problems/repo-collaborators', { repo: REPO, add, remove }, { contest: CONTEST, auth: true });
-    renderShareList(j.collaborators || []); setMsg(T('compartilhamento atualizado ✓', 'sharing updated ✓'), 'v-ok');
+    renderShareList(j.collaborators || []); setMsg(T('compartilhamento atualizado ✓', 'sharing updated ✓', 'uso compartido actualizado ✓'), 'v-ok');
   } catch (e) { setMsg(e.message, 'error'); }
 }
 
@@ -1464,7 +1474,7 @@ function renderCollChips() {
   }
   if (!names.length) {
     box.append(el('span', { class: 'small muted' },
-      active ? T('nenhuma coleção corresponde ao filtro.', 'no collection matches the filter.') : T('sem coleções ainda — crie uma abaixo.', 'no collections yet — create one below.')));
+      active ? T('nenhuma coleção corresponde ao filtro.', 'no collection matches the filter.', 'ninguna colección coincide con el filtro.') : T('sem coleções ainda — crie uma abaixo.', 'no collections yet — create one below.', 'sin colecciones todavía — crea una abajo.')));
     return;
   }
   names.forEach(n => { const on = cur.includes(n);
@@ -1477,31 +1487,31 @@ const collChip = (u, onx) => el('span', { class: 'pill mut', style: 'margin-righ
 function renderCollManage() {
   const box = $('collManage'); if (!box) return; box.innerHTML = '';
   box.append(el('span', { class: 'small muted' },
-    T('Coleções são rótulos de agrupamento (um problema pode estar em várias) e não dão acesso. Quem pode EDITAR o problema é a sua ORG — gerencie membros e a trava de público em ', 'Collections are grouping labels (a problem can be in several) and grant no access. Who can EDIT the problem is your ORG — manage members and the public lock in ')),
-    el('a', { href: '/problemas/#orgs' }, T('Gestão de Problemas › Orgs', 'Problem Management › Orgs')), el('span', { class: 'small muted' }, '.'));
+    T('Coleções são rótulos de agrupamento (um problema pode estar em várias) e não dão acesso. Quem pode EDITAR o problema é a sua ORG — gerencie membros e a trava de público em ', 'Collections are grouping labels (a problem can be in several) and grant no access. Who can EDIT the problem is your ORG — manage members and the public lock in ', 'Las colecciones son etiquetas de agrupamiento (un problema puede estar en varias) y no dan acceso. Quién puede EDITAR el problema es tu ORG — gestiona miembros y el bloqueo de público en ')),
+    el('a', { href: '/problemas/#orgs' }, T('Gestão de Problemas › Orgs', 'Problem Management › Orgs', 'Gestión de Problemas › Orgs')), el('span', { class: 'small muted' }, '.'));
 }
 async function newColl() {
   const name = $('newCollName').value.trim();
-  if (!name || name.length > 80) { setMsg(T('Nome de coleção inválido (1–80 caracteres; pode ter espaços).', 'Invalid collection name (1–80 characters; spaces allowed).'), 'error'); return; }
+  if (!name || name.length > 80) { setMsg(T('Nome de coleção inválido (1–80 caracteres; pode ter espaços).', 'Invalid collection name (1–80 characters; spaces allowed).', 'Nombre de colección inválido (1–80 caracteres; puede tener espacios).'), 'error'); return; }
   try {
     const j = await apiPost('/problems/collection-create', { name }, { contest: CONTEST, auth: true });
     COLLS.push({ name: j.name, owner: j.owner, mine: true, can_manage: true, count: 0 });
     setColls([...currentColls(), j.name]); $('newCollName').value = '';
-    setMsg(T('Coleção criada ✓ — marque o problema nela e salve.', 'Collection created ✓ — tag the problem with it and save.'), 'v-ok');
+    setMsg(T('Coleção criada ✓ — marque o problema nela e salve.', 'Collection created ✓ — tag the problem with it and save.', 'Colección creada ✓ — marca el problema en ella y guarda.'), 'v-ok');
   } catch (e) { setMsg(e.message, 'error'); }
 }
 
 // ---- visibilidade (público) — AÇÃO EXPLÍCITA, separada do salvar -------------------------
 function renderPubState() {
   const st = $('pubState'), btn = $('pubToggle'); if (!st || !btn) return;
-  if (loadedPublic) { st.textContent = T('🌐 PÚBLICO (treino livre)', '🌐 PUBLIC (free training)'); st.style.color = '#1a7f37'; btn.textContent = T('tornar privado', 'make private'); }
-  else { st.textContent = T('🔒 privado (rascunho)', '🔒 private (draft)'); st.style.color = ''; btn.textContent = T('tornar público', 'make public'); }
+  if (loadedPublic) { st.textContent = T('🌐 PÚBLICO (treino livre)', '🌐 PUBLIC (free training)', '🌐 PÚBLICO (entrenamiento libre)'); st.style.color = '#1a7f37'; btn.textContent = T('tornar privado', 'make private', 'volver privado'); }
+  else { st.textContent = T('🔒 privado (rascunho)', '🔒 private (draft)', '🔒 privado (borrador)'); st.style.color = ''; btn.textContent = T('tornar público', 'make public', 'volver público'); }
   // trava de público da ORG: se a org é privada, não dá p/ publicar (set-public devolve 403)
   const ph = $('pubOrgHint');
   if (ph) {
     if (!loadedPublic && orgIsPrivate()) {
       ph.style.display = '';
-      ph.innerHTML = T('🔒 A org <b>', '🔒 The org <b>') + REPO + T('</b> é <b>privada</b> — não é possível tornar público até um admin liberar o público da org em Gestão de Problemas › Orgs.', '</b> is <b>private</b> — cannot become public until an admin unlocks the org public in Problem Management › Orgs.');
+      ph.innerHTML = T('🔒 A org <b>', '🔒 The org <b>', '🔒 La org <b>') + REPO + T('</b> é <b>privada</b> — não é possível tornar público até um admin liberar o público da org em Gestão de Problemas › Orgs.', '</b> is <b>private</b> — cannot become public until an admin unlocks the org public in Problem Management › Orgs.', '</b> es <b>privada</b> — no se puede volver público hasta que un admin habilite el público de la org en Gestión de Problemas › Orgs.');
     } else ph.style.display = 'none';
   }
   // "Mover para outra org" só faz sentido em problema salvo e RASCUNHO (mover mudaria o id de um público em uso)
@@ -1509,7 +1519,7 @@ function renderPubState() {
   if (mv) mv.style.display = (MODE === 'edit' && ID && !loadedPublic) ? '' : 'none';
 }
 async function togglePublic() {
-  if (MODE !== 'edit' || !ID) { setMsg(T('Salve o problema primeiro para poder publicar.', 'Save the problem first to be able to publish.'), 'error'); return; }
+  if (MODE !== 'edit' || !ID) { setMsg(T('Salve o problema primeiro para poder publicar.', 'Save the problem first to be able to publish.', 'Guarda el problema primero para poder publicarlo.'), 'error'); return; }
   const makePublic = !loadedPublic;
   // NÃO PRONTO sinaliza e confirma (decisão do Ribas, 24/09/2026): nada bloqueia, mas quem publica vê
   // as pendências antes (as do /problems/status, frescas — o Painel pode ter mudado desde o load)
@@ -1519,17 +1529,17 @@ async function togglePublic() {
       PSTAT = (st.problems || []).find(p => p.id === ID) || PSTAT; updateReady();
     } catch { /* sem o status, segue só com a confirmação de sempre */ }
     const pend = (PSTAT && PSTAT.pending) || [];
-    if (pend.length && !confirm(T('O problema ainda NÃO está pronto:\n\n', 'The problem is NOT ready yet:\n\n')
+    if (pend.length && !confirm(T('O problema ainda NÃO está pronto:\n\n', 'The problem is NOT ready yet:\n\n', 'El problema TODAVÍA NO está listo:\n\n')
         + pend.map(c => '• ' + pendingLabel(c)).join('\n')
-        + T('\n\nPublicar mesmo assim?', '\n\nPublish anyway?'))) return;
+        + T('\n\nPublicar mesmo assim?', '\n\nPublish anyway?', '\n\n¿Publicar de todas formas?'))) return;
   }
-  if (makePublic && !confirm(T('⚠ TORNAR PÚBLICO publica "', '⚠ MAKING PUBLIC publishes "') + ID + T('" no TREINO LIVRE — fica visível a TODOS.\n\nProblemas de prova devem ficar PRIVADOS até a prova passar. Confirmar a publicação?', '" in FREE TRAINING — visible to EVERYONE.\n\nExam problems must stay PRIVATE until the exam is over. Confirm publication?'))) return;
+  if (makePublic && !confirm(T('⚠ TORNAR PÚBLICO publica "', '⚠ MAKING PUBLIC publishes "', '⚠ VOLVER PÚBLICO publica "') + ID + T('" no TREINO LIVRE — fica visível a TODOS.\n\nProblemas de prova devem ficar PRIVADOS até a prova passar. Confirmar a publicação?', '" in FREE TRAINING — visible to EVERYONE.\n\nExam problems must stay PRIVATE until the exam is over. Confirm publication?', '" en el ENTRENAMIENTO LIBRE — queda visible para TODOS.\n\nLos problemas de examen deben quedar PRIVADOS hasta que termine la prueba. ¿Confirmar la publicación?'))) return;
   const btn = $('pubToggle'); btn.disabled = true;
   try {
     await apiPost('/problems/set-public', { id: ID, public: makePublic }, { contest: CONTEST, auth: true });
     loadedPublic = makePublic; renderPubState(); updateReady();
-    setMsg(makePublic ? T('Publicado no treino livre ✓ (validação no juiz)', 'Published to free training ✓ (validation on the judge)') : T('Tornado privado ✓ (saiu do treino)', 'Made private ✓ (removed from training)'), 'v-ok');
-  } catch (e) { setMsg((e instanceof ApiError ? e.message : T('Falha ao mudar a visibilidade', 'Failed to change visibility')), 'error'); }
+    setMsg(makePublic ? T('Publicado no treino livre ✓ (validação no juiz)', 'Published to free training ✓ (validation on the judge)', 'Publicado en el entrenamiento libre ✓ (validación en el juez)') : T('Tornado privado ✓ (saiu do treino)', 'Made private ✓ (removed from training)', 'Vuelto privado ✓ (salió del entrenamiento)'), 'v-ok');
+  } catch (e) { setMsg((e instanceof ApiError ? e.message : T('Falha ao mudar a visibilidade', 'Failed to change visibility', 'Error al cambiar la visibilidad')), 'error'); }
   finally { btn.disabled = false; }
 }
 
@@ -1539,23 +1549,24 @@ function hideConflict() { const b = $('revConflict'); if (b) b.remove(); }
 // a caixa fica logo acima da mensagem do Salvar: quem mudou, quando, e as duas saídas
 function showConflict(e, retry) {
   hideConflict();
-  const d = (e && e.data) || {}, who = d.changed_by || T('outra pessoa', 'someone else');
-  const when = d.changed_at ? new Date(d.changed_at * 1000).toLocaleString() : '';
+  const d = (e && e.data) || {}, who = d.changed_by || T('outra pessoa', 'someone else', 'otra persona');
+  const when = d.changed_at ? new Date(d.changed_at * 1000).toLocaleString(uiLocale()) : '';
   const box = el('div', { id: 'revConflict', class: 'error-box', style: 'margin:.5rem 0' },
-    el('b', {}, T('Este problema foi alterado depois que você o abriu.', 'This problem was changed after you opened it.')),
+    el('b', {}, T('Este problema foi alterado depois que você o abriu.', 'This problem was changed after you opened it.', 'Este problema fue modificado después de que lo abriste.')),
     el('div', { class: 'small', style: 'margin:.25rem 0 .5rem' },
       T(`Quem alterou: ${who}` + (when ? ` · ${when}` : '') + '. Se você salvar agora, as mudanças dessa pessoa se perdem.',
-        `Changed by: ${who}` + (when ? ` · ${when}` : '') + '. If you save now, their changes are lost.')),
+        `Changed by: ${who}` + (when ? ` · ${when}` : '') + '. If you save now, their changes are lost.',
+        `Modificado por: ${who}` + (when ? ` · ${when}` : '') + '. Si guardas ahora, se pierden los cambios de esa persona.')),
     el('div', { class: 'row', style: 'gap:.5rem;flex-wrap:wrap' },
       el('button', { class: 'btn', onclick: async () => {
-        if (!confirm(T('Recarregar o problema? As SUAS alterações não salvas se perdem.', 'Reload the problem? YOUR unsaved changes are lost.'))) return;
-        try { await loadSource(ID); setMsg(T('Recarregado com a versão atual ✓', 'Reloaded with the current version ✓'), 'v-ok'); }
+        if (!confirm(T('Recarregar o problema? As SUAS alterações não salvas se perdem.', 'Reload the problem? YOUR unsaved changes are lost.', '¿Recargar el problema? TUS cambios sin guardar se pierden.'))) return;
+        try { await loadSource(ID); setMsg(T('Recarregado com a versão atual ✓', 'Reloaded with the current version ✓', 'Recargado con la versión actual ✓'), 'v-ok'); }
         catch (x) { setMsg(x.message || String(x), 'error'); }
-      } }, T('Recarregar (perde as suas mudanças)', 'Reload (discard your changes)')),
+      } }, T('Recarregar (perde as suas mudanças)', 'Reload (discard your changes)', 'Recargar (pierde tus cambios)')),
       el('button', { class: 'btn ghost danger', onclick: async () => {
-        if (!confirm(T(`Salvar por cima? As mudanças de ${who} se perdem.`, `Save over it? The changes by ${who} are lost.`))) return;
+        if (!confirm(T(`Salvar por cima? As mudanças de ${who} se perdem.`, `Save over it? The changes by ${who} are lost.`, `¿Guardar encima? Los cambios de ${who} se pierden.`))) return;
         hideConflict(); await retry();
-      } }, T('Salvar por cima', 'Save over it'))));
+      } }, T('Salvar por cima', 'Save over it', 'Guardar encima'))));
   const m = $('msg'); m.parentNode.insertBefore(box, m);
 }
 
@@ -1563,20 +1574,20 @@ async function save(opts = {}) {
   REPO = $('repo').value;
   if (!REPO) {
     showTab('enun'); const fld = $('repo'); if (fld) flash(fld.closest('.field') || fld);
-    setMsg(REPOS.length ? T('Escolha uma org no topo da aba Enunciado.', 'Choose an org at the top of the Statement tab.')
-                        : T('Crie uma org primeiro: clique “+ nova org” (topo da aba Enunciado).', 'Create an org first: click “+ new org” (top of the Statement tab).'), 'error');
+    setMsg(REPOS.length ? T('Escolha uma org no topo da aba Enunciado.', 'Choose an org at the top of the Statement tab.', 'Elige una org en la parte superior de la pestaña Enunciado.')
+                        : T('Crie uma org primeiro: clique “+ nova org” (topo da aba Enunciado).', 'Create an org first: click “+ new org” (top of the Statement tab).', 'Crea una org primero: haz clic en “+ nueva org” (parte superior de la pestaña Enunciado).'), 'error');
     return;
   }
   let f; try { f = collectFields(); }
-  catch (e) { setMsg(T('Erro ao preparar os dados do problema: ', 'Error preparing the problem data: ') + (e && e.message || e), 'error'); return; }
-  $('save').disabled = true; setMsg(T('Salvando…', 'Saving…'));
+  catch (e) { setMsg(T('Erro ao preparar os dados do problema: ', 'Error preparing the problem data: ', 'Error al preparar los datos del problema: ') + (e && e.message || e), 'error'); return; }
+  $('save').disabled = true; setMsg(T('Salvando…', 'Saving…', 'Guardando…'));
   try {
     if (MODE === 'new') {
       const prob = $('prob').value.trim();
-      if (!/^[a-z0-9][a-z0-9._-]*$/.test(prob)) { setMsg(T('Nome de problema inválido (use [a-z0-9._-]).', 'Invalid problem name (use [a-z0-9._-]).'), 'error'); $('save').disabled = false; return; }
+      if (!/^[a-z0-9][a-z0-9._-]*$/.test(prob)) { setMsg(T('Nome de problema inválido (use [a-z0-9._-]).', 'Invalid problem name (use [a-z0-9._-]).', 'Nombre de problema inválido (usa [a-z0-9._-]).'), 'error'); $('save').disabled = false; return; }
       const j = await apiPost('/problems/create', { repo: REPO, prob, ...f }, { contest: CONTEST, auth: true });
       ID = j.id; MODE = 'edit'; history.replaceState({}, '', '?id=' + encodeURIComponent(ID));
-      $('prob').disabled = true; $('title').textContent = T('Editar: ', 'Edit: ') + ID;
+      $('prob').disabled = true; $('title').textContent = T('Editar: ', 'Edit: ', 'Editar: ') + ID;
       fillRepoSelect();   // criado: a org vira selo fixo (parte do id) e "+ nova org" some
       REV = j.rev || '';
       if (TRUN) TRUN.refresh();   // com id, o test-run fica disponível
@@ -1589,15 +1600,15 @@ async function save(opts = {}) {
     HIST_LOADED = false;   // salvar = commit novo; a aba Histórico recarrega na próxima abertura
     SAVED_AT = Math.floor(Date.now() / 1000);   // versão NOVA do pacote: a calibração em voo ficou velha
     updateReady();
-    setMsg(T('Salvo ✓', 'Saved ✓'), 'v-ok');   // SALVAR não mexe em público — publicar é ação explícita (botão na aba Publicação)
+    setMsg(T('Salvo ✓', 'Saved ✓', 'Guardado ✓'), 'v-ok');   // SALVAR não mexe em público — publicar é ação explícita (botão na aba Publicação)
   } catch (e) {
-    if (e instanceof ApiError && e.code === 'stale_rev') { setMsg(T('Não salvo: o problema mudou desde que você o abriu.', 'Not saved: the problem changed since you opened it.'), 'error'); showConflict(e, () => save({ force: true })); }
-    else setMsg((e instanceof ApiError ? e.message : T('Falha ao salvar', 'Failed to save')) + (e.code ? ` (${e.code})` : ''), 'error');
+    if (e instanceof ApiError && e.code === 'stale_rev') { setMsg(T('Não salvo: o problema mudou desde que você o abriu.', 'Not saved: the problem changed since you opened it.', 'No guardado: el problema cambió desde que lo abriste.'), 'error'); showConflict(e, () => save({ force: true })); }
+    else setMsg((e instanceof ApiError ? e.message : T('Falha ao salvar', 'Failed to save', 'Error al guardar')) + (e.code ? ` (${e.code})` : ''), 'error');
   }
   finally { $('save').disabled = false; }
 }
 async function act(action, label) {
-  if (!ID) { setMsg(T('Salve o problema primeiro.', 'Save the problem first.'), 'error'); return; }
+  if (!ID) { setMsg(T('Salve o problema primeiro.', 'Save the problem first.', 'Guarda el problema primero.'), 'error'); return; }
   setMsg(label + '…');
   try {
     const j = await apiPost('/problems/' + action, { id: ID }, { contest: CONTEST, auth: true });
@@ -1606,8 +1617,9 @@ async function act(action, label) {
     // que a tela jogava fora: o autor lia "iniciado ✓" 5 vezes seguidas e achava que nenhuma pegou
     const dup = j && j.status === 'already_queued';
     setMsg(dup ? T('Já havia uma calibração na fila para este problema — acompanhe abaixo.',
-                   'There was already a calibration queued for this problem — follow it below.')
-               : label + T(' iniciado ✓ — veja o andamento em “Validação & calibração” (aba Publicação).', ' started ✓ — see progress in “Validation & calibration” (Publication tab).'), 'v-ok');
+                   'There was already a calibration queued for this problem — follow it below.',
+                   'Ya había una calibración en cola para este problema — sigue el progreso abajo.')
+               : label + T(' iniciado ✓ — veja o andamento em “Validação & calibração” (aba Publicação).', ' started ✓ — see progress in “Validation & calibration” (Publication tab).', ' iniciado ✓ — mira el progreso en “Validación y calibración” (pestaña Publicación).'), 'v-ok');
     showTab('pub'); renderVal(); updateReady(); startPolling();
   } catch (e) { setMsg(e.message, 'error'); }
 }
@@ -1619,10 +1631,10 @@ async function loadJudges() {
 }
 function renderJudges() {
   const box = $('judgePick'); if (!box) return; box.innerHTML = '';
-  if (!JUDGES.length) { box.append(el('span', { class: 'small muted' }, T('nenhum juiz no registro.', 'no judge in the registry.'))); return; }
+  if (!JUDGES.length) { box.append(el('span', { class: 'small muted' }, T('nenhum juiz no registro.', 'no judge in the registry.', 'ningún juez en el registro.'))); return; }
   const byCpu = {}; JUDGES.forEach(j => { (byCpu[j.cpu || '?'] = byCpu[j.cpu || '?'] || []).push(j); });
   Object.entries(byCpu).forEach(([cpu, js]) => {
-    const grp = el('div', { class: 'cpugrp' }, el('div', { class: 'small muted' }, '🖥 ' + (cpu || T('CPU desconhecida', 'unknown CPU'))));
+    const grp = el('div', { class: 'cpugrp' }, el('div', { class: 'small muted' }, '🖥 ' + (cpu || T('CPU desconhecida', 'unknown CPU', 'CPU desconocida'))));
     js.forEach(j => {
       const cb = el('input', { type: 'checkbox', value: j.host }); cb.checked = j.online; cb.disabled = !j.online;
       grp.append(el('label', { class: 'jcheck' + (j.online ? '' : ' off'), style: 'margin-left:.6rem' }, cb, ' ' + j.host + (j.online ? '' : ' (offline)')));
@@ -1633,54 +1645,55 @@ function renderJudges() {
 const checkedHosts = () => [...$('judgePick').querySelectorAll('input[type=checkbox]:checked')].map(c => c.value);
 const onePerCpu = () => Object.values(JUDGES.filter(j => j.online).reduce((a, j) => { a[j.cpu] = a[j.cpu] || j.host; return a; }, {}));
 async function calibrateHosts(hosts) {
-  if (!ID) { setMsg(T('Salve o problema primeiro.', 'Save the problem first.'), 'error'); return; }
+  if (!ID) { setMsg(T('Salve o problema primeiro.', 'Save the problem first.', 'Guarda el problema primero.'), 'error'); return; }
   hosts = [...new Set((hosts || []).filter(Boolean))];
-  if (!hosts.length) { setMsg(T('Escolha ao menos um juiz online.', 'Choose at least one online judge.'), 'error'); return; }
-  setMsg(T('Calibrando em ', 'Calibrating on ') + hosts.length + T(' juiz(es)…', ' judge(s)…'));
+  if (!hosts.length) { setMsg(T('Escolha ao menos um juiz online.', 'Choose at least one online judge.', 'Elige al menos un juez en línea.'), 'error'); return; }
+  setMsg(T('Calibrando em ', 'Calibrating on ', 'Calibrando en ') + hosts.length + T(' juiz(es)…', ' judge(s)…', ' juez(es)…'));
   try {
     const j = await apiPost('/problems/request-calibration', { id: ID, hosts }, { contest: CONTEST, auth: true });
     RUNNING = 'calibrate';
     const novos = ((j && j.hosts) || []).filter(h => h.status !== 'already_queued').length;
-    setMsg(novos ? (T('Calibração disparada em ', 'Calibration triggered on ') + novos + T(' juiz(es) — acompanhe abaixo.', ' judge(s) — follow below.'))
+    setMsg(novos ? (T('Calibração disparada em ', 'Calibration triggered on ', 'Calibración disparada en ') + novos + T(' juiz(es) — acompanhe abaixo.', ' judge(s) — follow below.', ' juez(es) — sigue el progreso abajo.'))
                  : T('Esses juízes já tinham uma calibração deste problema na fila — acompanhe abaixo.',
-                     'Those judges already had a calibration of this problem queued — follow it below.'), 'v-ok');
+                     'Those judges already had a calibration of this problem queued — follow it below.',
+                     'Esos jueces ya tenían una calibración de este problema en cola — sigue el progreso abajo.'), 'v-ok');
     showTab('pub'); renderVal(); updateReady(); startPolling();
   } catch (e) { setMsg(e.message, 'error'); }
 }
 async function newDir() {
-  const name = prompt(T('Nome da nova org — minúsculas, sem espaço:', 'New org name — lowercase, no spaces:')); if (!name) return;
+  const name = prompt(T('Nome da nova org — minúsculas, sem espaço:', 'New org name — lowercase, no spaces:', 'Nombre de la nueva org — minúsculas, sin espacios:')); if (!name) return;
   try {
     const j = await apiPost('/problems/repo-create', { repo: name.trim() }, { contest: CONTEST, auth: true });
     REPOS.push({ repo: j.repo, owner: j.owner, mine: true, collaborators: [], collections: j.collections || [], public_allowed: j.public_allowed === true });
-    REPO = j.repo; fillRepoSelect(); renderPubState(); await loadShare(); setMsg(T('Org criada ✓', 'Org created ✓'), 'v-ok');
+    REPO = j.repo; fillRepoSelect(); renderPubState(); await loadShare(); setMsg(T('Org criada ✓', 'Org created ✓', 'Org creada ✓'), 'v-ok');
   } catch (e) { setMsg(e.message, 'error'); }
 }
 // mover um RASCUNHO p/ outra org (muda o id) — alvo entre as MINHAS orgs (REPOS). Público não move.
 async function moveProblem() {
-  if (MODE !== 'edit' || !ID) { setMsg(T('Salve o problema primeiro para poder mover.', 'Save the problem first to be able to move.'), 'error'); return; }
-  if (loadedPublic) { setMsg(T('Problema público está em uso — torne privado antes de mover.', 'Public problem is in use — make it private before moving.'), 'error'); return; }
+  if (MODE !== 'edit' || !ID) { setMsg(T('Salve o problema primeiro para poder mover.', 'Save the problem first to be able to move.', 'Guarda el problema primero para poder moverlo.'), 'error'); return; }
+  if (loadedPublic) { setMsg(T('Problema público está em uso — torne privado antes de mover.', 'Public problem is in use — make it private before moving.', 'El problema público está en uso — vuélvelo privado antes de moverlo.'), 'error'); return; }
   const cur = ID.split('#')[0];
   const targets = REPOS.map(r => r.repo).filter(n => n !== cur);
-  if (!targets.length) { setMsg(T('Você não tem outra org para onde mover. Crie uma primeiro.', 'You have no other org to move to. Create one first.'), 'error'); return; }
-  const to = (prompt(`${T('Mover “', 'Move “')}${ID}${T('” para qual org?', '” to which org?')}\n${T('Suas orgs: ', 'Your orgs: ')}${targets.join(', ')}`, targets[0]) || '').trim();
+  if (!targets.length) { setMsg(T('Você não tem outra org para onde mover. Crie uma primeiro.', 'You have no other org to move to. Create one first.', 'No tienes otra org a la cual mover. Crea una primero.'), 'error'); return; }
+  const to = (prompt(`${T('Mover “', 'Move “', 'Mover “')}${ID}${T('” para qual org?', '” to which org?', '” ¿a qué org?')}\n${T('Suas orgs: ', 'Your orgs: ', 'Tus orgs: ')}${targets.join(', ')}`, targets[0]) || '').trim();
   if (!to || to === cur) return;
-  setMsg(T('Movendo…', 'Moving…'));
+  setMsg(T('Movendo…', 'Moving…', 'Moviendo…'));
   try {
     const j = await apiPost('/problems/move', { id: ID, to_org: to }, { contest: CONTEST, auth: true });
-    setMsg(T('Movido ✓ — recarregando…', 'Moved ✓ — reloading…'), 'v-ok');
+    setMsg(T('Movido ✓ — recarregando…', 'Moved ✓ — reloading…', 'Movido ✓ — recargando…'), 'v-ok');
     location.href = 'editar.html?id=' + encodeURIComponent(j.id);
-  } catch (e) { setMsg((e instanceof ApiError ? e.message : T('Falha ao mover', 'Failed to move')) + (e.code ? ` (${e.code})` : ''), 'error'); }
+  } catch (e) { setMsg((e instanceof ApiError ? e.message : T('Falha ao mover', 'Failed to move', 'Error al mover')) + (e.code ? ` (${e.code})` : ''), 'error'); }
 }
 
 async function delProblem() {
   if (MODE !== 'edit' || !ID) return;
-  const typed = prompt(T('Remover é IRREVERSÍVEL (apaga do treino e do repositório do problema). Digite o id para confirmar: ', 'Removing is IRREVERSIBLE (deletes from training and from the problem repository). Type the id to confirm: ') + ID);
+  const typed = prompt(T('Remover é IRREVERSÍVEL (apaga do treino e do repositório do problema). Digite o id para confirmar: ', 'Removing is IRREVERSIBLE (deletes from training and from the problem repository). Type the id to confirm: ', 'Eliminar es IRREVERSIBLE (borra del entrenamiento y del repositorio del problema). Escribe el id para confirmar: ') + ID);
   if (typed === null) return;
-  if (typed !== ID) { setMsg(T('Confirmação não bateu — nada foi removido.', 'Confirmation did not match — nothing was removed.'), 'error'); return; }
+  if (typed !== ID) { setMsg(T('Confirmação não bateu — nada foi removido.', 'Confirmation did not match — nothing was removed.', 'La confirmación no coincidió — no se eliminó nada.'), 'error'); return; }
   if ($('delprob')) $('delprob').disabled = true;
   try {
     await apiPost('/problems/delete', { id: ID, confirm: typed }, { contest: CONTEST, auth: true });
-    setMsg(T('Problema removido ✓', 'Problem removed ✓'), 'v-ok');
+    setMsg(T('Problema removido ✓', 'Problem removed ✓', 'Problema eliminado ✓'), 'v-ok');
     setTimeout(() => { location.href = './'; }, 800);
   } catch (e) { setMsg(e.message, 'error'); if ($('delprob')) $('delprob').disabled = false; }
 }
@@ -1688,13 +1701,13 @@ async function delProblem() {
 async function loadSource(id, j) {
   if (!j) j = await apiGet('/problems/source?id=' + encodeURIComponent(id), { contest: CONTEST, auth: true });
   EDITABLE = j.editable; OWNER = j.owner || ''; REPO = id.split('#')[0]; REV = j.rev || ''; hideConflict();
-  $('title').textContent = T('Editar: ', 'Edit: ') + id;
+  $('title').textContent = T('Editar: ', 'Edit: ', 'Editar: ') + id;
   $('prob').value = id.split('#').slice(1).join('#'); $('prob').disabled = true;
   fillRepoSelect(); await renderForm(j);
   if (TRUN) TRUN.refresh();   // execuções lembradas DESTE problema
   if ($('delprob')) $('delprob').style.display = EDITABLE ? '' : 'none';   // remover só p/ quem pode editar
   if (!EDITABLE) {
-    showNote('⚠ ' + (j.note || T('Somente leitura.', 'Read only.')) + T(' Os botões de salvar estão desativados (mas dá p/ baixar o pacote).', ' The save buttons are disabled (but you can download the package).'));
+    showNote('⚠ ' + (j.note || T('Somente leitura.', 'Read only.', 'Solo lectura.')) + T(' Os botões de salvar estão desativados (mas dá p/ baixar o pacote).', ' The save buttons are disabled (but you can download the package).', ' Los botones de guardar están desactivados (pero se puede descargar el paquete).'));
     ['save', 'publish', 'calibrate', 'pubToggle', 'delprob', 'moveorg', 'addex', 'addtest', 'uploadTar', 'scoreEnabled', 'addGroup'].forEach(b => { if ($(b)) $(b).disabled = true; });
     $('shareBox').style.display = 'none';
   }
@@ -1734,8 +1747,8 @@ function bindHandlers() {
   $('testpair').addEventListener('change', (e) => loadTestPairs(e.target.files));
   $('save').onclick = () => save();   // (sem o evento como opts)
   if ($('delprob')) $('delprob').onclick = delProblem;
-  $('publish').onclick = () => act('validate', T('Validar', 'Validate'));   // rota nova (publish = alias deprecado)
-  $('calibrate').onclick = () => act('request-calibration', T('Calibração', 'Calibration'));
+  $('publish').onclick = () => act('validate', T('Validar', 'Validate', 'Validar'));   // rota nova (publish = alias deprecado)
+  $('calibrate').onclick = () => act('request-calibration', T('Calibração', 'Calibration', 'Calibración'));
   $('newdir').onclick = newDir;
   if ($('moveorg')) $('moveorg').onclick = moveProblem;
   $('preview').onclick = preview;
@@ -1801,7 +1814,7 @@ async function boot() {
   // Enquanto o source não chega, a tela é IDÊNTICA à de "Novo Problema" (form vazio + h2
   // estático) — o setter jura que o problema virou novo. Marca o carregamento e trava o save.
   if (pid) {
-    $('title').textContent = T('Carregando ', 'Loading ') + pid + '…';
+    $('title').textContent = T('Carregando ', 'Loading ', 'Cargando ') + pid + '…';
     ['save', 'publish', 'calibrate'].forEach(b => { if ($(b)) $(b).disabled = true; });
   }
   try {
@@ -1821,13 +1834,14 @@ async function boot() {
     // falha carregando um problema EXISTENTE: não deixar a tela no estado "novo problema"
     // (form vazio + botões ligados = o setter acha que o problema sumiu e salva por cima).
     const msg = (e instanceof ApiError ? e.message : (e && e.message || e));
-    setMsg(T('Falha ao carregar o problema: ', 'Failed to load the problem: ') + msg, 'error');
+    setMsg(T('Falha ao carregar o problema: ', 'Failed to load the problem: ', 'Error al cargar el problema: ') + msg, 'error');
     if (pid) {
       MODE = 'error';
-      $('title').textContent = '⚠ ' + T('Falha ao carregar ', 'Failed to load ') + pid;
+      $('title').textContent = '⚠ ' + T('Falha ao carregar ', 'Failed to load ', 'Error al cargar ') + pid;
       ['save', 'publish', 'calibrate'].forEach(b => { if ($(b)) $(b).disabled = true; });
       showNote(T(`⚠ Não foi possível carregar “${pid}”: ${msg}. A edição está BLOQUEADA para não sobrescrever o problema — recarregue a página para tentar de novo.`,
-        `⚠ Could not load “${pid}”: ${msg}. Editing is BLOCKED so the problem is not overwritten — reload the page to retry.`));
+        `⚠ Could not load “${pid}”: ${msg}. Editing is BLOCKED so the problem is not overwritten — reload the page to retry.`,
+        `⚠ No se pudo cargar “${pid}”: ${msg}. La edición está BLOQUEADA para no sobrescribir el problema — recarga la página para volver a intentarlo.`));
     }
   }
   CAN_CREATE = await pPerm;
@@ -1835,7 +1849,7 @@ async function boot() {
   // criar org/coleção e criar problema novo: só p/ quem pode criar (regra de criar contest)
   if (!CAN_CREATE) ['newdir', 'newCollBtn'].forEach(b => { if ($(b)) $(b).disabled = true; });
   if (MODE === 'new' && !CAN_CREATE) {
-    showNote(T('⚠ Você não tem permissão para criar problemas. Peça a um administrador — é a mesma permissão de criar contests.', '⚠ You do not have permission to create problems. Ask an administrator — it is the same permission as creating contests.'));
+    showNote(T('⚠ Você não tem permissão para criar problemas. Peça a um administrador — é a mesma permissão de criar contests.', '⚠ You do not have permission to create problems. Ask an administrator — it is the same permission as creating contests.', '⚠ No tienes permiso para crear problemas. Pídeselo a un administrador — es el mismo permiso para crear competencias.'));
     if ($('save')) $('save').disabled = true;
   } else if (!EDITABLE) { if ($('newCollBtn')) $('newCollBtn').disabled = true; }
 

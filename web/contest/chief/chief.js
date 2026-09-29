@@ -10,7 +10,7 @@ import { makeReviewBoard } from '/shared/review-board.js';
 import { makeDocsTab } from '/contest/admin/docs-tab.js';
 import { makeRoundsTab } from '/contest/admin/rounds-tab.js';
 import { makeStatementLangsPanel } from '/contest/admin/statement-langs-panel.js';
-import { T } from '/shared/i18n.js';
+import { T, docHref } from '/shared/i18n.js';
 
 const qs = new URLSearchParams(location.search);
 const CONTEST = (window.__MOJ_CONTEST || qs.get('c') || '');
@@ -31,7 +31,7 @@ function situacaoTab() {
   const board = makeReviewBoard({ contest: CONTEST });
   let mounted = false;
   async function load() {
-    if (!mounted) { panel.innerHTML = ''; panel.append(el('h2', {}, T('📊 Situação da avaliação', '📊 Evaluation status')), board.el); mounted = true; }
+    if (!mounted) { panel.innerHTML = ''; panel.append(el('h2', {}, T('📊 Situação da avaliação', '📊 Evaluation status', '📊 Situación de la evaluación')), board.el); mounted = true; }
     await board.load();
   }
   return { panel, load, live: true };
@@ -40,18 +40,18 @@ function situacaoTab() {
 function conflitosTab() {
   const panel = el('div', { class: 'section' });
   async function render(list) {
-    panel.innerHTML = ''; panel.append(el('h2', {}, T('⚖️ Conflitos de veredicto', '⚖️ Verdict conflicts')));
-    if (!list.length) { panel.append(el('p', { class: 'muted' }, T('Nenhum conflito. 🎉', 'No conflicts. 🎉'))); return; }
+    panel.innerHTML = ''; panel.append(el('h2', {}, T('⚖️ Conflitos de veredicto', '⚖️ Verdict conflicts', '⚖️ Conflictos de veredicto')));
+    if (!list.length) { panel.append(el('p', { class: 'muted' }, T('Nenhum conflito. 🎉', 'No conflicts. 🎉', 'Sin conflictos. 🎉'))); return; }
     list.forEach(cf => {
-      const sel = el('select', {}, el('option', { value: '' }, T('-- veredicto final --', '-- final verdict --')), ...confOptions.map(o => el('option', { value: o.label }, o.label)));
-      const btn = el('button', { class: 'btn' }, T('Resolver', 'Resolve')); const msg = el('span', { class: 'small' });
-      btn.addEventListener('click', async () => { if (!sel.value) return; btn.disabled = true; msg.textContent = T('Enviando…', 'Sending…');
+      const sel = el('select', {}, el('option', { value: '' }, T('-- veredicto final --', '-- final verdict --', '-- veredicto final --')), ...confOptions.map(o => el('option', { value: o.label }, o.label)));
+      const btn = el('button', { class: 'btn' }, T('Resolver', 'Resolve', 'Resolver')); const msg = el('span', { class: 'small' });
+      btn.addEventListener('click', async () => { if (!sel.value) return; btn.disabled = true; msg.textContent = T('Enviando…', 'Sending…', 'Enviando…');
         try { await apiPost('/contest/review/resolve?contest=' + enc(CONTEST), { id: cf.id, verdict: sel.value }, G); loadConflicts(); pokeChiefAlert(); }
-        catch (e) { btn.disabled = false; msg.className = 'small error-box'; msg.textContent = e.message || T('falha', 'failed'); } });
+        catch (e) { btn.disabled = false; msg.className = 'small error-box'; msg.textContent = e.message || T('falha', 'failed', 'fallido'); } });
       const votes = el('ul', { style: 'margin:.2rem 0 .3rem 1rem' }, ...(cf.votes || []).map(v => el('li', { class: 'small' }, el('b', {}, v.by), ' → ', v.label, ' (', v.verdict, ')')));
       panel.append(el('div', { class: 'field', style: 'border:1px solid #c0392b; border-radius:.5rem; padding:.5rem .7rem; margin:.4rem 0' },
         el('div', {}, el('b', {}, (cf.problem_id || '').split('#').pop()), ' · ', el('span', { class: 'small muted' }, cf.login || ''),
-          T(' · computado: ', ' · computed: '), el('span', { class: 'small muted' }, cf.computed_verdict || '')),
+          T(' · computado: ', ' · computed: ', ' · calculado: '), el('span', { class: 'small muted' }, cf.computed_verdict || '')),
         el('div', { class: 'row small', style: 'gap:.7rem; margin:.2rem 0' }, logLink(CONTEST, cf), srcLink(CONTEST, cf)),
         votes, el('div', { class: 'row' }, sel, btn, msg)));
     });
@@ -71,23 +71,23 @@ function autoTab() { const panel = el('div', {}); function load() { panel.innerH
 // função, não const de módulo: T() no topo congela o idioma ANTES do setLang(LOCALE)
 let MODS = new Set();   // módulos ligados do contest (basic.modules) — Documentos/Rodadas só com o seu
 const TABS = () => [
-  { id: 'sit', label: T('📊 Situação', '📊 Status'), make: situacaoTab },
-  { id: 'conf', label: T('⚖️ Conflitos', '⚖️ Conflicts'), make: conflitosTab },
-  { id: 'opts', label: T('🏷️ Opções', '🏷️ Options'), make: optionsTab },
-  { id: 'auto', label: T('🔎 O que revisar', '🔎 What to review'), make: autoTab },   // id 'auto' = hash antigo
+  { id: 'sit', label: T('📊 Situação', '📊 Status', '📊 Situación'), make: situacaoTab },
+  { id: 'conf', label: T('⚖️ Conflitos', '⚖️ Conflicts', '⚖️ Conflictos'), make: conflitosTab },
+  { id: 'opts', label: T('🏷️ Opções', '🏷️ Options', '🏷️ Opciones'), make: optionsTab },
+  { id: 'auto', label: T('🔎 O que revisar', '🔎 What to review', '🔎 Qué revisar'), make: autoTab },   // id 'auto' = hash antigo
   // idiomas do enunciado que a sanfona oferece — o chefe prepara a prova junto com o admin
-  { id: 'langs', label: T('🌐 Idiomas', '🌐 Languages'), make: () => makeStatementLangsPanel(CONTEST) },
-  ...(MODS.has('documentos') ? [{ id: 'docs', label: T('📄 Documentos', '📄 Documents'), make: () => makeDocsTab(CONTEST) }] : []),
-  ...(MODS.has('rodadas') ? [{ id: 'rounds', label: T('🔁 Rodadas', '🔁 Rounds'), make: () => makeRoundsTab(CONTEST, { readOnly: true }) }] : []),
+  { id: 'langs', label: T('🌐 Idiomas', '🌐 Languages', '🌐 Idiomas'), make: () => makeStatementLangsPanel(CONTEST) },
+  ...(MODS.has('documentos') ? [{ id: 'docs', label: T('📄 Documentos', '📄 Documents', '📄 Documentos'), make: () => makeDocsTab(CONTEST) }] : []),
+  ...(MODS.has('rodadas') ? [{ id: 'rounds', label: T('🔁 Rodadas', '🔁 Rounds', '🔁 Rondas'), make: () => makeRoundsTab(CONTEST, { readOnly: true }) }] : []),
 ];
-const MANUAL_LINK = () => ({ href: '/docs/MANUAL-ADMIN.html', label: T('📖 Manual do organizador', "📖 Organizer's manual") });
+const MANUAL_LINK = () => ({ href: docHref('MANUAL-ADMIN'), label: T('📖 Manual do organizador', "📖 Organizer's manual", "📖 Manual del organizador") });
 
 async function boot() {
-  if (!CONTEST) { app.innerHTML = '<div class="error-box">' + T('Contest não informado.', 'Contest not specified.') + '</div>'; return; }
+  if (!CONTEST) { app.innerHTML = '<div class="error-box">' + T('Contest não informado.', 'Contest not specified.', 'Competencia no especificada.') + '</div>'; return; }
   const { st, basic } = await initContestShell(CONTEST);
   MODS = new Set((basic && basic.modules) || []);
-  if (!st || !st.logged_in) { app.innerHTML = ''; app.append(el('div', { class: 'section' }, el('h2', {}, T('🔒 Entre no contest', '🔒 Log in to the contest')), el('a', { class: 'btn', href: '/contest/?c=' + enc(CONTEST) }, T('Ir para o contest', 'Go to the contest')))); return; }
-  if (!st.is_chief && !st.is_admin) { app.innerHTML = ''; app.append(el('div', { class: 'section' }, el('h2', {}, T('🔒 Acesso restrito', '🔒 Restricted access')), el('p', { class: 'muted' }, T('Área do juiz-chefe (.cjudge) e do admin.', 'Chief judge (.cjudge) and admin area.')))); return; }
+  if (!st || !st.logged_in) { app.innerHTML = ''; app.append(el('div', { class: 'section' }, el('h2', {}, T('🔒 Entre no contest', '🔒 Log in to the contest', '🔒 Inicia sesión en la competencia')), el('a', { class: 'btn', href: '/contest/?c=' + enc(CONTEST) }, T('Ir para o contest', 'Go to the contest', 'Ir a la competencia')))); return; }
+  if (!st.is_chief && !st.is_admin) { app.innerHTML = ''; app.append(el('div', { class: 'section' }, el('h2', {}, T('🔒 Acesso restrito', '🔒 Restricted access', '🔒 Acceso restringido')), el('p', { class: 'muted' }, T('Área do juiz-chefe (.cjudge) e do admin.', 'Chief judge (.cjudge) and admin area.', 'Área del juez principal (.cjudge) y del admin.')))); return; }
   app.innerHTML = '';
   const tabbar = el('div', { class: 'tabbar' }), wrap = el('div', {});
   app.append(tabbar, wrap);

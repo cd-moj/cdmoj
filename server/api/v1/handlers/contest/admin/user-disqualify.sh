@@ -18,9 +18,11 @@ undo=false; jq -e '.undo == true' >/dev/null 2>&1 <<<"$body" && undo=true
 valid_id "$login" || fail 422 "login inválido" "login_invalid"
 [[ "$login" == "$SESSION_LOGIN" ]] && fail 409 "Você não pode desclassificar a si mesmo" "self"
 is_reserved_role_login "$login" && fail 403 "Conta privilegiada não é time" "privileged"
-user_exists "$contest" "$login" || fail 404 "Usuário não encontrado" "notfound"
+# participante COMPARTILHADO (USERS_FROM, dir sem account.json): ganha o overlay local p/ receber a marca
+# (antes: 404 e o 409 `shared_account` morto logo abaixo dele — não havia como desclassificá-lo)
+user_exists "$contest" "$login" || shared_overlay_ensure "$contest" "$login" \
+  || fail 404 "Usuário não encontrado" "notfound"
 af="$(account_file "$contest" "$login")"
-[[ -f "$af" ]] || fail 409 "Conta compartilhada (USERS_FROM) não pode ser desclassificada daqui" "shared_account"
 tmp="$af.tmp.${BASHPID}"
 if [[ "$undo" == true ]]; then
   jq -c 'del(.disqualified) | .updated_at = now | .updated_at |= floor' "$af" > "$tmp" 2>/dev/null

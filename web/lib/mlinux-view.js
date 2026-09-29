@@ -66,10 +66,10 @@ const edGroup = (e) => (e === 'code' ? 'vscode'
       : (e === 'vim' || e === 'gedit' || e === 'geany' || e === 'emacs') ? 'light' : 'other');
 const groupName = (g) => ({
   vscode: 'VS Code', jetbrains: 'JetBrains (IDEA, CLion, PyCharm)', codeblocks: 'Code::Blocks',
-  light: T('Leves (Vim, gedit, Geany, Emacs)', 'Light (Vim, gedit, Geany, Emacs)'),
-  other: T('Outro', 'Other'), mixed: T('Misto', 'Mixed'), none: T('Nenhum', 'None') }[g] || g);
-const profName = (p) => (p === 'mixed' ? T('misto', 'mixed') : p === 'none' ? T('nenhum', 'none')
-  : p === 'light' ? T('leve', 'light') : p === 'jetbrains' ? 'JetBrains' : p === 'vscode' ? 'VS Code'
+  light: T('Leves (Vim, gedit, Geany, Emacs)', 'Light (Vim, gedit, Geany, Emacs)', 'Ligeros (Vim, gedit, Geany, Emacs)'),
+  other: T('Outro', 'Other', 'Otro'), mixed: T('Misto', 'Mixed', 'Mixto'), none: T('Nenhum', 'None', 'Ninguno') }[g] || g);
+const profName = (p) => (p === 'mixed' ? T('misto', 'mixed', 'mixto') : p === 'none' ? T('nenhum', 'none', 'ninguno')
+  : p === 'light' ? T('leve', 'light', 'ligero') : p === 'jetbrains' ? 'JetBrains' : p === 'vscode' ? 'VS Code'
     : p === 'codeblocks' ? 'Code::Blocks' : p);
 
 const GB = (mb) => (mb >= 10240 ? Math.round(mb / 1024) : Math.round(mb / 102.4) / 10);
@@ -128,9 +128,9 @@ export function cpuInfo(model) {
   return o;
 }
 const ageBand = (y) => (y == null ? 'unknown' : y <= 2016 ? 'old' : y <= 2021 ? 'mid' : 'new');
-const ageBandName = (b) => ({ old: T('antigo (até 2016)', 'old (up to 2016)'),
-  mid: T('intermediário (2017 a 2021)', 'intermediate (2017 to 2021)'),
-  new: T('atual (2022 ou depois)', 'current (2022 or later)'), unknown: T('sem ano', 'no year') }[b]);
+const ageBandName = (b) => ({ old: T('antigo (até 2016)', 'old (up to 2016)', 'antiguo (hasta 2016)'),
+  mid: T('intermediário (2017 a 2021)', 'intermediate (2017 to 2021)', 'intermedio (2017 a 2021)'),
+  new: T('atual (2022 ou depois)', 'current (2022 or later)', 'actual (2022 o después)'), unknown: T('sem ano', 'no year', 'sin año') }[b]);
 // cpuStats({modelo: n}, anoRef) -> agregados p/ cartões/barras/tabela
 function cpuStats(hist, ref) {
   const st = { n: 0, known: 0, ageSum: 0, vendor: {}, family: {}, age: {}, top: [] };
@@ -207,13 +207,13 @@ function cardsSection(a, cx) {
   const ld = a.ld_n ? r1(a.ld_sum / a.ld_n) : null;
   const topEd = Object.entries(a.ed_adopt || {}).sort((x, y) => y[1] - x[1])[0];
   return el('div', { class: 'stat-cards' },
-    card(a.seen || 0, T('máquinas vistas na prova', 'machines seen in the contest')),
-    card(tm, T('máquinas de time', 'team machines')),
-    card(ram != null ? GB(ram) + ' GB' : '—', T('RAM média', 'average RAM')),
-    card(p8 != null ? p8 + '%' : '—', T('em 8 GB ou menos', 'on 8 GB or less')),
-    card(cs.meanAge != null ? r1(cs.meanAge) + ' ' + T('anos', 'yr') : '—', T('idade média da CPU', 'average CPU age')),
-    card(ld != null ? ld : '—', T('load médio na prova', 'average load in the contest')),
-    card(topEd ? pctS(topEd[1], tm) : '—', topEd ? edName(topEd[0]) : T('editor', 'editor')));
+    card(a.seen || 0, T('máquinas vistas na prova', 'machines seen in the contest', 'máquinas vistas en la competencia')),
+    card(tm, T('máquinas de time', 'team machines', 'máquinas de equipo')),
+    card(ram != null ? GB(ram) + ' GB' : '—', T('RAM média', 'average RAM', 'RAM promedio')),
+    card(p8 != null ? p8 + '%' : '—', T('em 8 GB ou menos', 'on 8 GB or less', 'en 8 GB o menos')),
+    card(cs.meanAge != null ? r1(cs.meanAge) + ' ' + T('anos', 'yr', 'años') : '—', T('idade média da CPU', 'average CPU age', 'edad promedio de la CPU')),
+    card(ld != null ? ld : '—', T('load médio na prova', 'average load in the contest', 'carga promedio en la competencia')),
+    card(topEd ? pctS(topEd[1], tm) : '—', topEd ? edName(topEd[0]) : T('editor', 'editor', 'editor')));
 }
 
 // ---- 2. observações automáticas (STE) --------------------------------------------------------
@@ -222,34 +222,39 @@ function observations(a, cx, opts) {
   const li = [];
   const g = a.ed_groups || {}, bands = a.ram_bands || {}, cnt = a.ed_count || {};
   if (g.vscode != null) li.push(T(`VS Code ficou aberto por 60 minutos ou mais em ${pct(g.vscode, tm)}% das máquinas de time.`,
-    `VS Code was open for 60 minutes or more on ${pct(g.vscode, tm)}% of team machines.`));
+    `VS Code was open for 60 minutes or more on ${pct(g.vscode, tm)}% of team machines.`,
+    `VS Code estuvo abierto por 60 minutos o más en el ${pct(g.vscode, tm)}% de las máquinas de equipo.`));
   const one = cnt['1'] || 0, multi = (cnt['2'] || 0) + (cnt['3+'] || 0);
   if (one + multi) li.push(T(`${pct(one, tm)}% dos times usaram um editor só. ${pct(multi, tm)}% usaram dois ou mais.`,
-    `${pct(one, tm)}% of teams used one editor only. ${pct(multi, tm)}% used two or more.`));
+    `${pct(one, tm)}% of teams used one editor only. ${pct(multi, tm)}% used two or more.`,
+    `El ${pct(one, tm)}% de los equipos usó un solo editor. El ${pct(multi, tm)}% usó dos o más.`));
   const re = a.rank_ed;
   if (re && re.n >= MIN_RANK_TEAMS && re.top30 && re.top30.n) {
     GROUPS.forEach((gr) => {
       const t = pct((re.top30.grp || {})[gr] || 0, re.top30.n), al = pct((re.all.grp || {})[gr] || 0, re.all.n);
       if (Math.abs(t - al) >= 10) li.push(T(`Entre os 30 primeiros do recorte, ${t}% usaram ${groupName(gr)}. No total, ${al}%.`,
-        `Among the top 30 of this selection, ${t}% used ${groupName(gr)}. Overall, ${al}%.`));
+        `Among the top 30 of this selection, ${t}% used ${groupName(gr)}. Overall, ${al}%.`,
+        `Entre los 30 primeros de este recorte, el ${t}% usó ${groupName(gr)}. En total, el ${al}%.`));
     });
   }
   const p8 = pct((bands['<8'] || 0) + (bands['8'] || 0), tm);
-  li.push(T(`${p8}% das máquinas de time têm 8 GB de RAM ou menos.`, `${p8}% of team machines have 8 GB of RAM or less.`));
+  li.push(T(`${p8}% das máquinas de time têm 8 GB de RAM ou menos.`, `${p8}% of team machines have 8 GB of RAM or less.`, `El ${p8}% de las máquinas de equipo tiene 8 GB de RAM o menos.`));
   const kids = cx.children.filter((k) => (k.agg.pop || {}).tm >= 3 && ramAvg(k.agg) != null);
   if (kids.length >= 2) {
     const byRam = kids.slice().sort((x, y) => ramAvg(x.agg) - ramAvg(y.agg));
     const lo = byRam[0], hi = byRam[byRam.length - 1];
     if (GB(ramAvg(lo.agg)) === GB(ramAvg(hi.agg))) {
-      li.push(T(`Os recortes têm RAM média parecida (${GB(ramAvg(lo.agg))} GB).`, `The selections have similar average RAM (${GB(ramAvg(lo.agg))} GB).`));
+      li.push(T(`Os recortes têm RAM média parecida (${GB(ramAvg(lo.agg))} GB).`, `The selections have similar average RAM (${GB(ramAvg(lo.agg))} GB).`, `Los recortes tienen RAM promedio parecida (${GB(ramAvg(lo.agg))} GB).`));
     } else {
       li.push(T(`Menos RAM média: ${lo.name} (${GB(ramAvg(lo.agg))} GB). Mais RAM média: ${hi.name} (${GB(ramAvg(hi.agg))} GB).`,
-        `Least average RAM: ${lo.name} (${GB(ramAvg(lo.agg))} GB). Most average RAM: ${hi.name} (${GB(ramAvg(hi.agg))} GB).`));
+        `Least average RAM: ${lo.name} (${GB(ramAvg(lo.agg))} GB). Most average RAM: ${hi.name} (${GB(ramAvg(hi.agg))} GB).`,
+        `Menos RAM promedio: ${lo.name} (${GB(ramAvg(lo.agg))} GB). Más RAM promedio: ${hi.name} (${GB(ramAvg(hi.agg))} GB).`));
     }
     const ages = kids.map((k) => ({ k, s: cpuStats(k.agg.cpu_tm || k.agg.cpu, cx.ref) })).filter((x) => x.s.meanAge != null)
       .sort((x, y) => y.s.meanAge - x.s.meanAge);
     if (ages.length >= 2) li.push(T(`Os processadores mais antigos estão em ${ages[0].k.name} (idade média ${r1(ages[0].s.meanAge)} anos).`,
-      `The oldest processors are in ${ages[0].k.name} (average age ${r1(ages[0].s.meanAge)} years).`));
+      `The oldest processors are in ${ages[0].k.name} (average age ${r1(ages[0].s.meanAge)} years).`,
+      `Los procesadores más antiguos están en ${ages[0].k.name} (edad promedio ${r1(ages[0].s.meanAge)} años).`));
   }
   if (a.ld_n && a.seen) {
     const ld = r1(a.ld_sum / a.ld_n), cores = Math.round((a.cores_total || 0) / a.seen);
@@ -259,28 +264,33 @@ function observations(a, cx, opts) {
     const m8 = m8n ? Math.round(m8s / m8n) : null;
     if (cores && ld / cores < 0.25) {
       li.push(T(`O load médio foi ${ld} em máquinas de ${cores} núcleos. A CPU não foi o gargalo.`,
-        `Average load was ${ld} on ${cores}-core machines. The CPU was not the bottleneck.`)
+        `Average load was ${ld} on ${cores}-core machines. The CPU was not the bottleneck.`,
+        `La carga promedio fue ${ld} en máquinas de ${cores} núcleos. La CPU no fue el cuello de botella.`)
         + (m8 != null ? ' ' + T(`Máquinas de 8 GB chegaram a ${m8}% de memória usada na última hora.`,
-          `8 GB machines reached ${m8}% memory use in the last hour.`) : ''));
+          `8 GB machines reached ${m8}% memory use in the last hour.`,
+          `Las máquinas de 8 GB llegaron a ${m8}% de uso de memoria en la última hora.`) : ''));
     }
   }
   const sw = swapByBand(a);
   if (sw['8'] && sw['16'] && sw['8'].n >= 3 && sw['16'].n >= 3) {
     const s8 = Math.round(sw['8'].sum / sw['8'].pts), s16 = Math.round(sw['16'].sum / sw['16'].pts);
     if (s8 >= 50 && s8 >= 2 * s16) li.push(T(`Máquinas de 8 GB usaram em média ${s8} MB de swap. As de 16 GB, ${s16} MB.`,
-      `8 GB machines used ${s8} MB of swap on average. 16 GB machines, ${s16} MB.`));
+      `8 GB machines used ${s8} MB of swap on average. 16 GB machines, ${s16} MB.`,
+      `Las máquinas de 8 GB usaron en promedio ${s8} MB de swap. Las de 16 GB, ${s16} MB.`));
   }
   if (opts.link && !isSite(a) && !(opts.sel && opts.sel.kind === 'n')) {
     const L = opts.link, absent = Math.max(0, (L.teams || 0) - (L.present || 0));
     li.push(L.mode === 'ua'
       ? T(`O vínculo máquina-time cobriu ${L.linked} de ${L.present} times presentes (${L.coverage}%), pelo login no navegador do mlinux.`,
-        `The machine-team link covered ${L.linked} of ${L.present} present teams (${L.coverage}%), via the login from the mlinux browser.`)
-        + (absent ? ' ' + T(`${absent} times inscritos não fizeram login.`, `${absent} registered teams never logged in.`) : '')
+        `The machine-team link covered ${L.linked} of ${L.present} present teams (${L.coverage}%), via the login from the mlinux browser.`,
+        `El vínculo máquina-equipo cubrió ${L.linked} de ${L.present} equipos presentes (${L.coverage}%), por el inicio de sesión en el navegador de mlinux.`)
+        + (absent ? ' ' + T(`${absent} times inscritos não fizeram login.`, `${absent} registered teams never logged in.`, `${absent} equipos inscritos nunca iniciaron sesión.`) : '')
       : T('Sem vínculo suficiente máquina-time. As máquinas de time são as máquinas usadas na prova.',
-        'Not enough machine-team links. Team machines are the machines used in the contest.'));
+        'Not enough machine-team links. Team machines are the machines used in the contest.',
+        'No hay suficientes vínculos máquina-equipo. Las máquinas de equipo son las máquinas usadas en la competencia.'));
   }
   if (!li.length) return null;
-  return el('div', { class: 'section' }, el('h2', {}, T('🔎 Observações', '🔎 Observations')),
+  return el('div', { class: 'section' }, el('h2', {}, T('🔎 Observações', '🔎 Observations', '🔎 Observaciones')),
     el('div', { class: 'ml-obs' }, el('ul', { style: 'margin:.2rem 0 .2rem 1.1rem' }, ...li.map((x) => el('li', {}, x)))));
 }
 function swapByBand(a) {
@@ -297,31 +307,32 @@ function hardwareSection(a, cx) {
   const tm = cx.tm; if (!tm) return null;
   const bands = a.ram_bands || {};
   const cs = cpuStats(a.cpu_tm || a.cpu, cx.ref);
-  const secs = [el('h2', {}, T('🖥 Hardware das máquinas de time', '🖥 Team machine hardware'))];
+  const secs = [el('h2', {}, T('🖥 Hardware das máquinas de time', '🖥 Team machine hardware', '🖥 Hardware de las máquinas de equipo'))];
   const two = el('div', { class: 'two-col' });
-  two.append(box(T('RAM instalada (GB)', 'Installed RAM (GB)'),
+  two.append(box(T('RAM instalada (GB)', 'Installed RAM (GB)', 'RAM instalada (GB)'),
     hBarChart(BANDS.filter((b) => bands[b]).map((b) => ({ label: b + ' GB', value: bands[b],
       color: BAND_COLOR[b.replace('<', '').replace('12', '16').replace('24', '32')] || '#7f8c8d' })), { total: tm })));
-  two.append(box(T('Idade do processador', 'Processor age'),
+  two.append(box(T('Idade do processador', 'Processor age', 'Edad del procesador'),
     hBarChart(['new', 'mid', 'old', 'unknown'].filter((b) => cs.age[b]).map((b) => ({ label: ageBandName(b), value: cs.age[b],
       color: { new: '#27ae60', mid: '#e67e22', old: '#c0392b', unknown: '#b0b7c3' }[b] })), { total: cs.n })));
   secs.push(two);
   const two2 = el('div', { class: 'two-col' });
   const fam = Object.entries(cs.family).sort((x, y) => y[1] - x[1]);
-  two2.append(box(T('Família', 'Family'), hBarChart(fam.map(([k, v]) => ({ label: k, value: v })), { total: cs.n, maxRows: 8 })));
-  two2.append(box(T('Modelos mais comuns', 'Most common models'),
+  two2.append(box(T('Família', 'Family', 'Familia'), hBarChart(fam.map(([k, v]) => ({ label: k, value: v })), { total: cs.n, maxRows: 8 })));
+  two2.append(box(T('Modelos mais comuns', 'Most common models', 'Modelos más comunes'),
     hBarChart(cs.top.slice(0, 10).map(([k, v]) => ({ label: k.replace(/\(R\)|\(TM\)|CPU|@.*$/g, '').replace(/\s+/g, ' ').trim(), value: v })), { total: cs.n })));
   secs.push(two2);
   const models = Object.entries(a.model_tm || {}).sort((x, y) => y[1] - x[1]);
   if (models.length) {
     const nm = models.reduce((t, [, v]) => t + v, 0);
-    secs.push(box(T(`Modelo do equipamento (${nm} de ${tm} máquinas informam)`, `Equipment model (${nm} of ${tm} machines report it)`),
+    secs.push(box(T(`Modelo do equipamento (${nm} de ${tm} máquinas informam)`, `Equipment model (${nm} of ${tm} machines report it)`, `Modelo del equipo (${nm} de ${tm} máquinas lo informan)`),
       hBarChart(models.map(([k, v]) => ({ label: k, value: v })), { total: nm, maxRows: 10 })));
   }
   const vend = cs.vendor;
   secs.push(el('p', { class: 'ml-note' },
     T(`Intel ${pctS(vend.intel, cs.n)} · AMD ${pctS(vend.amd, cs.n)}. Idade = ${cx.ref} menos o ano de lançamento do modelo.`,
-      `Intel ${pctS(vend.intel, cs.n)} · AMD ${pctS(vend.amd, cs.n)}. Age = ${cx.ref} minus the model release year.`)));
+      `Intel ${pctS(vend.intel, cs.n)} · AMD ${pctS(vend.amd, cs.n)}. Age = ${cx.ref} minus the model release year.`,
+      `Intel ${pctS(vend.intel, cs.n)} · AMD ${pctS(vend.amd, cs.n)}. Edad = ${cx.ref} menos el año de lanzamiento del modelo.`)));
   // tabela por sub-recorte
   const kids = cx.children.filter((k) => (k.agg.pop || {}).tm);
   if (kids.length >= 2) {
@@ -330,10 +341,10 @@ function hardwareSection(a, cx) {
       return { k, n, ram: ramAvg(g), p8: pct((b['<8'] || 0) + (b['8'] || 0), n), p16: pct((b['12'] || 0) + (b['16'] || 0), n),
         p32: pct((b['24'] || 0) + (b['32'] || 0) + (b['>32'] || 0), n), age: c.meanAge, top: c.top[0] ? c.top[0][0] : '' };
     }).sort((x, y) => (x.ram || 0) - (y.ram || 0));
-    secs.push(el('h3', {}, T('Por recorte', 'By selection')));
-    secs.push(tbl([{ t: T('Recorte', 'Selection') }, { t: T('Times', 'Teams'), n: true }, { t: T('Máq. de time', 'Team mach.'), n: true },
-      { t: T('RAM média', 'Avg RAM'), n: true }, { t: '≤ 8 GB', n: true }, { t: '12–16 GB', n: true }, { t: '≥ 24 GB', n: true },
-      { t: T('Idade CPU', 'CPU age'), n: true }, { t: T('CPU mais comum', 'Most common CPU') }],
+    secs.push(el('h3', {}, T('Por recorte', 'By selection', 'Por recorte')));
+    secs.push(tbl([{ t: T('Recorte', 'Selection', 'Recorte') }, { t: T('Times', 'Teams', 'Equipos'), n: true }, { t: T('Máq. de time', 'Team mach.', 'Máq. de equipo'), n: true },
+      { t: T('RAM média', 'Avg RAM', 'RAM prom.'), n: true }, { t: '≤ 8 GB', n: true }, { t: '12–16 GB', n: true }, { t: '≥ 24 GB', n: true },
+      { t: T('Idade CPU', 'CPU age', 'Edad CPU'), n: true }, { t: T('CPU mais comum', 'Most common CPU', 'CPU más común') }],
     rows.map((r) => row([r.k.name, { t: (r.k.agg.pop || {}).teams || 0, n: true }, { t: r.n, n: true },
       { t: r.ram != null ? GB(r.ram) + ' GB' : '—', n: true }, { t: r.p8 + '%', n: true }, { t: r.p16 + '%', n: true }, { t: r.p32 + '%', n: true },
       { t: r.age != null ? r1(r.age) : '—', n: true }, r.top.replace(/\(R\)|\(TM\)|CPU|@.*$/g, '').replace(/\s+/g, ' ').trim()]))));
@@ -341,9 +352,11 @@ function hardwareSection(a, cx) {
     const ages = rows.filter((r) => r.age != null).sort((x, y) => y.age - x.age);
     secs.push(el('p', { class: 'ml-note' },
       T(`Menos RAM: ${lo.k.name} (${GB(lo.ram)} GB). Mais RAM: ${hi.k.name} (${GB(hi.ram)} GB).`,
-        `Least RAM: ${lo.k.name} (${GB(lo.ram)} GB). Most RAM: ${hi.k.name} (${GB(hi.ram)} GB).`)
+        `Least RAM: ${lo.k.name} (${GB(lo.ram)} GB). Most RAM: ${hi.k.name} (${GB(hi.ram)} GB).`,
+        `Menos RAM: ${lo.k.name} (${GB(lo.ram)} GB). Más RAM: ${hi.k.name} (${GB(hi.ram)} GB).`)
       + (ages.length >= 2 ? ' ' + T(`CPUs mais antigas: ${ages[0].k.name} (${r1(ages[0].age)} anos). Mais novas: ${ages[ages.length - 1].k.name} (${r1(ages[ages.length - 1].age)} anos).`,
-        `Oldest CPUs: ${ages[0].k.name} (${r1(ages[0].age)} years). Newest: ${ages[ages.length - 1].k.name} (${r1(ages[ages.length - 1].age)} years).`) : '')));
+        `Oldest CPUs: ${ages[0].k.name} (${r1(ages[0].age)} years). Newest: ${ages[ages.length - 1].k.name} (${r1(ages[ages.length - 1].age)} years).`,
+        `CPUs más antiguas: ${ages[0].k.name} (${r1(ages[0].age)} años). Más nuevas: ${ages[ages.length - 1].k.name} (${r1(ages[ages.length - 1].age)} años).`) : '')));
   }
   return el('div', { class: 'section' }, ...secs);
 }
@@ -352,25 +365,26 @@ function hardwareSection(a, cx) {
 function editorsSection(a, cx) {
   const tm = cx.tm; if (!tm) return null;
   const ad = a.ed_adopt || {}, g = a.ed_groups || {}, cnt = a.ed_count || {}, pf = a.profiles || {};
-  const secs = [el('h2', {}, T('⌨ Editores na prova', '⌨ Editors in the contest'))];
+  const secs = [el('h2', {}, T('⌨ Editores na prova', '⌨ Editors in the contest', '⌨ Editores en la competencia'))];
   secs.push(el('p', { class: 'ml-note' },
     T('Um editor conta como usado quando ficou aberto por 60 minutos ou mais durante a prova. Um time pode usar mais de um.',
-      'An editor counts as used when it was open for 60 minutes or more during the contest. A team can use more than one.')));
+      'An editor counts as used when it was open for 60 minutes or more during the contest. A team can use more than one.',
+      'Un editor cuenta como usado cuando estuvo abierto por 60 minutos o más durante la competencia. Un equipo puede usar más de uno.')));
   secs.push(el('div', { class: 'stat-cards' },
     ...GROUPS.map((gr) => card(pctS(g[gr], tm), groupName(gr))),
-    card(pctS(cnt['1'], tm), T('times com 1 editor', 'teams with 1 editor')),
-    card(pctS((cnt['2'] || 0) + (cnt['3+'] || 0), tm), T('com 2 ou mais', 'with 2 or more'))));
+    card(pctS(cnt['1'], tm), T('times com 1 editor', 'teams with 1 editor', 'equipos con 1 editor')),
+    card(pctS((cnt['2'] || 0) + (cnt['3+'] || 0), tm), T('com 2 ou mais', 'with 2 or more', 'con 2 o más'))));
   const two = el('div', { class: 'two-col' });
   const eds = Object.entries(ad).sort((x, y) => y[1] - x[1]);
-  two.append(box(T('Adoção por editor (máquinas de time)', 'Adoption per editor (team machines)'),
+  two.append(box(T('Adoção por editor (máquinas de time)', 'Adoption per editor (team machines)', 'Adopción por editor (máquinas de equipo)'),
     hBarChart(eds.map(([k, v]) => ({ label: edName(k), value: v, color: GROUP_COLOR[edGroup(k)] })), { total: tm, maxRows: 12 })));
-  two.append(box(T('Perfil puro (um grupo em 60% ou mais da prova)', 'Pure profile (one group for 60% or more of the contest)'),
+  two.append(box(T('Perfil puro (um grupo em 60% ou mais da prova)', 'Pure profile (one group for 60% or more of the contest)', 'Perfil puro (un grupo en el 60% o más de la competencia)'),
     hBarChart(PROFS.filter((p) => pf[p]).map((p) => ({ label: profName(p), value: pf[p], color: GROUP_COLOR[p] })), { total: tm })));
   secs.push(two);
   // perfis por sub-recorte
   const kids = cx.children.filter((k) => (k.agg.pop || {}).tm >= 3);
   if (kids.length >= 2) {
-    secs.push(el('h3', {}, T('Por recorte', 'By selection')));
+    secs.push(el('h3', {}, T('Por recorte', 'By selection', 'Por recorte')));
     const rows = kids.map((k) => {
       const ag = k.agg, n = ag.pop.tm, gg = ag.ed_groups || {}, aa = ag.ed_adopt || {}, pp = ag.profiles || {};
       const dom = Object.entries(pp).filter(([p]) => p !== 'mixed' && p !== 'none').sort((x, y) => y[1] - x[1])[0];
@@ -378,8 +392,8 @@ function editorsSection(a, cx) {
         { t: pctS(gg.codeblocks, n), n: true }, { t: pctS(gg.light, n), n: true }, { t: pctS(aa.vim, n), n: true },
         dom ? profName(dom[0]) + ' ' + pctS(dom[1], n) : '—']);
     });
-    secs.push(tbl([{ t: T('Recorte', 'Selection') }, { t: T('Máq.', 'Mach.'), n: true }, { t: 'VS Code', n: true }, { t: 'JetBrains', n: true },
-      { t: 'Code::Blocks', n: true }, { t: T('Leves', 'Light'), n: true }, { t: 'Vim', n: true }, { t: T('Perfil dominante', 'Dominant profile') }], rows));
+    secs.push(tbl([{ t: T('Recorte', 'Selection', 'Recorte') }, { t: T('Máq.', 'Mach.', 'Máq.'), n: true }, { t: 'VS Code', n: true }, { t: 'JetBrains', n: true },
+      { t: 'Code::Blocks', n: true }, { t: T('Leves', 'Light', 'Ligeros'), n: true }, { t: 'Vim', n: true }, { t: T('Perfil dominante', 'Dominant profile', 'Perfil dominante') }], rows));
   }
   // linha do tempo: máquinas com cada editor aberto, por janela de 10 min
   const series = a.series || [];
@@ -390,7 +404,7 @@ function editorsSection(a, cx) {
     const lines = keys.map((k) => ({ label: edName(k), color: GROUP_COLOR[edGroup(k)] === '#7f8c8d' ? undefined : undefined,
       points: series.map((s) => ({ x: (s.t - cx.start) / 60, y: (s.ed || {})[k] || 0 })).filter((p) => p.x >= 0 && p.x <= cx.dur) }));
     if (lines.length) {
-      secs.push(el('h3', {}, T('Máquinas com o editor aberto ao longo da prova', 'Machines with the editor open over the contest')));
+      secs.push(el('h3', {}, T('Máquinas com o editor aberto ao longo da prova', 'Machines with the editor open over the contest', 'Máquinas con el editor abierto durante la competencia')));
       secs.push(multiLineChart(lines, { step: false, xMax: cx.dur, height: 260 }));
     }
   }
@@ -400,19 +414,21 @@ function editorsSection(a, cx) {
 // ---- 5. editores × colocação -------------------------------------------------------------------
 function rankSection(a, cx, opts) {
   const re = a.rank_ed;
-  const h = el('h2', {}, T('🏆 Editores e colocação', '🏆 Editors and placement'));
+  const h = el('h2', {}, T('🏆 Editores e colocação', '🏆 Editors and placement', '🏆 Editores y posición'));
   const mode = (opts.link && opts.link.mode) || 'proxy';
   if (mode !== 'ua') {
     return el('div', { class: 'section' }, h, el('div', { class: 'ml-card' },
       T('Sem vínculo máquina-time nesta coleta. Este quadro precisa do login pelo navegador do mlinux, que informa a máquina.',
-        'No machine-team link in this collection. This panel needs the login from the mlinux browser, which reports the machine.')));
+        'No machine-team link in this collection. This panel needs the login from the mlinux browser, which reports the machine.',
+        'Sin vínculo máquina-equipo en esta recolección. Este panel necesita el inicio de sesión desde el navegador de mlinux, que informa la máquina.')));
   }
   if (!re || re.n < MIN_RANK_TEAMS) {
     return el('div', { class: 'section' }, h, el('div', { class: 'ml-card' },
       T(`Este recorte tem ${re ? re.n : 0} time(s) vinculado(s) a uma máquina e com posição no placar. Este quadro aparece com ${MIN_RANK_TEAMS} ou mais times.`,
-        `This selection has ${re ? re.n : 0} team(s) linked to a machine and placed on the scoreboard. This panel needs ${MIN_RANK_TEAMS} or more teams.`)));
+        `This selection has ${re ? re.n : 0} team(s) linked to a machine and placed on the scoreboard. This panel needs ${MIN_RANK_TEAMS} or more teams.`,
+        `Este recorte tiene ${re ? re.n : 0} equipo(s) vinculado(s) a una máquina y con posición en el marcador. Este panel necesita ${MIN_RANK_TEAMS} o más equipos.`)));
   }
-  const cols = [['all', T('Todos', 'All')], ['top30', 'Top 30'], ['q1', T('Top 25%', 'Top 25%')], ['p10', T('Top 10%', 'Top 10%')]];
+  const cols = [['all', T('Todos', 'All', 'Todos')], ['top30', 'Top 30'], ['q1', T('Top 25%', 'Top 25%', 'Top 25%')], ['p10', T('Top 10%', 'Top 10%', 'Top 10%')]];
   const cell = (slice, k, map) => ({ t: pctS(((re[slice] || {})[map] || {})[k], (re[slice] || {}).n), n: true });
   const rows = [];
   GROUPS.forEach((gr) => rows.push(row([groupName(gr), ...cols.map(([s]) => cell(s, gr, 'grp'))], true)));
@@ -421,18 +437,20 @@ function rankSection(a, cx, opts) {
   return el('div', { class: 'section' }, h,
     el('p', { class: 'ml-note' },
       T(`Parte dos times de cada grupo que usou o editor (60 minutos ou mais). Top k = os k times deste recorte mais bem colocados no placar geral. ${re.n} times vinculados.`,
-        `Share of the teams in each group that used the editor (60 minutes or more). Top k = the k best-placed teams of this selection on the overall scoreboard. ${re.n} linked teams.`)),
-    tbl([{ t: T('Editor', 'Editor') }, ...cols.map(([s, l]) => ({ t: l + ' (' + ((re[s] || {}).n || 0) + ')', n: true }))], rows, 'narrow'));
+        `Share of the teams in each group that used the editor (60 minutes or more). Top k = the k best-placed teams of this selection on the overall scoreboard. ${re.n} linked teams.`,
+        `Parte de los equipos de cada grupo que usó el editor (60 minutos o más). Top k = los k equipos mejor colocados de este recorte en el marcador general. ${re.n} equipos vinculados.`)),
+    tbl([{ t: T('Editor', 'Editor', 'Editor') }, ...cols.map(([s, l]) => ({ t: l + ' (' + ((re[s] || {}).n || 0) + ')', n: true }))], rows, 'narrow'));
 }
 
 // ---- 6. pressão de memória ---------------------------------------------------------------------
 function pressureSection(a, cx) {
   const pr = a.pressure || {};
   const keys = Object.keys(pr); if (!keys.length) return null;
-  const secs = [el('h2', {}, T('🧠 Pressão de memória', '🧠 Memory pressure'))];
+  const secs = [el('h2', {}, T('🧠 Pressão de memória', '🧠 Memory pressure', '🧠 Presión de memoria'))];
   secs.push(el('p', { class: 'ml-note' },
     T('Memória usada e swap ao longo da prova, por RAM instalada e por perfil de editor. Média das máquinas de time do recorte, em janelas de 30 minutos.',
-      'Memory in use and swap over the contest, by installed RAM and by editor profile. Average of the team machines of the selection, in 30-minute windows.')));
+      'Memory in use and swap over the contest, by installed RAM and by editor profile. Average of the team machines of the selection, in 30-minute windows.',
+      'Memoria en uso y swap durante la competencia, por RAM instalada y por perfil de editor. Promedio de las máquinas de equipo del recorte, en ventanas de 30 minutos.')));
   // por faixa de RAM (soma dos perfis)
   const byBand = {};
   keys.forEach((k) => {
@@ -447,11 +465,11 @@ function pressureSection(a, cx) {
   const bandsHere = PBANDS.filter((b) => byBand[b] && byBand[b].n >= 3);
   if (bandsHere.length) {
     const two = el('div', { class: 'two-col' });
-    two.append(box(T('Memória usada (%) por RAM instalada', 'Memory in use (%) by installed RAM'),
+    two.append(box(T('Memória usada (%) por RAM instalada', 'Memory in use (%) by installed RAM', 'Memoria en uso (%) por RAM instalada'),
       multiLineChart(bandsHere.map((b) => ({ label: b + ' GB (' + byBand[b].n + ')', color: BAND_COLOR[b],
         points: line(byBand[b].bins, (t) => (t.mem_n ? Math.round(t.mem_sum / t.mem_n) : null)) })),
       { step: false, xMax: cx.dur, yMax: 100, yUnit: '%', height: 240 })));
-    two.append(box(T('Swap usado (MB) por RAM instalada', 'Swap in use (MB) by installed RAM'),
+    two.append(box(T('Swap usado (MB) por RAM instalada', 'Swap in use (MB) by installed RAM', 'Swap en uso (MB) por RAM instalada'),
       multiLineChart(bandsHere.map((b) => ({ label: b + ' GB (' + byBand[b].n + ')', color: BAND_COLOR[b],
         points: line(byBand[b].bins, (t) => (t.sw_n ? Math.round(t.sw_sum / t.sw_n) : null)) })),
       { step: false, xMax: cx.dur, height: 240 })));
@@ -459,7 +477,7 @@ function pressureSection(a, cx) {
     // PSI: só as faixas em que alguma máquina mede (agente novo)
     const psiBands = bandsHere.filter((b) => Object.values(byBand[b].bins).some((t) => t.psi_n));
     if (psiBands.length) {
-      secs.push(box(T('Tempo parado esperando memória (PSI, %) por RAM instalada', 'Time stalled waiting for memory (PSI, %) by installed RAM'),
+      secs.push(box(T('Tempo parado esperando memória (PSI, %) por RAM instalada', 'Time stalled waiting for memory (PSI, %) by installed RAM', 'Tiempo detenido esperando memoria (PSI, %) por RAM instalada'),
         multiLineChart(psiBands.map((b) => ({ label: b + ' GB', color: BAND_COLOR[b],
           points: line(byBand[b].bins, (t) => (t.psi_n ? r1(t.psi_sum / t.psi_n) : null)) })),
         { step: false, xMax: cx.dur, yUnit: '%', height: 220 })));
@@ -469,7 +487,7 @@ function pressureSection(a, cx) {
   const p8 = keys.filter((k) => k.split('|')[0] === '8' && pr[k].n >= 3 && k.split('|')[1] !== 'none');
   if (p8.length >= 2) {
     const bins = (k) => { const o = {}; (pr[k].series || []).forEach((s) => { o[s.t] = s; }); return o; };
-    secs.push(box(T('Máquinas de 8 GB: memória usada (%) por perfil de editor', '8 GB machines: memory in use (%) by editor profile'),
+    secs.push(box(T('Máquinas de 8 GB: memória usada (%) por perfil de editor', '8 GB machines: memory in use (%) by editor profile', 'Máquinas de 8 GB: memoria en uso (%) por perfil de editor'),
       multiLineChart(p8.map((k) => ({ label: profName(k.split('|')[1]) + ' (' + pr[k].n + ')', color: GROUP_COLOR[k.split('|')[1]],
         points: line(bins(k), (t) => (t.mem_n ? Math.round(t.mem_sum / t.mem_n) : null)) })),
       { step: false, xMax: cx.dur, yMax: 100, yUnit: '%', height: 240 })));
@@ -479,9 +497,9 @@ function pressureSection(a, cx) {
     .sort((x, y) => (PBANDS.indexOf(x.b) - PBANDS.indexOf(y.b)) || (y.v.n - x.v.n));
   if (rows.length) {
     const hasPsi = rows.some((x) => x.v.psi_n);
-    secs.push(tbl([{ t: 'RAM' }, { t: T('Perfil', 'Profile') }, { t: 'N', n: true }, { t: T('Mem. início', 'Mem. start'), n: true },
-      { t: T('Mem. última hora', 'Mem. last hour'), n: true }, { t: T('Swap médio', 'Avg swap'), n: true }, { t: T('Swap máx.', 'Max swap'), n: true }]
-      .concat(hasPsi ? [{ t: T('PSI médio', 'Avg PSI'), n: true }, { t: T('PSI máx.', 'Max PSI'), n: true }] : []),
+    secs.push(tbl([{ t: 'RAM' }, { t: T('Perfil', 'Profile', 'Perfil') }, { t: 'N', n: true }, { t: T('Mem. início', 'Mem. start', 'Mem. inicio'), n: true },
+      { t: T('Mem. última hora', 'Mem. last hour', 'Mem. última hora'), n: true }, { t: T('Swap médio', 'Avg swap', 'Swap prom.'), n: true }, { t: T('Swap máx.', 'Max swap', 'Swap máx.'), n: true }]
+      .concat(hasPsi ? [{ t: T('PSI médio', 'Avg PSI', 'PSI prom.'), n: true }, { t: T('PSI máx.', 'Max PSI', 'PSI máx.'), n: true }] : []),
     rows.map((x) => row([x.b + ' GB', profName(x.p), { t: x.v.n, n: true },
       { t: x.v.mem0_n ? Math.round(x.v.mem0_sum / x.v.mem0_n) + '%' : '—', n: true },
       { t: x.v.mem4_n ? Math.round(x.v.mem4_sum / x.v.mem4_n) + '%' : '—', n: true },
@@ -489,7 +507,7 @@ function pressureSection(a, cx) {
       { t: (x.v.sw_max || 0) + ' MB', n: true }]
       .concat(hasPsi ? [{ t: x.v.psi_n ? r1(x.v.psi_sum / x.v.psi_n) + '%' : '—', n: true },
         { t: x.v.psi_n ? r1(x.v.psi_max || 0) + '%' : '—', n: true }] : [])))));
-    secs.push(el('p', { class: 'ml-note' }, T('Grupos com menos de 3 máquinas não aparecem.', 'Groups with fewer than 3 machines are not shown.')));
+    secs.push(el('p', { class: 'ml-note' }, T('Grupos com menos de 3 máquinas não aparecem.', 'Groups with fewer than 3 machines are not shown.', 'Los grupos con menos de 3 máquinas no se muestran.')));
   }
   return el('div', { class: 'section' }, ...secs);
 }
@@ -498,19 +516,19 @@ function pressureSection(a, cx) {
 function seriesCharts(series) {
   if (!series || !series.length) return [];
   const pts = (f) => series.map((s) => ({ x: s.t, y: f(s) }));
-  const out = [el('h2', {}, T('📈 Ao longo da coleta', '📈 Over the collection window'))];
+  const out = [el('h2', {}, T('📈 Ao longo da coleta', '📈 Over the collection window', '📈 A lo largo de la recolección'))];
   const grid = el('div', { class: 'two-col' });
   grid.append(
-    box(T('Máquinas ativas', 'Active machines'), lineChart(pts((s) => s.act || 0), { height: 180 })),
-    box(T('Memória média (%)', 'Average memory (%)'),
+    box(T('Máquinas ativas', 'Active machines', 'Máquinas activas'), lineChart(pts((s) => s.act || 0), { height: 180 })),
+    box(T('Memória média (%)', 'Average memory (%)', 'Memoria promedio (%)'),
       lineChart(pts((s) => (s.mem_n ? Math.round(s.mem_sum / s.mem_n) : 0)), { height: 180 })),
-    box(T('Swap médio (MB)', 'Average swap (MB)'),
+    box(T('Swap médio (MB)', 'Average swap (MB)', 'Swap promedio (MB)'),
       lineChart(pts((s) => (s.sw_n ? Math.round(s.sw_sum / s.sw_n) : 0)), { height: 180 })),
-    box(T('Load médio', 'Average load'),
+    box(T('Load médio', 'Average load', 'Carga promedio'),
       lineChart(pts((s) => (s.ld_n ? Math.round((s.ld_sum / s.ld_n) * 100) / 100 : 0)), { height: 180 })));
-  if (series.some((s) => s.psi_n)) grid.append(box(T('Espera por memória (PSI, %)', 'Memory stall (PSI, %)'),
+  if (series.some((s) => s.psi_n)) grid.append(box(T('Espera por memória (PSI, %)', 'Memory stall (PSI, %)', 'Espera por memoria (PSI, %)'),
     lineChart(pts((s) => (s.psi_n ? r1(s.psi_sum / s.psi_n) : 0)), { height: 180 })));
-  if (series.some((s) => s.fw_off)) grid.append(box(T('Máquinas sem firewall', 'Machines without firewall'), lineChart(pts((s) => s.fw_off || 0), { height: 180 })));
+  if (series.some((s) => s.fw_off)) grid.append(box(T('Máquinas sem firewall', 'Machines without firewall', 'Máquinas sin firewall'), lineChart(pts((s) => s.fw_off || 0), { height: 180 })));
   out.push(grid);
   return out;
 }
@@ -518,10 +536,10 @@ function seriesCharts(series) {
 // ---- 8. operação: frota vista, atenção, posição da sede, máquinas ------------------------------
 // tipos de alerta do nutellaboot (`kind`); o desconhecido aparece cru — nunca some
 const alertName = (k) => ({
-  'identity.duplicate': T('identidade repetida', 'duplicate identity'),
-  'usb.storage': T('pendrive ou HD externo', 'USB storage'), 'usb.phone': T('celular', 'phone'),
-  'usb.network': T('rede por USB', 'USB network'), 'usb.other': T('outro USB', 'other USB'),
-  'display.multiple': T('mais de um monitor', 'more than one monitor') }[k] || k);
+  'identity.duplicate': T('identidade repetida', 'duplicate identity', 'identidad duplicada'),
+  'usb.storage': T('pendrive ou HD externo', 'USB storage', 'almacenamiento USB'), 'usb.phone': T('celular', 'phone', 'celular'),
+  'usb.network': T('rede por USB', 'USB network', 'red USB'), 'usb.other': T('outro USB', 'other USB', 'otro USB'),
+  'display.multiple': T('mais de um monitor', 'more than one monitor', 'más de un monitor') }[k] || k);
 
 // Saúde NA PROVA (agente novo): reinícios, OOM, relógio, ociosidade, PSI. O denominador é
 // `agent_new` — com agente antigo na frota, "0" sem ele seria uma afirmação que ninguém mediu.
@@ -529,59 +547,64 @@ function healthSection(a) {
   const h = a.health || {}; if (!h.agent_new) return null;
   const n = h.agent_new;
   const items = [];
-  items.push(h.reboots ? T(`🔁 ${h.reboots} máquina(s) reiniciaram durante a prova`, `🔁 ${h.reboots} machine(s) rebooted during the contest`)
-    : T('🔁 nenhuma máquina reiniciou durante a prova', '🔁 no machine rebooted during the contest'));
+  items.push(h.reboots ? T(`🔁 ${h.reboots} máquina(s) reiniciaram durante a prova`, `🔁 ${h.reboots} machine(s) rebooted during the contest`, `🔁 ${h.reboots} máquina(s) se reiniciaron durante la competencia`)
+    : T('🔁 nenhuma máquina reiniciou durante a prova', '🔁 no machine rebooted during the contest', '🔁 ninguna máquina se reinició durante la competencia'));
   items.push(h.oom_kills ? T(`💥 ${h.oom_kills} processo(s) mortos por falta de memória, em ${h.oom_machines} máquina(s)`,
-    `💥 ${h.oom_kills} process(es) killed for lack of memory, on ${h.oom_machines} machine(s)`)
-    : T('💥 nenhum processo morto por falta de memória', '💥 no process killed for lack of memory'));
-  if (h.skew_n) items.push(h.skew_bad ? T(`🕒 ${h.skew_bad} de ${h.skew_n} máquinas com o relógio mais de 2 min fora`, `🕒 ${h.skew_bad} of ${h.skew_n} machines with the clock more than 2 min off`)
-    : T(`🕒 relógio certo nas ${h.skew_n} máquinas medidas`, `🕒 clock correct on the ${h.skew_n} measured machines`));
+    `💥 ${h.oom_kills} process(es) killed for lack of memory, on ${h.oom_machines} machine(s)`,
+    `💥 ${h.oom_kills} proceso(s) eliminados por falta de memoria, en ${h.oom_machines} máquina(s)`)
+    : T('💥 nenhum processo morto por falta de memória', '💥 no process killed for lack of memory', '💥 ningún proceso eliminado por falta de memoria'));
+  if (h.skew_n) items.push(h.skew_bad ? T(`🕒 ${h.skew_bad} de ${h.skew_n} máquinas com o relógio mais de 2 min fora`, `🕒 ${h.skew_bad} of ${h.skew_n} machines with the clock more than 2 min off`, `🕒 ${h.skew_bad} de ${h.skew_n} máquinas con el reloj desfasado más de 2 min`)
+    : T(`🕒 relógio certo nas ${h.skew_n} máquinas medidas`, `🕒 clock correct on the ${h.skew_n} measured machines`, `🕒 reloj correcto en las ${h.skew_n} máquinas medidas`));
   if (h.psi_n) items.push(T(`🧠 espera média (PSI): memória ${r1(h.psi_mem_sum / h.psi_n)}% · CPU ${r1(h.psi_cpu_sum / h.psi_n)}% · disco ${r1(h.psi_io_sum / h.psi_n)}%`,
-    `🧠 average stall (PSI): memory ${r1(h.psi_mem_sum / h.psi_n)}% · CPU ${r1(h.psi_cpu_sum / h.psi_n)}% · disk ${r1(h.psi_io_sum / h.psi_n)}%`)
-    + (a.psi_mem_max ? T(` · pico de memória ${r1(a.psi_mem_max)}%`, ` · memory peak ${r1(a.psi_mem_max)}%`) : ''));
+    `🧠 average stall (PSI): memory ${r1(h.psi_mem_sum / h.psi_n)}% · CPU ${r1(h.psi_cpu_sum / h.psi_n)}% · disk ${r1(h.psi_io_sum / h.psi_n)}%`,
+    `🧠 espera promedio (PSI): memoria ${r1(h.psi_mem_sum / h.psi_n)}% · CPU ${r1(h.psi_cpu_sum / h.psi_n)}% · disco ${r1(h.psi_io_sum / h.psi_n)}%`)
+    + (a.psi_mem_max ? T(` · pico de memória ${r1(a.psi_mem_max)}%`, ` · memory peak ${r1(a.psi_mem_max)}%`, ` · pico de memoria ${r1(a.psi_mem_max)}%`) : ''));
   if (h.idle_pts) items.push(T(`💤 ${pctS(h.idle_hi, h.idle_pts)} do tempo das máquinas de time sem teclado nem mouse por mais de 5 min`,
-    `💤 ${pctS(h.idle_hi, h.idle_pts)} of team machine time with no keyboard or mouse for more than 5 min`));
-  return el('div', { class: 'section' }, el('h2', {}, T('🩺 Saúde das máquinas na prova', '🩺 Machine health in the contest')),
+    `💤 ${pctS(h.idle_hi, h.idle_pts)} of team machine time with no keyboard or mouse for more than 5 min`,
+    `💤 ${pctS(h.idle_hi, h.idle_pts)} del tiempo de las máquinas de equipo sin teclado ni mouse por más de 5 min`));
+  return el('div', { class: 'section' }, el('h2', {}, T('🩺 Saúde das máquinas na prova', '🩺 Machine health in the contest', '🩺 Salud de las máquinas en la competencia')),
     el('p', { class: 'ml-note' }, T(`Medido em ${n} máquina(s) com o agente novo do mlinux. As demais não informam estes dados.`,
-      `Measured on ${n} machine(s) with the new mlinux agent. The others do not report this data.`)),
+      `Measured on ${n} machine(s) with the new mlinux agent. The others do not report this data.`,
+      `Medido en ${n} máquina(s) con el agente nuevo de mlinux. Las demás no informan estos datos.`)),
     el('ul', { style: 'margin:.2rem 0 0 1.1rem' }, ...items.map((x) => el('li', {}, x))));
 }
 
 function attentionSection(a) {
   const flags = [];
-  if (a.firewall_off) flags.push(T(`🔥 ${a.firewall_off} sem firewall`, `🔥 ${a.firewall_off} without firewall`));
-  if (a.screen_lock) flags.push(T(`🔒 ${a.screen_lock} com tela travada`, `🔒 ${a.screen_lock} screen-locked`));
-  if (a.disk_high) flags.push(T(`💾 ${a.disk_high} com /home ≥90%`, `💾 ${a.disk_high} with /home ≥90%`));
+  if (a.firewall_off) flags.push(T(`🔥 ${a.firewall_off} sem firewall`, `🔥 ${a.firewall_off} without firewall`, `🔥 ${a.firewall_off} sin firewall`));
+  if (a.screen_lock) flags.push(T(`🔒 ${a.screen_lock} com tela travada`, `🔒 ${a.screen_lock} screen-locked`, `🔒 ${a.screen_lock} con pantalla bloqueada`));
+  if (a.disk_high) flags.push(T(`💾 ${a.disk_high} com /home ≥90%`, `💾 ${a.disk_high} with /home ≥90%`, `💾 ${a.disk_high} con /home ≥90%`));
   if (a.alerts) {
     const kinds = Object.entries(a.alert_kinds || {}).sort((x, y) => y[1] - x[1]).map(([k, v]) => `${alertName(k)} ${v}`).join(' · ');
-    flags.push(T(`⚠ ${a.alerts} alertas`, `⚠ ${a.alerts} alerts`) + (kinds ? ` (${kinds})` : ''));
+    flags.push(T(`⚠ ${a.alerts} alertas`, `⚠ ${a.alerts} alerts`, `⚠ ${a.alerts} alertas`) + (kinds ? ` (${kinds})` : ''));
   }
   if (!flags.length) return null;
-  return el('div', { class: 'section' }, el('h2', {}, T('Atenção', 'Attention')),
+  return el('div', { class: 'section' }, el('h2', {}, T('Atenção', 'Attention', 'Atención')),
     el('ul', { style: 'margin:.2rem 0 0 1.1rem' }, ...flags.map((x) => el('li', {}, x))));
 }
 function rankLine(r, label) {
   if (!r || !r.n) return null;
   const f = (x) => (x ? `#${x}/${r.n}` : '—');
   return el('div', {}, el('b', {}, label + ' '),
-    T(`RAM ${f(r.ram)} · CPU ${f(r.cpu)} · editores ${f(r.ed)}`, `RAM ${f(r.ram)} · CPU ${f(r.cpu)} · editors ${f(r.ed)}`));
+    T(`RAM ${f(r.ram)} · CPU ${f(r.cpu)} · editores ${f(r.ed)}`, `RAM ${f(r.ram)} · CPU ${f(r.cpu)} · editors ${f(r.ed)}`, `RAM ${f(r.ram)} · CPU ${f(r.cpu)} · editores ${f(r.ed)}`));
 }
 function fleetSection(a, cx, opts) {
-  const secs = [el('h2', {}, T('⚙ Frota vista na prova', '⚙ Fleet seen in the contest'))];
+  const secs = [el('h2', {}, T('⚙ Frota vista na prova', '⚙ Fleet seen in the contest', '⚙ Flota vista en la competencia'))];
   const pop = a.pop || {};
   secs.push(el('p', { class: 'ml-note' },
     T(`${a.machines_total || 0} máquinas cadastradas, ${a.seen || 0} vistas na janela, ${pop.used || 0} usadas na prova, ${pop.linked || 0} vinculadas a um time pelo login. Reservas e máquinas sem uso ficam fora das seções acima.`,
-      `${a.machines_total || 0} registered machines, ${a.seen || 0} seen in the window, ${pop.used || 0} used in the contest, ${pop.linked || 0} linked to a team by the login. Spares and unused machines stay out of the sections above.`)));
+      `${a.machines_total || 0} registered machines, ${a.seen || 0} seen in the window, ${pop.used || 0} used in the contest, ${pop.linked || 0} linked to a team by the login. Spares and unused machines stay out of the sections above.`,
+      `${a.machines_total || 0} máquinas registradas, ${a.seen || 0} vistas en la ventana, ${pop.used || 0} usadas en la competencia, ${pop.linked || 0} vinculadas a un equipo por el inicio de sesión. Las de repuesto y sin uso quedan fuera de las secciones de arriba.`)));
   const two = el('div', { class: 'two-col' });
   const rb = a.ram_bands_all || {};
   const rams = BANDS.filter((b) => rb[b]).map((b) => ({ label: b + ' GB', value: rb[b] }));
-  if (rams.length) two.append(box(T('RAM de todas as vistas', 'RAM of all seen'), hBarChart(rams, {})));
+  if (rams.length) two.append(box(T('RAM de todas as vistas', 'RAM of all seen', 'RAM de todas las vistas'), hBarChart(rams, {})));
   const cpus = Object.entries(a.cpu || {}).sort((x, y) => y[1] - x[1]);
-  if (cpus.length) two.append(box(T('Processadores de todas as vistas', 'Processors of all seen'),
+  if (cpus.length) two.append(box(T('Processadores de todas as vistas', 'Processors of all seen', 'Procesadores de todas las vistas'),
     hBarChart(cpus.map(([k, v]) => ({ label: k.replace(/\(R\)|\(TM\)|CPU|@.*$/g, '').replace(/\s+/g, ' ').trim(), value: v })), { maxRows: 10 })));
-  if (a.ranks) two.append(el('div', {}, el('div', { class: 'chart-title' }, T('Posição da sede', 'Site standing')),
-    rankLine(a.ranks.pais, T('No país:', 'In the country:')), rankLine(a.ranks.geral, T('No geral:', 'Overall:')),
-    el('div', { class: 'ml-note' }, T('RAM e CPU médias das máquinas de time; editores = minutos de editor na prova.', 'Average RAM and CPU of team machines; editors = editor minutes in the contest.'))));
+  if (a.ranks) two.append(el('div', {}, el('div', { class: 'chart-title' }, T('Posição da sede', 'Site standing', 'Posición de la sede')),
+    rankLine(a.ranks.pais, T('No país:', 'In the country:', 'En el país:')), rankLine(a.ranks.geral, T('No geral:', 'Overall:', 'En general:')),
+    el('div', { class: 'ml-note' }, T('RAM e CPU médias das máquinas de time; editores = minutos de editor na prova.', 'Average RAM and CPU of team machines; editors = editor minutes in the contest.', 'RAM y CPU promedio de las máquinas de equipo; editores = minutos de editor en la competencia.'))));
   secs.push(two);
   // máquinas da sede (só em sedes[]; o relatório NÃO usa — MAC fica fora dele)
   if (opts.showMachines && a.machines && a.machines.length) {
@@ -593,22 +616,22 @@ function fleetSection(a, cx, opts) {
           el('td', {}, m.processor || '?', m.model ? el('div', { class: 'small muted' }, m.model) : ''),
           el('td', { class: 'n' }, String(m.cores || 0)),
           el('td', { class: 'n' }, GB(m.mem_mb || 0) + ' GB'),
-          el('td', {}, m.team ? String(m.team) + (m.chosen === false ? ' ' + T('(2ª máquina)', '(2nd machine)') : '')
+          el('td', {}, m.team ? String(m.team) + (m.chosen === false ? ' ' + T('(2ª máquina)', '(2nd machine)', '(2ª máquina)') : '')
             : m.binding ? String(m.binding.user_id || m.binding.team || m.binding) : '—'),
           el('td', {}, (m.eds || []).map(edName).join(', ') || '—'),
           el('td', {}, m.prof ? profName(m.prof) : '—'),
           el('td', { class: 'n' }, m.edmax != null ? fmtMin(m.edmax) : '—'),
-          el('td', {}, [m.used ? '' : T('ociosa', 'idle'), m.fw === false ? '🔥' : '', m.sl ? '🔒' : '',
+          el('td', {}, [m.used ? '' : T('ociosa', 'idle', 'inactiva'), m.fw === false ? '🔥' : '', m.sl ? '🔒' : '',
             (m.home_pct || 0) >= 90 ? '💾' : '', m.oom ? '💥' + m.oom : ''].filter(Boolean).join(' '))));
       });
-    secs.push(el('h3', {}, T('Máquinas', 'Machines')));
+    secs.push(el('h3', {}, T('Máquinas', 'Machines', 'Máquinas')));
     secs.push(el('div', { class: 'tblwrap', style: 'overflow-x:auto' },
       el('table', { class: 'moj' },
         el('thead', {}, el('tr', {},
-          el('th', {}, 'MAC'), el('th', {}, T('Processador', 'Processor')),
-          el('th', { class: 'n' }, T('Núcleos', 'Cores')), el('th', { class: 'n' }, 'RAM'),
-          el('th', {}, T('Time', 'Team')), el('th', {}, T('Editores na prova', 'Editors in contest')),
-          el('th', {}, T('Perfil', 'Profile')), el('th', { class: 'n' }, T('Editor máx.', 'Top editor')), el('th', {}, ''))),
+          el('th', {}, 'MAC'), el('th', {}, T('Processador', 'Processor', 'Procesador')),
+          el('th', { class: 'n' }, T('Núcleos', 'Cores', 'Núcleos')), el('th', { class: 'n' }, 'RAM'),
+          el('th', {}, T('Time', 'Team', 'Equipo')), el('th', {}, T('Editores na prova', 'Editors in contest', 'Editores en la competencia')),
+          el('th', {}, T('Perfil', 'Profile', 'Perfil')), el('th', { class: 'n' }, T('Editor máx.', 'Top editor', 'Editor principal')), el('th', {}, ''))),
         tb)));
   }
   return el('div', { class: 'section' }, ...secs);
@@ -619,36 +642,47 @@ function legend(opts) {
   const li = (k, txt) => el('li', {}, el('b', {}, k + ': '), txt);
   const mode = (opts.link && opts.link.mode) || 'proxy';
   return el('details', { class: 'small', style: 'margin:.3rem 0 .6rem' },
-    el('summary', {}, T('Como ler este relatório', 'How to read this report')),
+    el('summary', {}, T('Como ler este relatório', 'How to read this report', 'Cómo leer este informe')),
     el('ul', { style: 'margin:.2rem 0 0 1.1rem' },
-      li(T('Vista na prova', 'Seen in the contest'), T('máquina que reportou ao nutellaboot na janela da coleta (prova mais uma hora antes e depois).',
-        'machine that reported to nutellaboot within the collection window (the contest plus one hour before and after).')),
-      li(T('Máquina de time', 'Team machine'), mode === 'ua'
+      li(T('Vista na prova', 'Seen in the contest', 'Visto en la competencia'), T('máquina que reportou ao nutellaboot na janela da coleta (prova mais uma hora antes e depois).',
+        'machine that reported to nutellaboot within the collection window (the contest plus one hour before and after).',
+        'máquina que reportó a nutellaboot dentro de la ventana de recolección (la competencia más una hora antes y después).')),
+      li(T('Máquina de time', 'Team machine', 'Máquina de equipo'), mode === 'ua'
         ? T('a máquina em que o time fez login pelo navegador do mlinux (o navegador informa a máquina e o boot). Vale o último login de cada máquina até o fim da coleta. Um time com duas máquinas conta a de mais amostras na prova. Máquinas usadas sem login vinculado também entram.',
-          'the machine where the team logged in through the mlinux browser (the browser reports the machine and the boot). The last login on each machine up to the end of the collection counts. A team with two machines counts the one with more samples in the contest. Machines used without a linked login also count.')
+          'the machine where the team logged in through the mlinux browser (the browser reports the machine and the boot). The last login on each machine up to the end of the collection counts. A team with two machines counts the one with more samples in the contest. Machines used without a linked login also count.',
+          'la máquina en la que el equipo inició sesión por el navegador de mlinux (el navegador informa la máquina y el arranque). Cuenta el último inicio de sesión de cada máquina hasta el fin de la recolección. Un equipo con dos máquinas cuenta la que tiene más muestras en la competencia. Las máquinas usadas sin inicio de sesión vinculado también cuentan.')
         : T('máquina com algum editor aberto por 10 minutos ou mais durante a prova. Nesta coleta o vínculo pelo login não cobriu times suficientes.',
-          'machine with some editor open for 10 minutes or more during the contest. In this collection the login link did not cover enough teams.')),
-      li(T('Editor usado', 'Editor used'), T('aberto por 60 minutos ou mais durante a prova, medido nas amostras da máquina (cerca de uma por minuto). O tempo acumulado desde a instalação não entra.',
-        'open for 60 minutes or more during the contest, measured in the machine samples (about one per minute). Cumulative time since installation does not count.')),
-      li(T('Perfil puro', 'Pure profile'), T('um grupo de editores aberto em 60% ou mais das amostras da prova. Leve exige quase nenhum uso de IDE pesada. Sem grupo dominante: misto.',
-        'one editor group open in 60% or more of the contest samples. Light requires almost no heavy IDE use. No dominant group: mixed.')),
-      li(T('Grupos', 'Groups'), 'VS Code · JetBrains (IntelliJ IDEA, CLion, PyCharm) · Code::Blocks · ' + T('leves (Vim, gedit, Geany, Emacs).', 'light (Vim, gedit, Geany, Emacs).')),
-      li(T('RAM média', 'Average RAM'), T('em um recorte com várias sedes, é a média das médias de cada sede. Sedes grandes não dominam.',
-        'in a selection with several sites, it is the mean of the per-site means. Large sites do not dominate.')),
-      li(T('Idade da CPU', 'CPU age'), T('ano da prova menos o ano de lançamento inferido do modelo (geração Intel, série Ryzen). Modelos sem ano conhecido ficam fora da média.',
-        'contest year minus the release year inferred from the model (Intel generation, Ryzen series). Models with no known year stay out of the mean.')),
-      li(T('Top k', 'Top k'), T('os k times do recorte mais bem colocados no placar geral. O quadro só aparece com 30 ou mais times vinculados. Convidados não têm posição.',
-        'the k best-placed teams of the selection on the overall scoreboard. The panel needs 30 or more linked teams. Guests have no position.')),
+          'machine with some editor open for 10 minutes or more during the contest. In this collection the login link did not cover enough teams.',
+          'máquina con algún editor abierto por 10 minutos o más durante la competencia. En esta recolección el vínculo por inicio de sesión no cubrió suficientes equipos.')),
+      li(T('Editor usado', 'Editor used', 'Editor usado'), T('aberto por 60 minutos ou mais durante a prova, medido nas amostras da máquina (cerca de uma por minuto). O tempo acumulado desde a instalação não entra.',
+        'open for 60 minutes or more during the contest, measured in the machine samples (about one per minute). Cumulative time since installation does not count.',
+        'abierto por 60 minutos o más durante la competencia, medido en las muestras de la máquina (cerca de una por minuto). El tiempo acumulado desde la instalación no cuenta.')),
+      li(T('Perfil puro', 'Pure profile', 'Perfil puro'), T('um grupo de editores aberto em 60% ou mais das amostras da prova. Leve exige quase nenhum uso de IDE pesada. Sem grupo dominante: misto.',
+        'one editor group open in 60% or more of the contest samples. Light requires almost no heavy IDE use. No dominant group: mixed.',
+        'un grupo de editores abierto en el 60% o más de las muestras de la competencia. Ligero exige casi nada de uso de IDE pesado. Sin grupo dominante: mixto.')),
+      li(T('Grupos', 'Groups', 'Grupos'), 'VS Code · JetBrains (IntelliJ IDEA, CLion, PyCharm) · Code::Blocks · ' + T('leves (Vim, gedit, Geany, Emacs).', 'light (Vim, gedit, Geany, Emacs).', 'ligeros (Vim, gedit, Geany, Emacs).')),
+      li(T('RAM média', 'Average RAM', 'RAM promedio'), T('em um recorte com várias sedes, é a média das médias de cada sede. Sedes grandes não dominam.',
+        'in a selection with several sites, it is the mean of the per-site means. Large sites do not dominate.',
+        'en un recorte con varias sedes, es el promedio de los promedios de cada sede. Las sedes grandes no dominan.')),
+      li(T('Idade da CPU', 'CPU age', 'Edad de la CPU'), T('ano da prova menos o ano de lançamento inferido do modelo (geração Intel, série Ryzen). Modelos sem ano conhecido ficam fora da média.',
+        'contest year minus the release year inferred from the model (Intel generation, Ryzen series). Models with no known year stay out of the mean.',
+        'año de la competencia menos el año de lanzamiento inferido del modelo (generación Intel, serie Ryzen). Los modelos sin año conocido quedan fuera del promedio.')),
+      li(T('Top k', 'Top k', 'Top k'), T('os k times do recorte mais bem colocados no placar geral. O quadro só aparece com 30 ou mais times vinculados. Convidados não têm posição.',
+        'the k best-placed teams of the selection on the overall scoreboard. The panel needs 30 or more linked teams. Guests have no position.',
+        'los k equipos mejor colocados del recorte en el marcador general. El panel necesita 30 o más equipos vinculados. Los invitados no tienen posición.')),
       li('PSI', T('porcentagem do tempo em que algum processo ficou parado esperando o recurso (memória, CPU ou disco), medida pelo kernel. Memória usada alta com PSI perto de zero não é problema. PSI de memória alto é a máquina sofrendo. Só o agente novo do mlinux mede.',
-        'percentage of time in which some process was stalled waiting for the resource (memory, CPU or disk), measured by the kernel. High memory use with PSI near zero is not a problem. High memory PSI is a machine in trouble. Only the new mlinux agent measures it.')),
-      li(T('Saúde', 'Health'), T('reinício = boot da máquina dentro do horário da prova. OOM = processo morto pelo kernel por falta de memória, contado durante a prova. Relógio = desvio mediano entre a hora da máquina e a do servidor. Ocioso = mais de 5 minutos sem teclado nem mouse.',
-        'reboot = machine boot within the contest hours. OOM = process killed by the kernel for lack of memory, counted during the contest. Clock = median offset between machine time and server time. Idle = more than 5 minutes with no keyboard or mouse.')),
-      li(T('Memória e swap', 'Memory and swap'), T('média das amostras da máquina na prova. Início = primeiros 30 minutos. Última hora = últimos 60 minutos.',
-        'average of the machine samples in the contest. Start = first 30 minutes. Last hour = last 60 minutes.'))));
+        'percentage of time in which some process was stalled waiting for the resource (memory, CPU or disk), measured by the kernel. High memory use with PSI near zero is not a problem. High memory PSI is a machine in trouble. Only the new mlinux agent measures it.',
+        'porcentaje de tiempo en que algún proceso estuvo detenido esperando el recurso (memoria, CPU o disco), medido por el kernel. Uso de memoria alto con PSI cerca de cero no es un problema. PSI de memoria alto es una máquina con problemas. Solo el agente nuevo de mlinux lo mide.')),
+      li(T('Saúde', 'Health', 'Salud'), T('reinício = boot da máquina dentro do horário da prova. OOM = processo morto pelo kernel por falta de memória, contado durante a prova. Relógio = desvio mediano entre a hora da máquina e a do servidor. Ocioso = mais de 5 minutos sem teclado nem mouse.',
+        'reboot = machine boot within the contest hours. OOM = process killed by the kernel for lack of memory, counted during the contest. Clock = median offset between machine time and server time. Idle = more than 5 minutes with no keyboard or mouse.',
+        'reinicio = arranque de la máquina dentro del horario de la competencia. OOM = proceso eliminado por el kernel por falta de memoria, contado durante la competencia. Reloj = desvío mediano entre la hora de la máquina y la del servidor. Inactiva = más de 5 minutos sin teclado ni mouse.')),
+      li(T('Memória e swap', 'Memory and swap', 'Memoria y swap'), T('média das amostras da máquina na prova. Início = primeiros 30 minutos. Última hora = últimos 60 minutos.',
+        'average of the machine samples in the contest. Start = first 30 minutes. Last hour = last 60 minutes.',
+        'promedio de las muestras de la máquina en la competencia. Inicio = primeros 30 minutos. Última hora = últimos 60 minutos.'))));
 }
 
 export function mlinuxSections(a, opts = {}) {
-  if (!a) return [el('p', { class: 'muted' }, T('Sem dados coletados.', 'No data collected.'))];
+  if (!a) return [el('p', { class: 'muted' }, T('Sem dados coletados.', 'No data collected.', 'No se recolectaron datos.'))];
   const cx = ctxOf(a, opts);
   const secs = [];
   const push = (x) => { if (x) secs.push(x); };
@@ -668,10 +702,10 @@ export function mlinuxSections(a, opts = {}) {
   }
   // cache antigo (antes do relatório 2.0): só o que existe
   push(el('div', { class: 'stat-cards' },
-    card(a.machines_total || 0, T('máquinas', 'machines')), card(a.seen || 0, T('vistas na prova', 'seen in contest')),
-    card(GB(a.ram_total_mb || 0) + ' GB', T('RAM somada', 'total RAM')), card(a.cores_total || 0, T('núcleos', 'cores'))));
+    card(a.machines_total || 0, T('máquinas', 'machines', 'máquinas')), card(a.seen || 0, T('vistas na prova', 'seen in contest', 'vistas en la competencia')),
+    card(GB(a.ram_total_mb || 0) + ' GB', T('RAM somada', 'total RAM', 'RAM total')), card(a.cores_total || 0, T('núcleos', 'cores', 'núcleos'))));
   push(attentionSection(a));
-  push(el('p', { class: 'ml-note' }, T('Cache antigo. Rode "Coletar agora" para o relatório completo.', 'Old cache. Run "Collect now" for the full report.')));
+  push(el('p', { class: 'ml-note' }, T('Cache antigo. Rode "Coletar agora" para o relatório completo.', 'Old cache. Run "Collect now" for the full report.', 'Caché antigua. Ejecuta "Recolectar ahora" para el informe completo.')));
   seriesCharts(a.series).forEach(push);
   push(fleetSection(a, cx, opts));
   return secs;

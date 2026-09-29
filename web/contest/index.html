@@ -95,23 +95,23 @@
         <span class="badge-beta">BETA</span>
       </div>
       <div class="field">
-        <label id="loginUserLbl" for="loginUser" data-en="Username">Usuário</label>
+        <label id="loginUserLbl" for="loginUser" data-en="Username" data-es="Usuario">Usuário</label>
         <input id="loginUser" name="username" autocomplete="username" required>
       </div>
       <div class="field">
-        <label id="loginPassLbl" for="loginPass" data-en="Password">Senha</label>
+        <label id="loginPassLbl" for="loginPass" data-en="Password" data-es="Contraseña">Senha</label>
         <input id="loginPass" type="password" name="password" autocomplete="current-password" required>
       </div>
-      <button class="btn" type="submit" id="loginBtn" data-en="Log in">Entrar</button>
+      <button class="btn" type="submit" id="loginBtn" data-en="Log in" data-es="Iniciar sesión">Entrar</button>
       <div id="loginError" class="error-box small hidden" style="margin-top:.6rem"></div>
     </form>
     <div class="small muted" style="margin-top:1.4rem">
-      <a href="/" data-en="Home">Página Inicial</a> · <a href="/docs/" target="_blank" data-en="Documentation">Documentação</a>
-      · <a href="/contest/cli.html" target="_blank" data-en="⌨ CLI (works through Internet outages)">⌨ CLI (funciona até sem Internet)</a>
+      <a href="/" data-en="Home" data-es="Inicio">Página Inicial</a> · <a href="/docs/" target="_blank" data-en="Documentation" data-es="Documentación">Documentação</a>
+      · <a href="/contest/cli.html" target="_blank" data-en="⌨ CLI (works through Internet outages)" data-es="⌨ CLI (funciona durante cortes de Internet)">⌨ CLI (funciona até sem Internet)</a>
     </div>
     <!-- a organização entra ANTES da abertura (a API isenta conta de papel). Fica no CANTO, apagado:
          é porta de serviço — o time tem de ver a contagem, não um botão para tentar à toa. -->
-    <a href="#" id="orgLoginLink" class="hidden" data-en="organization">organização</a>
+    <a href="#" id="orgLoginLink" class="hidden" data-en="organization" data-es="organización">organização</a>
   </div>
 
   <!-- ===== VIEW: contest principal (mostrada quando logado) ===== -->
@@ -124,7 +124,7 @@
             <span class="badge-beta">BETA</span></a>
           <div class="spacer"></div>
           <span class="countdown" id="contestCountdown"></span>
-          <button id="logoutBtn" class="btn ghost">Logout</button>
+          <button id="logoutBtn" class="btn ghost" data-en="Logout" data-es="Salir">Logout</button>
         </div>
       </div>
     </header>
@@ -135,28 +135,28 @@
       <div class="section" id="userSection"></div>
 
       <div class="section hidden" id="newsSection">
-        <h2 id="newsTitle" data-en="Information &amp; News">Informações &amp; Notícias</h2>
+        <h2 id="newsTitle" data-en="Information &amp; News" data-es="Información y Noticias">Informações &amp; Notícias</h2>
         <ul id="newsList" style="margin:0; padding-left:1.1rem"></ul>
       </div>
 
       <div class="section hidden" id="resourcesSection">
-        <h2 data-en="Files &amp; Resources">Arquivos &amp; Recursos</h2>
+        <h2 data-en="Files &amp; Resources" data-es="Archivos y Recursos">Arquivos &amp; Recursos</h2>
         <ul id="resourcesList" style="margin:0; padding-left:1.1rem"></ul>
       </div>
 
       <div class="section hidden" id="prestartSection" style="text-align:center">
-        <h2 id="prestartTitle" data-en="The contest hasn't started yet">A competição ainda não começou</h2>
+        <h2 id="prestartTitle" data-en="The contest hasn't started yet" data-es="La competencia todavía no ha empezado">A competição ainda não começou</h2>
         <div id="prestartCountdown" style="font-size:3rem; font-weight:800; color:var(--warn); margin:1rem 0">—</div>
-        <p class="muted" id="prestartHint" data-en="Problems appear automatically when the contest starts.">Os problemas aparecem automaticamente quando a competição iniciar.</p>
+        <p class="muted" id="prestartHint" data-en="Problems appear automatically when the contest starts." data-es="Los problemas aparecen automáticamente cuando empieza la competencia.">Os problemas aparecem automaticamente quando a competição iniciar.</p>
       </div>
 
       <div class="section" id="problemsSection">
-        <h2 data-en="Problems">Problemas</h2>
-        <div id="problemList"><span class="muted" data-en="Loading…">carregando…</span></div>
+        <h2 data-en="Problems" data-es="Problemas">Problemas</h2>
+        <div id="problemList"><span class="muted" data-en="Loading…" data-es="Cargando…">carregando…</span></div>
       </div>
 
       <div class="section" id="mySubsSection">
-        <h2 data-en="My submissions">Minhas submissões</h2>
+        <h2 data-en="My submissions" data-es="Mis envíos">Minhas submissões</h2>
         <div class="subfilter" id="subFilter"></div>
         <div id="submissionsTable"><span class="muted small">—</span></div>
       </div>

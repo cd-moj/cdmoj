@@ -14,7 +14,7 @@
 import { el } from '/shared/ui.js';
 import { contestLoginHref, hereAsNext } from '/shared/contest-guard.js';
 import { initContestShell } from '/shared/contest-shell.js';
-import { T } from '/shared/i18n.js';
+import { T, docHref } from '/shared/i18n.js';
 import { resolveHash, panelVisible, EVENT_GROUPS } from './nav.js';
 import { makeCentralTab } from './central-tab.js';
 import { makeModulesTab } from './modules-tab.js';
@@ -71,7 +71,7 @@ const MK = {
   virtual: () => makeVirtualTab(CONTEST),
   times: () => makeTeamsTab(CONTEST),
   coortes: () => makeCohortsTab(CONTEST),
-  sedes: () => makeSitesTab(CONTEST),
+  sedes: () => makeSitesTab(CONTEST, { go, has }),
   gate: () => makeMachinesTab(CONTEST),
   anomalias: () => makeAnomaliesTab(CONTEST),
   mlinux: () => makeMlinuxTab(CONTEST),
@@ -98,7 +98,7 @@ async function render() {
   common.forEach((x) => gbar.append(gbtn(x)));
   if (event.length) { gbar.append(el('span', { class: 'groupbar-sep' })); event.forEach((x) => gbar.append(gbtn(x))); }
   gbar.append(el('span', { style: 'flex:1' }),
-    el('a', { class: 'btn ghost', target: '_blank', href: '/docs/MANUAL-ADMIN.html' }, T('📖 Manual', '📖 Manual')));
+    el('a', { class: 'btn ghost', target: '_blank', href: docHref('MANUAL-ADMIN') }, T('📖 Manual', '📖 Manual', '📖 Manual')));
 
   snav.innerHTML = '';
   grp.panels.forEach((x) => snav.append(el('button', { class: x.id === pan.id ? 'active' : '', onclick: () => go(grp.id, x.id) }, x.label)));
@@ -113,22 +113,23 @@ async function render() {
     await built[pan.id].load();
   }
   if (notice && built[pan.id].notice) {
-    const need = notice.modules.join(T(' ou ', ' or '));
+    const need = notice.modules.join(T(' ou ', ' or ', ' o '));
     built[pan.id].notice(T(`O painel «${notice.panel}» pertence ao módulo «${need}», que está desligado neste contest. Ligue-o aqui para abri-lo.`,
-      `The "${notice.panel}" panel belongs to the "${need}" module, which is off in this contest. Turn it on here to open it.`));
+      `The "${notice.panel}" panel belongs to the "${need}" module, which is off in this contest. Turn it on here to open it.`,
+      `El panel "${notice.panel}" pertenece al módulo "${need}", que está desactivado en esta competencia. Actívalo aquí para abrirlo.`));
   }
 }
 
 async function boot() {
-  if (!CONTEST) { app.innerHTML = '<div class="error-box">' + T('Contest não informado.', 'Contest not provided.') + '</div>'; return; }
+  if (!CONTEST) { app.innerHTML = '<div class="error-box">' + T('Contest não informado.', 'Contest not provided.', 'Competencia no especificada.') + '</div>'; return; }
   const { st, basic } = await initContestShell(CONTEST);
   if (!st || !st.logged_in || !st.is_admin) {
     app.innerHTML = '';
-    app.append(el('div', { class: 'section' }, el('h2', {}, T('🔒 Acesso restrito', '🔒 Restricted access')),
-      el('p', {}, T('Este painel é da ORGANIZAÇÃO. Entre neste contest com a conta de administração dele — o login de quem criou o contest com o sufixo ', 'This panel belongs to the ORGANIZATION. Log into this contest with its administration account — the login of whoever created the contest plus the suffix '),
+    app.append(el('div', { class: 'section' }, el('h2', {}, T('🔒 Acesso restrito', '🔒 Restricted access', '🔒 Acceso restringido')),
+      el('p', {}, T('Este painel é da ORGANIZAÇÃO. Entre neste contest com a conta de administração dele — o login de quem criou o contest com o sufixo ', 'This panel belongs to the ORGANIZATION. Log into this contest with its administration account — the login of whoever created the contest plus the suffix ', 'Este panel pertenece a la ORGANIZACIÓN. Entra en esta competencia con su cuenta de administración — el usuario de quien creó la competencia más el sufijo '),
         el('code', {}, '.admin'),
-        T(' (a senha apareceu uma vez, na criação). O seu login comum entra como competidor.', ' (the password was shown once, at creation). Your ordinary login enters as a competitor.')),
-      el('a', { class: 'btn', href: contestLoginHref(CONTEST, hereAsNext()) }, T('Entrar no contest', 'Log into the contest'))));
+        T(' (a senha apareceu uma vez, na criação). O seu login comum entra como competidor.', ' (the password was shown once, at creation). Your ordinary login enters as a competitor.', ' (la contraseña se mostró una sola vez, al crearla). Tu usuario habitual entra como competidor.')),
+      el('a', { class: 'btn', href: contestLoginHref(CONTEST, hereAsNext()) }, T('Entrar no contest', 'Log into the contest', 'Entrar en la competencia'))));
     return;
   }
   MODS = new Set((basic && basic.modules) || []);

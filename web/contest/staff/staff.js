@@ -7,21 +7,22 @@
 import { apiGet, apiPost, getToken } from '/shared/api.js';
 import { el } from '/shared/ui.js';
 import { initContestShell } from '/shared/contest-shell.js';
-import { T } from '/shared/i18n.js';
+import { T, uiLocale } from '/shared/i18n.js';
 
 const qs = new URLSearchParams(location.search);
 const CONTEST = (window.__MOJ_CONTEST || qs.get('c') || '');
 const app = document.getElementById('app');
 const G = { contest: CONTEST, auth: true };
 const enc = encodeURIComponent;
-const fmtDate = (e) => new Date((+e || 0) * 1000).toLocaleString();
+const fmtDate = (e) => new Date((+e || 0) * 1000).toLocaleString(uiLocale());
 const AUTOKEY = 'moj_autoprint_' + CONTEST;
 
-const STATUS = {
-  pending:   { t: T('🕓 pendente', '🕓 pending'),     c: '' },
-  printed:   { t: T('🖨️ processada', '🖨️ processed'), c: 'color:#0a7' },
-  delivered: { t: T('✅ entregue', '✅ delivered'),    c: 'color:#0a7; font-weight:600' },
-};
+// fábrica: T() no topo do módulo congelaria o idioma antes do setLang(LOCALE) do contest
+const STATUS = () => ({
+  pending:   { t: T('🕓 pendente', '🕓 pending', '🕓 pendiente'),     c: '' },
+  printed:   { t: T('🖨️ processada', '🖨️ processed', '🖨️ procesada'), c: 'color:#0a7' },
+  delivered: { t: T('✅ entregue', '✅ delivered', '✅ entregada'),    c: 'color:#0a7; font-weight:600' },
+});
 
 let queue = [];            // último estado da fila
 const MLINUX_LINK = el('span', {});   // vira o link 🖥 quando o nutellaboot está configurado
@@ -59,13 +60,13 @@ function printBlobIframe(url) {
 // PDF abre e o usuário imprime/compartilha pelo menu. `doPrint` dispara window.print().
 function openPdfWindow(id, doPrint) {
   const w = window.open('', '_blank');
-  if (!w) { alert(T('Permita pop-ups para abrir/imprimir o PDF desta sede.', 'Allow pop-ups to open/print this site\'s PDF.')); return null; }
-  try { w.document.write(T('<!doctype html><meta charset="utf-8"><title>Impressão</title><body style="margin:0;font:16px sans-serif;padding:1.2rem">Gerando o PDF…</body>', '<!doctype html><meta charset="utf-8"><title>Printing</title><body style="margin:0;font:16px sans-serif;padding:1.2rem">Generating the PDF…</body>')); } catch (_) {}
+  if (!w) { alert(T('Permita pop-ups para abrir/imprimir o PDF desta sede.', 'Allow pop-ups to open/print this site\'s PDF.', 'Permite las ventanas emergentes para abrir/imprimir el PDF de esta sede.')); return null; }
+  try { w.document.write(T('<!doctype html><meta charset="utf-8"><title>Impressão</title><body style="margin:0;font:16px sans-serif;padding:1.2rem">Gerando o PDF…</body>', '<!doctype html><meta charset="utf-8"><title>Printing</title><body style="margin:0;font:16px sans-serif;padding:1.2rem">Generating the PDF…</body>', '<!doctype html><meta charset="utf-8"><title>Impresión</title><body style="margin:0;font:16px sans-serif;padding:1.2rem">Generando el PDF…</body>')); } catch (_) {}
   pdfBlobUrl(id).then((url) => {
     w.location.href = url;
     if (doPrint) { const tryPrint = () => { try { w.focus(); w.print(); } catch (_) {} }; setTimeout(tryPrint, 1500); }
     setTimeout(() => URL.revokeObjectURL(url), 120000);
-  }).catch((e) => { try { w.document.body.innerHTML = T('Falha ao gerar o PDF: ', 'Failed to generate the PDF: ') + (e.message || T('erro', 'error')); } catch (_) {} });
+  }).catch((e) => { try { w.document.body.innerHTML = T('Falha ao gerar o PDF: ', 'Failed to generate the PDF: ', 'Error al generar el PDF: ') + (e.message || T('erro', 'error', 'error')); } catch (_) {} });
   return w;
 }
 
@@ -105,21 +106,21 @@ function rowActions(t) {
   if (RO) return el('span', { class: 'small muted' }, '—');   // .cstaff só acompanha
   const r = el('div', { class: 'row' });
   const mkBtn = (label, fn, cls) => { const b = el('button', { class: 'btn ' + (cls || 'ghost'), style: 'padding:.2rem .5rem' }, label);
-    b.addEventListener('click', async () => { b.disabled = true; try { await fn(); } catch (e) { alert(e.message || T('falha', 'failed')); } finally { b.disabled = false; await loadQueue(); } }); return b; };
-  if (t.status === 'pending') r.append(mkBtn(T('Pegar', 'Claim'), () => action(t.id, 'claim')));
-  if (t.status !== 'delivered') r.append(mkBtn(T('🖨️ Imprimir', '🖨️ Print'), () => printTaskManual(t), ''));
-  r.append(mkBtn(T('Abrir PDF', 'Open PDF'), () => { openPdfWindow(t.id, false); }));
-  if (t.status === 'printed') r.append(mkBtn(T('✅ Entregue', '✅ Delivered'), () => action(t.id, 'delivered'), ''));
+    b.addEventListener('click', async () => { b.disabled = true; try { await fn(); } catch (e) { alert(e.message || T('falha', 'failed', 'fallido')); } finally { b.disabled = false; await loadQueue(); } }); return b; };
+  if (t.status === 'pending') r.append(mkBtn(T('Pegar', 'Claim', 'Reservar'), () => action(t.id, 'claim')));
+  if (t.status !== 'delivered') r.append(mkBtn(T('🖨️ Imprimir', '🖨️ Print', '🖨️ Imprimir'), () => printTaskManual(t), ''));
+  r.append(mkBtn(T('Abrir PDF', 'Open PDF', 'Abrir PDF'), () => { openPdfWindow(t.id, false); }));
+  if (t.status === 'printed') r.append(mkBtn(T('✅ Entregue', '✅ Delivered', '✅ Entregado'), () => action(t.id, 'delivered'), ''));
   return r;
 }
 
 function renderRows() {
   tbody.innerHTML = '';
-  if (!queue.length) { tbody.append(el('tr', {}, el('td', { colspan: '6', class: 'muted' }, T('Nenhuma tarefa.', 'No tasks.')))); return; }
+  if (!queue.length) { tbody.append(el('tr', {}, el('td', { colspan: '6', class: 'muted' }, T('Nenhuma tarefa.', 'No tasks.', 'Sin tareas.')))); return; }
   queue.forEach((t) => {
-    const st = STATUS[t.status] || STATUS.pending;
+    const S = STATUS(), st = S[t.status] || S.pending;
     const taskCell = t.kind === 'balloon'
-      ? el('td', {}, el('b', {}, T('🎈 Balão · ', '🎈 Balloon · ') + (t.short || '?')),
+      ? el('td', {}, el('b', {}, T('🎈 Balão · ', '🎈 Balloon · ', '🎈 Globo · ') + (t.short || '?')),
           el('div', { class: 'small' },
             el('span', { style: 'display:inline-block;width:.8em;height:.8em;border:1px solid #999;border-radius:50%;vertical-align:middle;background:#' + (t.color_hex || 'cccccc') }),
             ' ' + (t.color_name || '')),
@@ -128,7 +129,7 @@ function renderRows() {
           // impressa leva a mesma faixa, então o que o staff anuncia bate com o que ele carrega.
           t.first_site
             ? el('div', { class: 'small', style: 'color:#7A5C00;font-weight:700;margin-top:.15rem' },
-                '★ ' + T('primeiro da sede', 'first to solve at this site'))
+                '★ ' + T('primeiro da sede', 'first to solve at this site', 'primero en resolver en esta sede'))
             : null)
       : el('td', {}, t.filename, el('div', { class: 'small muted' }, (t.mime || '') + (t.size ? ' · ' + Math.max(1, Math.round(t.size / 1024)) + ' KB' : '')));
     tbody.append(el('tr', {},
@@ -136,16 +137,16 @@ function renderRows() {
       el('td', {}, el('div', {}, t.team || t.fullname || t.login), el('div', { class: 'small muted' }, t.login + (t.univ ? ' · ' + t.univ : ''))),
       taskCell,
       el('td', {}, el('span', { class: 'pr-badge', style: st.c }, st.t),
-        (t.claimed_by ? el('div', { class: 'small muted' }, T('por ', 'by ') + t.claimed_by) : '')),
+        (t.claimed_by ? el('div', { class: 'small muted' }, T('por ', 'by ', 'por ') + t.claimed_by) : '')),
       // ⚠ build_ok===false: a conversão do documento falhou e o PDF é SÓ a folha de rosto.
       // Antes disso a coluna mostrava um '—' mudo e a sala só descobria no papel impresso.
       el('td', { class: 'small' },
         (t.build_ok === false
           ? el('span', { style: 'color:var(--warn,#b45309); font-weight:600' },
-              T('⚠ não converteu', '⚠ not converted'))
-          : (t.pages > 0 ? t.pages + T(' pág.', ' pg') : '—')),
+              T('⚠ não converteu', '⚠ not converted', '⚠ no convertido'))
+          : (t.pages > 0 ? t.pages + T(' pág.', ' pg', ' pág.') : '—')),
         el('div', { class: 'small muted' },
-          t.build_ok === false ? T('baixe o arquivo cru', 'download the raw file') : fmtDate(t.time))),
+          t.build_ok === false ? T('baixe o arquivo cru', 'download the raw file', 'descargar el archivo original') : fmtDate(t.time))),
       el('td', {}, rowActions(t))));
   });
 }
@@ -153,11 +154,11 @@ function renderRows() {
 async function loadQueue() {
   let r;
   try { r = await apiGet('/contest/staff/queue?contest=' + enc(CONTEST), G); }
-  catch (e) { statusBar.textContent = T('Falha ao listar: ', 'Failed to list: ') + (e.message || T('erro', 'error')); return; }
+  catch (e) { statusBar.textContent = T('Falha ao listar: ', 'Failed to list: ', 'No se pudo listar: ') + (e.message || T('erro', 'error', 'error')); return; }
   queue = r.requests || [];
   const np = queue.filter((x) => x.status === 'pending').length;
-  statusBar.textContent = queue.length + T(' tarefa(s) · ', ' task(s) · ') + np + T(' pendente(s)', ' pending') +
-    (RO ? T(' · somente leitura', ' · read-only') : (autoMode ? T(' · modo automático LIGADO', ' · auto mode ON') : ''));
+  statusBar.textContent = queue.length + T(' tarefa(s) · ', ' task(s) · ', ' tarea(s) · ') + np + T(' pendente(s)', ' pending', ' pendiente(s)') +
+    (RO ? T(' · somente leitura', ' · read-only', ' · solo lectura') : (autoMode ? T(' · modo automático LIGADO', ' · auto mode ON', ' · modo automático ACTIVADO') : ''));
   renderRows();
   autoTick();   // dispara o automático se houver pendente
 }
@@ -188,34 +189,34 @@ function render() {
     autoMode = cb.checked; localStorage.setItem(AUTOKEY, autoMode ? '1' : '0');
     autoBox.className = 'pr-auto' + (autoMode ? ' on' : ''); loadQueue();
   });
-  autoBox.append(cb, el('span', {}, el('b', {}, T(' Modo impressão automática', ' Automatic printing mode')),
-    el('span', { class: 'small muted' }, T(' — imprime cada tarefa nova e marca como processada. Para impressão sem o diálogo do sistema, use o navegador em modo kiosk (--kiosk-printing).', ' — prints each new task and marks it processed. To print without the system dialog, run the browser in kiosk mode (--kiosk-printing).'))));
+  autoBox.append(cb, el('span', {}, el('b', {}, T(' Modo impressão automática', ' Automatic printing mode', ' Modo de impresión automática')),
+    el('span', { class: 'small muted' }, T(' — imprime cada tarefa nova e marca como processada. Para impressão sem o diálogo do sistema, use o navegador em modo kiosk (--kiosk-printing).', ' — prints each new task and marks it processed. To print without the system dialog, run the browser in kiosk mode (--kiosk-printing).', ' — imprime cada tarea nueva y la marca como procesada. Para imprimir sin el diálogo del sistema, ejecuta el navegador en modo kiosco (--kiosk-printing).'))));
   const table = el('table', { class: 'moj' },
-    el('thead', {}, el('tr', {}, el('th', {}, '#'), el('th', {}, T('Time / login', 'Team / login')), el('th', {}, T('Arquivo', 'File')), el('th', {}, 'Status'), el('th', {}, T('Págs / hora', 'Pages / time')), el('th', {}, T('Ações', 'Actions')))),
+    el('thead', {}, el('tr', {}, el('th', {}, '#'), el('th', {}, T('Time / login', 'Team / login', 'Equipo / login')), el('th', {}, T('Arquivo', 'File', 'Archivo')), el('th', {}, T('Status', 'Status', 'Estado')), el('th', {}, T('Págs / hora', 'Pages / time', 'Páginas / hora')), el('th', {}, T('Ações', 'Actions', 'Acciones')))),
     tbody);
   app.append(
     el('div', { class: 'section' }, RO ? '' : autoBox,
       el('div', { class: 'row', style: 'margin:.2rem 0' }, statusBar, el('div', { class: 'spacer' }),
-        CAN_BADGES ? el('a', { class: 'btn ghost', href: '/contest/badges/?c=' + enc(CONTEST) }, T('🏷️ Etiquetas', '🏷️ Badges')) : '',
+        CAN_BADGES ? el('a', { class: 'btn ghost', href: '/contest/badges/?c=' + enc(CONTEST) }, T('🏷️ Etiquetas', '🏷️ Badges', '🏷️ Etiquetas')) : '',
         MLINUX_LINK, // preenchido quando a integração nutellaboot está configurada
-        el('button', { class: 'btn ghost', onclick: loadQueue }, T('↻ atualizar', '↻ refresh'))),
+        el('button', { class: 'btn ghost', onclick: loadQueue }, T('↻ atualizar', '↻ refresh', '↻ actualizar'))),
       el('div', { class: 'chart-wrap' }, table)));
   loadQueue(); schedulePoll();
 }
 
 async function boot() {
-  if (!CONTEST) { app.innerHTML = '<div class="error-box">' + T('Contest não informado.', 'Contest not specified.') + '</div>'; return; }
+  if (!CONTEST) { app.innerHTML = '<div class="error-box">' + T('Contest não informado.', 'Contest not specified.', 'Competencia no especificada.') + '</div>'; return; }
   const { st } = await initContestShell(CONTEST);
   if (!st || !st.logged_in) {
     app.innerHTML = '';
-    app.append(el('div', { class: 'section' }, el('h2', {}, T('🔒 Entre no contest', '🔒 Log in to the contest')),
-      el('a', { class: 'btn', href: '/contest/?c=' + enc(CONTEST) }, T('Ir para o contest', 'Go to the contest'))));
+    app.append(el('div', { class: 'section' }, el('h2', {}, T('🔒 Entre no contest', '🔒 Log in to the contest', '🔒 Inicia sesión en la competencia')),
+      el('a', { class: 'btn', href: '/contest/?c=' + enc(CONTEST) }, T('Ir para o contest', 'Go to the contest', 'Ir a la competencia'))));
     return;
   }
   if (!st.is_staff && !st.is_cstaff && !st.is_admin) {
     app.innerHTML = '';
-    app.append(el('div', { class: 'section' }, el('h2', {}, T('🔒 Acesso restrito', '🔒 Restricted access')),
-      el('p', { class: 'muted' }, T('Esta área é da equipe de impressão (.staff/.cstaff).', 'This area is for the printing team (.staff/.cstaff).'))));
+    app.append(el('div', { class: 'section' }, el('h2', {}, T('🔒 Acesso restrito', '🔒 Restricted access', '🔒 Acceso restringido')),
+      el('p', { class: 'muted' }, T('Esta área é da equipe de impressão (.staff/.cstaff).', 'This area is for the printing team (.staff/.cstaff).', 'Esta área es del equipo de impresión (.staff/.cstaff).'))));
     return;
   }
   RO = !!st.is_cstaff && !st.is_staff && !st.is_admin;
@@ -227,7 +228,7 @@ async function boot() {
   apiGet('/contest/nutella?contest=' + enc(CONTEST), G).then((r) => {
     if (r && r.configured) {
       MLINUX_LINK.append(el('a', { class: 'btn ghost', href: '/contest/mlinux/?c=' + enc(CONTEST) },
-        T('🖥 Máquinas', '🖥 Machines')));
+        T('🖥 Máquinas', '🖥 Machines', '🖥 Máquinas')));
     }
   }).catch(() => { /* sem integração/permissão: sem link */ });
 }

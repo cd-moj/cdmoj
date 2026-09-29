@@ -22,10 +22,10 @@ export async function copyBlock(pre, btn) {
   try {
     if (!navigator.clipboard || !navigator.clipboard.writeText) throw new Error('no clipboard');
     await navigator.clipboard.writeText(sampleText(pre));
-    btn.textContent = T('✓ copiado', '✓ copied'); btn.classList.add('ok');
+    btn.textContent = T('✓ copiado', '✓ copied', '✓ copiado'); btn.classList.add('ok');
   } catch {
     // http / permissão negada / blob: seleciona o bloco p/ o Ctrl+C da pessoa
-    selectNode(pre); btn.textContent = T('selecionado — Ctrl+C', 'selected — Ctrl+C');
+    selectNode(pre); btn.textContent = T('selecionado — Ctrl+C', 'selected — Ctrl+C', 'seleccionado — Ctrl+C');
   }
   setTimeout(() => { btn.textContent = before; btn.classList.remove('ok'); }, 1500);
 }
@@ -39,7 +39,7 @@ export function decorateSamples(root) {
       const h = kids[i], pre = kids[i + 1];
       if (!/^H[34]$/.test(h.tagName || '') || (pre.tagName || '') !== 'PRE' || h.dataset.copyReady) continue;
       h.dataset.copyReady = '1'; h.classList.add('sample-head');
-      const btn = el('button', { type: 'button', class: 'sample-copy', title: T('Copiar este bloco', 'Copy this block') }, T('Copiar', 'Copy'));
+      const btn = el('button', { type: 'button', class: 'sample-copy', title: T('Copiar este bloco', 'Copy this block', 'Copiar este bloque') }, T('Copiar', 'Copy', 'Copiar'));
       btn.dataset.copy = '1';
       btn.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); copyBlock(pre, btn); });
       h.append(btn); n++;

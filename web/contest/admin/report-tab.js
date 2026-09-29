@@ -23,10 +23,10 @@ export function makeReportTab(CONTEST, opts = {}) {
   // --- 1. download ------------------------------------------------------------------------
   const dlBtn = el('button', { class: 'btn', onclick: async (ev) => {
     const b = ev.currentTarget, old = b.textContent;
-    b.disabled = true; b.textContent = T('⏳ gerando…', '⏳ generating…');
+    b.disabled = true; b.textContent = T('⏳ gerando…', '⏳ generating…', '⏳ generando…');
     try { await downloadAuthed(CONTEST, '/contest/admin/report?contest=' + enc(CONTEST), 'relatorio-' + CONTEST + '.tar.gz'); }
     finally { b.disabled = false; b.textContent = old; }
-  } }, T('📦 Baixar tar.gz', '📦 Download tar.gz'));
+  } }, T('📦 Baixar tar.gz', '📦 Download tar.gz', '📦 Descargar tar.gz'));
 
   // --- 2. publicação (caixa persistente) ---------------------------------------------------
   const pubBox = el('div', { class: 'row', style: 'gap:.5rem;align-items:center;flex-wrap:wrap' });
@@ -35,32 +35,34 @@ export function makeReportTab(CONTEST, opts = {}) {
     if (msg && !confirm(msg)) return;
     pubMsg.className = 'small muted'; pubMsg.textContent = '…';
     try { P = await apiPost(PUB, Object.assign({ action }, extra || {}), G); pubMsg.textContent = ''; render(); }
-    catch (e) { pubMsg.className = 'small error-box'; pubMsg.textContent = e.message || T('falha', 'failed'); pubRefresh(); }
+    catch (e) { pubMsg.className = 'small error-box'; pubMsg.textContent = e.message || T('falha', 'failed', 'fallido'); pubRefresh(); }
   }
   function pubRender() {
     const p = P, job = (p && p.job) || null;
     pubBox.innerHTML = '';
     if (job && job.state === 'running') {
-      pubBox.append(el('span', { class: 'muted' }, T('⏳ publicando… (gera o site e troca de uma vez; ~1–2 min numa prova grande)', '⏳ publishing… (builds the site and swaps it at once; ~1–2 min for a large contest)')));
+      pubBox.append(el('span', { class: 'muted' }, T('⏳ publicando… (gera o site e troca de uma vez; ~1–2 min numa prova grande)', '⏳ publishing… (builds the site and swaps it at once; ~1–2 min for a large contest)', '⏳ publicando… (genera el sitio y lo reemplaza de una vez; ~1–2 min en una competencia grande)')));
       if (!pubTimer) pubTimer = setInterval(() => { if (!panel.hidden && panel.isConnected) pubRefresh(); }, 5000);   // só com o painel visível
       return;
     }
     if (pubTimer) { clearInterval(pubTimer); pubTimer = null; }
-    if (job && job.state === 'error') pubBox.append(el('span', { class: 'pill bad', title: job.error || '' }, T('falha ao publicar', 'publish failed')));
+    if (job && job.state === 'error') pubBox.append(el('span', { class: 'pill bad', title: job.error || '' }, T('falha ao publicar', 'publish failed', 'falló la publicación')));
     if (p && p.published) {
-      pubBox.append(el('a', { class: 'btn', href: p.url, target: '_blank' }, T('📑 Abrir o relatório publicado', '📑 Open the published report')),
-        el('span', { class: 'muted small' }, T('publicado em ', 'published on ') + fmtDate(p.at) + (p.by ? ' · ' + p.by : '') + (p.pages ? ' · ' + p.pages + T(' páginas', ' pages') : '')),
-        el('button', { class: 'btn ghost', title: T('gera de novo e troca o site publicado', 'regenerate and replace the published site'),
-          onclick: () => act('publish') }, T('🔄 Republicar', '🔄 Republish')),
+      pubBox.append(el('a', { class: 'btn', href: p.url, target: '_blank' }, T('📑 Abrir o relatório publicado', '📑 Open the published report', '📑 Abrir el informe publicado')),
+        el('span', { class: 'muted small' }, T('publicado em ', 'published on ', 'publicado el ') + fmtDate(p.at) + (p.by ? ' · ' + p.by : '') + (p.pages ? ' · ' + p.pages + T(' páginas', ' pages', ' páginas') : '')),
+        el('button', { class: 'btn ghost', title: T('gera de novo e troca o site publicado', 'regenerate and replace the published site', 'regenerar y reemplazar el sitio publicado'),
+          onclick: () => act('publish') }, T('🔄 Republicar', '🔄 Republish', '🔄 Republicar')),
         el('button', { class: 'btn ghost danger',
           onclick: () => act('unpublish', T('Despublicar o relatório? O endereço /relatorio/' + CONTEST + '/ deixa de existir e o botão sai da página inicial.',
-                                            'Unpublish the report? /relatorio/' + CONTEST + '/ stops existing and the button leaves the home page.')) }, T('Despublicar', 'Unpublish')));
+                                            'Unpublish the report? /relatorio/' + CONTEST + '/ stops existing and the button leaves the home page.',
+                                            '¿Despublicar el informe? La dirección /relatorio/' + CONTEST + '/ deja de existir y el botón sale de la página de inicio.')) }, T('Despublicar', 'Unpublish', 'Despublicar')));
     } else {
       pubBox.append(el('button', { class: 'btn',
         onclick: () => act('publish', T('Publicar o relatório estático em /relatorio/' + CONTEST + '/? Fica PÚBLICO (placar, runs, estatísticas, clarifications anônimas) e listado na página inicial e no /contests/.',
-                                       'Publish the static report at /relatorio/' + CONTEST + '/? It becomes PUBLIC (scoreboard, runs, statistics, anonymous clarifications) and is listed on the home page and /contests/.')) },
-        T('📢 Publicar como histórico', '📢 Publish as history')),
-        el('span', { class: 'muted small' }, T('ainda não publicado', 'not published yet')));
+                                       'Publish the static report at /relatorio/' + CONTEST + '/? It becomes PUBLIC (scoreboard, runs, statistics, anonymous clarifications) and is listed on the home page and /contests/.',
+                                       '¿Publicar el informe estático en /relatorio/' + CONTEST + '/? Queda PÚBLICO (marcador, envíos, estadísticas, aclaraciones anónimas) y aparece en la página de inicio y en /contests/.')) },
+        T('📢 Publicar como histórico', '📢 Publish as history', '📢 Publicar como histórico')),
+        el('span', { class: 'muted small' }, T('ainda não publicado', 'not published yet', 'todavía no publicado')));
     }
   }
   async function pubRefresh() { try { P = await apiGet(PUB, G); } catch { P = null; } render(); }
@@ -75,21 +77,23 @@ export function makeReportTab(CONTEST, opts = {}) {
   function roundsBuild(rounds) {
     const wrap = el('div', {});
     if (!rounds.length) {
-      if (has('rodadas')) wrap.append(el('p', { class: 'muted small' }, T('Nenhuma rodada arquivada com relatório ainda (o relatório da rodada nasce na promoção, em Evento › Rodadas).', 'No archived round with a report yet (a round report is created at promotion, in Event › Rounds).')));
+      if (has('rodadas')) wrap.append(el('p', { class: 'muted small' }, T('Nenhuma rodada arquivada com relatório ainda (o relatório da rodada nasce na promoção, em Evento › Rodadas).', 'No archived round with a report yet (a round report is created at promotion, in Event › Rounds).', 'Ninguna ronda archivada con informe todavía (el informe de la ronda se crea en la promoción, en Evento › Rondas).')));
       return wrap;
     }
     const tb = el('tbody');
     rounds.forEach((r) => tb.append(el('tr', {},
       el('td', {}, el('b', {}, r.name || r.slug), el('span', { class: 'small muted' }, ' · ' + r.slug + (r.kind ? ' · ' + r.kind : ''))),
-      el('td', {}, r.public ? el('a', { class: 'pill ok', href: r.url, target: '_blank' }, T('público · abrir', 'public · open')) : el('span', { class: 'pill' }, T('não publicado', 'not published'))),
+      el('td', {}, r.public ? el('a', { class: 'pill ok', href: r.url, target: '_blank' }, T('público · abrir', 'public · open', 'público · abrir')) : el('span', { class: 'pill' }, T('não publicado', 'not published', 'no publicado'))),
       el('td', {}, el('button', { class: 'btn ghost' + (r.public ? ' danger' : ''), onclick: () => act(r.public ? 'unpublish-round' : 'publish-round',
         r.public ? null : T(`Publicar o relatório da rodada “${r.name || r.slug}” em ${r.url}? Fica PÚBLICO (placar, runs, estatísticas).`,
-                             `Publish the “${r.name || r.slug}” round report at ${r.url}? It becomes PUBLIC (scoreboard, runs, statistics).`), { round: r.slug }) },
-        r.public ? T('despublicar', 'unpublish') : T('🌐 publicar', '🌐 publish'))))));
+                             `Publish the “${r.name || r.slug}” round report at ${r.url}? It becomes PUBLIC (scoreboard, runs, statistics).`,
+                             `¿Publicar el informe de la ronda “${r.name || r.slug}” en ${r.url}? Se vuelve PÚBLICO (marcador, runs, estadísticas).`), { round: r.slug }) },
+        r.public ? T('despublicar', 'unpublish', 'despublicar') : T('🌐 publicar', '🌐 publish', '🌐 publicar'))))));
     wrap.append(el('div', { class: 'chart-wrap' }, el('table', { class: 'moj' },
-      el('thead', {}, el('tr', {}, el('th', {}, T('Rodada', 'Round')), el('th', {}, T('Estado', 'State')), el('th', {}, ''))), tb)),
+      el('thead', {}, el('tr', {}, el('th', {}, T('Rodada', 'Round', 'Ronda')), el('th', {}, T('Estado', 'State', 'Estado')), el('th', {}, ''))), tb)),
       el('p', { class: 'muted small' }, T('O relatório de uma rodada é o gerado na promoção (auditoria; não se regenera). Publicado, ele aparece em /relatorio/<contest>/rodada/<slug>/ e a página inicial do relatório principal o linka ao ser (re)publicada.',
-        'A round report is the one generated at promotion (audit; it is not regenerated). Once published it lives at /relatorio/<contest>/rodada/<slug>/ and the main report links to it when it is (re)published.')));
+        'A round report is the one generated at promotion (audit; it is not regenerated). Once published it lives at /relatorio/<contest>/rodada/<slug>/ and the main report links to it when it is (re)published.',
+        'El informe de una ronda es el que se genera en la promoción (auditoría; no se regenera). Una vez publicado, vive en /relatorio/<contest>/rodada/<slug>/ y el informe principal lo enlaza al ser (re)publicado.')));
     return wrap;
   }
 
@@ -100,18 +104,20 @@ export function makeReportTab(CONTEST, opts = {}) {
     panel.innerHTML = '';
     panel.append(
       el('div', { class: 'section' },
-        el('h2', {}, T('📑 Relatório da prova', '📑 Contest report')),
+        el('h2', {}, T('📑 Relatório da prova', '📑 Contest report', '📑 Informe de la competencia')),
         el('p', { class: 'muted small' }, T('Um site estático navegável (placar aberto, placar congelado, runs com veredicto canônico, clarifications anônimas, estatísticas, enunciados, tarefas do staff). Sem código-fonte, sem log de juiz, sem senha.',
-          'A browsable static site (open scoreboard, frozen scoreboard, runs with canonical verdict, anonymous clarifications, statistics, statements, staff tasks). No source code, no judge log, no password.')),
+          'A browsable static site (open scoreboard, frozen scoreboard, runs with canonical verdict, anonymous clarifications, statistics, statements, staff tasks). No source code, no judge log, no password.',
+          'Un sitio estático navegable (marcador abierto, marcador congelado, runs con veredicto canónico, aclaraciones anónimas, estadísticas, enunciados, tareas del staff). Sin código fuente, sin log del juez, sin contraseña.')),
         el('div', { class: 'row', style: 'gap:.6rem;align-items:center;flex-wrap:wrap' }, dlBtn,
-          el('span', { class: 'muted small' }, T('para guardar ou mandar aos participantes (abre em file:// ou em qualquer servidor web)', 'to keep or send to participants (opens from file:// or any web server)')))),
+          el('span', { class: 'muted small' }, T('para guardar ou mandar aos participantes (abre em file:// ou em qualquer servidor web)', 'to keep or send to participants (opens from file:// or any web server)', 'para guardar o enviar a los participantes (se abre desde file:// o cualquier servidor web)')))),
       el('div', { class: 'section' },
-        el('h2', {}, T('📢 Publicação (histórico do evento)', '📢 Publication (event history)')),
+        el('h2', {}, T('📢 Publicação (histórico do evento)', '📢 Publication (event history)', '📢 Publicación (histórico del evento)')),
         el('p', { class: 'muted small' }, T('Publicar deixa o mesmo site em /relatorio/<contest>/ e põe o botão 📑 Relatório no card do contest na página inicial e no /contests/. É público: publique quando tudo já foi divulgado. Republicar troca o site inteiro de uma vez; despublicar apaga o endereço.',
-          'Publishing puts the same site at /relatorio/<contest>/ and adds the 📑 Report button to the contest card on the home page and /contests/. It is public: publish when everything is already out. Republishing swaps the whole site at once; unpublishing removes the address.')),
+          'Publishing puts the same site at /relatorio/<contest>/ and adds the 📑 Report button to the contest card on the home page and /contests/. It is public: publish when everything is already out. Republishing swaps the whole site at once; unpublishing removes the address.',
+          'Publicar pone el mismo sitio en /relatorio/<contest>/ y agrega el botón 📑 Informe a la tarjeta de la competencia en la página principal y en /contests/. Es público: publica cuando todo ya fue divulgado. Republicar reemplaza el sitio entero de una vez; despublicar elimina la dirección.')),
         pubBox, pubMsg),
       el('div', { class: 'section', hidden: !has('rodadas') },
-        el('h2', {}, T('🔁 Relatórios das rodadas arquivadas', '🔁 Archived round reports')),
+        el('h2', {}, T('🔁 Relatórios das rodadas arquivadas', '🔁 Archived round reports', '🔁 Informes de las rondas archivadas')),
         roundsBox));
     built = true;
   }

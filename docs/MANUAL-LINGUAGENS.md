@@ -33,7 +33,7 @@ A página ensina o mesmo que este arquivo ensinava, e é onde o conteúdo passa 
   envelhece**. Uma tabela escrita à mão aqui envelheceria na primeira mudança.
 - O esqueleto de código mostrado é o **mesmo** campo que o editor insere: o aluno lê exatamente o que
   vai ver na tela.
-- A página é **bilíngue (pt/en)**, como toda tela do MOJ. Rodamos contests com competidores de fora, e
+- A página é **trilíngue (pt/en/es)**, como toda tela do MOJ. Rodamos contests com competidores de fora, e
   um manual só em português deixaria essa gente sem instrução.
 - O aluno **não lê o repositório**. Ele lê o site. Servir isto como `.md` em `/docs/` fazia o browser
   baixar um arquivo de texto.

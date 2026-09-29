@@ -30,10 +30,11 @@ if [[ "$REQUEST_METHOD" == GET ]]; then
     valid_id "$l" || fail 422 "login inválido" "login_invalid"
     chk="$(_ug_check "$l")"
   fi
-  regions='[]'
-  [[ -s "$CONTESTSDIR/$contest/regions.json" ]] && regions="$(jq -c \
-    '[.. | objects | select((.regex // "") != "") | {name:(.name // .regex), regex}]' \
-    "$CONTESTSDIR/$contest/regions.json" 2>/dev/null)"
+  # as SEDES possíveis p/ o by_region (a lista do painel de Máquinas): todo nó NÃO-recorte com nome, na
+  # pré-ordem — a sede de um time é um desses (lib/regions.sh). Antes: só nós COM regex (a sede definida só
+  # por nome gravado sumia da lista) e recortes incluídos.
+  source "$_LIBDIR/regions.sh"
+  regions="$(rg_flatten "$CONTESTSDIR/$contest/regions.json" | jq -c '[.[] | select((.view | not) and .name != "") | {name, regex}]' 2>/dev/null)"
   [[ -n "$regions" ]] || regions='[]'
   body="$(jq -cn --argjson g "$(ug_get "$contest")" --arg legacy "$(ug_legacy "$contest")" \
      --argjson r "$regions" --argjson chk "$chk" \

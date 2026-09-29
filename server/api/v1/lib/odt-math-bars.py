@@ -107,6 +107,7 @@ BODY_FALLBACK = ('Latin Modern Roman', 11)   # o corpo do etc/caderno-reference.
 # o CMU Serif (fonts-cmu) é o mesmo desenho COM grego. A 1ª instalada vence; nenhuma = a do corpo.
 MATH_FONTS = ('CMU Serif',)
 SCRIPT_PCT = 70                              # índices e limites, % do corpo
+SPACING_PCT = 16                             # espaço variável×operador (default do Math: 10)
 
 BARS = {'|': 's', '∣': 's', '∥': 'd', '‖': 'd'}   # | ∣ ∥ ‖
 OPENB = set('([{⟨⌊⌈')                             # ( [ { ⟨ ⌊ ⌈
@@ -380,6 +381,27 @@ def fix_operands(root):
     return n
 
 
+# fórmula que é SÓ um símbolo de operador/seta (`$\oplus$` em "onde $\oplus$ é o XOR", `$\to$`): o pandoc
+# a emite como IDENTIFICADOR (`<mi>⊕</mi>`), o LibreOffice Math a desenha na fonte de variáveis (CMU, que
+# não tem o glifo) e o 25.2 da imagem cai no DejaVu Sans. Como OPERADOR ela sai da OpenSymbol, com os
+# operandos vazios que o fix_operands põe (`{} oplus {}`, provado no build de teste de 28/09/2026). Só a
+# fórmula de um símbolo: no meio de uma expressão o papel do caractere não se troca. O ℝ (letra) não tem
+# conserto por aqui — nenhuma grafia do MathML o tira do DejaVu no 25.2.
+LONE_SYM = ((0x2190, 0x22FF), (0x27C0, 0x27FF), (0x2900, 0x2AFF))
+
+
+def fix_lone_symbol(root):
+    kids = [c for c in root.iter() if tag(c) not in ('math', 'semantics', 'mrow', 'annotation', 'annotation-xml', 'mspace')]
+    if len(kids) != 1 or tag(kids[0]) != 'mi':
+        return 0
+    x = text(kids[0])
+    if len(x) != 1 or not any(lo <= ord(x) <= hi for lo, hi in LONE_SYM):
+        return 0
+    kids[0].tag = '{%s}mo' % M
+    kids[0].attrib.clear()
+    return 1
+
+
 def _opener(e):
     """`(`/`[`/`{`…, ou o `<mo>` VAZIO de prefixo (o `\\left.` do TeX)."""
     return tag(e) == 'mo' and e.get('form') != 'postfix' and (
@@ -474,6 +496,7 @@ def fix_formula(data):
     tall = {}
     role = roles_of(root, tall)
     rewrite(root, role, tall)
+    syntax += fix_lone_symbol(root)
     operands = fix_operands(root)    # por ÚLTIMO (as outras olham o 1º/último filho do grupo)
     if not role and not names and not syntax and not brackets and not operands:
         return None
@@ -534,7 +557,10 @@ def settings_items(fam, pt):
             ('FontNameText', 'string', fam),
             ('FontNameSerif', 'string', fam),
             ('RelativeFontHeightIndices', 'short', str(SCRIPT_PCT)),
-            ('RelativeFontHeightLimits', 'short', str(SCRIPT_PCT))]
+            ('RelativeFontHeightLimits', 'short', str(SCRIPT_PCT)),
+            # espaço entre variável e operador (o default do Math é 10%: `1≤N≤10^5` saía colado;
+            # 25% abre a relação como o \thickmuskip do LaTeX mas separa `f (x)` e `a_i b_i`)
+            ('RelativeSpacing', 'short', str(SPACING_PCT))]
 
 
 def fix_settings(data, items):

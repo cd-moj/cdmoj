@@ -66,10 +66,29 @@ ck "colors:null apaga (volta ao padrão)" '[[ ! -e "$FIX/ac-c/balloons.json" ]]'
 call /contest/balloons GET '' cadm 'contest=ac-c'
 ck "rota volta à paleta padrão sem Sonic" '[[ "$(jq -r ".balloons.A" <<<"$BODY")" == FFFFFF && "$(jq -r ".balloons.enableSonic" <<<"$BODY")" == null ]]'
 ck "teams-meta trocado" '[[ "$(jq -r ".rules[0].school" < "$FIX/ac-c/teams-meta.json")" == "USP" ]]'
+
+# SEDES (28/09/2026): a árvore inteira é gravada (subregions, view, nó sem regex); forma errada recusa ANTES
+# de qualquer escrita; [] remove. Antes: nenhuma validação e o editor mandava a árvore achatada.
+TREE='[{"name":"Brasil","regex":"^br-","subregions":[{"name":"DF","regex":"^br-df-"},{"name":"GO"}]},{"name":"Femininos","view":true,"subregions":[{"name":"F3","regex":"^f3"}]}]'
+call /contest/admin/config POST "{\"regions\":$TREE}" cadm 'contest=ac-c'
+ck "sedes: árvore com subregions/view/nó sem regex gravada inteira" '[[ "$(jq -c . "$FIX/ac-c/regions.json")" == "$(jq -c . <<<"$TREE")" ]]'
+for BAD in '{"name":"x"}' '"texto"' '[{"regex":"^a"}]' '[{"name":"  "}]' '[{"name":"A","subregions":{"name":"B"}}]' '[{"name":"A","regex":5}]'; do
+  call /contest/admin/config POST "{\"colors\":{\"B\":\"123456\"},\"regions\":$BAD}" cadm 'contest=ac-c'
+  ck "sedes: forma errada ($BAD) → 422, nada gravado" '[[ "$OUT" == *"Status: 422"* && "$(jq -r .error.code <<<"$BODY")" == regions_invalid && "$(jq -c . "$FIX/ac-c/regions.json")" == "$(jq -c . <<<"$TREE")" && ! -e "$FIX/ac-c/balloons.json" ]]'
+done
+call /contest/admin/config POST '{"regions":[]}' cadm 'contest=ac-c'
+ck "sedes: [] remove o arquivo" '[[ "$OUT" == *"Status: 200"* && ! -e "$FIX/ac-c/regions.json" ]]'
+call /treino/contest-create/create POST "$(jq -c --argjson r '{"name":"sem lista"}' '.id="ac-bad" | .regions=$r' <<<"$SPEC")" reg
+ck "criação com sedes de forma errada → 422 regions_invalid" '[[ "$OUT" == *"Status: 422"* && "$(jq -r .error.code <<<"$BODY")" == regions_invalid && ! -d "$FIX/ac-bad" ]]'
 ck "conf LOCALE=en"     'grep -q "^LOCALE=en" "$FIX/ac-c/conf"'
 ck "conf LOGIN_ENABLED=n" 'grep -q "^LOGIN_ENABLED=n" "$FIX/ac-c/conf"'
 call /contest/basic GET '' cadm 'contest=ac-c'
 ck "basic.sh reflete en/login_enabled" '[[ "$(jq -r .locale <<<"$BODY")" == "en" && "$(jq -r .login_enabled <<<"$BODY")" == "false" ]]'
+call /contest/admin/config POST '{"basic":{"locale":"es"}}' cadm 'contest=ac-c'
+ck "config: locale es aceito" 'grep -q "^LOCALE=es" "$FIX/ac-c/conf"'
+call /contest/admin/config POST '{"colors":{"A":"123456"},"basic":{"locale":"xx"}}' cadm 'contest=ac-c'
+ck "config: locale inválido → 422 ANTES de gravar" '[[ "$OUT" == *"Status: 422"* && "$(jq -r .error.code <<<"$BODY")" == locale_invalid ]] && grep -q "^LOCALE=es" "$FIX/ac-c/conf" && [[ "$(jq -r .A "$FIX/ac-c/balloons.json")" != 123456 ]]'
+call /contest/admin/config POST '{"basic":{"locale":"en"}}' cadm 'contest=ac-c'
 
 echo "== usuários =="
 call /contest/admin/users GET '' cadm 'contest=ac-c'

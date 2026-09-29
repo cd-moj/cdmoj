@@ -19,7 +19,7 @@ Object.defineProperty(N.prototype, 'textContent', { get() { return this.kids.map
 const root = new N('body'); const msg = new N('div'); msg.attrs.id = 'msg'; root.append(msg);
 const $ = (id) => root.all().find((n) => n.attrs.id === id) || null;
 function el(tag, attrs, ...kids) { const n = new N(tag); for (const [k, v] of Object.entries(attrs || {})) { if (k.startsWith('on')) n.on[k.slice(2)] = v; else n.attrs[k] = v; } n.append(...kids.flat().filter((x) => x !== null && x !== undefined && x !== '')); return n; }
-function T(pt, en) { return pt; }
+function T(pt, en, es) { return pt; } function uiLocale() { return 'pt-BR'; }
 let CONFIRM = true; function confirm() { return CONFIRM; }
 let ID = 'col#pa', LOADED = 0, MSG = ''; async function loadSource() { LOADED++; hideConflict(); } function setMsg(t) { MSG = t; }
 JS

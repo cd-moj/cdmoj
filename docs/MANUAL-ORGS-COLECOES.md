@@ -70,7 +70,7 @@ ou admin, pela web, pelo `moj share` ou pelo `moj org members --add`) é conferi
 O critério de "pode criar problemas" é o **mesmo** de criar um problema ou um contest: conta
 `.admin` sempre pode; a lista de autorizados e a de bloqueados do painel do treino mandam; senão
 vale o limiar de problemas resolvidos. Se o seu monitor foi recusado, o conserto é autorizá-lo
-em **Painel do treino › Quem pode criar contests e problemas** — não é contornar por outra tela.
+no **🛡 Painel administrativo** do treino, seção **Quem pode criar contests e problemas** — não é contornar por outra tela.
 
 A recusa é **atômica**: se você mandar cinco logins e um for inválido, **nenhum** entra (a org
 nem chega a ser criada, no caso do `create`). **Remover** não valida nada — lixo que ficou de
@@ -84,7 +84,7 @@ possam ficar públicos, um **admin da org** precisa **liberar o público da org*
 
 | Web | CLI |
 |---|---|
-| Aba **Orgs** → a org → ligar/desligar a trava de público. | `moj org public <org> on`  /  `moj org public <org> off` |
+| Aba **Orgs** → a org → na coluna **Trava**, clique no estado para alternar entre **permite público** e **privada 🔒**. | `moj org public <org> on`  /  `moj org public <org> off` |
 
 > ⚠️ **Desligar a trava DESPUBLICA em cascata** todos os problemas públicos daquela org (eles
 > voltam a privado na hora). Ligue com calma; desligue com mais calma ainda.
@@ -98,7 +98,7 @@ Só é possível apagar uma org **vazia** (sem nenhum problema). A org implícit
 
 | Web | CLI |
 |---|---|
-| Aba **Orgs** → remover (só habilita se estiver vazia). | `moj org rm <org>` |
+| Aba **Orgs** → **excluir org** (só habilita se estiver vazia). | `moj org rm <org>` |
 
 ### Mover um rascunho para outra org
 
@@ -182,11 +182,11 @@ mostrando o progresso.
 
 **Abrir problemas ao Treino Livre:**
 1. Um admin da org liga o público: `moj org public eda1-2026 on` (ou aba Orgs na web).
-2. Publique cada problema: `moj publish eda1-2026#<prob>` (ou o botão **Publicar** no editor) —
+2. Publique cada problema: `moj publish eda1-2026#<prob>` (ou a opção **tornar público** no editor, aba Publicação) —
    o servidor valida + calibra e ele aparece no Treino Livre.
 
 **Compartilhar a autoria com um colega:**
-- `moj share eda1-2026 colega.login` (ou o **share** no editor) — o colega passa a editar todos
+- `moj share eda1-2026 colega.login` (ou a caixa **Membros da org** no editor) — o colega passa a editar todos
   os problemas da org.
 
 ## Ver também

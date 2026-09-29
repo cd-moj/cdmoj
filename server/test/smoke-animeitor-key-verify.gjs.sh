@@ -33,7 +33,8 @@ Object.defineProperty(N.prototype,'value',{set(v){this._v=String(v)},get(){ retu
 for (const p of ['checked','disabled','hidden','open']) Object.defineProperty(N.prototype,p,{set(v){this['_'+p]=!!v},get(){return !!this['_'+p]}});
 globalThis.document={ createElement:(t)=>new N(t), createTextNode:(t)=>({nodeType:3,text:String(t),textContent:String(t)}), hidden:false };
 globalThis.location={ origin:'https://c.moj.exemplo' };
-let LANG='pt'; function T(pt,en){ return LANG==='en' ? en : pt; }
+let LANG='pt'; function T(pt,en,es){ if(LANG==='es') return es!=null?es:(en!=null?en:pt); return LANG==='en' ? (en!=null?en:pt) : pt; }
+function uiLocale(){ return LANG==='es' ? 'es-419' : (LANG==='en' ? 'en-US' : 'pt-BR'); }
 let DATA=null, POSTS=[], POSTR={}, ASKED=[];
 async function apiGet(p){ return JSON.parse(JSON.stringify(DATA)); }
 async function apiPost(p,b){ POSTS.push(JSON.parse(JSON.stringify(b))); const r=POSTR[b.action]; return r ? JSON.parse(JSON.stringify(r)) : {}; }

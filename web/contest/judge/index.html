@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="pt-br" data-en-doctitle="Judging — Contest — MOJ">
+<html lang="pt-br" data-en-doctitle="Judging — Contest — MOJ" data-es-doctitle="Evaluación — Competencia — MOJ">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -21,7 +21,7 @@
           <span class="badge-beta">BETA</span></a>
         <div class="spacer"></div>
         <span class="countdown" id="contestCountdown"></span>
-        <a class="btn ghost" id="backBtn" href="#">Contest</a>
+        <a class="btn ghost" id="backBtn" href="#" data-en="Contest" data-es="Competencia">Contest</a>
       </div>
     </div>
   </header>
@@ -30,15 +30,15 @@
   <main class="container">
     <div class="section">
       <a class="btn ghost" href="/contest/ajuda/judge.html" target="_blank" style="float:right;margin:.2rem 0 0"
-         data-en="📖 How this role works">📖 Como funciona este papel</a>
-      <h2 data-en="Submissions Pending Judgment">Submissões Pendentes de Julgamento</h2>
+         data-en="📖 How this role works" data-es="📖 Cómo funciona este rol">📖 Como funciona este papel</a>
+      <h2 data-en="Submissions Pending Judgment" data-es="Envíos pendientes de evaluación">Submissões Pendentes de Julgamento</h2>
       <div class="tools">
-        <input id="fUser" placeholder="🔍 usuário…" data-en-ph="🔍 user…" style="max-width:160px">
-        <input id="fProblem" placeholder="🔍 problema…" data-en-ph="🔍 problem…" style="max-width:160px">
-        <label class="small"><input type="checkbox" id="onlyPending" checked> <span data-en="Pending only">Só pendentes</span></label>
-        <button class="btn ghost" id="refreshBtn" data-en="Refresh">Atualizar</button>
+        <input id="fUser" placeholder="🔍 usuário…" data-en-ph="🔍 user…" data-es-ph="🔍 usuario…" style="max-width:160px">
+        <input id="fProblem" placeholder="🔍 problema…" data-en-ph="🔍 problem…" data-es-ph="🔍 problema…" style="max-width:160px">
+        <label class="small"><input type="checkbox" id="onlyPending" checked> <span data-en="Pending only" data-es="Solo pendientes">Só pendentes</span></label>
+        <button class="btn ghost" id="refreshBtn" data-en="Refresh" data-es="Actualizar">Atualizar</button>
       </div>
-      <div id="judgeContainer"><span class="muted" data-en="Loading…">carregando…</span></div>
+      <div id="judgeContainer"><span class="muted" data-en="Loading…" data-es="Cargando…">carregando…</span></div>
     </div>
   </main>
   <script type="module" src="/shared/i18n-dom.js"></script>

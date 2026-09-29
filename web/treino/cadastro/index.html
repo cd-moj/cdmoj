@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="pt-br" data-en-doctitle="Sign up — Free Training MOJ">
+<html lang="pt-br" data-en-doctitle="Sign up — Free Training MOJ" data-es-doctitle="Regístrate — Entrenamiento libre MOJ">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -23,29 +23,29 @@
 <body>
   <header class="topbar"></header>
   <div class="card">
-    <h1 data-en="Create a Free Training account">Criar conta no Treino Livre</h1>
-    <p class="hint" data-en="Sign-up is confirmed via Telegram (prevents duplicate accounts). You need a Telegram account.">O cadastro é confirmado pelo Telegram (evita contas repetidas). Você precisa de uma conta no Telegram.</p>
+    <h1 data-en="Create a Free Training account" data-es="Crea una cuenta de entrenamiento libre">Criar conta no Treino Livre</h1>
+    <p class="hint" data-en="Sign-up is confirmed via Telegram (prevents duplicate accounts). You need a Telegram account." data-es="El registro se confirma por Telegram (evita cuentas duplicadas). Necesitas una cuenta de Telegram.">O cadastro é confirmado pelo Telegram (evita contas repetidas). Você precisa de uma conta no Telegram.</p>
 
     <form id="form">
-      <label for="fullname" data-en="Full name">Nome completo</label>
-      <input id="fullname" required autocomplete="name" placeholder="Seu nome" data-en-ph="Your name">
-      <label for="login"><span data-en="Desired login ">Login desejado </span><span class="hint" data-en="(optional — we keep your Telegram @ if empty)">(opcional — deixamos o seu @ do Telegram se vazio)</span></label>
-      <input id="login" autocomplete="username" placeholder="ex.: joaosilva" data-en-ph="e.g. joaosilva" pattern="[A-Za-z0-9._-]{2,32}">
-      <label for="university"><span data-en="University ">Universidade </span><span class="hint" data-en="(optional)">(opcional)</span></label>
-      <input id="university" placeholder="ex.: UnB" data-en-ph="e.g. UnB">
-      <button class="btn" id="submit" type="submit" data-en="Continue on Telegram →">Continuar no Telegram →</button>
+      <label for="fullname" data-en="Full name" data-es="Nombre completo">Nome completo</label>
+      <input id="fullname" required autocomplete="name" placeholder="Seu nome" data-en-ph="Your name" data-es-ph="Tu nombre">
+      <label for="login"><span data-en="Desired login " data-es="Login deseado ">Login desejado </span><span class="hint" data-en="(optional — we keep your Telegram @ if empty)" data-es="(opcional — mantenemos tu @ de Telegram si lo dejas vacío)">(opcional — deixamos o seu @ do Telegram se vazio)</span></label>
+      <input id="login" autocomplete="username" placeholder="ex.: joaosilva" data-en-ph="e.g. joaosilva" data-es-ph="ej.: joaosilva" pattern="[A-Za-z0-9._-]{2,32}">
+      <label for="university"><span data-en="University " data-es="Universidad ">Universidade </span><span class="hint" data-en="(optional)" data-es="(opcional)">(opcional)</span></label>
+      <input id="university" placeholder="ex.: UnB" data-en-ph="e.g. UnB" data-es-ph="ej.: UnB">
+      <button class="btn" id="submit" type="submit" data-en="Continue on Telegram →" data-es="Continuar en Telegram →">Continuar no Telegram →</button>
     </form>
 
     <div id="step2" class="hidden">
-      <div class="msg info" data-en="One step left: open Telegram and confirm to receive your login and password via the bot's private message.">Falta 1 passo: abra o Telegram e confirme para receber seu login e senha por mensagem privada do bot.</div>
-      <a id="deeplink" class="tg" target="_blank" rel="noopener" data-en="Open mojinho on Telegram">Abrir o mojinho no Telegram</a>
-      <p class="hint" id="polling" data-en="Waiting for Telegram confirmation…">Aguardando a confirmação no Telegram…</p>
+      <div class="msg info" data-en="One step left: open Telegram and confirm to receive your login and password via the bot's private message." data-es="Falta 1 paso: abre Telegram y confirma para recibir tu usuario y contraseña por mensaje privado del bot.">Falta 1 passo: abra o Telegram e confirme para receber seu login e senha por mensagem privada do bot.</div>
+      <a id="deeplink" class="tg" target="_blank" rel="noopener" data-en="Open mojinho on Telegram" data-es="Abrir mojinho en Telegram">Abrir o mojinho no Telegram</a>
+      <p class="hint" id="polling" data-en="Waiting for Telegram confirmation…" data-es="Esperando la confirmación de Telegram…">Aguardando a confirmação no Telegram…</p>
     </div>
 
     <div id="result" class="hidden"></div>
 
     <p class="hint" style="margin-top:1rem">
-      <span data-en="First time here? See ">Primeira vez aqui? Veja </span><a href="/treino/ajuda/" data-en="how to submit a solution">como enviar uma solução</a><span data-en=" (input and output, extensions and the starter code for each language)."> (entrada e saída, extensões e o código inicial de cada linguagem).</span>
+      <span data-en="First time here? See " data-es="¿Primera vez aquí? Mira ">Primeira vez aqui? Veja </span><a href="/treino/ajuda/" data-en="how to submit a solution" data-es="cómo enviar una solución">como enviar uma solução</a><span data-en=" (input and output, extensions and the starter code for each language)." data-es=" (entrada y salida, extensiones y el código inicial de cada lenguaje)."> (entrada e saída, extensões e o código inicial de cada linguagem).</span>
     </p>
   </div>
 

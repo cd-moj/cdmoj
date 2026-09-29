@@ -121,6 +121,38 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   Espelho disso: **conta renomeada arrasta TODAS as sessões** (`rename_contest_sessions`), não só
   o token da requisição — foi o furo que fez uma sessão velha submeter com o login antigo e
   RECRIAR o diretório do fantasma (`server/bin/user-merge.sh` conserta o resíduo).
+  **CONTEST COMPARTILHADO × PAPÉIS (28/09/2026)**: com `USERS_FROM` a senha pode ser conferida no
+  treino e o papel vem só do sufixo — qualquer `.admin/.judge/.staff` do treino entrava com o papel em
+  todo contest compartilhado (produção: 9 `.admin` × 14 contests; o admin de um professor administrava
+  a prova de outro). Agora `verify_password`: senha LOCAL não-vazia é AUTORITATIVA (sem fallback — é o
+  que faz o tombstone `!…` de bloqueio funcionar); pela fonte, papel só com **`_shared_role_ok`** = o
+  `SHARED_ADMIN` do conf (gravado pelo `cc_create` quando reusa o admin, que só pode ser o
+  `<criador>.admin` — o de outro = 422 `admin_login_foreign`) ou, em contest antigo, `<owner>.admin`, ou
+  um SUPERADMIN. `_session_account_alive` aplica o mesmo à sessão aberta (vira 401). Juiz/staff/
+  co-organizador de contest compartilhado = conta LOCAL. `USERS_FROM`/`SHARED_ADMIN` lidos por
+  `conf_value` (caminho quente). O `SHARED_ADMIN` segue o rename (`owner_rename_fast`); auditoria antes
+  do deploy: `server/bin/shared-admin-audit.sh [--apply]`. Teste: `smoke-shared-roles.sh`.
+  **Agir num participante compartilhado** (dir local sem `account.json`): `shared_overlay_ensure <c> <l>
+  [new]` (`lib/users.sh`) cria o overlay local SEM senha — só `fullname` vem da fonte, history intocado;
+  sem `new` exige o dir (quem nunca entrou não ganha linha no placar). Com ele, `user-disable` grava `!…`
+  (`{undo}` apaga a senha e ele volta pelo treino), `user-disqualify` marca, e `user-remove` deixa um
+  TOMBSTONE (`!…` + desclassificado) — senão a pessoa voltava na hora pela conta do treino.
+  `admin/users` lista também quem só tem dir (`shared`, `dir_only`); `users-set-password` recusa (409
+  `shared_users`). ⚠ **Criar conta nunca zera um `history` que já existe** (`user_create`, `users-bulk`,
+  `_cc_stage_user`: `[[ -f history ]] || : > history`) — era como "converter na mão" apagava o histórico.
+  **DESFAZER o compartilhamento** = `POST /contest/admin/users-convert` (`lib/users-convert.sh`, invariantes
+  I1–I5 no cabeçalho): prévia (`dry_run`, nada gravado, `plan_id`) → execução com o `plan_id` + confirmação
+  (id do contest digitado se a prova já começou). População SÓ do contest (dirs, roster, **sessões vivas**,
+  `access.log`) — nunca varrer o treino; senha NOVA (da fonte só `fullname`); TIME vira UMA conta (a `!<uuid>`
+  do `time-<slug>` vira senha real; membro com history = conta local desabilitada); roster arquivado em
+  `var/`; ponto de commit = tirar `USERS_FROM` (retomável: conta com `converted_at` não ganha outra senha).
+  Nada de processo por conta (2000 contas ≈ 4 s no smoke). Teste: `smoke-users-convert.sh`.
+  Clientes: cartão **🔗 Contas compartilhadas** em Pessoas › Contas (`web/contest/admin/users-convert.js`,
+  teste `smoke-users-convert-card.gjs.sh`), `moj-contest users convert [--apply]`; o wizard só cria
+  compartilhado com o ☐ "Entendi" (5 consequências, `steps/usuarios.js`); Central = item `shared_users`;
+  Inscrições avisam o roster arquivado (`converted` no GET).
+  Rename no treino leva o dir de TODO contest compartilhado (`shared_rename_login`, + as sessões dele;
+  submissão pendente lá = 409). `duplicate` não herda `users_from`. Teste: `smoke-shared-accounts.sh`.
   **Derrubar as sessões de um login = `remove_contest_sessions[_v] <c> <login…>`** (`lib/auth.sh`): um `grep`
   acha os arquivos com a linha `LOGIN=<login>` e só eles são confirmados por `source`. NUNCA um
   `$( source "$f" )` por arquivo de sessão: a sessão não expira e o diretório só cresce (21.254 em
@@ -217,9 +249,9 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   (regex→campos vazios). **O NOME é campo ÚNICO: `fullname` = nome do time** (usuário de
   contest É o time); `.team.name` existe só como LEGADO da migração — os leitores fazem
   `.team.name // .fullname` e a API nunca o escreve.
-  `.team.region` = SEDE (texto; casa com o `name` de regions.json): o placar filtra por nome,
-  os badges preferem-na à derivação regex e o `staff_can_see` aceita entradas
-  **`region:<nome>`** no staff-filters. Assets por-time: `users/<login>/{photo,logo}.png`
+  `.team.region` = SEDE GRAVADA (texto; casa com o `name` de regions.json e vence a regex — regra única
+  de sedes, `lib/regions.sh`); o `staff_can_see` aceita entradas **`region:<nome>`** no staff-filters
+  (= o aluno ESTÁ nesse nó: a sede, um ancestral dela ou um recorte). Assets por-time: `users/<login>/{photo,logo}.png`
   (upload admin `/contest/admin/team-assets`, servidos por `/contest/team-{photo,logo}` com o
   gate do placar; `/contest/teams` = diretório que o placar mescla ANTES do teams-meta).
 - **Telegram (overlay só do treino) + alertas**: `lib/telegram.sh` (índice `var/telegram/{by-tgid,by-login}`,
@@ -236,7 +268,8 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   **e as SESSÕES também** (`rename_contest_sessions`, resposta `sessions_updated`) **e as
   INSCRIÇÕES** (`reg_rename_login`) **e os snapshots de participação virtual** (`vr_rename_login`) **e a POSSE** (`lib/owner-rename.sh`,
   2026-09-18: dono de problema — `.moj-meta.json` + índice + overlay —, de contest (`contests/<c>/owner`), de
-  coleção e as permissões de criar contest; o barato é síncrono, os metas — 1 commit por pacote — vão
+  coleção e as permissões de criar contest, e — 28/09 — o `SHARED_ADMIN` dos contests compartilhados
+  (senão o dono perde a administração da prova ao trocar de handle); o barato é síncrono, os metas — 1 commit por pacote — vão
   destacados e são retomáveis. ⚠ `owner` CONCEDE acesso (`owners_visible`, `problems_denied_for`): dono
   apontando p/ login que não existe mais é posse SOLTA, e os problemas somem de "Meus" — foi o relato do
   Daniel Saad, 201 problemas + 87 contests no login antigo. Passado se conserta com
@@ -267,8 +300,9 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   roster: `reg_get` normaliza e DESCARTA chave desconhecida) com `dm` (qualquer aviso, dá o
   intervalo mínimo) × `warn` (o automático já disparado, garante "uma vez") — cutucar à mão não
   pode cancelar o aviso da véspera. Texto em HTML ⇒ **escapar `&<>`** de nome de time/contest.
-  Idioma: contest `LOCALE=en` manda **EN + PT no mesmo texto** (DM não tem seletor como a web, e
-  contest `en` é o que mistura gente de fora com brasileiros); contest pt manda só PT.
+  Idioma: contest `LOCALE=en` (ou `es`) manda **EN + PT (ou ES + PT) no mesmo texto** (DM não tem
+  seletor como a web, e contest `en`/`es` é o que mistura gente de fora com brasileiros; data com o
+  mês por TABELA, nunca `%b`); contest pt manda só PT.
   **A porta é a API** (`auth/login.sh`): `LOGIN_ENABLED`/`LOGIN_START_TIME`
   — que eram só desenho de tela — e o roster valem lá; papel nunca é barrado. **TIME = conta local**
   (`users/time-<slug>/`, senha `!<uuid>`) e o membro entra com a credencial DELE: o login faz o
@@ -335,8 +369,8 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   o site gerado na promoção — auditoria, não se regenera), servido em `/relatorio/<c>/rodada/<slug>/`
   (regex do nginx ANTES da genérica); a index principal só linka rodadas quando gerada com
   `REPORT_PUBLISH=1` (no tar.gz offline o link não teria destino).
-  **É bilíngue como qualquer tela**: `rep_t <chave>` (molde do `_doc_t`) resolve pelo `LOCALE`
-  do contest — string nova entra na tabela, e bloco awk/jq recebe o rótulo já traduzido por
+  **É trilíngue como qualquer tela**: `rep_t <chave>` (molde do `_doc_t`) resolve pelo `LOCALE`
+  do contest (`pt|en|es`; chave sem `es` cai no `en`) — string nova entra na tabela nos TRÊS, e bloco awk/jq recebe o rótulo já traduzido por
   `-v`/`--arg` (nunca literal no meio do programa).
   **Placar do relatório = UM placar por VISÃO de coorte** (`rep_score_boards`, uma `<section
   class="board-view">` por `placar-view-*.txt` que o `build.sh` já gerou; o seletor troca qual
@@ -614,6 +648,10 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   `users/<login>/history`; vale auto+manual), dedup por id determinístico, gateado pelo mtime de
   **`var/.score-dirty`**, **sem mudar o daemon**. Folha via `pr_build_balloon` (cor por `balloons.json`/default ICPC + tabela
   hex→nome). Escopo por `staff_can_see`; auditar `balloon-*`. Balão **não** vai p/ a lista do aluno.
+  **O PAPEL segue o `LOCALE` do contest** (folha de rosto da impressão e folha de balão, pt/en/es —
+  `_pr_t`/`pr_lang`/`pr_color_name <hex> <lang>`): o meta carimba `sheet_lang` e o idioma entra na
+  validade do cache (trocou o LOCALE, a folha se refaz); o nome da cor é gravado na criação no idioma
+  do contest (`color_name` + `color_lang`). Ver `docs/I18N.md`.
   **`first_site`**: a tarefa avisa se é o PRIMEIRO balão daquela cor **na SEDE** do time (★ +
   "first to solve" na fila e numa faixa da folha A4). A sede sai do `.team.region`; o mapa
   `(sede × problema)` é **uma varredura** (`pr_site_first_map`: `find|xargs jq` sobre account+metrics)
@@ -761,7 +799,7 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   faixa ou fórmula inline: era isso que dava "fácil" na busca e "difícil" na estatística
   (`acceptance_rate` por submissão fica só como número). Pós-deploy: `touch contests/treino/conf`
   força o recompute em massa dos metrics (ganha `tries_to_ac`).
-- **ENUNCIADO EM VÁRIOS IDIOMAS (2026-09-15)** — é OUTRO eixo que o `i18n.js` (interface pt|en):
+- **ENUNCIADO EM VÁRIOS IDIOMAS (2026-09-15)** — é OUTRO eixo que o `i18n.js` (interface pt|en|es):
   o eixo dos DOCUMENTOS (pt/en/es). Fonte única da descoberta de arquivo: `mojtools/statement-langs.sh`
   (`stmt_file`/`stmt_langs_of`/`stmt_note_file`/`stmt_samples_html` — o ÚNICO gerador do HTML dos
   exemplos, usado pelo `gen-problem-json` E pelo `problems/preview`); pacote em `docs/PACOTE.md`
@@ -825,8 +863,8 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
 - **Documentos da prova** (`lib/contest-docs.sh` + `handlers/contest/{admin/docs,doc}.sh`, painel
   **Evento › Documentos** do admin (módulo `documentos`) e aba 📄 do `.cjudge`): info sheet, caderno (capa + enunciados), folha de
   time limits e **EDITORIAL** (o `docs/solucao.md` do PACOTE de cada problema, via `pkg_path` —
-  o campo que nunca vai ao aluno), em **PDF+HTML × pt/en/es** (`DOC_LANGS`; a INTERFACE segue pt/en —
-  são eixos diferentes), tudo derivado do que o contest já tem (conf, `PROBS`, `enunciados/`,
+  o campo que nunca vai ao aluno), em **PDF+HTML × pt/en/es** (`DOC_LANGS`; a INTERFACE também é pt/en/es,
+  mas é OUTRO eixo), tudo derivado do que o contest já tem (conf, `PROBS`, `enunciados/`,
   `run/tl`, `run/registry`) — nada de dado novo. **Toda string do documento sai do `_doc_t`**:
   ternário `[[ $l == pt ]] && … || …` solto é o que travava um 3º idioma.
   **PDF PRONTO enviado** (`action:upload` → `docs/<tipo>.<lang>.uploaded.pdf`) **vence o gerado**
@@ -849,12 +887,26 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   `render-docs.sh` roda no dev (tem pandoc/soffice) e afirma tudo isso.
   ⚠ **Tipografia**: `server/etc/contest-doc.css` (rota HTML→soffice) e `server/etc/caderno-reference.odt`
   (rota pandoc→ODT, que IGNORA CSS) descrevem o MESMO documento por caminhos diferentes — mexeu num,
-  confira o outro. Ambos em **A4 + Latin Modern** (a cara de LaTeX; `fonts-lmodern` é asserção de
-  build). Antes divergiam: capa A4 + miolo US Letter no mesmo caderno, `Heading 1` menor que o
-  `Heading 2` e itálico SINTÉTICO (o DejaVu da imagem não tem itálico). Regenerar o ODT: receita no
-  cabeçalho do `_doc_html2pdf_odt` — **mimetype primeiro, `zip -0`**, senão o LO recusa calado.
-  Renderização real (pandoc+soffice) só é exercida por `server/test/render-docs.sh` (dev ou
-  DENTRO da imagem; A4 em toda página, Latin Modern embarcada, texto extraído, páginas do editorial). **Gates de FASE no `/contest/doc`** (e no `/contest/resources`)
+  confira o outro. Ambos em **A4 + Computer Modern (CMU)**. Antes divergiam: capa A4 + miolo US Letter no
+  mesmo caderno, `Heading 1` menor que o `Heading 2` e itálico SINTÉTICO (o DejaVu da imagem não tem itálico).
+  **MOLDE DOS CADERNOS DA SBC (28/09/2026, "pouca cara de LaTeX" na XIV Maratona UnB)**:
+  - Corpo em **CMU Serif** 11pt com entrelinha proporcional 89% = os 13,6pt do LaTeX 11pt. O Latin Modern tem métrica vertical de 1,417 em e a "simples" do LibreOffice dava 15,6pt. Não há opção que tire o lineGap no Linux: `AddExternalLeading` e `UnxForceZeroExtLeading` foram testadas.
+  - Parágrafo sem recuo e com respiro entre parágrafos; **hifenização** no idioma do documento (`-M lang=` do pandoc + `hyphen-*` na imagem; antes era en-US para tudo).
+  - Título do problema "Problema A – Nome" em CMU Sans centralizado.
+  - Exemplos em **TABELA** "Exemplo de entrada N | Exemplo de saída N", pelo `lib/odt-samples.lua` — **OPT-IN** (`samples_table` no `docs/config.json`, checkbox no painel, `moj-contest docs set samples_table=true`; decisão do Ribas: exemplo com linha longa quebra na meia página e ficava pior). Padrão = as caixas empilhadas de sempre. A transformação é a jusante: o HTML do site segue empilhado e o `stmt_samples_html` do mojtools não muda. A tabela sai crua e os estilos de célula entram pelo passo Python, porque o LO só aplica estilo AUTOMÁTICO em célula.
+  - `lib/odt-caderno.py` faz o resto:
+    - rodapé "evento – Problema X – título · página", via `text:chapter`;
+    - **logo** opcional no cabeçalho (`docs/header-logo.png`, ação `logo` do `admin/docs`, `moj-contest docs logo`);
+    - 1ª página certa no caminho por-problema;
+    - entrelinha 100% no parágrafo com imagem (a 89% ela subia sobre o texto).
+  - Emoji pela `fonts-noto-color-emoji` (CBDT vira Type 3 no PDF; o COLRv1 do Fedora sai em branco) — provado no LibreOffice 25.2 da imagem (build de teste de 28/09, asserção exige Type 3).
+  - Símbolo de matemática que a CMU não tem, digitado no TEXTO (⊕ ⋅ ≤ ≠ ∑ ∈ ′…, fora de `$…$`), é marcado pelo `odt-caderno.py` com um span na **Latin Modern Math** (já vem no `fonts-lmodern`); sobrescrito/subscrito Unicode (`10⁹`, `x₁`), que nenhuma das duas tem, vira o dígito da CMU em posição de índice. Sem isso o LibreOffice escolhia o substituto sozinho: DejaVu Serif no 25.2 da imagem, DejaVu Sans no 26.2 do dev. ⚠ **Regra de fontconfig NÃO resolve**: o 25.2 nem consulta o fontconfig para esse glifo (provado com `FC_DEBUG` no build de teste de 28/09). A cobertura das fontes vem do `fc-match -f %{charset}`. Dentro de FÓRMULA os símbolos são da OpenSymbol (limite do LibreOffice Math); a fórmula que é SÓ um símbolo (`$\oplus$` em "onde $\oplus$ é o XOR") o pandoc emite como `<mi>` e caía no DejaVu — o `odt-math-bars.py` (`fix_lone_symbol`) a vira operador com operandos vazios. O ℝ (`\mathbb{R}`) segue no DejaVu Sans: nenhuma grafia do MathML o tira de lá no 25.2 (limite conhecido, como o primo). Testes: `smoke-odt-samples.sh`, `smoke-odt-math-bars.sh` e `render-docs.sh`.
+  - A capa não é numerada: "páginas de 1 a N" conta o miolo.
+
+  Regenerar o ODT: receita no cabeçalho do `_doc_html2pdf_odt` — **mimetype primeiro, `zip -0`**, senão o LO
+  recusa calado. Renderização real (pandoc+soffice) só é exercida por `server/test/render-docs.sh` (dev ou
+  DENTRO da imagem): A4, CMU embarcada, entrelinha ≈13,6pt, exemplos lado a lado, rodapé, capa × última
+  página, emoji, logo. A metade sem soffice (filtro + passo de página) está em `smoke-odt-samples.sh`. **Gates de FASE no `/contest/doc`** (e no `/contest/resources`)
   — organização = SÓ admin/chefe/juiz; `.staff`/`.cstaff`/`.mon` esperam a fase como o time
   (decisão do Ribas, 2026-09-15: a sede não recebe o caderno antes da prova — é a mesma regra do
   `can_see_problems`): `contest`/`times` publicados só a partir do INÍCIO (`contest_phase`),
@@ -952,8 +1004,11 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   `cohorts reg_cohorts`=coortes, `registration reg_*`=inscricoes, `tov`=sedes, `telao`=telao — chave do Animeitor e última conferência) e a checagem
   `modules` avisa módulo DESLIGADO com dados (`mod_detect`). Checagem nova de módulo entra
   dentro do `if mod_on`, e o fixture do `smoke-preflight.sh` liga todos. **Checagem nova nasce
-  bilíngue**: `add2 <id> <level> <label> <detail> <label_en> <detail_en> [action]` (a Central usa
-  `label_en`/`detail_en` em inglês; o `add` antigo é só-PT, legado). `action` põe um BOTÃO no item —
+  TRILÍNGUE**: `add3 <id> <level> <label> <detail> <label_en> <detail_en> <label_es> <detail_es> [action]`
+  (a Central escolhe pelo idioma da interface; o `add`/`add2` antigos SAÍRAM — o `finish.sh` usa o mesmo
+  `add3` e os bloqueadores de rodada, `_add <code> <pt> <en> <es>`; parte de texto que vem de `$(…)` é
+  calculada UMA vez em variável e montada por idioma; `i18n-coverage.sh` barra a volta do helper só-PT).
+  `action` põe um BOTÃO no item —
   hoje só `warm_judges` (`judges_warm`: juiz frio × problema, `lib/judge-warm.sh`, e o
   `POST /contest/admin/warm-judges`; teste `smoke-judge-warm.sh` + caso `central` do
   `admin-inplace.gjs.sh`).
@@ -1164,8 +1219,39 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   código — que sempre foi visível. Linha `SHOWCODE` em conf antigo é morta (o settings POST a apaga e
   aceita-e-ignora a chave; spec de criação com `showcode` idem). Não reintroduza um "abrir soluções" sem
   um pedido explícito. ⚠ A tela **Regras** agrupa os campos do `settings-editor.js` por ÍNDICE: tirar um
-  campo do MEIO desloca −1 todos os seguintes no `GROUPS` de `settings-tab.js`. Teste:
+  campo do MEIO desloca −1 todos os seguintes no `GROUPS` de `settings-tab.js` (guarda:
+  `smoke-settings-groups.gjs.sh` monta o editor e confere seção por seção). Teste:
   `smoke-submission-access.sh` (parte do conf LEGADO com `SHOWCODE=1`).
+- **`ALLOWLATEUSER`/`allow_late` ("Permitir auto-cadastro de novos usuários (late users)") REMOVIDA em
+  2026-09-28**, mesmo molde: era o `adduser` do bot do MOJ antigo (`mojinho.sh`, gitignorado — só o ramo
+  morto dele ainda cita a var) e nada a lia desde o store por-usuário — a caixa não fazia nada. Settings POST e criação
+  aceitam e ignoram a chave; a linha do conf sai no primeiro save. Quem entra num contest compartilhado
+  é decidido pela INSCRIÇÃO (módulo `inscricoes`), não por ela.
+- **SEDE (time → sede) = UMA regra** (28/09/2026): `server/api/v1/lib/regions.sh` (jq + gawk) e o gêmeo
+  `web/shared/regions-match.js` — mudou um, muda o outro no MESMO commit; `smoke-regions-match.gjs.sh`
+  compara os dois (rode com `MOJ_REGIONS_EXTRA=<dir>` apontando árvores reais de produção, que NÃO vão
+  para o repo). Gravada vence (órfã vira sede sintética), senão a regex mais FUNDA (pai perdia para a
+  folha: o gate de UA dava "Brasil" p/ teamsp01), pai = soma dos filhos (exceto recorte→nó comum), nó
+  comum com o nome da sede também a contém (ramos paralelos sem `view`, mdp-teste), recorte nunca é sede.
+  Regex no subconjunto seguro (`rg_norm`); casamento no **gawk** (chame `gawk`, não `awk` — a imagem pode
+  ter mawk; laço nó × logins p/ compilar cada regex uma vez; `@tsv` dobra a barra invertida da regex —
+  use `join("\t")`). Cache `var/regions-{nodes.json,map.tsv}`. Detalhes: `docs/SCOREBOARD.md` (Sedes).
+  API: `/contest/admin/regions` (árvore + sede por login; inscrito grava no ROSTER — `region` em
+  `teams[t]`/`entries[l]`, levada ao `.team.region` pelo materialize; `dry_run`; `expect_sig`) e a CLI
+  `moj-contest regions`. `cc_regions_ok` (config.sh/criação) recusa regex fora do subconjunto (`error.nodes`).
+  F3a (28/09) migrou escopo do staff (`region:<nó>` = PERTENÇA, pai cobre as sedes filhas), `staff_regions`,
+  etiquetas, gate de UA (o LOTE agora usa a mesma sede derivada do login e lê de ARQUIVO — `--argjson` com o
+  mapa de ~2.300 contas beirava o ARG_MAX), materialize de times e balão 1º da sede. F3b: estatística
+  (`teams_idx.rs`), Nutella, classificação, Animeitor e capa do caderno. F3c: relatório (`RTREE` com `i` + `RMEM`,
+  sem regex no HTML). F4: placar ao vivo/virtual (`score-filters.js` › `regionOptions` com `_mem` + memo),
+  prévia de escopo das Tarefas, listas de sede de Times/Máquinas/semear (a árvore inteira, não só o topo).
+  F5: painel de sedes em 3 MODOS (`sites-tab.js` + modelo puro `sites-model.js`; gjs `smoke-sites-model`/
+  `smoke-sites-tab`): a árvore é a verdade, modo = vista; `rule` no nó é SÓ p/ a interface (descartado se não
+  gera mais a regex exata); prévia = rgAssign sobre `?map=1` + pendências; renomear leva os times GRAVADOS
+  (delta visível antes de salvar). Central: item `regions` (regex recusada/órfã/parou no pai/sem sede).
+  A órfã (gravada fora da árvore) PENDURA no nó que a regex daria. Cache válido por IDENTIDADE (inode:
+  tamanho:mtime) do regions.json/registrations.json — `mv`/restauração com mtime antigo refaz. `server/bin/regions-audit.sh <c>` (só lê) diz o que muda
+  em cada consumidor antigo — rodar na produção antes de migrar (em 28/09: zero diferenças nos 3 reais).
 - **ACESSO É RESPONSABILIDADE DA API, NUNCA SÓ DA INTERFACE.** Todo endpoint que devolve
   conteúdo/metadados/**existência** de um recurso CORTA na própria API (`fail 403/404`) quando o
   login não tem permissão. Assuma que clientes (`moj-cli`, `curl`, scripts) vão tentar burlar — a
@@ -1566,14 +1652,16 @@ mexa na outra. O índice separa as coleções por `\u001f` (nome é texto livre:
   os checkboxes como `=y/=n`. Card **🧩 Problemas paralelos** (`CPUNEEDED`, `SAMENUMA`). Teste:
   `smoke-limits-tab.gjs.sh`. **Máquinas** (treino/admin): linha da política global de testes em paralelo
   (`host:"*"`), `P≤` = `parallel_max` por juiz, largura/SMT/nó/hold na célula de slots.
-- **i18n pt/en (mecanismo ÚNICO, `shared/i18n.js`)**: `T('texto pt','text en')` é o jeito
-  canônico de escrever QUALQUER string de exibição no JS; o par do HTML estático é o atributo
-  **`data-en`** (+ `data-en-ph`/`-title`/`-html`/`<html data-en-doctitle>`), traduzido por
+- **i18n pt/en/es (mecanismo ÚNICO, `shared/i18n.js`; doc + GLOSSÁRIO do espanhol em
+  `docs/I18N.md`)**: `T('texto pt','text en','texto es')` é o jeito canônico de escrever QUALQUER
+  string de exibição no JS (es ausente cai no en, en ausente no pt; datas por `uiLocale()`); o HTML
+  estático leva os atributos **`data-en`/`data-es`** (+ `-ph`/`-title`/`-html`/`<html
+  data-en-doctitle data-es-doctitle>`), traduzidos por
   `shared/i18n-dom.js` (inclua o `<script>` na página). Um só `LANG` de módulo governa tudo, com
-  **precedência**: **LOCALE do contest** (explícito, via `setLang(loc)` sem persist nas páginas de
-  contest — `basic.locale` de `/contest/basic`) **> `?lang=` na URL > seletor pt/en do usuário**
+  **precedência**: **LOCALE do contest** (`pt|en|es`, explícito, via `setLang(loc)` sem persist nas páginas de
+  contest — `basic.locale` de `/contest/basic`) **> `?lang=` na URL > seletor PT · EN · ES do usuário**
   (header do site, `setLang(l,{persist:true})`, localStorage `moj_lang`) **> idioma do browser**
-  (`navigator.language` não-pt ⇒ en). Os botões PT · EN são **`shared/lang-toggle.js`** (fonte única): no
+  (`es-*` ⇒ es, outro não-pt ⇒ en). Os botões PT · EN · ES são **`shared/lang-toggle.js`** (fonte única): no
   `site-header.js` recarregam a página; nos **tutoriais de papel** (`contest/ajuda/_tutorial.js`) trocam EM
   LUGAR (o `i18n-dom.js` é reversível) — e o `?lang=` da URL acompanha o clique, senão um reload com
   `?lang=en` na barra desfaria o PT escolhido (teste `smoke-lang-toggle.gjs.sh`). Dentro do contest o
@@ -1581,8 +1669,8 @@ mexa na outra. O índice separa as coleções por `\u001f` (nome é texto livre:
   MANDA — e-mail de convocação p/ sede de fora, tutorial passado adiante: sem ele quem escreve o
   e-mail não tem como garantir a versão que o destinatário vai abrir. Ele **grava** (senão o
   idioma se perderia no primeiro clique) e **perde para o LOCALE do contest**, igual ao seletor.
-  Tag que não comece por `pt` cai em `en` (mesma regra do navegador), então `?lang=es` abre em
-  inglês — que é o que existe. **NÃO** traduzir: **veredictos** (string vem do servidor — só o rótulo à
+  Tag `es*` abre em espanhol; outra que não comece por `pt` cai em `en` (mesma regra do
+  navegador). **NÃO** traduzir: **veredictos** (string vem do servidor — só o rótulo à
   volta), enunciados, **títulos de problema/nomes de contest/time**, corpo de notícias, tags.
 - **AUTO-REFRESH É EM LUGAR — a página NUNCA pode parecer que recarregou** (regra do Ribas,
   2026-09-02; já tinha acontecido antes e voltou no painel Sessões & anomalias, que fechava os
@@ -1598,8 +1686,9 @@ mexa na outra. O índice separa as coleções por `\u001f` (nome é texto livre:
   ainda refaz o DOM — pendente. **Teste**: `server/test/admin-inplace.gjs.sh` (FakeNode + dom.js +
   admin-ui.js + o painel sem imports; `load()` 2× com o mesmo dado mantém a identidade dos nós,
   `<details>` aberto e o texto digitado) — painel novo com timer ganha um caso lá.
-- **Toda tela/string nova NASCE nos DOIS idiomas** (`T('pt','en')` no JS, `data-en` no HTML) — deixar
-  só em PT é **bug**, igual doc atrasada; nunca renderize texto de exibição sem passar pelo `T`/`data-en`.
+- **Toda tela/string nova NASCE nos TRÊS idiomas** (`T('pt','en','es')` no JS, `data-en` + `data-es` no
+  HTML; espanhol latino-americano neutro, glossário em `docs/I18N.md`) — deixar só em PT é **bug**, igual
+  doc atrasada; nunca renderize texto de exibição sem passar pelo `T`/`data-en`/`data-es`.
 - ⚠️ **Campo de data/hora: SEMPRE o par `toLocalDT`/`dtToEpoch`** (`shared/contest-config/util.js`),
   NUNCA `toISOString()`. `<input type="datetime-local">` é lido por `Date.parse` em hora **LOCAL**;
   preencher com `toISOString()` (**UTC**) não fecha o ida-e-volta e **cada Salvar empurra o valor
@@ -1615,8 +1704,10 @@ mexa na outra. O índice separa as coleções por `\u001f` (nome é texto livre:
   resolve o par pt/en na renderização (os 4 renderizadores de nav — `contest-shell.js`,
   `lib/contest-chrome.js`, `contest.js`, `score/score.js` — re-pintam no evento `moj:lang`).
   **Botão novo no `navbuttons.sh` ⇒ linha nova no mapa do `nav-i18n.js`** (sem a linha ele cai no
-  label PT do servidor — não some, mas vira string só-PT, que é bug). Datas: `toLocaleString()` SEM
-  `'pt-BR'` fixo (o formato segue `document.documentElement.lang`, que o `applyHtmlLang` ajusta).
+  label PT do servidor — não some, mas vira string só-PT, que é bug). Datas: `toLocaleString(uiLocale())` (e
+  `toLocaleDateString`/`TimeString` idem) — NUNCA sem argumento: sem locale o formato é o do NAVEGADOR,
+  não o da interface (o `lang` do documento não governa o `Intl`), e um contest em espanhol aberto
+  num navegador em inglês mostrava data americana.
 - **Painel de admin do contest = SHELL + nav por MÓDULOS + painéis.** `web/contest/admin/admin.js`
   só renderiza; a navegação vive em **`nav.js`** (puro, testável em gjs): `GROUPS()` (4 grupos
   comuns `central|prova|pessoas|operacao` + os de EVENTO `evento|maquinas`, que só aparecem com
@@ -1661,6 +1752,13 @@ mexa na outra. O índice separa as coleções por `\u001f` (nome é texto livre:
 
 - Commits em PT, presente, prefixados pelo componente (ex.: `problemas: …`, `score/stats: …`). O rodapé
   leva **só** `Co-Authored-By:` — **nunca** uma linha `Claude-Session:` (ruído no histórico).
+- **DOCS DE USUÁRIO EM pt · en · es** (`docs/i18n.sh` `DOCS_I18N`, espelho em `web/shared/i18n.js`):
+  mudou um doc da lista ⇒ no MESMO commit `bash docs/i18n.sh diff <DOC>` (o que mudou no PT desde o
+  carimbo), aplicar em `docs/en/` e `docs/es/` (inglês em STE; comando/código byte a byte iguais, só
+  comentário se traduz; rótulo de tela como a UI o mostra) e `bash docs/i18n.sh stamp <DOC>`. Porta:
+  `server/test/smoke-docs-i18n.sh` (também no `make check`). Link da UI p/ doc traduzido: `docHref()` no
+  JS, `data-en-href`/`data-es-href` no HTML (o `i18n-coverage.sh` cobra). Regras: `docs/I18N.md`,
+  "Documentação".
 - **Documentação junto com o código** (doc atrasada = bug): rota/campo novo → `docs/API.md` **e**
   `web/api/openapi.json` (manter os dois em sincronia); arquitetura/fluxo → `docs/OVERVIEW.md`/`docs/FLOW.md`.
   `bash docs/build-html.sh` p/ refazer o HTML.

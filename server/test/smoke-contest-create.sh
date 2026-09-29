@@ -91,8 +91,14 @@ call /treino/contest-create/create POST "{\"id\":\"treino\",\"name\":\"X\",\"mod
 ck "id reservado 409"       '[[ "$OUT" == *"Status: 409"* ]]'
 call /treino/contest-create/create POST "$SPEC" reg
 ck "id duplicado 409"       '[[ "$OUT" == *"Status: 409"* ]]'
+call /treino/contest-create/create POST "{\"id\":\"rgbad\",\"name\":\"Sedes ruins\",\"mode\":\"icpc\",\"end\":$FUT,\"modules\":{\"sedes\":{\"regions\":[{\"name\":\"BR\",\"regex\":\"^br\\\\b\"}]}},\"problems\":[{\"problem_id\":\"a/b\",\"name\":\"AB\"}]}" reg
+ck "regex de sede fora do subconjunto seguro na criação -> 422 regions_invalid, nada criado" '[[ "$OUT" == *"Status: 422"* && "$(jq -r .error.code <<<"$BODY")" == regions_invalid && "$(jq -r ".error.nodes[0].err" <<<"$BODY")" == word_boundary && ! -d "$FIX/rgbad" ]]'
 call /treino/contest-create/create POST "{\"name\":\"\",\"mode\":\"icpc\",\"end\":$FUT,\"problems\":[{\"problem_id\":\"a/b\",\"name\":\"AB\"}]}" reg
 ck "sem nome 422"           '[[ "$OUT" == *"Status: 422"* ]]'
+call /treino/contest-create/create POST "{\"id\":\"loc-es\",\"name\":\"Loc ES\",\"mode\":\"icpc\",\"locale\":\"es\",\"end\":$FUT,\"problems\":[{\"problem_id\":\"a/b\",\"name\":\"AB\"}]}" reg
+ck "create: locale es gravado" '[[ "$(jq -r .success <<<"$BODY")" == true ]] && grep -q "^LOCALE=es$" "$FIX/loc-es/conf"'
+call /treino/contest-create/create POST "{\"id\":\"loc-xx\",\"name\":\"Loc XX\",\"mode\":\"icpc\",\"locale\":\"de\",\"end\":$FUT,\"problems\":[{\"problem_id\":\"a/b\",\"name\":\"AB\"}]}" reg
+ck "create: locale inválido 422 (nada criado)" '[[ "$OUT" == *"Status: 422"* && "$(jq -r .error.code <<<"$BODY")" == locale_invalid && ! -e "$FIX/loc-xx" ]]'
 call /treino/contest-create/create POST "{\"name\":\"Y\",\"mode\":\"icpc\",\"end\":$PAST,\"problems\":[{\"problem_id\":\"a/b\",\"name\":\"AB\"}]}" reg
 ck "fim no passado 422"     '[[ "$OUT" == *"Status: 422"* ]]'
 # privado alheio no TOPO e numa RODADA PLANEJADA do spec unificado: 404 (sem listar o id)
@@ -115,6 +121,7 @@ ck "não-permitido 403"      '[[ "$OUT" == *"Status: 403"* ]]'
 echo "== template =="
 call /treino/contest-create/template GET '' reg
 ck "template baixa JSON"    '[[ "$OUT" == *"Content-Disposition"* ]] && jq -e .problems <<<"$BODY" >/dev/null'
+ck "template sem allow_late (removido)" '[[ "$(jq -r "has(\"allow_late\")" <<<"$BODY")" == false ]]'
 
 echo "== busca no banco =="
 call /treino/contest-create/problems GET '' reg 'q=banco'
@@ -145,7 +152,7 @@ call /treino/contest-create/create POST "$SPEC2" reg
 ck "criou tog-c"            '[[ "$(jq -r .contest_id <<<"$BODY")" == "tog-c" ]]'
 CF="$FIX/tog-c/conf"
 ck "conf: toggles não-default" 'grep -q "^SHOWLOG=0" "$CF" && grep -q "^SHOWEDITOR=0" "$CF" && grep -q "^SHOWTL=0" "$CF" && grep -q "^BACKUP=0" "$CF" && grep -q "^PRINT=0" "$CF"'
-ck "conf: score_anon/manual/late" 'grep -q "^SCORE_ANON=1" "$CF" && grep -q "^MANUAL_VERDICT=1" "$CF" && grep -q "^ALLOWLATEUSER=y" "$CF"'
+ck "conf: score_anon/manual; allow_late (REMOVIDO 28/09) aceito e ignorado" 'grep -q "^SCORE_ANON=1" "$CF" && grep -q "^MANUAL_VERDICT=1" "$CF" && ! grep -q "^ALLOWLATEUSER" "$CF"'
 ck "conf: ua + score_full_users filtrado" '[[ "$( . "$CF"; echo "$LOGIN_UA_SUBSTRING/$SCORE_FULL_USERS" )" == "MOJBOX/prof" ]]'
 ck "conf: priority prova"   'grep -q "^CONTEST_PRIORITY=prova" "$CF"'
 ck "conf: penalidade não-default (10 / wa ce)" '[[ "$( . "$CF"; echo "$PENALTY_MINUTES/$PENALTY_VERDICTS" )" == "10/wa ce" ]]'
@@ -162,8 +169,8 @@ call /treino/contest-create/create POST "{\"name\":\"BadPen\",\"mode\":\"icpc\",
 ck "penalty_verdicts inválido no create -> 422" '[[ "$OUT" == *"Status: 422"* ]]'
 call /treino/contest-create/create POST "{\"name\":\"Sup\",\"mode\":\"icpc\",\"priority\":\"super\",\"end\":$FUT,\"problems\":[{\"bank_id\":\"bankprob\",\"name\":\"B\"}]}" reg
 ck "priority super só admin 403" '[[ "$OUT" == *"Status: 403"* ]]'
-call /treino/contest-create/create POST "{\"id\":\"nolate\",\"name\":\"NoLate\",\"mode\":\"treino\",\"allow_late\":false,\"end\":$FUT,\"problems\":[{\"bank_id\":\"bankprob\",\"name\":\"B\"}]}" reg
-ck "treino com allow_late:false NÃO liga ALLOWLATEUSER" '! grep -q "^ALLOWLATEUSER" "$FIX/nolate/conf"'
+call /treino/contest-create/create POST "{\"id\":\"nolate\",\"name\":\"NoLate\",\"mode\":\"treino\",\"end\":$FUT,\"problems\":[{\"bank_id\":\"bankprob\",\"name\":\"B\"}]}" reg
+ck "mode=treino não grava mais ALLOWLATEUSER (a var morreu)" '! grep -q "^ALLOWLATEUSER" "$FIX/nolate/conf"'
 
 echo "== import de tar.gz =="
 TD="$(mktemp -d)"; mkdir -p "$TD/enunciados"; printf '<p>imp</p>' > "$TD/enunciados/imp.html"

@@ -15,12 +15,12 @@ import { T } from '/shared/i18n.js';
 
 const ago = (t) => {
   const s = Math.max(0, Math.floor(Date.now() / 1000 - (t || 0)));
-  if (s < 90) return T('agora', 'just now');
-  if (s < 5400) return T(`há ${Math.round(s / 60)} min`, `${Math.round(s / 60)} min ago`);
-  if (s < 129600) return T(`há ${Math.round(s / 3600)} h`, `${Math.round(s / 3600)} h ago`);
-  return T(`há ${Math.round(s / 86400)} dias`, `${Math.round(s / 86400)} days ago`);
+  if (s < 90) return T('agora', 'just now', 'ahora');
+  if (s < 5400) return T(`há ${Math.round(s / 60)} min`, `${Math.round(s / 60)} min ago`, `hace ${Math.round(s / 60)} min`);
+  if (s < 129600) return T(`há ${Math.round(s / 3600)} h`, `${Math.round(s / 3600)} h ago`, `hace ${Math.round(s / 3600)} h`);
+  return T(`há ${Math.round(s / 86400)} dias`, `${Math.round(s / 86400)} days ago`, `hace ${Math.round(s / 86400)} días`);
 };
-const errMsg = (e) => (e && e.message) ? e.message : T('Falha de rede', 'Network error');
+const errMsg = (e) => (e && e.message) ? e.message : T('Falha de rede', 'Network error', 'Error de red');
 
 export function makeIssues(ctx) {
   let DATA = null;              // última resposta boa do GET
@@ -33,31 +33,32 @@ export function makeIssues(ctx) {
   const filt = el('div', { class: 'row', style: 'gap:.4rem;margin:.4rem 0' });
 
   // ---- formulário de issue nova
-  const fTitle = el('input', { type: 'text', maxlength: '200', placeholder: T('Título (ex.: teste 7 fora do limite do enunciado)', 'Title (e.g. test 7 outside the statement bounds)') });
-  const fBody = el('textarea', { rows: '4', placeholder: T('O que está errado, onde, e como reproduzir (opcional).', 'What is wrong, where, and how to reproduce (optional).') });
-  const fBtn = el('button', { class: 'btn', type: 'button' }, T('Abrir issue', 'Open issue'));
+  const fTitle = el('input', { type: 'text', maxlength: '200', placeholder: T('Título (ex.: teste 7 fora do limite do enunciado)', 'Title (e.g. test 7 outside the statement bounds)', 'Título (ej.: prueba 7 fuera del límite del enunciado)') });
+  const fBody = el('textarea', { rows: '4', placeholder: T('O que está errado, onde, e como reproduzir (opcional).', 'What is wrong, where, and how to reproduce (optional).', 'Qué está mal, dónde, y cómo reproducirlo (opcional).') });
+  const fBtn = el('button', { class: 'btn', type: 'button' }, T('Abrir issue', 'Open issue', 'Abrir issue'));
   fBtn.onclick = async () => {
     const title = fTitle.value.trim();
-    if (!title) { setMsg(T('Escreva um título.', 'Write a title.'), 'error'); fTitle.focus(); return; }
+    if (!title) { setMsg(T('Escreva um título.', 'Write a title.', 'Escribe un título.'), 'error'); fTitle.focus(); return; }
     fBtn.disabled = true;
     try {
       const j = await ctx.apiPost('/problems/issues', { id: ctx.id(), action: 'open', title, body: fBody.value });
       fTitle.value = ''; fBody.value = '';
       if (j.issue) OPEN.add(j.issue.n);
-      setMsg(T(`Issue #${j.issue ? j.issue.n : ''} aberta.`, `Issue #${j.issue ? j.issue.n : ''} opened.`), 'ok');
+      setMsg(T(`Issue #${j.issue ? j.issue.n : ''} aberta.`, `Issue #${j.issue ? j.issue.n : ''} opened.`, `Issue #${j.issue ? j.issue.n : ''} abierta.`), 'ok');
       await load();
     } catch (e) { setMsg(errMsg(e), 'error'); }
     finally { fBtn.disabled = false; }
   };
   const form = el('details', { class: 'issue-new' },
-    el('summary', {}, T('+ Nova issue', '+ New issue')),
+    el('summary', {}, T('+ Nova issue', '+ New issue', '+ Nueva issue')),
     el('div', { class: 'field' }, fTitle), el('div', { class: 'field' }, fBody), fBtn);
 
   panel.append(
-    el('h3', {}, T('Issues do problema', 'Problem issues')),
+    el('h3', {}, T('Issues do problema', 'Problem issues', 'Incidencias del problema')),
     el('p', { class: 'small muted' }, T(
       'Anote aqui o que precisa ser revisto antes da prova: um teste suspeito, uma solução que diverge, uma frase ambígua do enunciado. Todos os membros da org veem, comentam e fecham. Enquanto houver issue aberta, o problema não está pronto.',
-      'Write here what must be reviewed before the contest: a suspicious test, a diverging solution, an ambiguous sentence in the statement. Every member of the org sees, comments and closes them. While there is an open issue, the problem is not ready.')),
+      'Write here what must be reviewed before the contest: a suspicious test, a diverging solution, an ambiguous sentence in the statement. Every member of the org sees, comments and closes them. While there is an open issue, the problem is not ready.',
+      'Anota aquí lo que debe revisarse antes de la competencia: un test sospechoso, una solución que diverge, una frase ambigua del enunciado. Todos los miembros de la organización lo ven, comentan y cierran. Mientras haya una incidencia abierta, el problema no está listo.')),
     form, msg, filt, listBox);
 
   function setMsg(t, kind) { msg.textContent = t || ''; msg.className = 'small ' + (kind === 'error' ? 'err' : kind === 'ok' ? 'v-ok' : ''); }
@@ -79,23 +80,23 @@ export function makeIssues(ctx) {
     d.open = OPEN.has(it.n);
     d.addEventListener('toggle', () => { if (d.open) OPEN.add(it.n); else OPEN.delete(it.n); });
     d.append(el('summary', {},
-      el('span', { class: 'pill ' + (open ? 'no' : 'ok') }, open ? T('aberta', 'open') : T('fechada', 'closed')),
+      el('span', { class: 'pill ' + (open ? 'no' : 'ok') }, open ? T('aberta', 'open', 'abierta') : T('fechada', 'closed', 'cerrada')),
       ' ', el('b', {}, `#${it.n} `), el('span', {}, it.title || ''),
-      el('span', { class: 'small muted' }, ` · ${it.by || '?'} · ${ago(it.at)}` + (nComm ? ` · ${nComm} ${T('coment.', 'comm.')}` : ''))));
+      el('span', { class: 'small muted' }, ` · ${it.by || '?'} · ${ago(it.at)}` + (nComm ? ` · ${nComm} ${T('coment.', 'comm.', 'coment.')}` : ''))));
     if (it.body) d.append(el('div', { class: 'issue-text' }, it.body));
     (it.comments || []).forEach(c => d.append(el('div', { class: 'issue-comment' },
       el('div', { class: 'small muted' }, `${c.by || '?'} · ${ago(c.at)}`),
       el('div', { class: 'issue-text' }, c.body || ''))));
     if (!open && it.closed_by) d.append(el('div', { class: 'small muted', style: 'margin:.3rem 0' },
-      T(`fechada por ${it.closed_by} ${ago(it.closed_at)}`, `closed by ${it.closed_by} ${ago(it.closed_at)}`)));
-    const ta = el('textarea', { rows: '3', placeholder: T('Comentário…', 'Comment…') });
+      T(`fechada por ${it.closed_by} ${ago(it.closed_at)}`, `closed by ${it.closed_by} ${ago(it.closed_at)}`, `cerrada por ${it.closed_by} ${ago(it.closed_at)}`)));
+    const ta = el('textarea', { rows: '3', placeholder: T('Comentário…', 'Comment…', 'Comentario…') });
     ta.value = DRAFT.get(it.n) || '';
     ta.addEventListener('input', () => DRAFT.set(it.n, ta.value));
-    const bComm = el('button', { class: 'btn ghost', type: 'button' }, T('Comentar', 'Comment'));
+    const bComm = el('button', { class: 'btn ghost', type: 'button' }, T('Comentar', 'Comment', 'Comentar'));
     bComm.onclick = () => { if (!ta.value.trim()) { ta.focus(); return; } act(it.n, 'comment', ta.value); };
     const bState = el('button', { class: 'btn ' + (open ? '' : 'ghost'), type: 'button' },
-      open ? T('Fechar (resolvida)', 'Close (resolved)') : T('Reabrir', 'Reopen'));
-    bState.title = T('O texto da caixa, se houver, entra como comentário.', 'The text in the box, if any, goes in as a comment.');
+      open ? T('Fechar (resolvida)', 'Close (resolved)', 'Cerrar (resuelta)') : T('Reabrir', 'Reopen', 'Reabrir'));
+    bState.title = T('O texto da caixa, se houver, entra como comentário.', 'The text in the box, if any, goes in as a comment.', 'El texto del cuadro, si lo hay, se agrega como comentario.');
     bState.onclick = () => act(it.n, open ? 'close' : 'reopen', ta.value);
     d.append(el('div', { class: 'issue-reply' }, ta, el('div', { class: 'row', style: 'gap:.4rem' }, bComm, bState)));
     return d;
@@ -107,14 +108,14 @@ export function makeIssues(ctx) {
     filt.innerHTML = '';
     if (nClosed) {
       const b = el('button', { class: 'filttog' + (SHOW_CLOSED ? ' on' : ''), type: 'button' },
-        T(`mostrar fechadas (${nClosed})`, `show closed (${nClosed})`));
+        T(`mostrar fechadas (${nClosed})`, `show closed (${nClosed})`, `mostrar cerradas (${nClosed})`));
       b.onclick = () => { SHOW_CLOSED = !SHOW_CLOSED; render(); };
       filt.append(b);
     }
     listBox.innerHTML = '';
     const shown = all.filter(i => SHOW_CLOSED || i.state === 'open');
     if (!shown.length) listBox.append(el('p', { class: 'small muted' },
-      nOpen || nClosed ? T('Nenhuma issue aberta.', 'No open issues.') : T('Nenhuma issue ainda.', 'No issues yet.')));
+      nOpen || nClosed ? T('Nenhuma issue aberta.', 'No open issues.', 'No hay incidencias abiertas.') : T('Nenhuma issue ainda.', 'No issues yet.', 'Aún no hay incidencias.')));
     shown.forEach(it => listBox.append(card(it)));
     if (ctx.onCount) ctx.onCount(nOpen);
   }
@@ -122,7 +123,7 @@ export function makeIssues(ctx) {
   async function load() {
     if (!ctx.id()) {
       DATA = null; listBox.innerHTML = '';
-      listBox.append(el('p', { class: 'small muted' }, T('Salve o problema para abrir issues.', 'Save the problem to open issues.')));
+      listBox.append(el('p', { class: 'small muted' }, T('Salve o problema para abrir issues.', 'Save the problem to open issues.', 'Guarda el problema para abrir incidencias.')));
       fBtn.disabled = true; return;
     }
     fBtn.disabled = false;

@@ -16,7 +16,7 @@ const app = document.getElementById('app');
 
 async function boot() {
   if (!CONTEST) {
-    app.innerHTML = '<div class="error-box">' + T('Contest não informado.', 'Contest not specified.') + '</div>';
+    app.innerHTML = '<div class="error-box">' + T('Contest não informado.', 'Contest not specified.', 'Competencia no especificada.') + '</div>';
     return;
   }
   let basic = null;
@@ -28,10 +28,10 @@ async function boot() {
     app.append(tab.panel);
     await tab.load();
   } catch (e) {
-    app.append(el('div', { class: 'section' }, el('h2', {}, T('🔒 Restrito', '🔒 Restricted')),
+    app.append(el('div', { class: 'section' }, el('h2', {}, T('🔒 Restrito', '🔒 Restricted', '🔒 Restringido')),
       el('p', { class: 'muted' },
-        T('Visível à organização e ao staff do contest. (', 'Visible to the contest organization and staff. (')
-        + (e.message || T('erro', 'error')) + ')')));
+        T('Visível à organização e ao staff do contest. (', 'Visible to the contest organization and staff. (', 'Visible para la organización y el staff de la competencia. (')
+        + (e.message || T('erro', 'error', 'error')) + ')')));
   }
 }
 boot();

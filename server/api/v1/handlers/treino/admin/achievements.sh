@@ -27,6 +27,7 @@ err="$(jq -r '
       elif (.icon|type) != "string" or .icon == "" then "ícone vazio em \($id)"
       elif (.pt|type) != "string" or .pt == "" then "nome pt vazio em \($id)"
       elif (.en|type) != "string" or .en == "" then "nome en vazio em \($id)"
+      elif has("es") and .es != null and (.es|type) != "string" then "nome es deve ser texto em \($id)"
       elif .kind == "solved_gte" or .kind == "submissions_gte" or .kind == "langs_gte" or .kind == "oneshots_gte"
         then (if (.params.n|type) == "number" and .params.n > 0 then empty else "params.n deve ser número > 0 em \($id)" end)
       elif .kind == "streak_gte"
@@ -56,8 +57,10 @@ err="$(jq -r '
 out="$(jq -c --argjson t "$EPOCHSECONDS" --arg by "$SESSION_LOGIN" '
   {version:1, updated_at:$t, updated_by:$by,
    achievements:(.achievements | map(
-     {id, icon, pt, en, kind, params:(.params // {}),
-      enabled:(if .enabled == false then false else true end)}))}' <<<"$body" 2>/dev/null)"
+     {id, icon, pt, en}
+     + (if (.es|type) == "string" and .es != "" then {es} else {} end)
+     + {kind, params:(.params // {}),
+        enabled:(if .enabled == false then false else true end)}))}' <<<"$body" 2>/dev/null)"
 [[ -n "$out" ]] || fail 500 "Falha ao serializar o registro" "achievements_write"
 
 mkdir -p "$(dirname "$F")" 2>/dev/null

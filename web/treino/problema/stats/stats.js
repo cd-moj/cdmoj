@@ -4,12 +4,12 @@ import { el, avatarEl, renderAuthArea } from '/shared/ui.js';
 import { barChart, pieChart, hBarChart, lineChart, heatmap, heatmapGrid, verdictColor } from '/lib/charts.js';
 import { langById } from '/shared/languages.js';
 import { editorLabel } from '/shared/editors.js';
-import { T } from '/shared/i18n.js';
+import { T, uiLocale, docHref } from '/shared/i18n.js';
 import { diffKeyOf, diffLabel, diffClass, dirtText, dirtTone, dirtHelp, difficultyHelp } from '/shared/difficulty.js';
 
 const CONTEST = 'treino';
 const ID = new URLSearchParams(location.search).get('id') || '';
-const LOCALE = T('pt-BR', 'en-US');
+const LOCALE = uiLocale();
 const langLabel = (l) => (langById(String(l || '').toLowerCase()) || {}).label || l || '?';
 const pct = (x) => Math.round((x || 0) * 100) + '%';
 const fdate = (e) => (e ? new Date(e * 1000).toLocaleDateString(LOCALE) : '—');
@@ -20,10 +20,10 @@ const fdur = (sec) => {
   if (sec == null) return '—';
   if (sec < 3600) return Math.max(1, Math.round(sec / 60)) + ' min';
   if (sec < 86400) return Math.round(sec / 3600) + ' h';
-  return Math.round(sec / 86400) + ' ' + T('dia(s)', 'day(s)');
+  return Math.round(sec / 86400) + ' ' + T('dia(s)', 'day(s)', 'día(s)');
 };
 const isKnownLang = (l) => l && langById(String(l).toLowerCase());
-const langDisplay = (l) => (l === 'outro' ? T('Outros (ext. não reconhecidas)', 'Others (unrecognized ext.)') : langLabel(l));
+const langDisplay = (l) => (l === 'outro' ? T('Outros (ext. não reconhecidas)', 'Others (unrecognized ext.)', 'Otros (ext. no reconocidas)') : langLabel(l));
 // junta tokens de linguagem não reconhecidos (olamundo, txt, exe, …) num único "Outros"
 function cleanLangs(byLang) {
   const out = []; let other = null;
@@ -45,22 +45,22 @@ function chartCard(title, node) {
 async function boot() {
   await renderAuthArea(document.getElementById('authArea'), CONTEST, () => {});
   const content = document.getElementById('content');
-  if (!ID) { content.innerHTML = `<div class="notice">${T('Faltou informar ?id=&lt;problema&gt;.', 'Missing ?id=&lt;problem&gt;.')}</div>`; return; }
+  if (!ID) { content.innerHTML = `<div class="notice">${T('Faltou informar ?id=&lt;problema&gt;.', 'Missing ?id=&lt;problem&gt;.', 'Falta indicar ?id=&lt;problema&gt;.')}</div>`; return; }
 
   let s;
   try { s = await apiGet('/treino/problem-stats?id=' + encodeURIComponent(ID), { contest: CONTEST }); }
-  catch { content.innerHTML = `<div class="error-box">${T('Falha ao carregar as estatísticas.', 'Failed to load statistics.')}</div>`; return; }
+  catch { content.innerHTML = `<div class="error-box">${T('Falha ao carregar as estatísticas.', 'Failed to load statistics.', 'No se pudieron cargar las estadísticas.')}</div>`; return; }
   content.innerHTML = '';
 
   content.append(el('div', { class: 'section' },
     el('h1', { style: 'margin:0;color:var(--blue-dark)' }, '📊 ', s.title || ID),
-    el('p', { class: 'small muted', style: 'margin:.3rem 0 0' }, T('Problema do Treino Livre · ', 'Free Training problem · '),
-      el('a', { href: '/treino/problema/?id=' + encodeURIComponent(ID) }, T('abrir o problema →', 'open the problem →')),
-      ' · ', el('a', { href: '/docs/ESTATISTICAS-PROBLEMA.html', target: '_blank' },
-        T('ⓘ como calculamos estas estatísticas', 'ⓘ how these statistics are computed')))));
+    el('p', { class: 'small muted', style: 'margin:.3rem 0 0' }, T('Problema do Treino Livre · ', 'Free Training problem · ', 'Problema de Entrenamiento libre · '),
+      el('a', { href: '/treino/problema/?id=' + encodeURIComponent(ID) }, T('abrir o problema →', 'open the problem →', 'abrir el problema →')),
+      ' · ', el('a', { href: docHref('ESTATISTICAS-PROBLEMA'), target: '_blank' },
+        T('ⓘ como calculamos estas estatísticas', 'ⓘ how these statistics are computed', 'ⓘ cómo calculamos estas estadísticas')))));
 
   if (!s.total_submissions) {
-    content.append(el('div', { class: 'section muted' }, T('Ainda não há submissões para este problema.', 'No submissions for this problem yet.')));
+    content.append(el('div', { class: 'section muted' }, T('Ainda não há submissões para este problema.', 'No submissions for this problem yet.', 'Todavía no hay envíos para este problema.')));
     return;
   }
 
@@ -75,21 +75,22 @@ async function boot() {
   const dp = s.difficulty_percentile;
   let dpCard = null;
   if (dp && dp.harder_than_pct != null) {
-    dpCard = metric(dp.harder_than_pct + '%', T('do acervo é mais fácil que este', 'of the archive is easier than this'));
+    dpCard = metric(dp.harder_than_pct + '%', T('do acervo é mais fácil que este', 'of the archive is easier than this', 'del acervo es más fácil que este'));
     dpCard.title = T(`taxa de sucesso por usuário ${Math.round((dp.success_rate || 0) * 100)}%, comparada com ${dp.cohort} problemas públicos com ≥5 tentantes`,
-      `per-user success rate ${Math.round((dp.success_rate || 0) * 100)}%, compared with ${dp.cohort} public problems with ≥5 attempters`);
+      `per-user success rate ${Math.round((dp.success_rate || 0) * 100)}%, compared with ${dp.cohort} public problems with ≥5 attempters`,
+      `tasa de éxito por usuario ${Math.round((dp.success_rate || 0) * 100)}%, comparada con ${dp.cohort} problemas públicos con ≥5 intentantes`);
   }
   content.append(el('div', { class: 'section' },
-    el('h2', {}, T('Resumo', 'Summary')),
+    el('h2', {}, T('Resumo', 'Summary', 'Resumen')),
     el('div', { class: 'metrics' },
-      metric(s.total_submissions, T('submissões', 'submissions')),
-      metric(s.distinct_attempted, T('tentaram', 'attempted')),
-      metric(s.distinct_solved, T('resolveram', 'solved')),
-      Object.assign(metric(ur == null ? '—' : pct(ur), T('resolvem (por usuário)', 'solve it (per user)')), { title: difficultyHelp() }),
-      Object.assign(metric(pct(ar), T('taxa por submissão', 'per-submission rate')),
-        { title: T('submissões aceitas ÷ submissões totais — mede quanto se erra tentando, não define a dificuldade', 'accepted ÷ total submissions — measures how much people fail while trying; it does not define the difficulty') }),
-      metric((s.avg_submissions_per_user || 0).toFixed(1), T('subs / usuário', 'subs / user')),
-      Object.assign(metric(diffEl, T('dificuldade', 'difficulty')), { title: difficultyHelp() }),
+      metric(s.total_submissions, T('submissões', 'submissions', 'envíos')),
+      metric(s.distinct_attempted, T('tentaram', 'attempted', 'intentaron')),
+      metric(s.distinct_solved, T('resolveram', 'solved', 'resolvieron')),
+      Object.assign(metric(ur == null ? '—' : pct(ur), T('resolvem (por usuário)', 'solve it (per user)', 'lo resuelven (por usuario)')), { title: difficultyHelp() }),
+      Object.assign(metric(pct(ar), T('taxa por submissão', 'per-submission rate', 'tasa por envío')),
+        { title: T('submissões aceitas ÷ submissões totais — mede quanto se erra tentando, não define a dificuldade', 'accepted ÷ total submissions — measures how much people fail while trying; it does not define the difficulty', 'envíos aceptados ÷ envíos totales — mide cuánto se falla al intentar, no define la dificultad') }),
+      metric((s.avg_submissions_per_user || 0).toFixed(1), T('subs / usuário', 'subs / user', 'envíos / usuario')),
+      Object.assign(metric(diffEl, T('dificuldade', 'difficulty', 'dificultad')), { title: difficultyHelp() }),
       Object.assign(metric(el('span', { class: dirtTone(s.dirt) }, dirtText(s.dirt)), 'dirt'), { title: dirtHelp() }),
       dpCard)));
 
@@ -97,15 +98,15 @@ async function boot() {
   const f = s.facts || {};
   const factCard = (v, l) => { const m = metric(v, l); m.querySelector('.v').classList.add('sm'); return m; };
   const fs = f.first_solver;
-  const fsName = fs ? (fs.name || fs.login || T('perfil privado', 'private profile')) : null;
-  content.append(el('div', { class: 'section' }, el('h2', {}, T('📌 Fatos', '📌 Facts')),
+  const fsName = fs ? (fs.name || fs.login || T('perfil privado', 'private profile', 'perfil privado')) : null;
+  content.append(el('div', { class: 'section' }, el('h2', {}, T('📌 Fatos', '📌 Facts', '📌 Datos')),
     el('div', { class: 'metrics' },
-      factCard(fdate(f.first_sub_epoch), T('primeira submissão', 'first submission')),
-      fs ? factCard(fsName + ' · ' + fdate(fs.epoch), T('primeiro a resolver', 'first to solve')) : null,
-      f.peak_day ? factCard(fdateStr(f.peak_day.date) + ' (' + f.peak_day.n + ')', T('dia de pico', 'peak day')) : null,
-      factCard(fdate(f.last_sub_epoch), T('última submissão', 'last submission')),
-      s.tries_median != null ? factCard(String(s.tries_median), T('mediana de tentativas até o aceite', 'median tries until accept')) : null,
-      s.t2s_median != null ? factCard(fdur(s.t2s_median), T('tempo mediano até resolver', 'median time to solve')) : null)));
+      factCard(fdate(f.first_sub_epoch), T('primeira submissão', 'first submission', 'primer envío')),
+      fs ? factCard(fsName + ' · ' + fdate(fs.epoch), T('primeiro a resolver', 'first to solve', 'primero en resolver')) : null,
+      f.peak_day ? factCard(fdateStr(f.peak_day.date) + ' (' + f.peak_day.n + ')', T('dia de pico', 'peak day', 'día pico')) : null,
+      factCard(fdate(f.last_sub_epoch), T('última submissão', 'last submission', 'último envío')),
+      s.tries_median != null ? factCard(String(s.tries_median), T('mediana de tentativas até o aceite', 'median tries until accept', 'mediana de intentos hasta la aceptación')) : null,
+      s.t2s_median != null ? factCard(fdur(s.t2s_median), T('tempo mediano até resolver', 'median time to solve', 'tiempo mediano hasta resolver')) : null)));
 
   // --- linha do tempo: histograma mensal completo + curvas de crescimento ---
   const monthly = s.monthly || [];
@@ -115,14 +116,14 @@ async function boot() {
     const acPts = (s.first_ac_epochs || []).map((e, i) => ({ x: e, y: i + 1, label: fdate(e) }));
     let cum = 0, cumAc = 0;
     const ratePts = monthly.map((m) => { cum += m.subs; cumAc += m.ac; return { x: m.m + '-15', y: Math.round((cumAc / Math.max(1, cum)) * 100), label: fmonth(m.m) }; });
-    content.append(el('div', { class: 'section' }, el('h2', {}, T('📈 Linha do tempo', '📈 Timeline')),
+    content.append(el('div', { class: 'section' }, el('h2', {}, T('📈 Linha do tempo', '📈 Timeline', '📈 Línea de tiempo')),
       el('div', { class: 'subcard' },
-        el('h3', { class: 'small', style: 'margin:.1rem 0 .6rem;color:var(--blue-dark)' }, T('Submissões por mês, desde a primeira', 'Submissions per month, since the first')),
+        el('h3', { class: 'small', style: 'margin:.1rem 0 .6rem;color:var(--blue-dark)' }, T('Submissões por mês, desde a primeira', 'Submissions per month, since the first', 'Envíos por mes, desde el primero')),
         el('div', { class: 'chart-wrap' }, hist)),
       el('div', { class: 'chart-grid two', style: 'margin-top:1rem' },
-        acPts.length ? chartCard(T('Resolvedores acumulados', 'Cumulative solvers'),
+        acPts.length ? chartCard(T('Resolvedores acumulados', 'Cumulative solvers', 'Resolutores acumulados'),
           lineChart(acPts, { width: 460, height: 220, color: '#1a7f37' })) : null,
-        chartCard(T('Taxa de aceitação acumulada (%)', 'Cumulative acceptance rate (%)'),
+        chartCard(T('Taxa de aceitação acumulada (%)', 'Cumulative acceptance rate (%)', 'Tasa de aceptación acumulada (%)'),
           lineChart(ratePts, { width: 460, height: 220, color: '#7a5ada', fill: false })))));
   }
 
@@ -141,9 +142,10 @@ async function boot() {
         const agg = {};
         for (const [d, n] of Object.entries(daily)) { const k = '2024' + d.slice(4); agg[k] = (agg[k] || 0) + n; }
         holder.append(heatmap(agg, { weeks: 53, end: new Date(2024, 11, 31), color: '#216097',
-          fmt: (v, tag) => tag.slice(5) + ': ' + v + ' ' + T('subs (todos os anos)', 'subs (all years)') }));
+          fmt: (v, tag) => tag.slice(5) + ': ' + v + ' ' + T('subs (todos os anos)', 'subs (all years)', 'envíos (todos los años)') }));
         note.textContent = T('Todos os anos somados, dia a dia — os períodos quentes do calendário letivo saltam aos olhos.',
-          'All years summed, day by day — the hot periods of the school calendar stand out.');
+          'All years summed, day by day — the hot periods of the school calendar stand out.',
+          'Todos los años sumados, día a día — los períodos intensos del calendario escolar saltan a la vista.');
       } else {
         const one = {};
         for (const [d, n] of Object.entries(daily)) if (d.startsWith(mode)) one[d] = n;
@@ -151,13 +153,13 @@ async function boot() {
       }
     };
     years.forEach((y) => { const b = el('button', { class: 'btn ghost', 'data-mode': y }, y); b.onclick = () => render(y); bar.append(b); });
-    if (years.length > 1) { const b = el('button', { class: 'btn ghost', 'data-mode': 'all' }, T('Σ todos', 'Σ all')); b.onclick = () => render('all'); bar.append(b); }
+    if (years.length > 1) { const b = el('button', { class: 'btn ghost', 'data-mode': 'all' }, T('Σ todos', 'Σ all', 'Σ todos')); b.onclick = () => render('all'); bar.append(b); }
     const punch = heatmapGrid((s.dow_hour || []).map((c) => ({ dow: c.dow, hour: c.hour, value: c.n, n: c.n })),
       { cell: 13, gap: 3, color: '#216097', fmt: (v) => String(v) });
-    content.append(el('div', { class: 'section' }, el('h2', {}, T('🗓 Calendário de atividade', '🗓 Activity calendar')),
+    content.append(el('div', { class: 'section' }, el('h2', {}, T('🗓 Calendário de atividade', '🗓 Activity calendar', '🗓 Calendario de actividad')),
       bar, holder, note,
       el('div', { class: 'chart-grid two', style: 'margin-top:1rem' },
-        chartCard(T('Hora do dia × dia da semana', 'Hour of day × weekday'), el('div', { class: 'chart-wrap' }, punch)))));
+        chartCard(T('Hora do dia × dia da semana', 'Hour of day × weekday', 'Hora del día × día de la semana'), el('div', { class: 'chart-wrap' }, punch)))));
     render(years.length > 1 ? 'all' : years[0]);
   }
 
@@ -168,23 +170,23 @@ async function boot() {
   const rateData = bl.filter((l) => l.submissions >= 3)
     .map((l) => ({ label: langDisplay(l.lang), value: Math.round((l.accepted / l.submissions) * 100) }))
     .sort((a, b) => b.value - a.value);
-  const triesData = (s.tries || []).map((b) => ({ label: b.bucket === '1' ? T('1 (de primeira!)', '1 (first try!)') : b.bucket, value: b.n }));
-  const T2SL = { '<1h': T('menos de 1 hora', 'under 1 hour'), '1h-1d': T('1 hora a 1 dia', '1 hour to 1 day'),
-    '1d-1sem': T('1 dia a 1 semana', '1 day to 1 week'), '>1sem': T('mais de 1 semana', 'over 1 week') };
+  const triesData = (s.tries || []).map((b) => ({ label: b.bucket === '1' ? T('1 (de primeira!)', '1 (first try!)', '1 (¡a la primera!)') : b.bucket, value: b.n }));
+  const T2SL = { '<1h': T('menos de 1 hora', 'under 1 hour', 'menos de 1 hora'), '1h-1d': T('1 hora a 1 dia', '1 hour to 1 day', '1 hora a 1 día'),
+    '1d-1sem': T('1 dia a 1 semana', '1 day to 1 week', '1 día a 1 semana'), '>1sem': T('mais de 1 semana', 'over 1 week', 'más de 1 semana') };
   const t2sData = (s.time_to_solve || []).map((b) => ({ label: T2SL[b.bucket] || b.bucket, value: b.n }));
   const eData = (s.editors || []).map((e) => ({ label: editorLabel(e.editor), value: e.count }));
-  content.append(el('div', { class: 'section' }, el('h2', {}, T('🧩 Como resolvem', '🧩 How they solve')),
+  content.append(el('div', { class: 'section' }, el('h2', {}, T('🧩 Como resolvem', '🧩 How they solve', '🧩 Cómo lo resuelven')),
     el('div', { class: 'chart-grid' },
-      chartCard(T('Veredictos', 'Verdicts'), pieChart(vData, { size: 240, donut: 0.55 })),
-      chartCard(T('Resolvedores distintos por linguagem', 'Distinct solvers by language'),
+      chartCard(T('Veredictos', 'Verdicts', 'Veredictos'), pieChart(vData, { size: 240, donut: 0.55 })),
+      chartCard(T('Resolvedores distintos por linguagem', 'Distinct solvers by language', 'Resolutores distintos por lenguaje'),
         barChart(slData, { width: 460, height: 240, color: '#216097', rotateLabels: true })),
-      rateData.length ? chartCard(T('Taxa de aceitação por linguagem', 'Acceptance rate by language'),
+      rateData.length ? chartCard(T('Taxa de aceitação por linguagem', 'Acceptance rate by language', 'Tasa de aceptación por lenguaje'),
         hBarChart(rateData, { total: 0, fmt: (v) => v + '%' })) : null,
-      triesData.some((d) => d.value) ? chartCard(T('Submissões até o 1º aceite', 'Submissions until first accept'),
+      triesData.some((d) => d.value) ? chartCard(T('Submissões até o 1º aceite', 'Submissions until first accept', 'Envíos hasta la primera aceptación'),
         hBarChart(triesData, {})) : null,
-      t2sData.some((d) => d.value) ? chartCard(T('Tempo entre a 1ª tentativa e o aceite', 'Time from first try to accept'),
+      t2sData.some((d) => d.value) ? chartCard(T('Tempo entre a 1ª tentativa e o aceite', 'Time from first try to accept', 'Tiempo entre el primer intento y la aceptación'),
         hBarChart(t2sData, {})) : null,
-      eData.length ? chartCard(T('⌨ Editores de quem resolveu', '⌨ Editors of those who solved'),
+      eData.length ? chartCard(T('⌨ Editores de quem resolveu', '⌨ Editors of those who solved', '⌨ Editores de quienes resolvieron'),
         pieChart(eData, { size: 240 })) : null)));
 
   // --- tabela por linguagem ---
@@ -195,11 +197,11 @@ async function boot() {
     el('td', { class: 'n' }, String(l.accepted)),
     el('td', { class: 'n' }, l.submissions ? pct(l.accepted / l.submissions) : '-'),
     el('td', { class: 'n' }, String(l.solvers)))));
-  content.append(el('div', { class: 'section' }, el('h2', {}, T('Por linguagem', 'By language')),
-    el('p', { class: 'small muted', style: 'margin:0 0 .5rem' }, T('"Resolveram" = usuários distintos que acertaram com aquela linguagem.', '"Solved" = distinct users who got it accepted with that language.')),
+  content.append(el('div', { class: 'section' }, el('h2', {}, T('Por linguagem', 'By language', 'Por lenguaje')),
+    el('p', { class: 'small muted', style: 'margin:0 0 .5rem' }, T('"Resolveram" = usuários distintos que acertaram com aquela linguagem.', '"Solved" = distinct users who got it accepted with that language.', '"Resolvieron" = usuarios distintos que lo aceptaron con ese lenguaje.')),
     el('table', { class: 'moj' }, el('thead', {}, el('tr', {},
-      el('th', {}, T('Linguagem', 'Language')), el('th', { class: 'n' }, T('Submissões', 'Submissions')), el('th', { class: 'n' }, T('Aceitas', 'Accepted')),
-      el('th', { class: 'n' }, T('Taxa', 'Rate')), el('th', { class: 'n' }, T('Resolveram', 'Solved')))), tb)));
+      el('th', {}, T('Linguagem', 'Language', 'Lenguaje')), el('th', { class: 'n' }, T('Submissões', 'Submissions', 'Envíos')), el('th', { class: 'n' }, T('Aceitas', 'Accepted', 'Aceptados')),
+      el('th', { class: 'n' }, T('Taxa', 'Rate', 'Tasa')), el('th', { class: 'n' }, T('Resolveram', 'Solved', 'Resolvieron')))), tb)));
 
   // --- tempo de execução das aceitas (estilo Kattis) ---
   // runtimes = [{lang, t}] onde t = o teste mais LENTO da submissão aceita. Só cobre
@@ -222,14 +224,15 @@ async function boot() {
     const fData = Object.entries(fastest).map(([l, t]) => ({ label: langDisplay(l), value: t }))
       .sort((a, b) => a.value - b.value);
     content.append(el('div', { class: 'section' },
-      el('h2', {}, T('⏱ Tempo de execução (submissões aceitas)', '⏱ Running time (accepted submissions)')),
+      el('h2', {}, T('⏱ Tempo de execução (submissões aceitas)', '⏱ Running time (accepted submissions)', '⏱ Tiempo de ejecución (envíos aceptados)')),
       el('p', { class: 'small muted', style: 'margin:0 0 .6rem' },
         T(`Tempo do teste mais lento de cada aceita — ${rts.length} submissões julgadas na plataforma atual (submissões antigas migradas não têm medição).`,
-          `Slowest-test time of each accepted run — ${rts.length} submissions judged on the current platform (old migrated submissions have no measurement).`)),
+          `Slowest-test time of each accepted run — ${rts.length} submissions judged on the current platform (old migrated submissions have no measurement).`,
+          `Tiempo de la prueba más lenta de cada envío aceptado — ${rts.length} envíos evaluados en la plataforma actual (los envíos antiguos migrados no tienen medición).`)),
       el('div', { class: 'chart-grid two' },
-        chartCard(T('Distribuição', 'Distribution'),
+        chartCard(T('Distribuição', 'Distribution', 'Distribución'),
           el('div', { class: 'chart-wrap' }, barChart(hData, { width: Math.max(460, nb * 40), height: 220, color: '#0aa', rotateLabels: true }))),
-        chartCard(T('Mais rápida por linguagem', 'Fastest by language'),
+        chartCard(T('Mais rápida por linguagem', 'Fastest by language', 'Más rápida por lenguaje'),
           hBarChart(fData, { total: 0, fmt: (v) => v.toFixed(2) + 's' })))));
   }
 
@@ -242,9 +245,9 @@ async function boot() {
     const total = s.solvers_public_count || avs.length;
     const more = total - avs.length;
     content.append(el('div', { class: 'section' },
-      el('h2', {}, T('👥 Quem resolveu ', '👥 Who solved '), el('span', { class: 'small muted' }, T(`(${total} com perfil público)`, `(${total} with public profile)`))),
+      el('h2', {}, T('👥 Quem resolveu ', '👥 Who solved ', '👥 Quién resolvió '), el('span', { class: 'small muted' }, T(`(${total} com perfil público)`, `(${total} with public profile)`, `(${total} con perfil público)`))),
       cloud,
-      more > 0 ? el('p', { class: 'small muted', style: 'margin-top:.5rem' }, T(`+${more} outros`, `+${more} others`)) : null));
+      more > 0 ? el('p', { class: 'small muted', style: 'margin-top:.5rem' }, T(`+${more} outros`, `+${more} others`, `+${more} otros`)) : null));
   }
 }
 boot();

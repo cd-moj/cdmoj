@@ -2,38 +2,37 @@
    Alvo: impressão A4 via LibreOffice (soffice --convert-to pdf) — que suporta um subconjunto
    de CSS. Nada de flex/grid: só o que o importador de HTML do LO entende bem.
 
-   CARA DE LATEX (2026-08-18): o alvo é `article` em 11pt. O que faz a diferença, em ordem de
-   impacto: (1) LATIN MODERN (o Computer Modern do LaTeX — com itálico e negrito REAIS; o
-   DejaVu da imagem não tem itálico e saía com inclinação sintética, o tell nº 1 de "Word");
-   (2) texto JUSTIFICADO; (3) parágrafo com RECUO e sem espaço entre parágrafos — o primeiro
-   depois de um título fica sem recuo, como no LaTeX; (4) títulos com espaço ANTES ≫ depois;
-   (5) tabelas estilo booktabs (só três filetes, sem grade).
+   CARA DE LATEX (2026-08-18; molde dos cadernos da Maratona SBC desde 28/09/2026): o alvo é
+   `article` em 11pt. O que faz a diferença, em ordem de impacto: (1) COMPUTER MODERN — o CMU
+   (fonts-cmu), o próprio desenho do CMR/CMTT/CMSS do LaTeX, com itálico e negrito REAIS; o Latin
+   Modern fica de reserva (métrica vertical larga: a entrelinha do LibreOffice abria demais);
+   (2) texto JUSTIFICADO e entrelinha de ~13,6pt a 11pt; (3) parágrafo SEM recuo com um respiro
+   entre eles (o parskip dos cadernos da SBC); (4) títulos com espaço ANTES ≫ depois; (5) tabelas
+   estilo booktabs (só três filetes, sem grade).
    ⚠ Este arquivo e o server/etc/caderno-reference.odt (rota pandoc→ODT do caderno/editorial)
    descrevem O MESMO documento por caminhos diferentes: mexeu num, confira o outro — foi a
    divergência entre eles que deixava capa em A4 e miolo em Letter. */
 @page { size: A4; margin: 2.5cm 2.5cm; }
 
-body { font-family: "Latin Modern Roman", "TeX Gyre Termes", P052, "DejaVu Serif", serif;
-       font-size: 11pt; line-height: 1.32; color: #000; text-align: justify; }
+body { font-family: "CMU Serif", "Latin Modern Roman", "TeX Gyre Termes", P052, "DejaVu Serif", serif;
+       font-size: 11pt; line-height: 1.24; color: #000; text-align: justify; }
 
 /* títulos: seriais e em negrito, com o respiro do LaTeX (antes ≫ depois) */
-h1, h2, h3, h4 { font-family: "Latin Modern Roman", "TeX Gyre Termes", P052, "DejaVu Serif", serif;
+h1, h2, h3, h4 { font-family: "CMU Serif", "Latin Modern Roman", "TeX Gyre Termes", P052, "DejaVu Serif", serif;
                  font-weight: bold; text-align: left; page-break-after: avoid; }
 h1 { font-size: 14.4pt; margin: 1.6em 0 .55em; }
 h2 { font-size: 12.5pt; margin: 1.4em 0 .45em; }
 h3 { font-size: 11pt;   margin: 1.2em 0 .4em; }
 
-/* parágrafo LaTeX: sem espaço entre, com recuo — menos o primeiro depois de título */
-p { margin: 0; text-indent: 1.5em; }
-p + p { margin-top: 0; }
-h1 + p, h2 + p, h3 + p, .sub + p, li > p:first-child { text-indent: 0; }
+/* parágrafo dos cadernos da SBC: sem recuo, com respiro entre eles (o mesmo do caderno-reference.odt) */
+p { margin: 0 0 .4em; text-indent: 0; }
 ul, ol { margin: .45em 0 .45em 0; padding-left: 1.6em; }
 li { margin: .12em 0; text-indent: 0; }
 
-code, pre, tt { font-family: "Latin Modern Mono", "DejaVu Sans Mono", monospace; font-size: 9.5pt; }
+code, pre, tt { font-family: "CMU Typewriter Text", "Latin Modern Mono", "DejaVu Sans Mono", monospace; font-size: 10pt; }
 pre { background: #f7f7f7; border: 1px solid #ccc; padding: .45em .6em; margin: .6em 0;
       text-align: left; line-height: 1.2; }
-em, i { font-style: italic; }          /* com Latin Modern isto é itálico DE VERDADE */
+em, i { font-style: italic; }          /* com CMU/Latin Modern isto é itálico DE VERDADE */
 
 /* bloco de título (o \maketitle): centrado, com o respiro de artigo */
 h1.title, .cover h1 { text-align: center; }
@@ -62,12 +61,13 @@ table.doc-tbl td.c, table.doc-tbl th.c { text-align: center; }
 .cover .note { margin: 1.2cm 2cm; text-align: center; text-indent: 0; }
 .cover .sites { margin: 1.2cm 1cm; font-size: 10pt; }
 .cover .ver { margin-top: 2cm; color: #333; font-size: 10pt; }
+.cover .logo { margin: 0 0 1cm; }
 
 /* um problema por página no caderno */
 .prob { page-break-before: always; }
 .prob:first-of-type { page-break-before: avoid; }
-.prob h1 { text-align: left; border-bottom: .8pt solid #000; padding-bottom: .12em;
-           margin: 0 0 .8em; }
+.prob h1 { font-family: "CMU Sans Serif", "Latin Modern Sans", sans-serif; font-size: 17pt;
+           font-weight: normal; text-align: center; margin: 0 0 .8em; }
 /* enunciado embutido: o HTML do pacote traz o próprio h1 (título) — some, já temos o cabeçalho */
 .prob h1.moj-title { display: none; }
 .prob img { max-width: 100%; }

@@ -165,10 +165,10 @@ export function renderICPC(parsed, opts) {
   const headRow = el('tr', {},
     // filtro ativo: nº grande = posição no recorte, .plg = geral; em placar de COORTE sem
     // filtro a coluna leva a posição da coorte e a do placar geral (genPlace)
-    el('th', {}, '#', filtered ? el('span', { class: 'plg' }, T('Geral', 'Overall'))
-      : (genPlace ? el('span', { class: 'plg' }, T('Geral', 'Overall')) : null)),
-    el('th', { title: T('Bandeira', 'Flag') }, ''),   // rótulo não cabe na coluna estreita: fica no title
-    el('th', {}, T('Equipe', 'Team')));
+    el('th', {}, '#', filtered ? el('span', { class: 'plg' }, T('Geral', 'Overall', 'General'))
+      : (genPlace ? el('span', { class: 'plg' }, T('Geral', 'Overall', 'General')) : null)),
+    el('th', { title: T('Bandeira', 'Flag', 'Bandera') }, ''),   // rótulo não cabe na coluna estreita: fica no title
+    el('th', {}, T('Equipe', 'Team', 'Equipo')));
   const sonic = sonicEnabled(parsed.balloons);
   parsed.probShorts.forEach(pb => {
     const cc = balloonColorHex(parsed.balloons, pb);
@@ -176,7 +176,7 @@ export function renderICPC(parsed, opts) {
     headRow.append(el('th', { class: 'prob', html: icon + escapeHtml(pb) }));
   });
   headRow.append(el('th', {}, 'Total'));
-  headRow.append(el('th', { title: T('Soma das penalidades (min)', 'Penalty sum (min)') }, T('Penal.', 'Pen.')));
+  headRow.append(el('th', { title: T('Soma das penalidades (min)', 'Penalty sum (min)', 'Suma de penalizaciones (min)') }, T('Penal.', 'Pen.', 'Pen.')));
   table.append(el('thead', {}, headRow));
 
   const tb = el('tbody');
@@ -188,19 +188,19 @@ export function renderICPC(parsed, opts) {
     // SEQUÊNCIA PRÓPRIA dos convidados, em itálico (issue #25)
     const gcell = () => (t.gplace != null)
       ? el('span', { class: 'gplace', title: t.virtual
-          ? T('posição que esta participação virtual ocuparia (não conta na oficial)', 'place this virtual participation would take (not in the official ranking)')
-          : T('posição entre os convidados (não conta na oficial)', 'position among guest teams (not in the official ranking)') }, String(t.gplace))
+          ? T('posição que esta participação virtual ocuparia (não conta na oficial)', 'place this virtual participation would take (not in the official ranking)', 'posición que ocuparía esta participación virtual (no cuenta en la oficial)')
+          : T('posição entre os convidados (não conta na oficial)', 'position among guest teams (not in the official ranking)', 'posición entre los equipos invitados (no cuenta en la oficial)') }, String(t.gplace))
       : '–';
     if (filtered) {
       const sp = !t.guest ? sliceMap.get(t.username) : null;
       tr.append(el('td', { class: 'cl-place' }, sp != null ? String(sp) : gcell(),
         !t.guest && t.place != null ? el('span', { class: 'plg',
-          title: T('Posição no placar completo (sem o filtro)', 'Position in the full scoreboard (without the filter)') }, String(t.place)) : null));
+          title: T('Posição no placar completo (sem o filtro)', 'Position in the full scoreboard (without the filter)', 'Posición en el marcador completo (sin el filtro)') }, String(t.place)) : null));
     } else {
       const gp = genPlace && !t.guest ? genPlace[t.username] : null;
       tr.append(el('td', { class: 'cl-place' }, t.guest ? gcell() : String(t.place),
         gp != null ? el('span', { class: 'plg',
-          title: T('Posição no placar geral', 'Position in the overall scoreboard') }, String(gp)) : null));
+          title: T('Posição no placar geral', 'Position in the overall scoreboard', 'Posición en el marcador general') }, String(gp)) : null));
     }
     // bandeira
     const flagTd = el('td', {});
@@ -223,35 +223,36 @@ export function renderICPC(parsed, opts) {
     // estilo PDA sob o nome (some no celular; tooltip completo fica na pill).
     const cinfo = classified && classified[t.username];
     if (cinfo) {
-      const viaT = { regra1: T('regra 1', 'rule 1'), regra2: T('regra 2', 'rule 2'),
-                     regra4: T('regra 4', 'rule 4'), comite: T('comitê', 'committee') }[cinfo.via] || cinfo.via;
+      const viaT = { regra1: T('regra 1', 'rule 1', 'regla 1'), regra2: T('regra 2', 'rule 2', 'regla 2'),
+                     regra4: T('regra 4', 'rule 4', 'regla 4'), comite: T('comitê', 'committee', 'comité') }[cinfo.via] || cinfo.via;
       const short = /Brasileira/i.test(cinfo.stage || '') ? 'Final BR'
-        : ((cinfo.stage || '').split(/[,—·]/)[0].trim().split(/\s+/).slice(0, 2).join(' ') || T('classificado', 'qualified'));
-      const full = T('Classificado — ', 'Qualified — ') + (cinfo.stage || '') +
+        : ((cinfo.stage || '').split(/[,—·]/)[0].trim().split(/\s+/).slice(0, 2).join(' ') || T('classificado', 'qualified', 'clasificado'));
+      const full = T('Classificado — ', 'Qualified — ', 'Clasificado — ') + (cinfo.stage || '') +
         ' · ' + viaT + (cinfo.sede ? ' · ' + cinfo.sede : '');
       tr.classList.add('qual-row'); if (cinfo.draft) tr.classList.add('draft');
       teamTd.append(' ', el('span', { class: 'qual-chip' + (cinfo.draft ? ' draft' : ''),
-        title: (cinfo.draft ? T('(RASCUNHO — só o admin vê) ', '(DRAFT — admin only) ') : '') + full },
+        title: (cinfo.draft ? T('(RASCUNHO — só o admin vê) ', '(DRAFT — admin only) ', '(BORRADOR — solo lo ve el admin) ') : '') + full },
         '🎓 ' + short));
       teamTd.append(el('span', { class: 'qual-sub' },
-        '🎖️ ' + (cinfo.draft ? T('(rascunho) ', '(draft) ') : '') + full));
+        '🎖️ ' + (cinfo.draft ? T('(rascunho) ', '(draft) ', '(borrador) ') : '') + full));
     }
     if (logoImg) { teamTd.prepend(logoImg, ' '); setMediaSrc(logoImg, safeLogo, { lazy: true, onerror: () => logoImg.remove() }); }
     // 📷 = foto do time, SÓ com o placar aberto (opts.showPhotos = !frozen — R4, 2026-08-30;
     // a rota team-photo é pública, o gate aqui é de PRODUTO: freeze não denuncia presença)
     if (showPhotos && t.photoUrl) {
       teamTd.append(' ', mediaLink(t.photoUrl,
-        { title: T('Ver a foto do time', 'View team photo'), style: 'text-decoration:none' }, '📷'));
+        { title: T('Ver a foto do time', 'View team photo', 'Ver la foto del equipo'), style: 'text-decoration:none' }, '📷'));
     }
     // 🤖 = o time DECLAROU na inscrição que usa IA (transparência, não julgamento)
-    if (t.aiDeclared) teamTd.append(' ', el('span', { title: T('Este time declarou que usa IA', 'This team declared AI use'), style: 'cursor:default' }, '🤖'));
+    if (t.aiDeclared) teamTd.append(' ', el('span', { title: T('Este time declarou que usa IA', 'This team declared AI use', 'Este equipo declaró que usa IA'), style: 'cursor:default' }, '🤖'));
     if (t.virtual) teamTd.append(' ', el('span', { class: 'pill virtual',
-      title: T('Participação virtual: refez a prova depois de encerrada, no próprio tempo.', 'Virtual participation: redid the contest after it ended, in their own time.') },
-      t.you ? T('virtual · você', 'virtual · you') : 'virtual'));
+      title: T('Participação virtual: refez a prova depois de encerrada, no próprio tempo.', 'Virtual participation: redid the contest after it ended, in their own time.', 'Participación virtual: rehízo la competencia después de terminada, en su propio tiempo.') },
+      t.you ? T('virtual · você', 'virtual · you', 'virtual · tú') : 'virtual'));
     else if (t.guest) teamTd.append(' ', el('span', { class: 'pill',
       title: T('Time convidado (extra-oficial): não entra na classificação oficial.',
-               'Guest team (unofficial): does not enter the official ranking.') },
-      T('convidado', 'guest')));
+               'Guest team (unofficial): does not enter the official ranking.',
+               'Equipo invitado (extraoficial): no entra en la clasificación oficial.') },
+      T('convidado', 'guest', 'invitado')));
     if (teamExtra) { const x = teamExtra(t); if (x) teamTd.append(' ', x); }
     tr.append(teamTd);
     // problemas
@@ -273,8 +274,8 @@ export function renderICPC(parsed, opts) {
           el('span', { class: 'pv' }, shown));
         paintSolvedCell(td, color, { style, fts });
         if (fts) {
-          td.title = (filtered ? T('Primeiro a resolver no recorte', 'First to solve in the selection')
-            : T('Primeiro a resolver', 'First to solve')) + ' · ' + cellTitle(sn, shown, T);
+          td.title = (filtered ? T('Primeiro a resolver no recorte', 'First to solve in the selection', 'Primero en resolver en la selección')
+            : T('Primeiro a resolver', 'First to solve', 'Primero en resolver')) + ' · ' + cellTitle(sn, shown, T);
         }
         tr.append(td);
       } else if (cellWait(v)) {

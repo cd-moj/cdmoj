@@ -12,6 +12,8 @@ fi
 : "${MOJ_CONF:=$_LIBDIR/../../../etc/common.conf}"
 [[ -f "$MOJ_CONF" ]] && source "$MOJ_CONF"
 : "${CONTESTSDIR:=/home/ribas/moj/contests}"
+# senhas legíveis (palavra + 4 dígitos): a lista viaja com o código (a imagem copia o mojinho-bot/)
+: "${PASSWORD_WORDLIST:=${_LIBDIR%/server/api/v1/lib}/mojinho-bot/palavras-para-senha}"
 : "${SESSIONDIR:=/home/ribas/moj/run/sessions}"
 : "${SPOOLDIR:=/home/ribas/moj/run/spool/submissions}"
 # defaults DERIVADOS do próprio checkout (_LIBDIR = server/api/v1/lib), nunca caminho de dev
@@ -39,6 +41,11 @@ contest_tz(){
   if [[ -n "$v" && "$v" =~ ^[A-Za-z][A-Za-z0-9_+-]*(/[A-Za-z0-9_+-]+){0,2}$ && -f "/usr/share/zoneinfo/$v" ]]
     then printf '%s' "$v"; else printf '%s' "$MOJ_TZ"; fi
 }
+# contest_locale_ok <v> — idioma de INTERFACE que um contest pode fixar (LOCALE do conf). Fonte única dos
+# escritores (settings, config, create/duplicate/template): valor fora da lista = 422, nunca descarte mudo.
+# (É o eixo da interface; o dos documentos/enunciados é DOC_LANGS/STMT_LANGS, outro.)
+CONTEST_LOCALES=(pt en es)
+contest_locale_ok(){ [[ "$1" == pt || "$1" == en || "$1" == es ]]; }
 # fmt_epoch <epoch> <formato-date> [contest] — data legível no fuso certo (vazio se não for epoch)
 fmt_epoch(){
   [[ "$1" =~ ^[0-9]+$ ]] && (( $1 > 0 )) || return 0

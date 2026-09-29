@@ -32,7 +32,7 @@ jq '. + { alert_kinds: {"identity.duplicate": 1, "usb.storage": 2, "display.mult
       | .machines[0] += {model: "Dell Inc. OptiPlex 3090", oom: 2, agent_new: true}' "$W/old.json" > "$W/new.json"
 
 mk(){ # <lang> → script gjs
-  { printf 'const LANG=%s;\nfunction T(pt,en){return LANG==="en"?en:pt}\n' "\"$1\""
+  { printf 'const LANG=%s;\nfunction T(pt,en,es){if(LANG==="es")return es!=null?es:(en!=null?en:pt);return LANG==="en"?(en!=null?en:pt):pt}\n' "\"$1\""
     cat <<'JS'
 // DOM falso: só o que dom.js/charts.js/view usam
 function N(tag) { this.tag = tag; this.kids = []; this.attrs = {}; this.style = {}; this.nodeType = 1; this.className = ''; this._t = null; }

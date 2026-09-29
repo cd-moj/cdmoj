@@ -12,7 +12,7 @@
 // comando iam junto).
 import { apiGet, apiPost } from '/shared/api.js';
 import { el } from '/shared/ui.js';
-import { T } from '/shared/i18n.js';
+import { T, uiLocale } from '/shared/i18n.js';
 import { swapIf, sigOf } from '/shared/admin-ui.js';
 import { mlinuxSections, MLINUX_CSS } from '/lib/mlinux-view.js';
 
@@ -62,13 +62,13 @@ export function makeMlinuxTab(CONTEST) {
     const url = el('input', { type: 'text', size: '38', value: (RESP && RESP.url) || '',
       placeholder: 'https://nutellaboot…' });
     const key = el('input', { type: 'password', size: '30', placeholder: RESP && RESP.configured
-      ? T('chave gravada — digite p/ trocar', 'key stored — type to replace') : 'nb3s_… / nb3a_…' });
+      ? T('chave gravada — digite p/ trocar', 'key stored — type to replace', 'clave guardada — escribe para reemplazar') : 'nb3s_… / nb3a_…' });
     // site-images do evento: OBRIGATÓRIO com chave de serviço (ela não lista as sedes do serviço);
     // com chave de administração é opcional e só restringe a coleta. Pré-preenche com a última coleta.
     const known = (RESP && RESP.images && RESP.images.length) ? RESP.images
       : ((RESP && RESP.data && RESP.data.sedes) || []).map((x) => x.id);
     const imgs = el('input', { type: 'text', size: '46', value: known.join(' '),
-      placeholder: T('ids das site-images, separados por espaço', 'site-image ids, space separated') });
+      placeholder: T('ids das site-images, separados por espaço', 'site-image ids, space separated', 'ids de site-images, separados por espacio') });
     const save = async (remove) => {
       msg.textContent = '…';
       try {
@@ -76,50 +76,53 @@ export function makeMlinuxTab(CONTEST) {
         if (remove) body.key = '';
         else if (key.value.trim()) body.key = key.value.trim();
         const r = await apiPost('/contest/nutella?contest=' + enc(CONTEST), body, G);
-        msg.textContent = r.configured ? T('✓ configurado', '✓ configured') : T('✓ chave removida', '✓ key removed');
+        msg.textContent = r.configured ? T('✓ configurado', '✓ configured', '✓ configurado') : T('✓ chave removida', '✓ key removed', '✓ clave eliminada');
         key.value = ''; load();
-      } catch (e) { msg.className = 'small error-box'; msg.textContent = e.message || T('falha', 'failed'); }
+      } catch (e) { msg.className = 'small error-box'; msg.textContent = e.message || T('falha', 'failed', 'fallido'); }
     };
     return el('div', { class: 'section' },
-      el('h2', {}, T('⚙️ Integração', '⚙️ Integration'),
-        ' ', RESP && RESP.configured ? el('span', { class: 'pill ok' }, T('configurada', 'configured'))
-          : el('span', { class: 'pill' }, T('sem chave', 'no key'))),
+      el('h2', {}, T('⚙️ Integração', '⚙️ Integration', '⚙️ Integración'),
+        ' ', RESP && RESP.configured ? el('span', { class: 'pill ok' }, T('configurada', 'configured', 'configurada'))
+          : el('span', { class: 'pill' }, T('sem chave', 'no key', 'sin clave'))),
       el('div', { class: 'row', style: 'gap:.5rem;flex-wrap:wrap;align-items:center' },
-        el('label', {}, 'URL ', url), el('label', {}, T('Chave ', 'Key '), key),
+        el('label', {}, 'URL ', url), el('label', {}, T('Chave ', 'Key ', 'Clave '), key),
         RESP && RESP.key_kind ? el('span', { class: 'pill ' + (RESP.key_kind === 'service' ? 'ok' : 'warn'),
           title: RESP.key_kind === 'service'
             ? T('Chave de serviço: só os escopos e as imagens que a administração do nutellaboot liberou.',
-                'Service key: only the scopes and images the nutellaboot administration granted.')
+                'Service key: only the scopes and images the nutellaboot administration granted.',
+                'Clave de servicio: solo los alcances e imágenes que la administración de nutellaboot otorgó.')
             : T('Chave de ADMINISTRAÇÃO: faz tudo no nutellaboot, em todas as sedes. Prefira uma chave de serviço (nb3s_…) com machines:read, commands:write, bindings:write, roster:read e roster:write nas imagens do evento.',
-                'ADMINISTRATION key: can do anything in nutellaboot, on every site. Prefer a service key (nb3s_…) with machines:read, commands:write, bindings:write, roster:read and roster:write on the event images.') },
-          RESP.key_kind === 'service' ? T('chave de serviço', 'service key') : T('chave de administração', 'administration key')) : null),
+                'ADMINISTRATION key: can do anything in nutellaboot, on every site. Prefer a service key (nb3s_…) with machines:read, commands:write, bindings:write, roster:read and roster:write on the event images.',
+                'Clave de ADMINISTRACIÓN: puede hacer cualquier cosa en nutellaboot, en todas las sedes. Prefiere una clave de servicio (nb3s_…) con machines:read, commands:write, bindings:write, roster:read y roster:write en las imágenes del evento.') },
+          RESP.key_kind === 'service' ? T('chave de serviço', 'service key', 'clave de servicio') : T('chave de administração', 'administration key', 'clave de administración')) : null),
       el('div', { class: 'row', style: 'gap:.5rem;flex-wrap:wrap;align-items:center;margin-top:.4rem' },
-        el('label', {}, T('Site-images do evento ', 'Event site-images '), imgs),
-        el('button', { class: 'btn', onclick: () => save(false) }, T('Salvar', 'Save')),
+        el('label', {}, T('Site-images do evento ', 'Event site-images ', 'Site-images del evento '), imgs),
+        el('button', { class: 'btn', onclick: () => save(false) }, T('Salvar', 'Save', 'Guardar')),
         RESP && RESP.configured
-          ? el('button', { class: 'btn ghost', onclick: () => save(true) }, T('remover chave', 'remove key')) : null,
+          ? el('button', { class: 'btn ghost', onclick: () => save(true) }, T('remover chave', 'remove key', 'eliminar clave')) : null,
         msg),
       el('div', { class: 'small muted', style: 'margin-top:.3rem' },
         T('Site-images: opcional — o nutellaboot lista as sedes do glob da chave; preencha só para restringir.',
-          'Site-images: optional — nutellaboot lists the sites of the key glob; fill it only to restrict.')));
+          'Site-images: optional — nutellaboot lists the sites of the key glob; fill it only to restrict.',
+          'Site-images: opcional — nutellaboot lista las sedes del glob de la clave; complétalo solo para restringir.')));
   }
 
   // -- cartão de coleta (só admin) ------------------------------------------------------
   function collectCard() {
     const st = (RESP && RESP.status) || null;
     const msg = el('span', { class: 'small' });
-    let stTxt = T('nunca coletado', 'never collected');
-    if (st && st.running) stTxt = T('coletando… ', 'collecting… ') + (st.phase || '');
-    else if (st && st.ok) stTxt = T('última coleta: ', 'last collection: ') + new Date((st.finished_at || 0) * 1000).toLocaleString();
-    else if (st && st.ok === false) stTxt = T('FALHOU: ', 'FAILED: ') + (st.error || '');
+    let stTxt = T('nunca coletado', 'never collected', 'nunca recolectado');
+    if (st && st.running) stTxt = T('coletando… ', 'collecting… ', 'recolectando… ') + (st.phase || '');
+    else if (st && st.ok) stTxt = T('última coleta: ', 'last collection: ', 'última recolección: ') + new Date((st.finished_at || 0) * 1000).toLocaleString(uiLocale());
+    else if (st && st.ok === false) stTxt = T('FALHOU: ', 'FAILED: ', 'FALLÓ: ') + (st.error || '');
     const btn = el('button', { class: 'btn', disabled: !(RESP && RESP.configured) || !!(st && st.running),
       onclick: async () => {
         msg.textContent = '…';
         try { await apiPost('/contest/nutella?contest=' + enc(CONTEST), { action: 'collect' }, G); msg.textContent = ''; load(); }
-        catch (e) { msg.className = 'small error-box'; msg.textContent = e.message || T('falha', 'failed'); }
-      } }, T('📥 Coletar agora', '📥 Collect now'));
+        catch (e) { msg.className = 'small error-box'; msg.textContent = e.message || T('falha', 'failed', 'fallido'); }
+      } }, T('📥 Coletar agora', '📥 Collect now', '📥 Recolectar ahora'));
     return el('div', { class: 'section' },
-      el('h2', {}, T('📥 Coleta', '📥 Collection')),
+      el('h2', {}, T('📥 Coleta', '📥 Collection', '📥 Recolección')),
       el('div', { class: 'row', style: 'gap:.6rem;align-items:center' }, btn,
         el('span', { class: 'small muted' }, stTxt), msg));
   }
@@ -134,28 +137,29 @@ export function makeMlinuxTab(CONTEST) {
     const act = async (body, okTxt) => {
       msg.className = 'small'; msg.textContent = '…';
       try { const r = await apiPost('/contest/nutella?contest=' + enc(CONTEST), body, G); msg.textContent = okTxt(r); load(); }
-      catch (e) { msg.className = 'small error-box'; msg.textContent = e.message || T('falha', 'failed'); }
+      catch (e) { msg.className = 'small error-box'; msg.textContent = e.message || T('falha', 'failed', 'fallido'); }
     };
-    const parts = [b.enabled ? T('ligado', 'on') : T('DESLIGADO', 'OFF'),
-      T(`${b.published} máquinas vinculadas`, `${b.published} machines linked`)];
-    if (b.queued) parts.push(T(`${b.queued} na fila`, `${b.queued} queued`));
-    if (lg.noroster) parts.push(T(`${lg.noroster} recusadas: time fora do roster da imagem`, `${lg.noroster} refused: team not in the image roster`));
-    if (lg.image_unknown) parts.push(T(`${lg.image_unknown} de imagem que não é deste contest`, `${lg.image_unknown} from an image not in this contest`));
-    if (lg.error) parts.push(T(`${lg.error} erros do serviço`, `${lg.error} service errors`));
+    const parts = [b.enabled ? T('ligado', 'on', 'activado') : T('DESLIGADO', 'OFF', 'DESACTIVADO'),
+      T(`${b.published} máquinas vinculadas`, `${b.published} machines linked`, `${b.published} máquinas vinculadas`)];
+    if (b.queued) parts.push(T(`${b.queued} na fila`, `${b.queued} queued`, `${b.queued} en cola`));
+    if (lg.noroster) parts.push(T(`${lg.noroster} recusadas: time fora do roster da imagem`, `${lg.noroster} refused: team not in the image roster`, `${lg.noroster} rechazadas: equipo fuera del roster de la imagen`));
+    if (lg.image_unknown) parts.push(T(`${lg.image_unknown} de imagem que não é deste contest`, `${lg.image_unknown} from an image not in this contest`, `${lg.image_unknown} de una imagen que no es de esta competencia`));
+    if (lg.error) parts.push(T(`${lg.error} erros do serviço`, `${lg.error} service errors`, `${lg.error} errores del servicio`));
     return el('div', { class: 'section' },
-      el('h2', {}, T('🔗 Vínculo máquina-time', '🔗 Machine-team link')),
+      el('h2', {}, T('🔗 Vínculo máquina-time', '🔗 Machine-team link', '🔗 Vínculo máquina-equipo')),
       el('p', { class: 'ml-note' }, T('Quando um time faz login numa máquina do mlinux, o MOJ informa ao nutellaboot qual time está nela. A tela de bloqueio da máquina passa a mostrar o time. Só funciona com o agente novo do mlinux e com o time no roster da imagem.',
-        'When a team logs in on an mlinux machine, MOJ tells nutellaboot which team is on it. The machine lock screen then shows the team. It needs the new mlinux agent and the team in the image roster.')),
+        'When a team logs in on an mlinux machine, MOJ tells nutellaboot which team is on it. The machine lock screen then shows the team. It needs the new mlinux agent and the team in the image roster.',
+        'Cuando un equipo inicia sesión en una máquina mlinux, MOJ le informa a nutellaboot qué equipo está en ella. La pantalla de bloqueo de la máquina pasa a mostrar el equipo. Solo funciona con el agente nuevo de mlinux y con el equipo en el roster de la imagen.')),
       el('div', { class: 'small', style: 'margin:.2rem 0 .4rem' }, parts.join(' · ')),
       el('div', { class: 'row', style: 'gap:.5rem;align-items:center;flex-wrap:wrap' },
         el('button', { class: 'btn ghost', onclick: () => act({ action: 'config', bind: !b.enabled }, () => '') },
-          b.enabled ? T('desligar', 'turn off') : T('ligar', 'turn on')),
-        el('button', { class: 'btn ghost', title: T('Envia ao nutellaboot os times de cada sede (da última coleta). Não mexe em roster já preenchido.', 'Sends the teams of each site (from the last collection) to nutellaboot. Does not touch a roster that already has entries.'),
-          onclick: () => act({ action: 'push-roster' }, (r) => T(`roster: ${r.pushed} enviadas, ${r.kept} mantidas, ${r.failed} falharam`, `roster: ${r.pushed} sent, ${r.kept} kept, ${r.failed} failed`)) },
-        T('📋 enviar roster', '📋 send roster')),
-        el('button', { class: 'btn ghost', title: T('Reenvia o vínculo de todo login já feito (use depois de enviar o roster).', 'Resends the link of every login already made (use it after sending the roster).'),
-          onclick: () => act({ action: 'push-bindings' }, (r) => T(`${r.queued} vínculos na fila de envio`, `${r.queued} links queued`)) },
-        T('🔁 republicar vínculos', '🔁 republish links')),
+          b.enabled ? T('desligar', 'turn off', 'desactivar') : T('ligar', 'turn on', 'activar')),
+        el('button', { class: 'btn ghost', title: T('Envia ao nutellaboot os times de cada sede (da última coleta). Não mexe em roster já preenchido.', 'Sends the teams of each site (from the last collection) to nutellaboot. Does not touch a roster that already has entries.', 'Envía a nutellaboot los equipos de cada sede (de la última recolección). No modifica un roster que ya tenga entradas.'),
+          onclick: () => act({ action: 'push-roster' }, (r) => T(`roster: ${r.pushed} enviadas, ${r.kept} mantidas, ${r.failed} falharam`, `roster: ${r.pushed} sent, ${r.kept} kept, ${r.failed} failed`, `roster: ${r.pushed} enviadas, ${r.kept} mantenidas, ${r.failed} fallaron`)) },
+        T('📋 enviar roster', '📋 send roster', '📋 enviar roster')),
+        el('button', { class: 'btn ghost', title: T('Reenvia o vínculo de todo login já feito (use depois de enviar o roster).', 'Resends the link of every login already made (use it after sending the roster).', 'Reenvía el vínculo de cada inicio de sesión ya hecho (úsalo después de enviar el roster).'),
+          onclick: () => act({ action: 'push-bindings' }, (r) => T(`${r.queued} vínculos na fila de envio`, `${r.queued} links queued`, `${r.queued} vínculos en cola de envío`)) },
+        T('🔁 republicar vínculos', '🔁 republish links', '🔁 republicar vínculos')),
         msg));
   }
 
@@ -165,27 +169,28 @@ export function makeMlinuxTab(CONTEST) {
     const msg = el('span', { class: 'small' });
     // a rota do webhook não atende pelo subdomínio do contest: o palpite tira o "<contest>." da frente
     const guess = String(location.origin || '').replace('//' + CONTEST + '.', '//');
-    const base = el('input', { type: 'text', value: guess, size: 34, 'aria-label': T('URL pública do MOJ', 'MOJ public URL') });
+    const base = el('input', { type: 'text', value: guess, size: 34, 'aria-label': T('URL pública do MOJ', 'MOJ public URL', 'URL pública del MOJ') });
     const act = async (body) => {
       msg.className = 'small'; msg.textContent = '…';
       try {
         const r = await apiPost('/contest/nutella?contest=' + enc(CONTEST), Object.assign({ action: 'webhooks-install', base_url: base.value.trim() }, body), G);
-        msg.textContent = T(`${r.ok} sede(s) ok, ${r.failed} falharam`, `${r.ok} site(s) ok, ${r.failed} failed`); load();
+        msg.textContent = T(`${r.ok} sede(s) ok, ${r.failed} falharam`, `${r.ok} site(s) ok, ${r.failed} failed`, `${r.ok} sede(s) ok, ${r.failed} fallaron`); load();
       } catch (e) {
-        msg.className = 'small error-box'; msg.textContent = e.message || T('falha', 'failed');
+        msg.className = 'small error-box'; msg.textContent = e.message || T('falha', 'failed', 'fallido');
       }
     };
     return el('div', { class: 'section' },
-      el('h2', {}, T('🔌 Alertas das máquinas em tempo real', '🔌 Real-time machine alerts')),
+      el('h2', {}, T('🔌 Alertas das máquinas em tempo real', '🔌 Real-time machine alerts', '🔌 Alertas de máquinas en tiempo real')),
       el('p', { class: 'ml-note' }, T('O nutellaboot avisa o MOJ quando uma máquina levanta um alerta (pendrive, celular, rede por USB, identidade repetida) e quando reinicia, some ou volta. Tudo aparece em Máquinas › Anomalias; os alertas, durante a prova, chegam ao dono do contest pelo Telegram. A chave gravada acima precisa do escopo webhooks:write.',
-        'Nutellaboot tells MOJ when a machine raises an alert (USB storage, phone, USB network, duplicate identity) and when it reboots, disappears or comes back. Everything shows in Machines › Anomalies; alerts reach the contest owner on Telegram during the contest. The key saved above needs the webhooks:write scope.')),
+        'Nutellaboot tells MOJ when a machine raises an alert (USB storage, phone, USB network, duplicate identity) and when it reboots, disappears or comes back. Everything shows in Machines › Anomalies; alerts reach the contest owner on Telegram during the contest. The key saved above needs the webhooks:write scope.',
+        'Nutellaboot le avisa a MOJ cuando una máquina genera una alerta (almacenamiento USB, teléfono, red por USB, identidad duplicada) y cuando se reinicia, desaparece o vuelve. Todo aparece en Máquinas › Anomalías; las alertas llegan al dueño de la competencia por Telegram durante la competencia. La clave guardada arriba necesita el alcance webhooks:write.')),
       el('div', { class: 'small', style: 'margin:.2rem 0 .4rem' },
-        (w.installed ? T('instalado', 'installed') : T('não instalado', 'not installed')) + ' · ' + T(`${w.events} alertas recebidos`, `${w.events} alerts received`)
+        (w.installed ? T('instalado', 'installed', 'instalado') : T('não instalado', 'not installed', 'no instalado')) + ' · ' + T(`${w.events} alertas recebidos`, `${w.events} alerts received`, `${w.events} alertas recibidas`)
 ),
       el('div', { class: 'row', style: 'gap:.5rem;align-items:center;flex-wrap:wrap' },
-        el('label', { class: 'small' }, T('URL pública do MOJ: ', 'MOJ public URL: '), base),
-        el('button', { class: 'btn ghost', onclick: () => act({}) }, w.installed ? T('reinstalar', 'reinstall') : T('instalar', 'install')),
-        w.installed ? el('button', { class: 'btn ghost', onclick: () => act({ remove: true }) }, T('remover', 'remove')) : null,
+        el('label', { class: 'small' }, T('URL pública do MOJ: ', 'MOJ public URL: ', 'URL pública de MOJ: '), base),
+        el('button', { class: 'btn ghost', onclick: () => act({}) }, w.installed ? T('reinstalar', 'reinstall', 'reinstalar') : T('instalar', 'install', 'instalar')),
+        w.installed ? el('button', { class: 'btn ghost', onclick: () => act({ remove: true }) }, T('remover', 'remove', 'quitar')) : null,
         msg));
   }
 
@@ -195,13 +200,13 @@ export function makeMlinuxTab(CONTEST) {
     if (!d || !d.sedes || !d.sedes.length) return null;
     const msg = el('div', { class: 'small' });
     const selSede = el('select', {},
-      ...(RESP.can_admin ? [el('option', { value: 'all' }, T('🌐 TODAS AS SEDES DO CONTEST', '🌐 ALL SITES OF THIS CONTEST'))] : []),
+      ...(RESP.can_admin ? [el('option', { value: 'all' }, T('🌐 TODAS AS SEDES DO CONTEST', '🌐 ALL SITES OF THIS CONTEST', '🌐 TODAS LAS SEDES DE ESTA COMPETENCIA'))] : []),
       ...d.sedes.map((s) => el('option', { value: s.id }, s.name + ' (' + s.id + ')')));
     if (RESP.can_admin && d.sedes.length) selSede.value = d.sedes[0].id;
-    const selMac = el('select', {}, el('option', { value: '' }, T('todas as máquinas', 'all machines')));
+    const selMac = el('select', {}, el('option', { value: '' }, T('todas as máquinas', 'all machines', 'todas las máquinas')));
     const selOp = el('select', {}, el('option', { value: '' }, '…'));
     const fillMacs = () => {
-      selMac.innerHTML = ''; selMac.append(el('option', { value: '' }, T('todas as máquinas', 'all machines')));
+      selMac.innerHTML = ''; selMac.append(el('option', { value: '' }, T('todas as máquinas', 'all machines', 'todas las máquinas')));
       const sede = d.sedes.find((s) => s.id === selSede.value);
       ((sede && sede.machines) || []).forEach((m) => selMac.append(el('option', { value: m.mac }, m.mac)));
     };
@@ -220,11 +225,11 @@ export function makeMlinuxTab(CONTEST) {
       const op = selOp.value, img = selSede.value, mac = selMac.value;
       if (!op || !img) return;
       const sede = d.sedes.find((s) => s.id === img);
-      const alvo = img === 'all' ? T(`TODAS as máquinas das ${d.sedes.length} sedes DESTE contest`, `ALL machines in the ${d.sedes.length} sites of THIS contest`)
-        : mac ? T(`a máquina ${mac} (${sede ? sede.name : img})`, `machine ${mac} (${sede ? sede.name : img})`)
-          : T(`as ${sede ? sede.seen : '?'} máquinas de ${sede ? sede.name : img}`, `the ${sede ? sede.seen : '?'} machines of ${sede ? sede.name : img}`);
+      const alvo = img === 'all' ? T(`TODAS as máquinas das ${d.sedes.length} sedes DESTE contest`, `ALL machines in the ${d.sedes.length} sites of THIS contest`, `TODAS las máquinas en las ${d.sedes.length} sedes de ESTA competencia`)
+        : mac ? T(`a máquina ${mac} (${sede ? sede.name : img})`, `machine ${mac} (${sede ? sede.name : img})`, `la máquina ${mac} (${sede ? sede.name : img})`)
+          : T(`as ${sede ? sede.seen : '?'} máquinas de ${sede ? sede.name : img}`, `the ${sede ? sede.seen : '?'} machines of ${sede ? sede.name : img}`, `las ${sede ? sede.seen : '?'} máquinas de ${sede ? sede.name : img}`);
       // eslint-disable-next-line no-alert
-      if (!confirm(T(`Enviar "${op}" para ${alvo}?`, `Send "${op}" to ${alvo}?`))) return;
+      if (!confirm(T(`Enviar "${op}" para ${alvo}?`, `Send "${op}" to ${alvo}?`, `¿Enviar "${op}" a ${alvo}?`))) return;
       msg.textContent = '…';
       try {
         const body = { action: 'command', op, image: img };
@@ -234,8 +239,8 @@ export function makeMlinuxTab(CONTEST) {
         const bad = Object.entries(r.sedes || {}).filter(([, v]) => !(v.status >= 200 && v.status < 300));
         const nm = Object.values(r.sedes || {}).reduce((a, v) => a + (v.machines || 0), 0);
         msg.className = 'small' + (bad.length ? ' error-box' : '');
-        msg.textContent = T(`✓ "${op}" enviado a ${nm} máquina(s) em ${r.ok || 0} sede(s)`, `✓ "${op}" sent to ${nm} machine(s) in ${r.ok || 0} site(s)`)
-          + (bad.length ? T(' — recusado em: ', ' — refused at: ') + bad.map(([k, v]) => k + ' (HTTP ' + v.status + (v.detail ? ': ' + v.detail : '') + ')').join(', ') : '');
+        msg.textContent = T(`✓ "${op}" enviado a ${nm} máquina(s) em ${r.ok || 0} sede(s)`, `✓ "${op}" sent to ${nm} machine(s) in ${r.ok || 0} site(s)`, `✓ "${op}" enviado a ${nm} máquina(s) en ${r.ok || 0} sede(s)`)
+          + (bad.length ? T(' — recusado em: ', ' — refused at: ', ' — rechazado en: ') + bad.map(([k, v]) => k + ' (HTTP ' + v.status + (v.detail ? ': ' + v.detail : '') + ')').join(', ') : '');
         // quem EXECUTOU: pergunta ao serviço por 60 s (as máquinas buscam a ordem no long-poll, em segundos);
         // atualiza EM LUGAR a linha de acompanhamento — serviço antigo (sem a rota) só não mostra
         const ids = Object.entries(r.sedes || {}).filter(([, v]) => v.command_id).map(([k, v]) => [k, v.command_id]);
@@ -245,23 +250,24 @@ export function makeMlinuxTab(CONTEST) {
             const parts = [];
             for (const [k, cid] of ids) {
               try { const s = (await apiPost('/contest/nutella?contest=' + enc(CONTEST), { action: 'command-status', image: k, command_id: cid }, G)).status || {}; const sm = s.summary || {};
-                parts.push(`${k}: ${sm.acked || 0}/${s.machines || 0}` + T(' executaram', ' executed') + (sm.expired ? T(`, ${sm.expired} caducaram`, `, ${sm.expired} expired`) : '')); }
-              catch (e) { parts.push(k + ': ' + (e.code === 'upstream_error' ? T('sem acompanhamento (serviço antigo)', 'no tracking (old service)') : (e.message || '?'))); return; }
+                parts.push(`${k}: ${sm.acked || 0}/${s.machines || 0}` + T(' executaram', ' executed', ' ejecutaron') + (sm.expired ? T(`, ${sm.expired} caducaram`, `, ${sm.expired} expired`, `, ${sm.expired} caducaron`) : '')); }
+              catch (e) { parts.push(k + ': ' + (e.code === 'upstream_error' ? T('sem acompanhamento (serviço antigo)', 'no tracking (old service)', 'sin seguimiento (servicio antiguo)') : (e.message || '?'))); return; }
             }
             line.textContent = parts.join(' · ');
             if (++n < 12 && parts.some((p) => !/^(\S+): (\d+)\/\2 /.test(p))) setTimeout(tick, 5000);
           }; tick();
         }
-      } catch (e) { msg.className = 'small error-box'; msg.textContent = e.message || T('falha', 'failed'); }
-    } }, T('▶ Enviar comando', '▶ Send command'));
+      } catch (e) { msg.className = 'small error-box'; msg.textContent = e.message || T('falha', 'failed', 'fallido'); }
+    } }, T('▶ Enviar comando', '▶ Send command', '▶ Enviar comando'));
     return el('div', { class: 'section' },
-      el('h2', {}, T('🕹️ Comandos nas máquinas', '🕹️ Machine commands')),
+      el('h2', {}, T('🕹️ Comandos nas máquinas', '🕹️ Machine commands', '🕹️ Comandos de máquinas')),
       el('div', { class: 'small muted', style: 'margin:.1rem 0 .4rem' },
         T('O comando entra na fila do nutellaboot e a máquina executa no próximo contato. Tudo é auditado.',
-          'The command is queued in nutellaboot and runs on the machine\'s next contact. Everything is audited.')),
+          'The command is queued in nutellaboot and runs on the machine\'s next contact. Everything is audited.',
+          'El comando entra en la cola de nutellaboot y se ejecuta en el próximo contacto de la máquina. Todo queda auditado.')),
       el('div', { class: 'row', style: 'gap:.5rem;flex-wrap:wrap;align-items:center' },
-        el('label', {}, T('Sede ', 'Site '), selSede), el('label', {}, T('Máquina ', 'Machine '), selMac),
-        el('label', {}, T('Comando ', 'Command '), selOp), btn),
+        el('label', {}, T('Sede ', 'Site ', 'Sede '), selSede), el('label', {}, T('Máquina ', 'Machine ', 'Máquina '), selMac),
+        el('label', {}, T('Comando ', 'Command ', 'Comando '), selOp), btn),
       msg);
   }
 
@@ -270,12 +276,12 @@ export function makeMlinuxTab(CONTEST) {
     if (!d) {
       return el('div', { class: 'section' }, el('p', { class: 'muted' },
         RESP && RESP.configured
-          ? T('Nenhuma coleta ainda — rode "Coletar agora".', 'No collection yet — run "Collect now".')
-          : T('Configure a chave do nutellaboot para começar.', 'Set the nutellaboot key to begin.')));
+          ? T('Nenhuma coleta ainda — rode "Coletar agora".', 'No collection yet — run "Collect now".', 'Ninguna recolección todavía — ejecuta "Recolectar ahora".')
+          : T('Configure a chave do nutellaboot para começar.', 'Set the nutellaboot key to begin.', 'Configura la clave de nutellaboot para empezar.')));
     }
     const opts = nodeOpts();
     const bar = el('div', { class: 'fbar' });
-    const selN = el('select', { id: 'fRegion' }, el('option', { value: 'g|' }, T('— geral —', '— overall —')),
+    const selN = el('select', { id: 'fRegion' }, el('option', { value: 'g|' }, T('— geral —', '— overall —', '— general —')),
       ...opts.map((o) => el('option', { value: o.kind + '|' + o.key },
         '  '.repeat(o.depth) + o.key)));
     selN.value = sel.kind === 'g' ? 'g|' : sel.kind + '|' + sel.key;
@@ -285,17 +291,19 @@ export function makeMlinuxTab(CONTEST) {
       sel = { kind: k, key: rest.join('|') }; render();
     });
     const lk = d.link || {};
-    bar.append(el('label', {}, T('Recorte: ', 'Selection: '), selN),
+    bar.append(el('label', {}, T('Recorte: ', 'Selection: ', 'Selección: '), selN),
       el('span', { class: 'fcount' },
-        T(`coletado ${new Date((d.collected_at || 0) * 1000).toLocaleString()}`,
-          `collected ${new Date((d.collected_at || 0) * 1000).toLocaleString()}`)
-        + (lk.mode === 'ua' ? T(` · vínculo máquina-time: ${lk.linked}/${lk.present} times presentes (${lk.coverage}%)`, ` · machine-team link: ${lk.linked}/${lk.present} present teams (${lk.coverage}%)`)
-          : d.version >= 2 ? T(' · sem vínculo máquina-time', ' · no machine-team link') : '')));
+        T(`coletado ${new Date((d.collected_at || 0) * 1000).toLocaleString(uiLocale())}`,
+          `collected ${new Date((d.collected_at || 0) * 1000).toLocaleString(uiLocale())}`,
+          `recolectado ${new Date((d.collected_at || 0) * 1000).toLocaleString(uiLocale())}`)
+        + (lk.mode === 'ua' ? T(` · vínculo máquina-time: ${lk.linked}/${lk.present} times presentes (${lk.coverage}%)`, ` · machine-team link: ${lk.linked}/${lk.present} present teams (${lk.coverage}%)`, ` · vínculo máquina-equipo: ${lk.linked}/${lk.present} equipos presentes (${lk.coverage}%)`)
+          : d.version >= 2 ? T(' · sem vínculo máquina-time', ' · no machine-team link', ' · sin vínculo máquina-equipo') : '')));
     const box = el('div', {});
     // sede que o serviço NÃO devolveu nesta coleta (rede, escopo da chave): avisa — sumir calada não pode
     if ((d.skipped || []).length) box.append(el('p', { class: 'ml-note', style: 'color:var(--warn,#b9770e)' },
       T(`⚠ Sem dados nesta coleta: ${d.skipped.join(', ')}. Confira o escopo da chave e colete de novo.`,
-        `⚠ No data in this collection: ${d.skipped.join(', ')}. Check the key scope and collect again.`)));
+        `⚠ No data in this collection: ${d.skipped.join(', ')}. Check the key scope and collect again.`,
+        `⚠ Sin datos en esta recolección: ${d.skipped.join(', ')}. Revisa el alcance de la clave y recolecta de nuevo.`)));
     // a view recebe o cache INTEIRO + a árvore + o recorte: as tabelas "por recorte" comparam
     // os filhos do nó (subregiões com dado, ou as sedes dele) — mesmo contrato do relatório
     mlinuxSections(currentAgg(), { showMachines: sel.kind === 's', window: d.window, contest: d.contest,
@@ -324,7 +332,7 @@ export function makeMlinuxTab(CONTEST) {
   }
 
   async function load() {
-    if (!SK.style) { skeleton(); SK.pan.append(el('p', { class: 'muted' }, T('Carregando…', 'Loading…'))); }
+    if (!SK.style) { skeleton(); SK.pan.append(el('p', { class: 'muted' }, T('Carregando…', 'Loading…', 'Cargando…'))); }
     try {
       const [r, rg] = await Promise.all([
         apiGet('/contest/nutella?contest=' + enc(CONTEST), G),
@@ -336,7 +344,7 @@ export function makeMlinuxTab(CONTEST) {
       render();
     } catch (e) {
       SK.err.innerHTML = '';
-      SK.err.append(el('div', { class: 'error-box' }, e.message || T('falha ao carregar', 'failed to load')));
+      SK.err.append(el('div', { class: 'error-box' }, e.message || T('falha ao carregar', 'failed to load', 'falló al cargar')));
     }
   }
   return { panel, load };

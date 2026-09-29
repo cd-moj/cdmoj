@@ -10,15 +10,15 @@ import { apiGet, getToken } from '/shared/api.js';
 import { contestLoginHref, hereAsNext } from '/shared/contest-guard.js';
 import { el } from '/shared/ui.js';
 import { initContestShell } from '/shared/contest-shell.js';
-import { T } from '/shared/i18n.js';
+import { T, uiLocale } from '/shared/i18n.js';
 
 const qs = new URLSearchParams(location.search);
 const CONTEST = (window.__MOJ_CONTEST || qs.get('c') || '');
 const app = document.getElementById('app');
 const enc = encodeURIComponent;
-const fmt = (e) => (+e ? new Date(+e * 1000).toLocaleString() : '—');
+const fmt = (e) => (+e ? new Date(+e * 1000).toLocaleString(uiLocale()) : '—');
 // função, não const de módulo: T() no topo congela o idioma ANTES do setLang(LOCALE)
-const KIND = (k) => ({ warmup: T('aquecimento', 'warm-up'), official: T('prova oficial', 'official contest'), extra: T('extra', 'extra') }[k] || '');
+const KIND = (k) => ({ warmup: T('aquecimento', 'warm-up', 'calentamiento'), official: T('prova oficial', 'official contest', 'competencia oficial'), extra: T('extra', 'extra', 'extra') }[k] || '');
 let ROUNDS = [];
 
 const authHdr = () => ({ Authorization: 'Bearer ' + (getToken(CONTEST) || '') });
@@ -40,10 +40,10 @@ async function openViewer(round, file) {
   const crumb = el('span', { class: 'small muted' });
   const frame = el('iframe', { id: 'viewer', srcdoc: '' });
   const bar = el('div', { class: 'vbar' },
-    el('button', { class: 'btn ghost', onclick: () => { location.hash = ''; render(); } }, T('← rodadas', '← rounds')),
-    el('button', { class: 'btn ghost', onclick: () => show('index.html') }, T('placar', 'scoreboard')),
-    el('button', { class: 'btn ghost', onclick: () => show('runs.html') }, T('submissões', 'submissions')),
-    el('button', { class: 'btn ghost', onclick: () => show('statistics.html') }, T('estatísticas', 'statistics')),
+    el('button', { class: 'btn ghost', onclick: () => { location.hash = ''; render(); } }, T('← rodadas', '← rounds', '← rondas')),
+    el('button', { class: 'btn ghost', onclick: () => show('index.html') }, T('placar', 'scoreboard', 'marcador')),
+    el('button', { class: 'btn ghost', onclick: () => show('runs.html') }, T('submissões', 'submissions', 'envíos')),
+    el('button', { class: 'btn ghost', onclick: () => show('statistics.html') }, T('estatísticas', 'statistics', 'estadísticas')),
     el('button', { class: 'btn ghost', onclick: () => show('clarifications.html') }, 'clarifications'),
     crumb);
   const err = el('div', { class: 'small' });
@@ -56,13 +56,14 @@ async function openViewer(round, file) {
     location.hash = enc(round) + '/' + f;
     let resp;
     try { resp = await fetch(fileUrl(round, f), { headers: authHdr() }); }
-    catch { err.className = 'small error-box'; err.textContent = T('falha de rede', 'network error'); return; }
+    catch { err.className = 'small error-box'; err.textContent = T('falha de rede', 'network error', 'error de red'); return; }
     if (!resp.ok) {
       err.className = 'small error-box';
       err.textContent = resp.status === 404
         ? T('esta página não existe no relatório desta rodada (ou a rodada não está publicada).',
-            'this page does not exist in this round report (or the round is not published).')
-        : T('falha ao abrir (HTTP ', 'failed to open (HTTP ') + resp.status + ')';
+            'this page does not exist in this round report (or the round is not published).',
+            'esta página no existe en el informe de esta ronda (o la ronda no está publicada).')
+        : T('falha ao abrir (HTTP ', 'failed to open (HTTP ', 'no se pudo abrir (HTTP ') + resp.status + ')';
       return;
     }
     if (!/\.html?$/.test(f)) {   // PDF/imagem: abre em aba nova pelo blob (sem token na URL)
@@ -101,14 +102,14 @@ function render() {
   const box = el('div', { class: 'section' });
   if (live) box.append(el('div', { class: 'subcard', style: 'margin:.3rem 0' },
     el('div', { class: 'row', style: 'gap:.5rem;align-items:center;flex-wrap:wrap' },
-      el('b', {}, live.name || live.slug), el('span', { class: 'pill ok' }, T('no ar', 'live')),
+      el('b', {}, live.name || live.slug), el('span', { class: 'pill ok' }, T('no ar', 'live', 'en vivo')),
       el('span', { class: 'small muted' }, KIND(live.kind)),
       el('span', { class: 'small muted' }, fmt(live.start) + ' → ' + fmt(live.end)))));
   if (!arch.length) {
     box.append(el('p', { class: 'small muted', style: 'margin-top:.6rem' },
-      T('Nenhuma rodada encerrada ainda.', 'No finished round yet.')));
+      T('Nenhuma rodada encerrada ainda.', 'No finished round yet.', 'Aún no hay ninguna ronda finalizada.')));
   } else {
-    box.append(el('h3', { style: 'margin:.8rem 0 .3rem' }, T('Rodadas encerradas', 'Finished rounds')));
+    box.append(el('h3', { style: 'margin:.8rem 0 .3rem' }, T('Rodadas encerradas', 'Finished rounds', 'Rondas finalizadas')));
     arch.forEach((r) => {
       const row = el('div', { class: 'subcard', style: 'margin:.3rem 0' },
         el('div', { class: 'row', style: 'gap:.5rem;align-items:center;flex-wrap:wrap' },
@@ -117,14 +118,15 @@ function render() {
           el('span', { class: 'small muted' }, fmt(r.start) + ' → ' + fmt(r.end)),
           r.stats ? el('span', { class: 'small muted' },
             T(`${r.stats.submissions} submissões · ${r.stats.users} contas`,
-              `${r.stats.submissions} submissions · ${r.stats.users} accounts`)) : null,
-          r.published ? el('span', { class: 'pill ok' }, T('pública', 'public')) : null));
+              `${r.stats.submissions} submissions · ${r.stats.users} accounts`,
+              `${r.stats.submissions} envíos · ${r.stats.users} cuentas`)) : null,
+          r.published ? el('span', { class: 'pill ok' }, T('pública', 'public', 'pública')) : null));
       if (r.has_report) {
         row.append(el('div', { class: 'row', style: 'gap:.5rem;margin-top:.3rem' },
-          el('button', { class: 'btn', onclick: () => openViewer(r.slug, 'index.html') }, T('📊 abrir placar', '📊 open scoreboard')),
-          el('button', { class: 'btn ghost', onclick: () => openViewer(r.slug, 'runs.html') }, T('submissões', 'submissions'))));
+          el('button', { class: 'btn', onclick: () => openViewer(r.slug, 'index.html') }, T('📊 abrir placar', '📊 open scoreboard', '📊 abrir marcador')),
+          el('button', { class: 'btn ghost', onclick: () => openViewer(r.slug, 'runs.html') }, T('submissões', 'submissions', 'envíos'))));
       } else {
-        row.append(el('div', { class: 'small muted' }, T('sem relatório gerado', 'no report generated')));
+        row.append(el('div', { class: 'small muted' }, T('sem relatório gerado', 'no report generated', 'sin informe generado')));
       }
       box.append(row);
     });
@@ -133,19 +135,19 @@ function render() {
 }
 
 async function boot() {
-  if (!CONTEST) { app.innerHTML = '<div class="error-box">' + T('Contest não informado.', 'Contest not specified.') + '</div>'; return; }
+  if (!CONTEST) { app.innerHTML = '<div class="error-box">' + T('Contest não informado.', 'Contest not specified.', 'Competencia no especificada.') + '</div>'; return; }
   const { st } = await initContestShell(CONTEST);
   if (!st || !st.logged_in) {
     app.innerHTML = '';
-    app.append(el('div', { class: 'section' }, el('h2', {}, T('🔒 Entre no contest', '🔒 Log in to the contest')),
-      el('a', { class: 'btn', href: contestLoginHref(CONTEST, hereAsNext()) }, T('Login do contest', 'Contest login'))));
+    app.append(el('div', { class: 'section' }, el('h2', {}, T('🔒 Entre no contest', '🔒 Log in to the contest', '🔒 Inicia sesión en la competencia')),
+      el('a', { class: 'btn', href: contestLoginHref(CONTEST, hereAsNext()) }, T('Login do contest', 'Contest login', 'Acceso a la competencia'))));
     return;
   }
   try {
     const j = await apiGet('/contest/rounds?contest=' + enc(CONTEST), { contest: CONTEST, auth: true });
     ROUNDS = j.rounds || [];
   } catch (e) {
-    app.innerHTML = ''; app.append(el('div', { class: 'error-box' }, e.message || T('falha ao carregar', 'failed to load')));
+    app.innerHTML = ''; app.append(el('div', { class: 'error-box' }, e.message || T('falha ao carregar', 'failed to load', 'falló al cargar')));
     return;
   }
   window.addEventListener('hashchange', render);

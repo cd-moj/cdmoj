@@ -30,6 +30,13 @@ require_method POST
 source "$_LIBDIR/contest-create.sh"
 body="$(read_body)"
 jq -e . >/dev/null 2>&1 <<<"$body" || fail 400 "JSON inválido" "bad_json"
+# locale inválido recusa ANTES de qualquer escrita (antes era descartado mudo)
+bl="$(jq -r '.basic.locale // empty' <<<"$body")"
+[[ -z "$bl" ]] || contest_locale_ok "$bl" || fail 422 "locale inválido (pt, en ou es)" "locale_invalid"
+# sedes com a forma errada também recusam ANTES de qualquer escrita (cores, times…)
+if jq -e 'has("regions") and .regions != null and .regions != []' >/dev/null 2>&1 <<<"$body"; then
+  cc_regions_ok "$(jq -c '.regions' <<<"$body")" || cc_regions_fail
+fi
 
 # colors: objeto com chaves = grava (substitui o arquivo inteiro: o editor manda todas as letras +
 # enableSonic true/false); {} = NÃO MEXE (o editor devolve {} quando nada mudou — apagar aqui
@@ -46,14 +53,21 @@ if jq -e 'has("colors")' >/dev/null 2>&1 <<<"$body"; then
 fi
 if jq -e 'has("regions")' >/dev/null 2>&1 <<<"$body"; then
   r="$(jq -c '.regions' <<<"$body")"
-  if [[ "$(jq 'length' <<<"$r" 2>/dev/null)" -gt 0 ]]; then printf '%s' "$r" > "$cdir/regions.json"; mod_enable "$contest" sedes; else rm -f "$cdir/regions.json"; fi
+  # [] ou null = remover as sedes (decisão explícita do editor); qualquer outra coisa tem de ter a forma
+  # certa — antes um objeto/texto era gravado cru e quebrava calado os leitores. Recusa ANTES de gravar.
+  # (a forma já foi conferida no topo, antes de qualquer escrita)
+  if [[ "$r" == null || "$r" == "[]" ]]; then rm -f "$cdir/regions.json"
+  else
+    printf '%s' "$r" > "$cdir/regions.json.tmp" && mv -f "$cdir/regions.json.tmp" "$cdir/regions.json"
+    mod_enable "$contest" sedes
+  fi
 fi
 if jq -e 'has("teams_meta")' >/dev/null 2>&1 <<<"$body"; then
   t="$(jq -c '.teams_meta' <<<"$body")"
   if [[ "$(jq 'length' <<<"$t" 2>/dev/null)" -gt 0 ]]; then jq -cn --argjson r "$t" '{rules:$r}' > "$cdir/teams-meta.json"; mod_enable "$contest" sedes; else rm -f "$cdir/teams-meta.json"; fi
 fi
 if jq -e 'has("basic")' >/dev/null 2>&1 <<<"$body"; then
-  bl="$(jq -r '.basic.locale // empty' <<<"$body")"; [[ "$bl" =~ ^(pt|en)$ ]] && cc_set_conf_var "$contest" LOCALE "$bl"
+  [[ -n "$bl" ]] && cc_set_conf_var "$contest" LOCALE "$bl"
   bs="$(jq -r '.basic.login_start // empty' <<<"$body")"; [[ "$bs" =~ ^[0-9]+$ ]] && cc_set_conf_var "$contest" LOGIN_START_TIME "$bs"
   bf="$(jq -r '.basic.freeze // empty' <<<"$body")"
   if [[ "$bf" =~ ^[0-9]+$ ]] && [[ "$bf" != "$(conf_value "$contest" FREEZE_TIME)" ]]; then

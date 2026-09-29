@@ -14,8 +14,8 @@ const field = (l, inp) => el('div', { class: 'field' }, el('label', {}, l), inp)
 const chk = (l, c) => el('div', { class: 'field' }, el('label', { style: 'font-weight:400' }, c, ' ' + l));
 const mkBool = (v) => { const c = el('input', { type: 'checkbox' }); c.checked = !!v; return c; };
 const PRIORITY_LABEL = () => ({
-  'lista-publica': T('Lista pública (padrão)', 'Public list (default)'), 'lista-privada': T('Lista privada', 'Private list'),
-  prova: T('Prova (julga antes das listas)', 'Contest (judged before lists)'), super: T('Super (admin; fura toda fila)', 'Super (admin; jumps the whole queue)'),
+  'lista-publica': T('Lista pública (padrão)', 'Public list (default)', 'Lista pública (por defecto)'), 'lista-privada': T('Lista privada', 'Private list', 'Lista privada'),
+  prova: T('Prova (julga antes das listas)', 'Contest (judged before lists)', 'Competencia (se evalúa antes que las listas)'), super: T('Super (admin; fura toda fila)', 'Super (admin; jumps the whole queue)', 'Super (admin; salta toda la cola)'),
 });
 
 const PENALTY_OPTS = [
@@ -35,7 +35,7 @@ export function makeSettingsEditor({ value = {}, mode = 'admin', isAdmin = false
   const end = el('input', { type: 'datetime-local', value: s.end ? toLocalDT(s.end) : '' });
   const loginStart = el('input', { type: 'datetime-local', value: s.login_start ? toLocalDT(s.login_start) : '' });
   const freeze = el('input', { type: 'datetime-local', value: s.freeze ? toLocalDT(s.freeze) : '' });
-  const locale = el('select', {}, el('option', { value: 'pt' }, 'Português'), el('option', { value: 'en' }, 'English'));
+  const locale = el('select', {}, el('option', { value: 'pt' }, 'Português'), el('option', { value: 'en' }, 'English'), el('option', { value: 'es' }, 'Español'));
   locale.value = s.locale || 'pt';
   const prios = ['lista-publica', 'lista-privada', 'prova', ...(isAdmin ? ['super'] : [])];
   const PL = PRIORITY_LABEL();
@@ -43,17 +43,17 @@ export function makeSettingsEditor({ value = {}, mode = 'admin', isAdmin = false
   priority.value = prios.includes(s.priority) ? s.priority : 'lista-publica';
   const loginEnabled = mkBool(s.login_enabled !== false),
     showLog = mkBool(s.show_log !== false), showEditor = mkBool(s.show_editor !== false),
-    allowLate = mkBool(s.allow_late), scoreAnon = mkBool(s.score_anon),
+    scoreAnon = mkBool(s.score_anon),
     showTL = mkBool(s.show_tl !== false), allowBackup = mkBool(s.allow_backup !== false),
     allowPrint = mkBool(s.allow_print !== false), manualVerdict = mkBool(s.manual_verdict === true),
     secret = mkBool(s.secret === true), balloonsFreeze = mkBool(s.balloons_during_freeze === true);
   const blnStyle = el('select', {},
-    el('option', { value: 'icon' }, T('Neutro + bolinha da cor (padrão)', 'Neutral + colour dot (default)')),
-    el('option', { value: 'fill' }, T('Célula pintada com a cor do balão', 'Cell filled with the balloon colour')));
+    el('option', { value: 'icon' }, T('Neutro + bolinha da cor (padrão)', 'Neutral + colour dot (default)', 'Neutro + punto de color (por defecto)')),
+    el('option', { value: 'fill' }, T('Célula pintada com a cor do balão', 'Cell filled with the balloon colour', 'Celda pintada con el color del globo')));
   blnStyle.value = s.balloon_style === 'fill' ? 'fill' : 'icon';
-  const ua = el('input', { value: s.login_ua_substring || '', placeholder: T('substring do UA (vazio = sem gate)', 'UA substring (empty = no gate)') });
+  const ua = el('input', { value: s.login_ua_substring || '', placeholder: T('substring do UA (vazio = sem gate)', 'UA substring (empty = no gate)', 'substring del UA (vacío = sin filtro)') });
   // data-k: o settings-tab esconde este campo sem o módulo `maquinas` (por chave, não por índice)
-  const uaField = field(T('Gate de login por substring de UA (só não-privilegiados)', 'Login gate by UA substring (only non-privileged)'), ua);
+  const uaField = field(T('Gate de login por substring de UA (só não-privilegiados)', 'Login gate by UA substring (only non-privileged)', 'Filtro de inicio de sesión por substring de UA (solo no privilegiados)'), ua);
   uaField.dataset.k = 'login_ua_substring';
   const penMin = el('input', { type: 'number', min: '0', step: '1', style: 'max-width:100px',
     value: String(Number.isInteger(s.penalty_minutes) ? s.penalty_minutes : 20) });
@@ -64,7 +64,7 @@ export function makeSettingsEditor({ value = {}, mode = 'admin', isAdmin = false
   const penChecks = PENALTY_OPTS.map(([code, label]) => ({ code, box: mkBool(pvSel.has(code)), label }));
   const langs = makeLangPicker(s.languages || []);
   const judges = makeJudgePicker(s.judges || [], apiCtx || {});
-  const fullUsers = el('input', { value: (s.score_full_users || []).join(' '), placeholder: T('logins (espaço) — além de .admin/.judge/.cjudge', 'logins (space) — besides .admin/.judge/.cjudge'), style: 'width:100%' });
+  const fullUsers = el('input', { value: (s.score_full_users || []).join(' '), placeholder: T('logins (espaço) — além de .admin/.judge/.cjudge', 'logins (space) — besides .admin/.judge/.cjudge', 'usuarios (espacio) — además de .admin/.judge/.cjudge'), style: 'width:100%' });
   // FUSO da prova: governa as horas que o SERVIDOR escreve para gente (DM do mojinho, checklist
   // pré-prova, caderno, relatório). Os campos de data desta tela seguem no relógio do navegador.
   const TZS = ['America/Sao_Paulo', 'America/Manaus', 'America/Belem', 'America/Fortaleza',
@@ -75,9 +75,9 @@ export function makeSettingsEditor({ value = {}, mode = 'admin', isAdmin = false
 
   let cmode = contestMode;
   const penaltySec = el('div', {},
-    el('h3', { style: 'margin:1rem 0 .3rem' }, T('⏱ Penalidade (placar ICPC)', '⏱ Penalty (ICPC scoreboard)')),
-    field(T('Minutos somados por tentativa não aceita antes do Accepted', 'Minutes added per non-accepted attempt before the Accepted'), penMin),
-    el('p', { class: 'muted small' }, T('Verdicts que contam penalidade (Judge Error e submissões pendentes nunca contam):', 'Verdicts that count as penalty (Judge Error and pending submissions never count):')),
+    el('h3', { style: 'margin:1rem 0 .3rem' }, T('⏱ Penalidade (placar ICPC)', '⏱ Penalty (ICPC scoreboard)', '⏱ Penalización (marcador ICPC)')),
+    field(T('Minutos somados por tentativa não aceita antes do Accepted', 'Minutes added per non-accepted attempt before the Accepted', 'Minutos sumados por cada intento no aceptado antes del Accepted'), penMin),
+    el('p', { class: 'muted small' }, T('Verdicts que contam penalidade (Judge Error e submissões pendentes nunca contam):', 'Verdicts that count as penalty (Judge Error and pending submissions never count):', 'Veredictos que cuentan como penalización (Judge Error y los envíos pendientes nunca cuentan):')),
     ...penChecks.map((p) => chk(p.label, p.box)));
   const syncPen = () => { penaltySec.style.display = cmode === 'icpc' ? '' : 'none'; };
   syncPen();
@@ -85,8 +85,8 @@ export function makeSettingsEditor({ value = {}, mode = 'admin', isAdmin = false
   // Em modo icpc o log é OCULTO por padrão (showlog_effective no servidor): o report de
   // julgamento expõe a entrada e o diff de TODOS os casos de teste — religar vaza a prova.
   const showLogHint = el('p', { class: 'muted small', style: 'display:none;margin:.1rem 0 .4rem;color:#b45309' },
-    T('⚠️ Prova ICPC: o log de julgamento fica oculto por padrão — o report expõe a entrada e o ', '⚠️ ICPC contest: the judging log is hidden by default — the report exposes the input and the '),
-    T('diff de TODOS os casos de teste. Marcar esta opção entrega os testes ao competidor.', 'diff of ALL test cases. Checking this option hands the tests to the competitor.'));
+    T('⚠️ Prova ICPC: o log de julgamento fica oculto por padrão — o report expõe a entrada e o ', '⚠️ ICPC contest: the judging log is hidden by default — the report exposes the input and the ', '⚠️ Competencia ICPC: el registro de evaluación queda oculto por defecto — el informe expone la entrada y el '),
+    T('diff de TODOS os casos de teste. Marcar esta opção entrega os testes ao competidor.', 'diff of ALL test cases. Checking this option hands the tests to the competitor.', 'diff de TODOS los casos de prueba. Marcar esta opción entrega las pruebas al competidor.'));
   let showLogTouched = false;
   const syncShowLog = () => {
     if (!showLogTouched && isCreate && cmode === 'icpc') showLog.checked = false;
@@ -97,56 +97,58 @@ export function makeSettingsEditor({ value = {}, mode = 'admin', isAdmin = false
 
   const box = el('div', {});
   if (!isCreate) {
-    box.append(field(T('Nome', 'Name'), name),
-      el('div', { class: 'grid2' }, field(T('Início', 'Start'), start), field(T('Fim', 'End'), end)));
+    box.append(field(T('Nome', 'Name', 'Nombre'), name),
+      el('div', { class: 'grid2' }, field(T('Início', 'Start', 'Inicio'), start), field(T('Fim', 'End', 'Fin'), end)));
   }
   box.append(
-    el('div', { class: 'grid2' }, field(T('Abertura do login (tela de espera)', 'Login opening (waiting screen)'), loginStart), field(T('Freeze do placar', 'Scoreboard freeze'), freeze)),
-    isCreate ? el('div', { class: 'grid2' }, field(T('Idioma', 'Language'), locale), field(T('Prioridade no julgamento', 'Judging priority'), priority)) : field(T('Idioma', 'Language'), locale),
-    chk(T('Login habilitado', 'Login enabled'), loginEnabled),
-    chk(T('Permitir auto-cadastro de novos usuários (late users)', 'Allow self-registration of new users (late users)'), allowLate),
-    chk(T('Usuário pode ver o log de julgamento', 'User can see the judging log'), showLog),
+    el('div', { class: 'grid2' }, field(T('Abertura do login (tela de espera)', 'Login opening (waiting screen)', 'Apertura del login (pantalla de espera)'), loginStart), field(T('Freeze do placar', 'Scoreboard freeze', 'Congelamiento del marcador'), freeze)),
+    isCreate ? el('div', { class: 'grid2' }, field(T('Idioma', 'Language', 'Idioma'), locale), field(T('Prioridade no julgamento', 'Judging priority', 'Prioridad en la evaluación'), priority)) : field(T('Idioma', 'Language', 'Idioma'), locale),
+    chk(T('Login habilitado', 'Login enabled', 'Inicio de sesión habilitado'), loginEnabled),
+    chk(T('Usuário pode ver o log de julgamento', 'User can see the judging log', 'El usuario puede ver el registro de evaluación'), showLog),
     showLogHint,
-    chk(T('Editor de código no browser disponível', 'In-browser code editor available'), showEditor),
-    chk(T('Mostrar o tempo-limite dos problemas aos usuários', "Show problems' time limit to users"), showTL),
-    chk(T('Permitir backup de arquivos pelos usuários', 'Allow file backup by users'), allowBackup),
-    chk(T('Permitir pedidos de impressão pelos usuários (.staff)', 'Allow print requests by users (.staff)'), allowPrint),
-    chk(T('Veredicto manual (os juízes validam o que a tabela "O que vai para revisão" marca — painel Juízes; o resto sai automático)', 'Manual verdict (the judges validate what the "What goes to review" table checks — Judges panel; the rest is automatic)'), manualVerdict),
-    field(T('Nº de juízes que validam cada veredicto (1–5; 1 = revisão simples)', 'Judges required to validate each verdict (1–5; 1 = single review)'), revJudges),
-    chk(T('Placar anônimo (esconde desempenho individual)', 'Anonymous scoreboard (hides individual performance)'), scoreAnon),
-    chk(T('🕵️ SUPER SECRETO — fora da home/arquivo/status; placar e visual exigem login (a tela de login continua funcionando p/ quem tem o link)', '🕵️ SUPER SECRET — off the home/archive/status; scoreboard and view require login (the login screen still works for whoever has the link)'), secret),
+    chk(T('Editor de código no browser disponível', 'In-browser code editor available', 'Editor de código en el navegador disponible'), showEditor),
+    chk(T('Mostrar o tempo-limite dos problemas aos usuários', "Show problems' time limit to users", "Mostrar el tiempo límite de los problemas a los usuarios"), showTL),
+    chk(T('Permitir backup de arquivos pelos usuários', 'Allow file backup by users', 'Permitir el backup de archivos por los usuarios'), allowBackup),
+    chk(T('Permitir pedidos de impressão pelos usuários (.staff)', 'Allow print requests by users (.staff)', 'Permitir solicitudes de impresión por los usuarios (.staff)'), allowPrint),
+    chk(T('Veredicto manual (os juízes validam o que a tabela "O que vai para revisão" marca — painel Juízes; o resto sai automático)', 'Manual verdict (the judges validate what the "What goes to review" table checks — Judges panel; the rest is automatic)', 'Veredicto manual (los jueces validan lo que marca la tabla "Qué va a revisión" — panel Jueces; el resto sale automático)'), manualVerdict),
+    field(T('Nº de juízes que validam cada veredicto (1–5; 1 = revisão simples)', 'Judges required to validate each verdict (1–5; 1 = single review)', 'N.º de jueces que validan cada veredicto (1–5; 1 = revisión simple)'), revJudges),
+    chk(T('Placar anônimo (esconde desempenho individual)', 'Anonymous scoreboard (hides individual performance)', 'Marcador anónimo (oculta el desempeño individual)'), scoreAnon),
+    chk(T('🕵️ SUPER SECRETO — fora da home/arquivo/status; placar e visual exigem login (a tela de login continua funcionando p/ quem tem o link)', '🕵️ SUPER SECRET — off the home/archive/status; scoreboard and view require login (the login screen still works for whoever has the link)', '🕵️ SUPER SECRETO — fuera de inicio/archivo/estado; el marcador y la vista exigen iniciar sesión (la pantalla de inicio de sesión sigue funcionando para quien tenga el enlace)'), secret),
     uaField,
     penaltySec,
-    el('h3', { style: 'margin:1rem 0 .3rem' }, T('💻 Linguagens permitidas no contest', '💻 Languages allowed in the contest')),
-    el('p', { class: 'muted small' }, T('Marque as permitidas. Nenhuma marcada = todas. (Pode ser refinado por problema na aba Problemas.)', 'Check the allowed ones. None checked = all. (Can be refined per problem in the Problems tab.)')),
+    el('h3', { style: 'margin:1rem 0 .3rem' }, T('💻 Linguagens permitidas no contest', '💻 Languages allowed in the contest', '💻 Lenguajes permitidos en la competencia')),
+    el('p', { class: 'muted small' }, T('Marque as permitidas. Nenhuma marcada = todas. (Pode ser refinado por problema na aba Problemas.)', 'Check the allowed ones. None checked = all. (Can be refined per problem in the Problems tab.)', 'Marca los permitidos. Ninguno marcado = todos. (Se puede ajustar por problema en la pestaña Problemas.)')),
     langs.el,
-    el('h3', { style: 'margin:1rem 0 .3rem' }, T('🖥️ Máquinas de juiz (pool)', '🖥️ Judge machines (pool)')),
+    el('h3', { style: 'margin:1rem 0 .3rem' }, T('🖥️ Máquinas de juiz (pool)', '🖥️ Judge machines (pool)', '🖥️ Máquinas de juez (pool)')),
     el('p', { class: 'muted small' },
-      T('Nenhuma marcada = qualquer juiz online julga. Marcar FIXA a correção nessas máquinas — ', 'None checked = any online judge judges. Checking PINS judging to those machines — '),
-      T('consistência de hardware: o tempo-limite exibido passa a ser só delas e, se todas caírem, ', 'hardware consistency: the displayed time limit becomes theirs only and, if all go down, '),
-      T('as submissões ESPERAM na fila (o pré-prova e a Situação avisam). (Pode ser refinado por problema na aba Problemas.)', 'submissions WAIT in the queue (the pre-contest check and the Situation warn). (Can be refined per problem in the Problems tab.)')),
+      T('Nenhuma marcada = qualquer juiz online julga. Marcar FIXA a correção nessas máquinas — ', 'None checked = any online judge judges. Checking PINS judging to those machines — ', 'Ninguna marcada = cualquier juez en línea evalúa. Marcar FIJA la evaluación en esas máquinas — '),
+      T('consistência de hardware: o tempo-limite exibido passa a ser só delas e, se todas caírem, ', 'hardware consistency: the displayed time limit becomes theirs only and, if all go down, ', 'consistencia de hardware: el tiempo límite mostrado pasa a ser solo el de ellas y, si todas caen, '),
+      T('as submissões ESPERAM na fila (o pré-prova e a Situação avisam). (Pode ser refinado por problema na aba Problemas.)', 'submissions WAIT in the queue (the pre-contest check and the Situation warn). (Can be refined per problem in the Problems tab.)', 'los envíos ESPERAN en la cola (el chequeo previo a la competencia y Situación avisan). (Se puede ajustar por problema en la pestaña Problemas.)')),
     judges.el,
-    el('h3', { style: 'margin:1rem 0 .3rem' }, T('👁️ Placar completo (sem freeze)', '👁️ Full scoreboard (no freeze)')),
-    el('p', { class: 'muted small' }, T('Quem vê o placar real mesmo durante o freeze: .admin, .judge e .cjudge (juiz-chefe) sempre; some outros logins aqui.', 'Who sees the real scoreboard even during freeze: .admin, .judge and .cjudge (chief judge) always; add other logins here.')),
+    el('h3', { style: 'margin:1rem 0 .3rem' }, T('👁️ Placar completo (sem freeze)', '👁️ Full scoreboard (no freeze)', '👁️ Marcador completo (sin congelamiento)')),
+    el('p', { class: 'muted small' }, T('Quem vê o placar real mesmo durante o freeze: .admin, .judge e .cjudge (juiz-chefe) sempre; some outros logins aqui.', 'Who sees the real scoreboard even during freeze: .admin, .judge and .cjudge (chief judge) always; add other logins here.', 'Quién ve el marcador real incluso durante el congelamiento: .admin, .judge y .cjudge (juez principal) siempre; agrega otros usuarios aquí.')),
     fullUsers,
     // ⚠ campo NOVO entra no FIM: o settings-tab.js monta as seções por ÍNDICE dos filhos —
     // inserir no meio deslocaria todos os seguintes p/ a seção errada.
-    el('h3', { style: 'margin:1rem 0 .3rem' }, T('🌎 Fuso horário da prova', '🌎 Contest timezone')),
+    el('h3', { style: 'margin:1rem 0 .3rem' }, T('🌎 Fuso horário da prova', '🌎 Contest timezone', '🌎 Zona horaria de la competencia')),
     el('p', { class: 'muted small' },
       T('Em que relógio o MOJ escreve as horas desta prova para as pessoas: mensagem do mojinho, checklist pré-prova, caderno e relatório. Vazio = padrão da instalação (America/Sao_Paulo). Os campos de data desta tela continuam no relógio do SEU navegador.',
-        'Which clock the MOJ uses when writing this contest’s times for people: mojinho message, pre-contest checklist, problem set and report. Empty = installation default (America/Sao_Paulo). The date fields on this screen still follow YOUR browser’s clock.')),
-    el('div', {}, tzList, field(T('Fuso (IANA)', 'Timezone (IANA)'), tz)),
+        'Which clock the MOJ uses when writing this contest’s times for people: mojinho message, pre-contest checklist, problem set and report. Empty = installation default (America/Sao_Paulo). The date fields on this screen still follow YOUR browser’s clock.',
+        'En qué reloj escribe el MOJ los horarios de esta competencia para las personas: mensaje del mojinho, checklist previo a la competencia, cuadernillo e informe. Vacío = valor por defecto de la instalación (America/Sao_Paulo). Los campos de fecha de esta pantalla siguen el reloj de TU navegador.')),
+    el('div', {}, tzList, field(T('Fuso (IANA)', 'Timezone (IANA)', 'Zona horaria (IANA)'), tz)),
     // idem: no FIM (índice novo entra no GROUPS do settings-tab.js, seção do freeze)
-    el('h3', { style: 'margin:1rem 0 .3rem' }, T('🎈 Balões durante o freeze', '🎈 Balloons during the freeze')),
+    el('h3', { style: 'margin:1rem 0 .3rem' }, T('🎈 Balões durante o freeze', '🎈 Balloons during the freeze', '🎈 Globos durante el congelamiento')),
     el('p', { class: 'muted small' },
       T('Por padrão o MOJ NÃO gera tarefa de entrega para acerto feito com o placar congelado: o balão andando pela sala conta ao público exatamente o que o freeze esconde. Esses balões não são entregues depois — simplesmente não existem. Marque para entregar normalmente durante o freeze (o clássico do ICPC); marcar agora também libera os que já ficaram retidos. Pedido de impressão não é afetado.',
-        'By default the MOJ does NOT create a delivery task for a solve made while the scoreboard is frozen: a balloon crossing the room tells the audience exactly what the freeze hides. Those balloons are not delivered later — they simply never exist. Check to deliver normally during the freeze (the ICPC classic); checking it now also releases the ones already held back. Print requests are unaffected.')),
-    chk(T('Entregar balão durante o freeze', 'Deliver balloons during the freeze'), balloonsFreeze),
-    el('h3', { style: 'margin:1rem 0 .3rem' }, T('🎨 Célula "resolveu" no placar', '🎨 "Solved" cell on the scoreboard')),
+        'By default the MOJ does NOT create a delivery task for a solve made while the scoreboard is frozen: a balloon crossing the room tells the audience exactly what the freeze hides. Those balloons are not delivered later — they simply never exist. Check to deliver normally during the freeze (the ICPC classic); checking it now also releases the ones already held back. Print requests are unaffected.',
+        'Por defecto el MOJ NO genera una tarea de entrega para un acierto logrado con el marcador congelado: el globo cruzando la sala le cuenta al público exactamente lo que el congelamiento esconde. Esos globos no se entregan después — simplemente no existen. Marca esta opción para entregarlos normalmente durante el congelamiento (el clásico del ICPC); marcarla ahora también libera los que ya quedaron retenidos. Las solicitudes de impresión no se ven afectadas.')),
+    chk(T('Entregar balão durante o freeze', 'Deliver balloons during the freeze', 'Entregar globos durante el congelamiento'), balloonsFreeze),
+    el('h3', { style: 'margin:1rem 0 .3rem' }, T('🎨 Célula "resolveu" no placar', '🎨 "Solved" cell on the scoreboard', '🎨 Celda de "resuelto" en el marcador')),
     el('p', { class: 'muted small' },
       T('No padrão, a célula de quem resolveu é sempre igual (verde) e a cor do balão vai numa bolinha ao lado — assim "resolveu" não depende de enxergar a cor, e o balão BRANCO deixa de sumir no fundo do placar. A outra opção é o clássico: a célula inteira pintada com a cor do balão (aí as cores claras ganham contorno para não sumir). Vale para o placar, a cerimônia de revelação e o relatório.',
-        'By default the solved cell always looks the same (green) and the balloon colour goes in a small dot beside it — so "solved" does not depend on seeing the colour, and the WHITE balloon stops vanishing into the scoreboard background. The other option is the classic: the whole cell painted with the balloon colour (light colours then get an outline so they do not vanish). Applies to the scoreboard, the reveal ceremony and the report.')),
-    field(T('Como pintar', 'How to paint'), blnStyle));
+        'By default the solved cell always looks the same (green) and the balloon colour goes in a small dot beside it — so "solved" does not depend on seeing the colour, and the WHITE balloon stops vanishing into the scoreboard background. The other option is the classic: the whole cell painted with the balloon colour (light colours then get an outline so they do not vanish). Applies to the scoreboard, the reveal ceremony and the report.',
+        'Por defecto, la celda de quien resolvió siempre se ve igual (verde) y el color del globo va en un puntito al lado — así "resuelto" no depende de distinguir el color, y el globo BLANCO deja de desaparecer en el fondo del marcador. La otra opción es la clásica: toda la celda pintada con el color del globo (ahí los colores claros reciben un contorno para no desaparecer). Aplica al marcador, la ceremonia de revelación y el informe.')),
+    field(T('Como pintar', 'How to paint', 'Cómo pintar'), blnStyle));
 
   function getValue() {
     return {
@@ -161,7 +163,7 @@ export function makeSettingsEditor({ value = {}, mode = 'admin', isAdmin = false
       freeze: freeze.value ? dtToEpoch(freeze.value) : 0,
       locale: locale.value, tz: tz.value.trim(), login_enabled: loginEnabled.checked,
       show_log: showLog.checked, show_editor: showEditor.checked,
-      allow_late: allowLate.checked, score_anon: scoreAnon.checked, show_tl: showTL.checked,
+      score_anon: scoreAnon.checked, show_tl: showTL.checked,
       allow_backup: allowBackup.checked, allow_print: allowPrint.checked,
       manual_verdict: manualVerdict.checked, secret: secret.checked, login_ua_substring: ua.value,
       balloons_during_freeze: balloonsFreeze.checked, balloon_style: blnStyle.value,

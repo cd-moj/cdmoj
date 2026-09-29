@@ -116,10 +116,10 @@ inv_html_escape(){ printf '%s' "$1" | sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/
 
 inv_link(){ printf '%s/contests/inscricao/?c=%s' "${MOJ_PUBLIC_BASE%/}" "$1"; }
 
-# inv_lang <c> -> pt|en (LOCALE do contest; o resto do MOJ segue a mesma precedência)
+# inv_lang <c> -> pt|en|es (LOCALE do contest; o resto do MOJ segue a mesma precedência)
 inv_lang(){
   local v; v="$( ( LOCALE=""; source "$CONTESTSDIR/$1/conf" 2>/dev/null; printf '%s' "${LOCALE:-}" ) )"
-  [[ "${v,,}" == en* ]] && printf 'en' || printf 'pt'
+  case "${v,,}" in en*) printf 'en' ;; es*) printf 'es' ;; *) printf 'pt' ;; esac
 }
 inv_contest_name(){
   local v; v="$( ( CONTEST_NAME=""; source "$CONTESTSDIR/$1/conf" 2>/dev/null; printf '%s' "${CONTEST_NAME:-}" ) )"
@@ -128,8 +128,20 @@ inv_contest_name(){
 _inv_when(){  # <epoch> <lang> <contest> -> data curta legível NO FUSO DA PROVA
   # fmt_epoch (lib/common.sh) resolve o CONTEST_TZ: sem isso a DM anunciava o prazo no fuso do
   # servidor (UTC) e o competidor lia 3 h a mais do que o relógio dele.
-  if [[ "$2" == en ]]; then fmt_epoch "$1" '%b %d, %H:%M' "$3"
-  else fmt_epoch "$1" '%d/%m às %H:%M' "$3"; fi
+  # Mês por TABELA, nunca `%b`: o nome do mês do `date` segue o LC_TIME do processo (a imagem roda
+  # em C — inglês), e o espanhol precisaria de um locale que a imagem não tem.
+  local d m hm
+  case "$2" in
+    en|es)
+      read -r d m hm < <(fmt_epoch "$1" '%-d %-m %H:%M' "$3")
+      [[ "$m" =~ ^[0-9]+$ ]] && (( m >= 1 && m <= 12 )) || return 0
+      if [[ "$2" == en ]]; then
+        local -a M=(Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec); printf '%s %s, %s' "${M[m-1]}" "$d" "$hm"
+      else
+        local -a M=(ene feb mar abr may jun jul ago sep oct nov dic); printf '%s de %s a las %s' "$d" "${M[m-1]}" "$hm"
+      fi ;;
+    *) fmt_epoch "$1" '%d/%m às %H:%M' "$3" ;;
+  esac
 }
 _inv_left(){  # <segundos> <lang> -> "~5 h" / "~40 min"
   local s="$1" h=$(( $1 / 3600 ))
@@ -161,26 +173,38 @@ _inv_msg_en(){
   fi
 }
 
+_inv_msg_es(){
+  local kind="$1" team="$2" nm="$3" link="$4" when="$5" left="$6" dl=""
+  if [[ "$kind" != invite ]]; then
+    printf '⏰ <b>%s</b> — las inscripciones cierran %s%s y todavía tienes una <b>invitación de equipo pendiente</b> de <b>%s</b>.\n\nAcepta o rechaza: %s\n\nSi no aceptas la invitación, no entras al equipo.' \
+      "$nm" "${when:-pronto}" "${left:+ (faltan $left)}" "$team" "$link"
+  else
+    [[ -n "$when" ]] && dl=$'\n\n'"⏳ Las inscripciones cierran el $when."
+    printf '🎫 El equipo <b>%s</b> te invitó a <b>%s</b>.\n\nAcepta o rechaza aquí: %s%s' \
+      "$team" "$nm" "$link" "$dl"
+  fi
+}
+
 # inv_msg <c> <invite|remind|lastcall> <nome-do-time> <closes_at> -> texto HTML da DM
 # (`remind` = o botão do painel; usa o mesmo texto do aviso automático)
 #
-# IDIOMA: contest em pt manda só português; contest com `LOCALE=en` manda **inglês E português**
-# no mesmo texto. A DM não tem seletor de idioma como a web, e contest `en` é justamente o que
+# IDIOMA: contest em pt manda só português; contest com `LOCALE=en` (ou `es`) manda **inglês (ou
+# espanhol) E português** no mesmo texto. A DM não tem seletor de idioma como a web, e contest `en` é justamente o que
 # mistura gente de fora com brasileiros (o esquenta da maratona é `LOCALE=en` e a maioria dos
 # convidados é do Brasil): mandar só inglês deixaria a maioria sem entender.
 inv_msg(){
-  local c="$1" kind="$2" team="$3" cl="$4" lang nm link when whenen left leften now="$EPOCHSECONDS"
+  local c="$1" kind="$2" team="$3" cl="$4" lang nm link when left leften now="$EPOCHSECONDS"
   lang="$(inv_lang "$c")"
   nm="$(inv_html_escape "$(inv_contest_name "$c")")"
   team="$(inv_html_escape "$team")"
   link="$(inv_link "$c")"
   [[ "$cl" =~ ^[0-9]+$ ]] || cl=0
-  when="$(_inv_when "$cl" pt "$c")"; whenen="$(_inv_when "$cl" en "$c")"
+  when="$(_inv_when "$cl" pt "$c")"
   if (( cl > now )); then left="$(_inv_left $(( cl - now )) pt)"; leften="$(_inv_left $(( cl - now )) en)"
   else left=""; leften=""; fi
-  if [[ "$lang" == en ]]; then
+  if [[ "$lang" == en || "$lang" == es ]]; then
     printf '%s\n\n———\n\n%s' \
-      "$(_inv_msg_en "$kind" "$team" "$nm" "$link" "$whenen" "$leften")" \
+      "$(_inv_msg_"$lang" "$kind" "$team" "$nm" "$link" "$(_inv_when "$cl" "$lang" "$c")" "$leften")" \
       "$(_inv_msg_pt "$kind" "$team" "$nm" "$link" "$when" "$left")"
   else
     _inv_msg_pt "$kind" "$team" "$nm" "$link" "$when" "$left"

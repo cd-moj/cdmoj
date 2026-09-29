@@ -15,7 +15,7 @@ export async function downloadAuthed(contest, path, filename) {
     if (!r.ok) throw 0;
     const a = el('a', { href: URL.createObjectURL(await r.blob()), download: filename });
     document.body.append(a); a.click(); a.remove();
-  } catch { alert(T('Falha ao baixar.', 'Download failed.')); }
+  } catch { alert(T('Falha ao baixar.', 'Download failed.', 'Error al descargar.')); }
 }
 
 // openHtmlReport(html) — abre um relatório HTML AUTO-CONTIDO (o report.html do mojtools, o de
@@ -30,7 +30,7 @@ export async function downloadAuthed(contest, path, filename) {
 export function openHtmlReport(html) {
   const url = URL.createObjectURL(new Blob([html], { type: 'text/html' }));
   const w = window.open(url, '_blank');
-  if (!w) { alert(T('Permita pop-ups para ver o relatório.', 'Allow pop-ups to view the report.')); URL.revokeObjectURL(url); return null; }
+  if (!w) { alert(T('Permita pop-ups para ver o relatório.', 'Allow pop-ups to view the report.', 'Permite las ventanas emergentes para ver el informe.')); URL.revokeObjectURL(url); return null; }
   setTimeout(() => URL.revokeObjectURL(url), 60000);
   return w;
 }
@@ -40,7 +40,7 @@ export async function openReportAuthed(contest, path) {
   try {
     const r = await fetch('/api/v1' + path, { headers: { Authorization: 'Bearer ' + getToken(contest) } });
     openHtmlReport(await r.text());
-  } catch { alert(T('Falha ao abrir o log.', 'Failed to open the log.')); }
+  } catch { alert(T('Falha ao abrir o log.', 'Failed to open the log.', 'Error al abrir el registro.')); }
 }
 
 const srcExt = (s) => ((s && s.lang) ? String(s.lang) : 'txt').toLowerCase();
@@ -54,5 +54,5 @@ export function logLink(contest, s, label) {
 export function srcLink(contest, s, label) {
   return el('a', { href: '#', onclick: (e) => { e.preventDefault();
     downloadAuthed(contest, `/submission/source?contest=${enc(contest)}&id=${enc(s.id)}&time=${enc(s.sub_epoch || '')}`, s.id + '.' + srcExt(s)); } },
-    label || T('💻 código', '💻 code'));
+    label || T('💻 código', '💻 code', '💻 código'));
 }

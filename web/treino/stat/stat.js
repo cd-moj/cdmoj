@@ -66,24 +66,25 @@ function fmtWhen(epoch) {
   const t0 = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const dd = Math.round((t0 - d0) / 86400000);
   const hm = pad2(d.getHours()) + ':' + pad2(d.getMinutes());
-  if (dd <= 0) return T('hoje ', 'today ') + hm;
-  if (dd === 1) return T('ontem ', 'yesterday ') + hm;
-  if (dd < 7) return T(`há ${dd} dias`, `${dd} days ago`);
+  if (dd <= 0) return T('hoje ', 'today ', 'hoy ') + hm;
+  if (dd === 1) return T('ontem ', 'yesterday ', 'ayer ') + hm;
+  if (dd < 7) return T(`há ${dd} dias`, `${dd} days ago`, `hace ${dd} días`);
   return pad2(d.getDate()) + '/' + pad2(d.getMonth() + 1) + '/' + String(d.getFullYear()).slice(2) + ' ' + hm;
 }
 function fmtAgoDays(epoch) {
   const dd = Math.floor((Date.now() / 1000 - epoch) / 86400);
-  if (dd <= 0) return T('hoje', 'today');
-  if (dd === 1) return T('ontem', 'yesterday');
-  if (dd < 30) return T(`há ${dd} dias`, `${dd} days ago`);
+  if (dd <= 0) return T('hoje', 'today', 'hoy');
+  if (dd === 1) return T('ontem', 'yesterday', 'ayer');
+  if (dd < 30) return T(`há ${dd} dias`, `${dd} days ago`, `hace ${dd} días`);
   const m = Math.floor(dd / 30);
-  return T(`há ${m} mês(es)`, `${m} month(s) ago`);
+  return T(`há ${m} mês(es)`, `${m} month(s) ago`, `hace ${m} mes(es)`);
 }
 const MONTHS_PT = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
 const MONTHS_EN = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const MONTHS_ES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
 function fmtMonthYear(epoch) {
   const d = new Date(epoch * 1000);
-  return T(MONTHS_PT[d.getMonth()], MONTHS_EN[d.getMonth()]) + '/' + d.getFullYear();
+  return T(MONTHS_PT[d.getMonth()], MONTHS_EN[d.getMonth()], MONTHS_ES[d.getMonth()]) + '/' + d.getFullYear();
 }
 
 // ---- cálculo das estatísticas ----------------------------------------------
@@ -205,14 +206,14 @@ function renderQuickStats(stats) {
   const card = (n, label, hl) => el('div', { class: 'stat-card' + (hl ? ' hl' : '') },
     el('div', { class: 'n' }, String(n)), el('div', { class: 'lbl' }, label));
   box.append(
-    card(acertos, T('problemas resolvidos', 'problems solved'), true),
-    card(total, T('submissões', 'submissions'), true),
-    card(taxa + '%', T('taxa de acerto', 'acceptance rate')),
-    card(firstTryPct + '%', T('AC na 1ª tentativa', 'AC on first try')),
-    card(mediaTent, T('tentativas até resolver', 'attempts to solve')),
-    card(curStreak, T('streak atual (dias)', 'current streak (days)')),
-    card('🔥 ' + maxStreak, T('maior streak (dias)', 'longest streak (days)')),
-    card(mostUsed ? langLabel(mostUsed) : '—', T('linguagem preferida', 'favorite language')),
+    card(acertos, T('problemas resolvidos', 'problems solved', 'problemas resueltos'), true),
+    card(total, T('submissões', 'submissions', 'envíos'), true),
+    card(taxa + '%', T('taxa de acerto', 'acceptance rate', 'tasa de aceptación')),
+    card(firstTryPct + '%', T('AC na 1ª tentativa', 'AC on first try', 'AC al primer intento')),
+    card(mediaTent, T('tentativas até resolver', 'attempts to solve', 'intentos para resolver')),
+    card(curStreak, T('streak atual (dias)', 'current streak (days)', 'racha actual (días)')),
+    card('🔥 ' + maxStreak, T('maior streak (dias)', 'longest streak (days)', 'racha más larga (días)')),
+    card(mostUsed ? langLabel(mostUsed) : '—', T('linguagem preferida', 'favorite language', 'lenguaje favorito')),
   );
 }
 
@@ -284,26 +285,26 @@ function renderDashboard(stats) {
   if (solvedDates.length) {
     let acc = 0;
     const pts = solvedDates.map(epoch => ({ x: new Date(epoch * 1000), y: ++acc }));
-    pts.push({ x: new Date(), y: acc, label: T('hoje', 'today') });
+    pts.push({ x: new Date(), y: acc, label: T('hoje', 'today', 'hoy') });
     lineNode = wideWrap(lineChart(pts, { width: 640, height: 230, color: '#1a7f37', maxLabels: 6 }), 480);
   } else {
-    lineNode = el('div', { class: 'muted small' }, T('Nenhum problema resolvido ainda.', 'No problems solved yet.'));
+    lineNode = el('div', { class: 'muted small' }, T('Nenhum problema resolvido ainda.', 'No problems solved yet.', 'Aún no hay problemas resueltos.'));
   }
   const punchCells = [];
   stats.hdStats.forEach((row, dow) => row.forEach((n, hour) => { if (n) punchCells.push({ dow, hour, value: n, n }); }));
   dash.append(el('div', { class: 'duo' },
-    chartCard(T('📈 Resolvidos ao longo do tempo', '📈 Solved over time'), lineNode),
-    chartCard(T('🔥 Atividade (26 semanas)', '🔥 Activity (26 weeks)'),
+    chartCard(T('📈 Resolvidos ao longo do tempo', '📈 Solved over time', '📈 Resueltos a lo largo del tiempo'), lineNode),
+    chartCard(T('🔥 Atividade (26 semanas)', '🔥 Activity (26 weeks)', '🔥 Actividad (26 semanas)'),
       el('div', { class: 'chart-wrap' }, heatmap(stats.dayStats, { weeks: 26, color: '#216097' })),
-      el('h3', { style: 'margin-top:.8rem' }, T('🕐 Ritmo (dia × hora)', '🕐 Rhythm (day × hour)')),
+      el('h3', { style: 'margin-top:.8rem' }, T('🕐 Ritmo (dia × hora)', '🕐 Rhythm (day × hour)', '🕐 Ritmo (día × hora)')),
       el('div', { class: 'chart-wrap' },
-        heatmapGrid(punchCells, { cell: 12, gap: 3, color: '#6d5cff', fmt: (v) => v + T(' envios', ' submissions') })))));
+        heatmapGrid(punchCells, { cell: 12, gap: 3, color: '#6d5cff', fmt: (v) => v + T(' envios', ' submissions', ' envíos') })))));
 
   // veredictos | linguagens
   const vEntries = Object.entries(stats.verdictStats).sort((a, b) => b[1] - a[1]);
   const langs = Object.keys(stats.langStats).sort((a, b) => stats.langStats[b].total - stats.langStats[a].total);
   const langTable = (() => {
-    if (!langs.length) return el('div', { class: 'muted small' }, T('Sem dados.', 'No data.'));
+    if (!langs.length) return el('div', { class: 'muted small' }, T('Sem dados.', 'No data.', 'Sin datos.'));
     const tb = el('tbody');
     langs.forEach(l => {
       const s = stats.langStats[l];
@@ -313,12 +314,12 @@ function renderDashboard(stats) {
         el('td', {}, el('b', { style: 'color:' + (rate >= 60 ? 'var(--ok)' : rate >= 30 ? 'var(--warn)' : 'var(--err)') }, rate + '%'))));
     });
     return el('table', { class: 'moj', style: 'margin-top:.7rem;font-size:.85rem' },
-      el('thead', {}, el('tr', {}, el('th', {}, T('Linguagem', 'Language')), el('th', {}, 'Subs'), el('th', {}, 'AC'), el('th', {}, T('Taxa', 'Rate')))), tb);
+      el('thead', {}, el('tr', {}, el('th', {}, T('Linguagem', 'Language', 'Lenguaje')), el('th', {}, 'Subs'), el('th', {}, 'AC'), el('th', {}, T('Taxa', 'Rate', 'Tasa')))), tb);
   })();
   dash.append(el('div', { class: 'duo' },
-    chartCard(T('🎯 Veredictos', '🎯 Verdicts'),
+    chartCard(T('🎯 Veredictos', '🎯 Verdicts', '🎯 Veredictos'),
       hBarChart(vEntries.map(([k, v]) => ({ label: k, value: v, color: verdictColor(k) })))),
-    chartCard(T('💻 Linguagens', '💻 Languages'),
+    chartCard(T('💻 Linguagens', '💻 Languages', '💻 Lenguajes'),
       hBarChart(langs.map(l => ({ label: langLabel(l), value: stats.langStats[l].total, color: '#6d5cff' }))),
       langTable)));
 
@@ -342,14 +343,14 @@ function renderDashboard(stats) {
           el('div', { class: 'pbar' + (done ? ' done' : '') },
             el('i', { style: `width:${Math.round(100 * e.mine / e.total)}%` })));
       }))
-    : el('div', { class: 'muted small' }, T('Nenhuma coleção iniciada.', 'No collection started.'));
+    : el('div', { class: 'muted small' }, T('Nenhuma coleção iniciada.', 'No collection started.', 'Ninguna colección iniciada.'));
   dash.append(el('div', { class: 'duo' },
-    chartCard(T('🧗 Dificuldade dos resolvidos', '🧗 Difficulty of solved'),
+    chartCard(T('🧗 Dificuldade dos resolvidos', '🧗 Difficulty of solved', '🧗 Dificultad de los resueltos'),
       el('p', { class: 'small muted', style: 'margin:.1rem 0 .5rem' },
-        T('pela taxa por usuário de cada problema (resolveram ÷ tentaram)', 'by each problem’s per-user rate (solved ÷ attempted)')),
+        T('pela taxa por usuário de cada problema (resolveram ÷ tentaram)', 'by each problem’s per-user rate (solved ÷ attempted)', 'por la tasa por usuario de cada problema (resueltos ÷ intentados)')),
       hBarChart(Object.entries(dcounts).filter(([, v]) => v > 0)
-        .map(([k, v]) => ({ label: T(DIFF_META[k].pt, DIFF_META[k].en), value: v, color: DIFF_META[k].color })))),
-    chartCard(T('📚 Progresso por coleção', '📚 Progress by collection'), collBox)));
+        .map(([k, v]) => ({ label: T(DIFF_META[k].pt, DIFF_META[k].en, DIFF_META[k].es), value: v, color: DIFF_META[k].color })))),
+    chartCard(T('📚 Progresso por coleção', '📚 Progress by collection', '📚 Progreso por colección'), collBox)));
 
   // tags | em aberto
   const tags = Object.keys(stats.tagStats).filter(t => stats.tagStats[t].resolved > 0)
@@ -362,18 +363,18 @@ function renderDashboard(stats) {
           const s = stats.lastTry[pid];
           return el('div', { class: 'row', style: 'gap:.4rem' },
             el('a', { href: probURL(pid) }, titleOf(pid)),
-            el('span', { class: 'small muted' }, `· ${stats.probStats[pid].tried} ${T('tentativa(s)', 'attempt(s)')} · ${fmtAgoDays(s.epoch)}`),
+            el('span', { class: 'small muted' }, `· ${stats.probStats[pid].tried} ${T('tentativa(s)', 'attempt(s)', 'intento(s)')} · ${fmtAgoDays(s.epoch)}`),
             el('span', { style: 'flex:1' }),
             el('span', { class: 'verdict ' + verdictClass(s.verdict), style: 'font-size:.75rem;padding:.15rem .5rem' }, normVerdict(s.verdict)));
         }),
         openPids.length > 6 ? el('span', { class: 'small muted' },
-          T(`…e mais ${openPids.length - 6} em aberto.`, `…and ${openPids.length - 6} more open.`)) : null)
-    : el('div', { class: 'muted small' }, T('Nada em aberto — tudo que tentou, resolveu. 👏', 'Nothing open — everything attempted was solved. 👏'));
+          T(`…e mais ${openPids.length - 6} em aberto.`, `…and ${openPids.length - 6} more open.`, `…y ${openPids.length - 6} más abiertos.`)) : null)
+    : el('div', { class: 'muted small' }, T('Nada em aberto — tudo que tentou, resolveu. 👏', 'Nothing open — everything attempted was solved. 👏', 'Nada abierto — todo lo intentado fue resuelto. 👏'));
   dash.append(el('div', { class: 'duo' },
-    chartCard(T('🏷️ Forças por tag (resolvidos)', '🏷️ Strengths by tag (solved)'),
+    chartCard(T('🏷️ Forças por tag (resolvidos)', '🏷️ Strengths by tag (solved)', '🏷️ Fortalezas por etiqueta (resueltos)'),
       tags.length ? hBarChart(tags.map(t => ({ label: '#' + t, value: stats.tagStats[t].resolved, color: '#216097' })))
-        : el('div', { class: 'muted small' }, T('Nenhum resolvido ainda.', 'None solved yet.'))),
-    chartCard(T('⏳ Em aberto (tentados sem AC)', '⏳ Open (attempted, unsolved)'), openBox)));
+        : el('div', { class: 'muted small' }, T('Nenhum resolvido ainda.', 'None solved yet.', 'Ninguno resuelto todavía.'))),
+    chartCard(T('⏳ Em aberto (tentados sem AC)', '⏳ Open (attempted, unsolved)', '⏳ Abiertos (intentados, sin resolver)'), openBox)));
 
   // conquistas (some se o registro não veio)
   if (ACHREG && ACHREG.length) {
@@ -383,15 +384,15 @@ function renderDashboard(stats) {
     if (evald.length) {
       const strip = el('div', { class: 'badge-strip' });
       evald.filter(x => x.r.got).forEach(({ a, r }) => strip.append(el('span', { class: 'abadge', title: a.id },
-        `${a.icon} ${T(a.pt, a.en)}` + (r.sub ? ` ${r.sub}` : ''))));
+        `${a.icon} ${T(a.pt, a.en, a.es || a.en)}` + (r.sub ? ` ${r.sub}` : ''))));
       evald.filter(x => !x.r.got).forEach(({ a, r }) => strip.append(el('span', { class: 'abadge lock', title: a.id },
-        `🔒 ${T(a.pt, a.en)}` + (r.sub ? ` — ${r.sub}` : ''))));
-      dash.append(el('div', { class: 'section' }, el('h2', {}, T('🏅 Conquistas', '🏅 Achievements')), strip));
+        `🔒 ${T(a.pt, a.en, a.es || a.en)}` + (r.sub ? ` — ${r.sub}` : ''))));
+      dash.append(el('div', { class: 'section' }, el('h2', {}, T('🏅 Conquistas', '🏅 Achievements', '🏅 Logros')), strip));
     }
   }
 
   // histórico paginado
-  const sec = el('div', { class: 'section' }, el('h2', {}, T('📜 Histórico de submissões', '📜 Submission history')));
+  const sec = el('div', { class: 'section' }, el('h2', {}, T('📜 Histórico de submissões', '📜 Submission history', '📜 Historial de envíos')));
   sec.append(buildHistBar(), el('div', { id: 'histPagerTop', class: 'row', style: 'margin:.4rem 0' }),
     el('div', { id: 'histTable', class: 'chart-wrap' }),
     el('div', { id: 'histPagerBot', class: 'row', style: 'margin-top:.6rem;justify-content:center' }));
@@ -405,13 +406,13 @@ function titleOf(pid) { const p = problemsById[pid]; return (p && (p.title || p.
 function buildHistBar() {
   const verds = [...new Set(history.map(s => normVerdict(s.verdict)))].sort();
   const langs = [...new Set(history.map(s => s.lang))].sort();
-  const q = el('input', { placeholder: T('🔎 filtrar por problema…', '🔎 filter by problem…'),
+  const q = el('input', { placeholder: T('🔎 filtrar por problema…', '🔎 filter by problem…', '🔎 filtrar por problema…'),
     oninput: () => { histQ = q.value; histPage = 0; renderHistory(); } });
   const sv = el('select', { onchange: () => { histVerd = sv.value; histPage = 0; renderHistory(); } },
-    el('option', { value: '' }, T('Veredicto: todos', 'Verdict: all')),
+    el('option', { value: '' }, T('Veredicto: todos', 'Verdict: all', 'Veredicto: todos')),
     ...verds.map(v => el('option', { value: v }, v)));
   const sl = el('select', { onchange: () => { histLang = sl.value; histPage = 0; renderHistory(); } },
-    el('option', { value: '' }, T('Linguagem: todas', 'Language: all')),
+    el('option', { value: '' }, T('Linguagem: todas', 'Language: all', 'Lenguaje: todos')),
     ...langs.map(l => el('option', { value: l }, langLabel(l))));
   return el('div', { class: 'histbar' }, q, sv, sl, el('span', { id: 'histCount', class: 'small muted' }));
 }
@@ -428,7 +429,7 @@ function histPager(box, pages) {
   box.style.justifyContent = 'center';
   box.append(
     el('button', { class: 'btn ghost', onclick: () => { if (histPage > 0) { histPage--; renderHistory(); } } }, '‹'),
-    el('span', { class: 'small' }, ` ${T('página', 'page')} ${histPage + 1} / ${pages} `),
+    el('span', { class: 'small' }, ` ${T('página', 'page', 'página')} ${histPage + 1} / ${pages} `),
     el('button', { class: 'btn ghost', onclick: () => { if (histPage < pages - 1) { histPage++; renderHistory(); } } }, '›'));
 }
 function renderHistory() {
@@ -442,10 +443,10 @@ function renderHistory() {
     return 0;
   });
   const cnt = document.getElementById('histCount');
-  if (cnt) cnt.textContent = `${rows.length} ${T('envio(s)', 'submission(s)')}`;
+  if (cnt) cnt.textContent = `${rows.length} ${T('envio(s)', 'submission(s)', 'envío(s)')}`;
   box.innerHTML = '';
   if (!rows.length) {
-    box.innerHTML = '<span class="muted small">' + T('Nenhuma submissão casa com os filtros.', 'No submission matches the filters.') + '</span>';
+    box.innerHTML = '<span class="muted small">' + T('Nenhuma submissão casa com os filtros.', 'No submission matches the filters.', 'Ningún envío coincide con los filtros.') + '</span>';
     histPager(document.getElementById('histPagerTop'), 0);
     histPager(document.getElementById('histPagerBot'), 0);
     return;
@@ -457,15 +458,15 @@ function renderHistory() {
   const arrow = (k) => sortKey === k ? (sortAsc ? ' ▲' : ' ▼') : '';
   const th = (label, k, cls) => el('th', { class: cls || '', onclick: () => { sortAsc = (sortKey === k) ? !sortAsc : false; sortKey = k; renderHistory(); } }, label + arrow(k));
   const head = el('thead', {}, el('tr', {},
-    th(T('Quando', 'When'), 'date'), th(T('Problema', 'Problem'), 'problem'),
-    th(T('Linguagem', 'Language'), 'lang', 'hide-m'),
-    canLog ? el('th', { class: 'hide-m' }, T('Cód/Log', 'Code/Log')) : null,
+    th(T('Quando', 'When', 'Cuándo'), 'date'), th(T('Problema', 'Problem', 'Problema'), 'problem'),
+    th(T('Linguagem', 'Language', 'Lenguaje'), 'lang', 'hide-m'),
+    canLog ? el('th', { class: 'hide-m' }, T('Cód/Log', 'Code/Log', 'Código/Registro')) : null,
     th('Status', 'status')));
   const tb = el('tbody');
   slice.forEach(s => {
     const pending = isPending(s.verdict);
     const logTd = canLog ? el('td', { class: 'small hide-m', style: 'white-space:nowrap' },
-      srcLink(CONTEST, { id: s.subid, sub_epoch: s.epoch, lang: s.lang }, T('cód', 'code')), ' · ',
+      srcLink(CONTEST, { id: s.subid, sub_epoch: s.epoch, lang: s.lang }, T('cód', 'code', 'código')), ' · ',
       logLink(CONTEST, { id: s.subid, sub_epoch: s.epoch }, 'log')) : null;
     tb.append(el('tr', {},
       el('td', { class: 'small', style: 'white-space:nowrap' }, fmtWhen(s.epoch)),
@@ -492,7 +493,7 @@ async function editorRankLine(editorId) {
   const idx = list.findIndex(e => e.editor === editorId);
   if (idx < 0) return `💻 ${label}`;
   const rank = idx + 1;
-  return `💻 ${label} — ` + T(`${rank}º mais usado`, `#${rank} most used`);
+  return `💻 ${label} — ` + T(`${rank}º mais usado`, `#${rank} most used`, `#${rank} más usado`);
 }
 
 function renderProfileHeader(profile) {
@@ -503,7 +504,7 @@ function renderProfileHeader(profile) {
     el('div', { class: 'pname' }, name, ' ', el('span', { class: 'plogin' }, '~' + (profile.login || USER))));
   const parts = [];
   if (profile.university) parts.push('🎓 ' + profile.university);
-  if (profile.created_at) parts.push(T('🗓️ membro desde ', '🗓️ member since ') + fmtMonthYear(profile.created_at));
+  if (profile.created_at) parts.push(T('🗓️ membro desde ', '🗓️ member since ', '🗓️ miembro desde ') + fmtMonthYear(profile.created_at));
   const pline = el('div', { class: 'pline' }, parts.join(' · '));
   const edSpan = el('span', {});
   const lastSpan = el('span', { id: 'lastSub' });
@@ -511,7 +512,7 @@ function renderProfileHeader(profile) {
   meta.append(pline);
 
   const actions = el('div', { class: 'profile-actions' });
-  if (isOwner) actions.append(el('a', { class: 'btn ghost', href: '/treino/perfil/' }, T('✎ Editar perfil', '✎ Edit profile')));
+  if (isOwner) actions.append(el('a', { class: 'btn ghost', href: '/treino/perfil/' }, T('✎ Editar perfil', '✎ Edit profile', '✎ Editar perfil')));
   head.append(avatarEl(profile.login || USER, name, 72, profile.has_photo), meta, actions);
 
   if (profile.favorite_editor) {
@@ -524,7 +525,7 @@ function fillLastSub() {
   const lastSpan = document.getElementById('lastSub');
   if (!lastSpan || !history.length) return;
   const last = history.reduce((a, s) => Math.max(a, s.epoch), 0);
-  lastSpan.textContent = ' · ' + T('⚡ último envio ', '⚡ last submission ') + fmtAgoDays(last);
+  lastSpan.textContent = ' · ' + T('⚡ último envio ', '⚡ last submission ', '⚡ último envío ') + fmtAgoDays(last);
 }
 
 function renderPrivate(profile) {
@@ -535,7 +536,7 @@ function renderPrivate(profile) {
     el('span', { class: 'avatar-mini ini', style: 'width:72px;height:72px;font-size:1.8rem;background:' + colorFromName(USER) }, '🔒'),
     el('div', { class: 'profile-meta' },
       el('div', { class: 'pname' }, '~' + (profile.login || USER)),
-      el('div', { class: 'private-box' }, T('🔒 Este perfil é privado.', '🔒 This profile is private.'))));
+      el('div', { class: 'private-box' }, T('🔒 Este perfil é privado.', '🔒 This profile is private.', '🔒 Este perfil es privado.'))));
   document.getElementById('dashboard').innerHTML = '';
 }
 
@@ -545,10 +546,10 @@ async function boot() {
 
   if (!USER) {
     document.getElementById('profileHead').innerHTML =
-      '<div class="error-box">' + T('Faltou informar <code>?user=&lt;login&gt;</code> na URL.', 'Missing <code>?user=&lt;login&gt;</code> in the URL.') + '</div>';
+      '<div class="error-box">' + T('Faltou informar <code>?user=&lt;login&gt;</code> na URL.', 'Missing <code>?user=&lt;login&gt;</code> in the URL.', 'Falta <code>?user=&lt;login&gt;</code> en la URL.') + '</div>';
     return;
   }
-  document.title = T('Perfil de ', 'Profile of ') + USER + ' — MOJ';
+  document.title = T('Perfil de ', 'Profile of ', 'Perfil de ') + USER + ' — MOJ';
 
   const st = await status(CONTEST);
   const logged = !!st.logged_in;
@@ -567,8 +568,8 @@ async function boot() {
 
   if (profileR.status === 'rejected') {
     document.getElementById('profileHead').innerHTML =
-      '<div class="error-box">' + T('Não foi possível carregar este perfil: ', 'Could not load this profile: ')
-      + ((profileR.reason && profileR.reason.message) || T('erro', 'error')) + '</div>';
+      '<div class="error-box">' + T('Não foi possível carregar este perfil: ', 'Could not load this profile: ', 'No se pudo cargar este perfil: ')
+      + ((profileR.reason && profileR.reason.message) || T('erro', 'error', 'error')) + '</div>';
     return;
   }
   const profile = profileR.value || { login: USER, name: USER, is_public: true };
@@ -587,7 +588,7 @@ async function boot() {
 
   if (histR.status === 'rejected') {
     document.getElementById('dashboard').innerHTML =
-      '<div class="section"><span class="error-box">' + T('Falha ao carregar o histórico.', 'Failed to load history.') + '</span></div>';
+      '<div class="section"><span class="error-box">' + T('Falha ao carregar o histórico.', 'Failed to load history.', 'No se pudo cargar el historial.') + '</span></div>';
     return;
   }
   history = histR.value.split('\n').map(s => s.trim()).filter(Boolean).map(parseLine).filter(Boolean);
@@ -595,7 +596,7 @@ async function boot() {
   if (!history.length) {
     document.getElementById('quickStats').innerHTML = '';
     document.getElementById('dashboard').innerHTML =
-      '<div class="section"><span class="muted">' + T('Ainda não há submissões para mostrar estatísticas.', 'No submissions yet to show statistics.') + '</span></div>';
+      '<div class="section"><span class="muted">' + T('Ainda não há submissões para mostrar estatísticas.', 'No submissions yet to show statistics.', 'Aún no hay envíos para mostrar estadísticas.') + '</span></div>';
     return;
   }
   fillLastSub();

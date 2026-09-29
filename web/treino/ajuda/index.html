@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="pt-br" data-en-doctitle="How to submit — MOJ">
+<html lang="pt-br" data-en-doctitle="How to submit — MOJ" data-es-doctitle="Cómo enviar — MOJ">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -38,99 +38,99 @@
           <span class="badge-beta">BETA</span></a>
         <div class="spacer"></div>
         <span class="countdown" id="contestCountdown"></span>
-        <a class="btn ghost" id="backBtn" href="#">Contest</a>
+        <a class="btn ghost" id="backBtn" href="#" data-en="Contest" data-es="Competencia">Contest</a>
       </div>
     </div>
   </header>
   <nav class="quicknav hidden" id="contestNavWrap"><div class="bar" id="contestNav"></div></nav>
   <main class="container ajuda">
-    <h1 style="margin:.2rem 0 .3rem" data-en="📖 How to submit a solution">📖 Como enviar uma solução</h1>
-    <p class="muted" data-en="Everything you need before sending your first solution: how input and output work, which languages exist, and the code skeleton for each one.">
+    <h1 style="margin:.2rem 0 .3rem" data-en="📖 How to submit a solution" data-es="📖 Cómo enviar una solución">📖 Como enviar uma solução</h1>
+    <p class="muted" data-en="Everything you need before sending your first solution: how input and output work, which languages exist, and the code skeleton for each one." data-es="Todo lo que necesitas antes de enviar tu primera solución: cómo funcionan la entrada y la salida, qué lenguajes existen y el esqueleto de código de cada uno.">
       Tudo o que você precisa antes de enviar a sua primeira solução: como funcionam a entrada e a saída, quais linguagens existem, e o esqueleto de código de cada uma.</p>
 
     <ul class="toc small">
-      <li><a href="#es" data-en="Input and output (the most important part)">Entrada e saída (o mais importante)</a></li>
-      <li><a href="#extensao" data-en="The extension is the language">A extensão é a linguagem</a></li>
-      <li><a href="#tabela" data-en="Language table">Tabela de linguagens</a></li>
-      <li><a href="#templates" data-en="Code template for each language">Template de código de cada linguagem</a></li>
-      <li><a href="#avisos" data-en="Warnings worth reading">Avisos que valem a leitura</a></li>
+      <li><a href="#es" data-en="Input and output (the most important part)" data-es="Entrada y salida (la parte más importante)">Entrada e saída (o mais importante)</a></li>
+      <li><a href="#extensao" data-en="The extension is the language" data-es="La extensión es el lenguaje">A extensão é a linguagem</a></li>
+      <li><a href="#tabela" data-en="Language table" data-es="Tabla de lenguajes">Tabela de linguagens</a></li>
+      <li><a href="#templates" data-en="Code template for each language" data-es="Plantilla de código para cada lenguaje">Template de código de cada linguagem</a></li>
+      <li><a href="#avisos" data-en="Warnings worth reading" data-es="Advertencias que vale la pena leer">Avisos que valem a leitura</a></li>
     </ul>
 
-    <h2 id="es" data-en="1. Input and output (the most important part)">1. Entrada e saída (o mais importante)</h2>
-    <p data-en-html="In the MOJ, every problem reads from <b>standard input</b> (stdin) and writes to <b>standard output</b> (stdout), just like in programming contests. <b>Your program never opens a file.</b> It reads what arrives, computes, and prints the answer.">
+    <h2 id="es" data-en="1. Input and output (the most important part)" data-es="1. Entrada y salida (la parte más importante)">1. Entrada e saída (o mais importante)</h2>
+    <p data-en-html="In the MOJ, every problem reads from <b>standard input</b> (stdin) and writes to <b>standard output</b> (stdout), just like in programming contests. <b>Your program never opens a file.</b> It reads what arrives, computes, and prints the answer." data-es-html="En el MOJ, todo problema lee de la <b>entrada estándar</b> (stdin) y escribe en la <b>salida estándar</b> (stdout), igual que en las competencias de programación. <b>Tu programa nunca abre un archivo.</b> Lee lo que llega, calcula e imprime la respuesta.">
       No MOJ, todo problema lê da <b>entrada padrão</b> (stdin) e escreve na <b>saída padrão</b> (stdout), como em maratona de programação. <b>O seu programa nunca abre arquivo.</b> Ele lê o que chega, calcula e imprime a resposta.</p>
-    <p data-en="On your machine, it is as if you typed the input and saw the answer appear on the screen. The judge does the same thing, automatically: it feeds an input to your program and compares, line by line, what you printed against the expected output.">
+    <p data-en="On your machine, it is as if you typed the input and saw the answer appear on the screen. The judge does the same thing, automatically: it feeds an input to your program and compares, line by line, what you printed against the expected output." data-es="En tu máquina, es como si escribieras la entrada y vieras aparecer la respuesta en la pantalla. El juez hace lo mismo, automáticamente: le da una entrada a tu programa y compara, línea por línea, lo que imprimiste contra la salida esperada.">
       Na sua máquina, é como se você digitasse a entrada e visse a resposta aparecer na tela. O juiz faz o mesmo, automaticamente: alimenta o seu programa com uma entrada e compara, linha a linha, o que você imprimiu com a saída esperada.</p>
-    <p data-en-html="The examples shown in the problem statement are exactly these pairs. Every code sample on this page solves the same little problem: <b>read N, read M, print 2*M - N</b>.">
+    <p data-en-html="The examples shown in the problem statement are exactly these pairs. Every code sample on this page solves the same little problem: <b>read N, read M, print 2*M - N</b>." data-es-html="Los ejemplos que se muestran en el enunciado del problema son exactamente estos pares. Cada ejemplo de código en esta página resuelve el mismo problemita: <b>leer N, leer M, imprimir 2*M - N</b>.">
       Os exemplos que aparecem no enunciado são exatamente esses pares. Todos os códigos desta página resolvem o mesmo probleminha: <b>leia N, leia M, imprima 2*M - N</b>.</p>
-    <p data-en-html="On the problem page, every sample block has a <b>Copy</b> button, and <b>⬇ Samples</b> downloads them all as files (<code>.in</code>/<code>.out</code>) so you can run your program on them before submitting.">
+    <p data-en-html="On the problem page, every sample block has a <b>Copy</b> button, and <b>⬇ Samples</b> downloads them all as files (<code>.in</code>/<code>.out</code>) so you can run your program on them before submitting." data-es-html="En la página del problema, cada bloque de ejemplo tiene un botón <b>Copiar</b>, y <b>⬇ Ejemplos</b> los descarga todos como archivos (<code>.in</code>/<code>.out</code>) para que puedas ejecutar tu programa con ellos antes de enviar.">
       Na página do problema, cada bloco de exemplo tem um botão <b>Copiar</b>, e <b>⬇ Exemplos</b> baixa todos como arquivos (<code>.in</code>/<code>.out</code>) para você rodar o seu programa neles antes de enviar.</p>
 
     <div class="io-demo">
       <div>
-        <h4 data-en="Input">Entrada</h4>
+        <h4 data-en="Input" data-es="Entrada">Entrada</h4>
         <pre class="io">13
 16</pre>
       </div>
       <div>
-        <h4 data-en="Output">Saída</h4>
+        <h4 data-en="Output" data-es="Salida">Saída</h4>
         <pre class="io">19</pre>
       </div>
       <div style="flex:2">
-        <h4 data-en="Why">Por quê</h4>
-        <p class="small muted" style="margin:0" data-en-html="N = 13 and M = 16, so the answer is 2*16 - 13 = 19. Notice that the program does three things: it reads from stdin, it computes, it prints to stdout.">
+        <h4 data-en="Why" data-es="Por qué">Por quê</h4>
+        <p class="small muted" style="margin:0" data-en-html="N = 13 and M = 16, so the answer is 2*16 - 13 = 19. Notice that the program does three things: it reads from stdin, it computes, it prints to stdout." data-es-html="N = 13 y M = 16, entonces la respuesta es 2*16 - 13 = 19. Nota que el programa hace tres cosas: lee de stdin, calcula, imprime en stdout.">
           N = 13 e M = 16, então a resposta é 2*16 - 13 = 19. Repare que o programa faz três coisas: lê do stdin, calcula, imprime no stdout.</p>
       </div>
     </div>
 
-    <h2 id="extensao" data-en="2. The extension is the language">2. A extensão é a linguagem</h2>
-    <p data-en="There are two ways to send a solution, and each one decides the language differently:">
+    <h2 id="extensao" data-en="2. The extension is the language" data-es="2. La extensión es el lenguaje">2. A extensão é a linguagem</h2>
+    <p data-en="There are two ways to send a solution, and each one decides the language differently:" data-es="Hay dos formas de enviar una solución, y cada una decide el lenguaje de manera distinta:">
       Há duas formas de enviar uma solução, e cada uma decide a linguagem de um jeito:</p>
     <ol>
       <!-- o &lt; do EN vai ESCAPADO DUAS VEZES: o parser decodifica o atributo uma vez, e o que sobra
            (&lt;extension&gt;) é o que o innerHTML precisa receber p/ mostrar <extension> como TEXTO.
            Com um escape só, o innerHTML via <extension> como tag e a apagava. -->
-      <li data-en-html="<b>Typing in the editor.</b> You write the code on screen and pick the language in the dropdown. When you submit, your code becomes a file called <code>solution.&amp;lt;extension&amp;gt;</code>, and <b>the dropdown decides</b> the language.">
+      <li data-en-html="<b>Typing in the editor.</b> You write the code on screen and pick the language in the dropdown. When you submit, your code becomes a file called <code>solution.&amp;lt;extension&amp;gt;</code>, and <b>the dropdown decides</b> the language." data-es-html="<b>Escribir en el editor.</b> Escribes el código en pantalla y eliges el lenguaje en el desplegable. Cuando envías, tu código se convierte en un archivo llamado <code>solution.&amp;lt;extension&amp;gt;</code>, y <b>el desplegable decide</b> el lenguaje.">
         <b>Digitando no editor.</b> Você escreve o código na tela e escolhe a linguagem no menu. Ao enviar, o seu código vira um arquivo chamado <code>solution.&lt;extensão&gt;</code>, e <b>o menu decide</b> a linguagem.</li>
-      <li data-en-html="<b>Sending a file.</b> You attach a file you already have (say <code>sol.cpp</code>). In this case <b>the file extension decides</b> the language, and the dropdown is ignored.">
+      <li data-en-html="<b>Sending a file.</b> You attach a file you already have (say <code>sol.cpp</code>). In this case <b>the file extension decides</b> the language, and the dropdown is ignored." data-es-html="<b>Enviar un archivo.</b> Adjuntas un archivo que ya tienes (por ejemplo <code>sol.cpp</code>). En este caso <b>la extensión del archivo decide</b> el lenguaje, y el desplegable se ignora.">
         <b>Enviando um arquivo.</b> Você anexa um arquivo pronto (por exemplo <code>sol.cpp</code>). Nesse caso <b>a extensão do arquivo decide</b> a linguagem, e o menu é ignorado.</li>
     </ol>
-    <p class="notice" data-en-html="In short: the <b>extension is the id</b> of the language. File ends in <code>.cpp</code>, the judge uses C++. Ends in <code>.py</code>, it uses Python. The <code>id</code> column of the table below is exactly that extension.">
+    <p class="notice" data-en-html="In short: the <b>extension is the id</b> of the language. File ends in <code>.cpp</code>, the judge uses C++. Ends in <code>.py</code>, it uses Python. The <code>id</code> column of the table below is exactly that extension." data-es-html="En resumen: la <b>extensión es el id</b> del lenguaje. Si el archivo termina en <code>.cpp</code>, el juez usa C++. Si termina en <code>.py</code>, usa Python. La columna <code>id</code> de la tabla de abajo es exactamente esa extensión.">
       Resumindo: a <b>extensão é o id</b> da linguagem. Terminou em <code>.cpp</code>, o juiz usa C++. Terminou em <code>.py</code>, usa Python. A coluna <code>id</code> da tabela abaixo é exatamente essa extensão.</p>
 
-    <h2 id="tabela" data-en="3. Language table">3. Tabela de linguagens</h2>
-    <p class="small muted" data-en-html="The default language is <b>C</b>. This table is generated from the same list the submission dropdown uses, so it is never out of date.">
+    <h2 id="tabela" data-en="3. Language table" data-es="3. Tabla de lenguajes">3. Tabela de linguagens</h2>
+    <p class="small muted" data-en-html="The default language is <b>C</b>. This table is generated from the same list the submission dropdown uses, so it is never out of date." data-es-html="El lenguaje por defecto es <b>C</b>. Esta tabla se genera de la misma lista que usa el desplegable de envío, así que nunca queda desactualizada.">
       A linguagem padrão é <b>C</b>. Esta tabela é gerada da mesma lista que o menu de submissão usa, então ela nunca fica desatualizada.</p>
     <div id="langTable"></div>
     <p class="small muted" id="exoticNote"></p>
 
-    <h2 id="templates" data-en="4. Code template for each language">4. Template de código de cada linguagem</h2>
-    <p data-en-html="Pick a language to see two things: the <b>skeleton the editor gives you</b> (exactly what appears when you choose that language) and a <b>complete solution</b> to the little problem above, which shows the reading and the printing working.">
+    <h2 id="templates" data-en="4. Code template for each language" data-es="4. Plantilla de código para cada lenguaje">4. Template de código de cada linguagem</h2>
+    <p data-en-html="Pick a language to see two things: the <b>skeleton the editor gives you</b> (exactly what appears when you choose that language) and a <b>complete solution</b> to the little problem above, which shows the reading and the printing working." data-es-html="Elige un lenguaje para ver dos cosas: el <b>esqueleto que te da el editor</b> (exactamente lo que aparece al elegir ese lenguaje) y una <b>solución completa</b> del problemita de arriba, que muestra la lectura y la impresión funcionando.">
       Escolha uma linguagem para ver duas coisas: o <b>esqueleto que o editor te dá</b> (exatamente o que aparece quando você escolhe aquela linguagem) e uma <b>solução completa</b> do probleminha acima, mostrando a leitura e a impressão funcionando.</p>
     <div id="tpl"></div>
 
-    <h2 id="avisos" data-en="5. Warnings worth reading">5. Avisos que valem a leitura</h2>
+    <h2 id="avisos" data-en="5. Warnings worth reading" data-es="5. Advertencias que vale la pena leer">5. Avisos que valem a leitura</h2>
 
-    <h3 data-en-html="Java: the <code>public</code> class trap">Java: a armadilha da classe <code>public</code></h3>
-    <p data-en-html="When you type Java <b>in the editor</b>, your submission becomes <code>solution.java</code>. In Java, a <code>public</code> class must have the same name as the file. That is why the editor skeleton comes with the class <b>without</b> <code>public</code> (<code>class Main { … }</code>): it works both in the editor and by file upload.">
+    <h3 data-en-html="Java: the <code>public</code> class trap" data-es-html="Java: la trampa de la clase <code>public</code>">Java: a armadilha da classe <code>public</code></h3>
+    <p data-en-html="When you type Java <b>in the editor</b>, your submission becomes <code>solution.java</code>. In Java, a <code>public</code> class must have the same name as the file. That is why the editor skeleton comes with the class <b>without</b> <code>public</code> (<code>class Main { … }</code>): it works both in the editor and by file upload." data-es-html="Cuando escribes Java <b>en el editor</b>, tu envío se convierte en <code>solution.java</code>. En Java, una clase <code>public</code> debe tener el mismo nombre que el archivo. Por eso el esqueleto del editor trae la clase <b>sin</b> <code>public</code> (<code>class Main { … }</code>): funciona tanto en el editor como al subir un archivo.">
       Quando você digita Java <b>no editor</b>, o envio vira <code>solution.java</code>. Em Java, uma classe <code>public</code> precisa ter o mesmo nome do arquivo. Por isso o esqueleto do editor vem com a classe <b>sem</b> <code>public</code> (<code>class Main { … }</code>): assim funciona tanto no editor quanto por upload de arquivo.</p>
-    <p data-en-html="If you write <code>public class Main</code> in the editor, you get a Compilation Error, because the file is <code>solution.java</code> and not <code>Main.java</code>. Kotlin, C#, Go and Rust have no such filename rule. Only Java does.">
+    <p data-en-html="If you write <code>public class Main</code> in the editor, you get a Compilation Error, because the file is <code>solution.java</code> and not <code>Main.java</code>. Kotlin, C#, Go and Rust have no such filename rule. Only Java does." data-es-html="Si escribes <code>public class Main</code> en el editor, obtienes un Compilation Error, porque el archivo es <code>solution.java</code> y no <code>Main.java</code>. Kotlin, C#, Go y Rust no tienen esa regla de nombre de archivo. Solo Java la tiene.">
       Se você escrever <code>public class Main</code> no editor, o resultado é Compilation Error, porque o arquivo é <code>solution.java</code> e não <code>Main.java</code>. Kotlin, C#, Go e Rust não têm essa regra de nome de arquivo. Só o Java tem.</p>
 
-    <h3 data-en-html="<code>.pl</code> is Prolog, not Perl"><code>.pl</code> é Prolog, e não Perl</h3>
-    <p data-en-html="The <code>.pl</code> extension is also used by Perl, but in the MOJ <code>pl</code> is <b>Prolog</b> (SWI-Prolog). Define a <code>main</code> predicate. Perl code sent as <code>.pl</code> will not run as Perl.">
+    <h3 data-en-html="<code>.pl</code> is Prolog, not Perl" data-es-html="<code>.pl</code> es Prolog, no Perl"><code>.pl</code> é Prolog, e não Perl</h3>
+    <p data-en-html="The <code>.pl</code> extension is also used by Perl, but in the MOJ <code>pl</code> is <b>Prolog</b> (SWI-Prolog). Define a <code>main</code> predicate. Perl code sent as <code>.pl</code> will not run as Perl." data-es-html="La extensión <code>.pl</code> también la usa Perl, pero en el MOJ <code>pl</code> es <b>Prolog</b> (SWI-Prolog). Define un predicado <code>main</code>. Un código Perl enviado como <code>.pl</code> no se va a ejecutar como Perl.">
       A extensão <code>.pl</code> também é usada por Perl, mas no MOJ <code>pl</code> é <b>Prolog</b> (SWI-Prolog). Defina um predicado <code>main</code>. Código Perl enviado como <code>.pl</code> não vai rodar como Perl.</p>
 
-    <h3 data-en="Python is pypy3">Python é pypy3</h3>
-    <p data-en-html="Python runs on <b>pypy3</b>, not on CPython. It is much faster for the kind of loop that shows up in problems. One consequence: a syntax error becomes <b>Compilation Error</b>, not Runtime Error.">
+    <h3 data-en="Python is pypy3" data-es="Python es pypy3">Python é pypy3</h3>
+    <p data-en-html="Python runs on <b>pypy3</b>, not on CPython. It is much faster for the kind of loop that shows up in problems. One consequence: a syntax error becomes <b>Compilation Error</b>, not Runtime Error." data-es-html="Python corre sobre <b>pypy3</b>, no sobre CPython. Es mucho más rápido para el tipo de bucle que aparece en los problemas. Una consecuencia: un error de sintaxis se convierte en <b>Compilation Error</b>, no en Runtime Error.">
       Python roda em <b>pypy3</b>, não no CPython. Ele é bem mais rápido para o tipo de laço que aparece em problema. Uma consequência: erro de sintaxe vira <b>Compilation Error</b>, e não Runtime Error.</p>
 
-    <h3 data-en="Memory and stack">Memória e pilha</h3>
-    <p data-en-html="Every language runs with a <b>128 MB stack</b>, so deep recursion is usually fine. On the JVM (Java, Kotlin) the problem's memory limit is applied as <code>-Xmx</code>.">
+    <h3 data-en="Memory and stack" data-es="Memoria y pila">Memória e pilha</h3>
+    <p data-en-html="Every language runs with a <b>128 MB stack</b>, so deep recursion is usually fine. On the JVM (Java, Kotlin) the problem's memory limit is applied as <code>-Xmx</code>." data-es-html="Todo lenguaje corre con una <b>pila de 128 MB</b>, así que la recursión profunda suele andar bien. En la JVM (Java, Kotlin) el límite de memoria del problema se aplica como <code>-Xmx</code>.">
       Todas as linguagens rodam com <b>pilha de 128 MB</b>, então recursão profunda em geral passa. Na JVM (Java, Kotlin) o limite de memória do problema é aplicado como <code>-Xmx</code>.</p>
 
     <p class="small muted" style="margin-top:2rem">
-      <span data-en="Next: browse the ">A seguir: navegue pelos </span><a href="/treino/" data-en="Free Training problems">problemas do Treino Livre</a><span data-en=" and submit your first solution."> e envie a sua primeira solução.</span>
+      <span data-en="Next: browse the " data-es="Ahora: explora los ">A seguir: navegue pelos </span><a href="/treino/" data-en="Free Training problems" data-es="problemas del entrenamiento libre">problemas do Treino Livre</a><span data-en=" and submit your first solution." data-es=" y envía tu primera solución."> e envie a sua primeira solução.</span>
     </p>
   </main>
   <!-- o site-header NÃO entra aqui estaticamente: quem decide o cabeçalho (site x contest) é o

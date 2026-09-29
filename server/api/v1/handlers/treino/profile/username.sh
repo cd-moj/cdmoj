@@ -51,6 +51,9 @@ hf="$(user_hist_file treino "$old")"
 if [[ -f "$hf" ]] && grep -qE ':(Not Answered Yet|[Oo]n queue|[Rr]unning):' "$hf"; then
   fail 409 "Você tem submissões pendentes de julgamento. Aguarde o veredicto e tente de novo." "uname_pending"
 fi
+# …também nos contests COMPARTILHADOS com o treino (o dir de lá segue o rename logo abaixo)
+shared_pending_for treino "$old" \
+  && fail 409 "Você tem submissões pendentes de julgamento. Aguarde o veredicto e tente de novo." "uname_pending"
 # mv do diretório (+ account.login) e registro da troca
 user_rename treino "$old" "$new" || fail 500 "Falha ao renomear a conta" "save_fail"
 account_merge treino "$new" '.uname_changes = ((.uname_changes // []) + [$t])' --argjson t "$EPOCHSECONDS"
@@ -64,6 +67,9 @@ orgs_rename_login "$old" "$new" || true
 # em que estava inscrita ao trocar de handle. Ver lib/registration.sh.
 source "$_DIR/lib/registration.sh"
 reg_rename_login "$old" "$new" || true
+# CONTESTS COMPARTILHADOS (USERS_FROM=treino): o dir local do participante (history, submissões) segue o
+# nome — sem isto ficava órfão e sumia do placar (lib/users.sh shared_rename_login)
+shared_rename_login treino "$old" "$new" >/dev/null || true
 # PARTICIPAÇÕES VIRTUAIS seguem o rename: o estado mora no dir do usuário (já foi no mv), mas o
 # snapshot publicado fica no contest, chaveado pelo login (lib/virtual.sh)
 source "$_LIBDIR/virtual.sh" 2>/dev/null && vr_rename_login "$old" "$new" || true

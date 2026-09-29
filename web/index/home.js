@@ -11,7 +11,7 @@ let openAll = [], upAll = [], closedAll = [], closedPage = 0, closedTotal = 0; c
 function fillGroup(boxId, countId, arr, status) {
   document.getElementById(countId).textContent = arr.length;
   const box = document.getElementById(boxId); box.innerHTML = '';
-  if (!arr.length) { box.innerHTML = `<div class="muted small" style="padding:.35rem .2rem">${T('nenhum no momento', 'none right now')}</div>`; return; }
+  if (!arr.length) { box.innerHTML = `<div class="muted small" style="padding:.35rem .2rem">${T('nenhum no momento', 'none right now', 'ninguno por ahora')}</div>`; return; }
   arr.forEach((c) => box.append(contestCard(c, status)));
 }
 
@@ -27,19 +27,19 @@ function renderContests() {
   const pages = Math.max(1, Math.ceil(closed.length / CPAGE));
   if (closedPage >= pages) closedPage = 0;
   const cl = document.getElementById('c-closed'); cl.innerHTML = '';
-  if (!closed.length) cl.innerHTML = `<div class="muted small" style="padding:.35rem .2rem">${T('nenhum', 'none')}</div>`;
+  if (!closed.length) cl.innerHTML = `<div class="muted small" style="padding:.35rem .2rem">${T('nenhum', 'none', 'ninguno')}</div>`;
   closed.slice(closedPage * CPAGE, closedPage * CPAGE + CPAGE).forEach((c) => cl.append(contestCard(c, 'closed')));
   const pg = document.getElementById('c-pager'); pg.innerHTML = '';
   if (pages > 1) {
     pg.append(
-      el('button', { class: 'btn ghost', onclick: () => { if (closedPage > 0) { closedPage--; renderContests(); } } }, T('‹ anterior', '‹ previous')),
-      el('span', { class: 'small muted' }, T(` página ${closedPage + 1} de ${pages} `, ` page ${closedPage + 1} of ${pages} `)),
-      el('button', { class: 'btn ghost', onclick: () => { if (closedPage < pages - 1) { closedPage++; renderContests(); } } }, T('próxima ›', 'next ›')));
+      el('button', { class: 'btn ghost', onclick: () => { if (closedPage > 0) { closedPage--; renderContests(); } } }, T('‹ anterior', '‹ previous', '‹ anterior')),
+      el('span', { class: 'small muted' }, T(` página ${closedPage + 1} de ${pages} `, ` page ${closedPage + 1} of ${pages} `, ` página ${closedPage + 1} de ${pages} `)),
+      el('button', { class: 'btn ghost', onclick: () => { if (closedPage < pages - 1) { closedPage++; renderContests(); } } }, T('próxima ›', 'next ›', 'siguiente ›')));
   }
   // a home traz só os mais recentes — link p/ o arquivo completo dos encerrados
   if (closedTotal > closedAll.length) {
     pg.append(el('a', { class: 'btn ghost', href: '/contests/', style: 'margin-left:.4rem' },
-      T(`ver todos os ${closedTotal} encerrados →`, `see all ${closedTotal} ended →`)));
+      T(`ver todos os ${closedTotal} encerrados →`, `see all ${closedTotal} ended →`, `ver todas las ${closedTotal} terminadas →`)));
   }
 }
 
@@ -61,31 +61,31 @@ async function loadNews() {
   const fn = document.getElementById('featuredNews');
   let j;
   try { j = await apiGet('/index/news', {}); }
-  catch { document.getElementById('news').classList.add('hidden'); if (fn) fn.innerHTML = `<div class="muted small">${T('sem notícias', 'no news')}</div>`; return; }
+  catch { document.getElementById('news').classList.add('hidden'); if (fn) fn.innerHTML = `<div class="muted small">${T('sem notícias', 'no news', 'sin noticias')}</div>`; return; }
   const items = j.news || j.items || [];
   // destaque: a notícia mais recente, num card no topo (no lugar do hero gigante)
   if (fn) {
     fn.innerHTML = '';
-    if (!items.length) fn.innerHTML = `<div class="muted small">${T('sem notícias no momento', 'no news right now')}</div>`;
+    if (!items.length) fn.innerHTML = `<div class="muted small">${T('sem notícias no momento', 'no news right now', 'sin noticias por ahora')}</div>`;
     else {
       const n = items[0];
       fn.append(
-        el('span', { class: 'fn-tag' }, T('📰 Em destaque', '📰 Featured')),
+        el('span', { class: 'fn-tag' }, T('📰 Em destaque', '📰 Featured', '📰 Destacado')),
         el('a', { class: 'fn-title', href: newsHref(n), ...newsTarget(n) }, n.title || ''),
         el('span', { class: 'fn-date small muted' }, fmtDate(n.date)),
         el('div', { class: 'fn-sum' }, n.summary || ''),
-        el('a', { class: 'small', href: '/noticias/', style: 'margin-top:.45rem; font-weight:600' }, T('ver todas as notícias →', 'see all news →')));
+        el('a', { class: 'small', href: '/noticias/', style: 'margin-top:.45rem; font-weight:600' }, T('ver todas as notícias →', 'see all news →', 'ver todas las noticias →')));
     }
   }
   // demais notícias na seção de baixo (sem repetir a destacada)
   const rest = items.slice(1);
   const box = document.getElementById('newslist'); box.innerHTML = '';
-  if (!rest.length) { box.innerHTML = T('<span class="muted small">sem outras notícias — <a href="/noticias/">ver todas</a></span>', '<span class="muted small">no other news — <a href="/noticias/">see all</a></span>'); return; }
+  if (!rest.length) { box.innerHTML = T('<span class="muted small">sem outras notícias — <a href="/noticias/">ver todas</a></span>', '<span class="muted small">no other news — <a href="/noticias/">see all</a></span>', '<span class="muted small">sin otras noticias — <a href="/noticias/">ver todas</a></span>'); return; }
   rest.forEach(n => box.append(el('div', { style: 'margin:.5rem 0' },
     el('div', {}, el('a', { href: newsHref(n), ...newsTarget(n), style: 'font-weight:700' }, n.title || ''),
       ' ', el('span', { class: 'small muted' }, fmtDate(n.date))),
     el('div', { class: 'small' }, n.summary || ''))));
-  box.append(el('div', { style: 'margin-top:.6rem' }, el('a', { class: 'small', href: '/noticias/', style: 'font-weight:600' }, T('ver todas as notícias →', 'see all news →'))));
+  box.append(el('div', { style: 'margin-top:.6rem' }, el('a', { class: 'small', href: '/noticias/', style: 'font-weight:600' }, T('ver todas as notícias →', 'see all news →', 'ver todas las noticias →'))));
 }
 
 async function loadTraining() {
@@ -94,7 +94,7 @@ async function loadTraining() {
   const recent = j.recent_solved || j.recent || [];
   const weekPrev = j.most_solved_prev_week || [];
   const t10 = document.getElementById('top10'); t10.innerHTML = '';
-  if (!top.length) t10.innerHTML = `<span class="muted small">${T('sem dados ainda', 'no data yet')}</span>`;
+  if (!top.length) t10.innerHTML = `<span class="muted small">${T('sem dados ainda', 'no data yet', 'sin datos todavía')}</span>`;
   top.slice(0, 10).forEach((u, i) => {
     const login = u.username || u.login || u.user || '';
     const nameWrap = el('span', { class: 'rank-name' }, el('span', { class: 'rn-name' }, u.name || login));
@@ -109,7 +109,7 @@ async function loadTraining() {
   const wk = document.getElementById('weekprev');
   if (wk) {
     wk.innerHTML = '';
-    if (!weekPrev.length) wk.innerHTML = `<span class="muted small">${T('sem resolvidos na semana passada', 'none solved last week')}</span>`;
+    if (!weekPrev.length) wk.innerHTML = `<span class="muted small">${T('sem resolvidos na semana passada', 'none solved last week', 'ninguno resuelto la semana pasada')}</span>`;
     weekPrev.slice(0, 5).forEach((p, i) => {
       const pid = p.problem_id || p.id || '';
       wk.append(el('a', { class: 'week-row', href: p.url || ('/treino/problema/?id=' + encodeURIComponent(pid)) },
@@ -125,7 +125,7 @@ async function loadTraining() {
   if (ew) {
     ew.innerHTML = '';
     const rk = ed.ranking || [];
-    if (!rk.length || !ed.total) ew.innerHTML = `<span class="muted small">${T('sem dados ainda', 'no data yet')}</span>`;
+    if (!rk.length || !ed.total) ew.innerHTML = `<span class="muted small">${T('sem dados ainda', 'no data yet', 'sin datos todavía')}</span>`;
     else rk.slice(0, 3).forEach((e, i) => {
       const pct = ed.total ? Math.round((e.count / ed.total) * 100) : 0;
       ew.append(el('div', { class: 'week-row' + (i === 0 ? ' editor-top' : '') },
@@ -137,7 +137,7 @@ async function loadTraining() {
 
   // resolvidos recentemente (feed: problema + quem resolveu + quando)
   const rc = document.getElementById('recent'); rc.innerHTML = '';
-  if (!recent.length) rc.innerHTML = `<span class="muted small">${T('sem dados ainda', 'no data yet')}</span>`;
+  if (!recent.length) rc.innerHTML = `<span class="muted small">${T('sem dados ainda', 'no data yet', 'sin datos todavía')}</span>`;
   recent.slice(0, 8).forEach((r) => {
     const pid = r.problem_id || r.id || '';
     const login = (r.user && (r.user.username || r.user.login)) || r.login || '';

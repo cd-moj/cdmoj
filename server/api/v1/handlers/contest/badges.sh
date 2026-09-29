@@ -66,6 +66,13 @@ _slurp_json() {  # <src> <default> <out>
 _slurp_json "$d/regions.json"                        '[]' "$tmp/regions"
 _slurp_json "$(pr_dir "$contest")/staff-filters.json" '{}' "$tmp/filters"
 _slurp_json "$d/teams-meta.json"                     '[]' "$tmp/teams"
+# a SEDE e a PERTENÇA de cada login pela regra ÚNICA (lib/regions.sh): `region` = a sede (gravada ou pela
+# regex mais funda); `region:<nome>` no escopo = o login está num nó com esse nome (sede, ancestral ou
+# recorte). Até 28/09/2026: sede derivada só pelos nós do TOPO (diferenciando maiúsculas) e `region:` só
+# por igualdade — `region:Nordeste` não via as sedes do Nordeste.
+source "$_LIBDIR/regions.sh"
+rg_sites_json "$contest" "$tmp/sites" 2>/dev/null || printf '{}' > "$tmp/sites"
+rg_keys_json "$contest" "$tmp/keys" 2>/dev/null || printf '{}' > "$tmp/keys"
 
 # contas: SÓ o store próprio do contest (ver a regra de ouro no cabeçalho). find|xargs jq —
 # sem ARG_MAX. O login cai no nome do DIRETÓRIO quando o campo falta (ele é implícito no
@@ -91,7 +98,8 @@ src="$(_users_source "$contest")"
 shared_src=""; [[ "$src" != "$contest" ]] && shared_src="$src"
 _badges_accounts "$d/users" "$([[ -n "$shared_src" ]] && echo true || echo false)" \
   | jq -cs --slurpfile re "$tmp/regions" --slurpfile ff "$tmp/filters" --slurpfile tm "$tmp/teams" \
-      --arg view "$view" --arg dis "$inc_dis" '
+      --slurpfile S "$tmp/sites" --slurpfile K "$tmp/keys" \
+      --arg view "$view" --arg dis "$inc_dis" "$(rg_norm_jq)"'
   ($re[0] // []) as $regions
   | ($ff[0] // {}) as $filters
   # teams-meta: objeto {rules:[…]} ou array cru; SEM .rules em array (indexar array com
@@ -99,20 +107,17 @@ _badges_accounts "$d/users" "$([[ -n "$shared_src" ]] && echo true || echo false
   | ($tm[0] | (if type=="object" then (.rules // []) elif type=="array" then . else [] end)) as $teams
   | map(select(.login != "")) | group_by(.login) | map(.[0])
   | (if $dis == "1" then . else map(select(.disabled | not)) end)
-  # alunos: sem contas de papel. Região EXPLÍCITA (.team.region do account) vence; senão
-  # derivada de regions.json (regex no login). O recorte do view (vazio/ausente = tudo)
-  # entende "region:<nome>" (igualdade com a região do aluno) além de regex no login.
+  # alunos: sem contas de papel. A sede é a da regra única (gravada, senão a regex mais funda); o
+  # recorte do view (vazio/ausente = tudo) entende "region:<nome>" (o aluno está num nó com esse nome)
+  # além de regex no login.
   | ( map(select(.login | test("\\.(admin|judge|cjudge|staff|cstaff|mon|animeitor)$") | not))
-      | map(. + {region: (if (.region // "") != "" then .region
-                          else ((.login as $l
-                            | first($regions[] | (.regex//"") as $rr | select($rr != ""
-                                and (try ($l|test($rr)) catch false)) | .name)) // null) end)})
+      | map(. as $u | . + {region: ($S[0][$u.login] // (if ($u.region // "") != "" then $u.region else null end))})
       | ($filters[$view] // []) as $scope
       | (if ($view == "") or (($scope|length) == 0) then .
          else map(select(. as $u
                 | any($scope[]; . as $r
                     | if ($r|startswith("region:"))
-                      then ((($u.region // "")|ascii_downcase) == ($r[7:] | ascii_downcase | gsub("^ +| +$"; "")))
+                      then (($r[7:] | rg_key) as $k | (($K[0][$u.login] // []) | index($k)) != null)
                       else (try ($u.login | ascii_downcase | test($r;"i")) catch false) end))) end)
     ) as $students
   # contas de papel: só o **.staff** ganha etiqueta (é quem fica na mesa e precisa do crachá).

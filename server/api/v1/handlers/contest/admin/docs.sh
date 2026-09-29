@@ -12,6 +12,9 @@
 #   config    {caderno_version?, cover_note?, errata?, info_sheet_pt?, info_sheet_en?,
 #              cover_pt?, cover_en?}          — textos/campos editáveis
 #   cover     {lang, pdf_b64}|{lang, remove:true}  — capa em PDF ENVIADO (vence a gerada)
+#   logo      {image_b64}|{remove:true}      — LOGO do cabeçalho do caderno/editorial e da capa gerada
+#                                               (PNG/JPEG/WebP/SVG, até 5 MB; reprocessado p/ PNG com altura
+#                                               limitada — o molde dos cadernos da SBC, faixa de logos no topo)
 #   generate  {types?:[…], langs?:[…]}        — default: todos os tipos, pt+en
 #   publish   {type, lang, news?:bool}        — libera p/ cstaff/times (resources.json) e,
 #                                               com news:true, cria a notícia com o PDF anexo
@@ -61,15 +64,18 @@ if [[ "$REQUEST_METHOD" == GET ]]; then
   done
   printf '%s' "$out" > "$tmpm/probs.json"
   doc_index "$contest" > "$tmpm/docs.json"
+  lgf="$(doc_logo_file "$contest")"
+  lg="$(jq -cn --arg f "$lgf" --argjson b "$( [[ -n "$lgf" ]] && stat -c%s "$lgf" 2>/dev/null || echo 0)" \
+        '{present:($f != ""), bytes:$b}')"
   emit_json 200 OK
   jq -cn --slurpfile docs "$tmpm/docs.json" --argjson cfg "$(doc_conf_get "$contest")" \
      --slurpfile probs "$tmpm/probs.json" --slurpfile tm "$tmpm/t.json" --slurpfile cm "$tmpm/c.json" \
-     --argjson um "$umap" --argjson cust "$cust" --arg langs "$DOC_LANGS" \
+     --argjson um "$umap" --argjson cust "$cust" --arg langs "$DOC_LANGS" --argjson lg "$lg" \
      '{success:true, docs:$docs[0], config:$cfg, problems:$probs[0], langs:($langs | split(" ")),
        templates:({info_sheet_pt:($tm[0].pt // ""), info_sheet_en:($tm[0].en // ""),
                    cover_pt:($cm[0].pt // ""), cover_en:($cm[0].en // "")}
                   + {info_sheet:$tm[0], cover:$cm[0]}),
-       custom:$cust, cover_uploaded:$um}'
+       custom:$cust, cover_uploaded:$um, logo:$lg}'
   exit 0
 fi
 
@@ -88,6 +94,12 @@ case "$action" in
         cfg="$(jq -c --arg k "$k" --arg v "$v" '.[$k] = $v' <<<"$cfg")"
       fi
     done
+    # exemplos em TABELA no caderno (opt-in; default = empilhados, como no site). Booleano de verdade:
+    # só `true` liga — "false", 0 e lixo desligam.
+    if jq -e 'has("samples_table")' "$bodyf" >/dev/null 2>&1; then
+      b="$(jq -r '.samples_table == true' "$bodyf")"
+      cfg="$(jq -c --argjson b "$b" '.samples_table = $b' <<<"$cfg")"
+    fi
     printf '%s\n' "$cfg" > "$D/config.json.tmp" && mv -f "$D/config.json.tmp" "$D/config.json"
     # textos longos (templates) vão para arquivo próprio — nunca por --arg (ARG_MAX)
     pairs=(); for L in $DOC_LANGS; do pairs+=( "info_sheet_$L:info-sheet.$L.md:info-sheet:$L" "cover_$L:cover.$L.md:cover:$L" ); done
@@ -107,6 +119,32 @@ case "$action" in
     mod_enable "$contest" documentos
     audit_log_to "$contest" docs-config ""
     ok_json '{saved:true}'
+    ;;
+  logo)
+    # LOGO do cabeçalho (caderno, editorial, capa gerada). Reprocessado SEMPRE: vira PNG, sem metadado,
+    # com altura ≤ 360 px (a faixa tem 1,6 cm; 360 px ≈ 570 dpi — sobra p/ impressão) e largura ≤ 3000.
+    # Imagem é entrada hostil: o MIME é conferido pelo `file` ANTES do magick (nunca pela extensão).
+    f="$D/header-logo.png"
+    if jq -e '.remove == true' "$bodyf" >/dev/null 2>&1; then
+      rm -f "$f"; audit_log_to "$contest" docs-logo "remove"; ok_json '{removed:true}'; exit 0
+    fi
+    mkdir -p "$D" 2>/dev/null
+    lt="$(mktemp -d)" || fail 500 "tmp" "tmp"
+    jq -r '.image_b64 // ""' "$bodyf" | sed 's/^data:[^,]*,//' | base64 -d > "$lt/in" 2>/dev/null
+    [[ -s "$lt/in" ]] || { rm -rf "$lt"; fail 400 "Imagem vazia ou inválida" "image_invalid"; }
+    (( $(stat -c%s "$lt/in" 2>/dev/null || echo 0) <= 5 * 1024 * 1024 )) \
+      || { rm -rf "$lt"; fail 413 "Imagem muito grande (máx 5MB)" "file_large"; }
+    case "$(file -b --mime-type "$lt/in" 2>/dev/null)" in
+      image/png|image/jpeg|image/webp|image/svg+xml) ;;
+      *) rm -rf "$lt"; fail 400 "Envie PNG, JPEG, WebP ou SVG" "image_invalid";;
+    esac
+    magick "$lt/in" -strip -background none -resize '3000x360>' "PNG32:$lt/out.png" >/dev/null 2>&1
+    [[ -s "$lt/out.png" && "$(file -b --mime-type "$lt/out.png" 2>/dev/null)" == image/png ]] \
+      || { rm -rf "$lt"; fail 400 "Não foi possível ler a imagem" "image_invalid"; }
+    mv -f "$lt/out.png" "$f"; rm -rf "$lt"
+    mod_enable "$contest" documentos
+    audit_log_to "$contest" docs-logo "bytes=$(stat -c%s "$f" 2>/dev/null)"
+    ok_json '{saved:true, bytes:$b}' --argjson b "$(stat -c%s "$f" 2>/dev/null || echo 0)"
     ;;
   cover|upload)
     # cover  = a CAPA do caderno (o gerador usa no lugar da capa que ele montaria)
@@ -201,7 +239,7 @@ case "$action" in
         nf="$CONTESTSDIR/$contest/news-files/$nid"; mkdir -p "$nf" 2>/dev/null
         fname="$t.$l.pdf"; cp -f "$pdf" "$nf/$fname"
         nj="$CONTESTSDIR/$contest/news.json"; [[ -s "$nj" ]] || printf '[]' > "$nj"
-        jq -c --arg id "$nid" --arg ti "$label" --arg tx "$([[ "$l" == pt ]] && printf 'Documento da prova disponível para download.' || printf 'Contest document available for download.')" \
+        jq -c --arg id "$nid" --arg ti "$label" --arg tx "$(_doc_t "$l" news_doc)" \
            --arg fn "$fname" --argjson sz "$(stat -c%s "$nf/$fname" 2>/dev/null || echo 0)" --argjson dt "$EPOCHSECONDS" \
            '. + [{id:$id, title:$ti, text:$tx, date:$dt, file:{name:$fn, size:$sz}}]' "$nj" > "$nj.tmp" \
           && mv -f "$nj.tmp" "$nj" && news_created=true

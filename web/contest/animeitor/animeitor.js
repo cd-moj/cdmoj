@@ -10,7 +10,7 @@ import { el } from '/shared/ui.js';
 import { fileToBase64 } from '/shared/auth.js';
 import { initContestShell } from '/shared/contest-shell.js';
 import { downloadAuthed, fmtDate, norm, debounce } from '/shared/admin-ui.js';
-import { T } from '/shared/i18n.js';
+import { T, uiLocale } from '/shared/i18n.js';
 import { setMediaSrc, mediaLink, setAudioSrc, releaseMedia } from '/shared/media-auth.js';
 import { makeApiSection } from './api-section.js';
 
@@ -111,7 +111,7 @@ async function sendPhoto(t, file, box) {
   Object.assign(t, { has_photo: true, format: r.format || 'webp', bytes: r.bytes || 0, mtime: Math.floor(Date.now() / 1000) });
   if (PHOTOS) PHOTOS.with_photo = PHOTOS.teams.filter((x) => x.has_photo).length;
   renderPhotos();
-  if (box) msg(box, T('Foto atualizada: ', 'Photo updated: ') + (t.name || t.login), 'small');
+  if (box) msg(box, T('Foto atualizada: ', 'Photo updated: ', 'Foto actualizada: ') + (t.name || t.login), 'small');
 }
 
 // mesma ideia do sendPhoto: manda o mp3 do time e atualiza SÓ o cartão
@@ -122,7 +122,7 @@ async function sendMusic(t, file, box) {
   Object.assign(t, { has_music: true, music_bytes: r.bytes || 0, music_mtime: Math.floor(Date.now() / 1000) });
   if (PHOTOS) PHOTOS.with_music = PHOTOS.teams.filter((x) => x.has_music).length;
   renderPhotos();
-  if (box) msg(box, T('Música atualizada: ', 'Music updated: ') + (t.name || t.login), 'small');
+  if (box) msg(box, T('Música atualizada: ', 'Music updated: ', 'Música actualizada: ') + (t.name || t.login), 'small');
 }
 
 // a linha ♪ do cartão: tocar (a do time ou a padrão), enviar/trocar e remover
@@ -132,34 +132,34 @@ function musicRow(t, box) {
     const f = inp.files && inp.files[0];
     if (!f) return;
     if (f.size > MUSIC_MAX_MB * 1024 * 1024) {
-      msg(box, T(`Música muito grande (máx ${MUSIC_MAX_MB}MB).`, `Music too large (max ${MUSIC_MAX_MB}MB).`), 'error-box'); return;
+      msg(box, T(`Música muito grande (máx ${MUSIC_MAX_MB}MB).`, `Music too large (max ${MUSIC_MAX_MB}MB).`, `Música demasiado grande (máx ${MUSIC_MAX_MB}MB).`), 'error-box'); return;
     }
-    msg(box, T('Enviando música de ', 'Uploading music of ') + t.login + '…');
+    msg(box, T('Enviando música de ', 'Uploading music of ', 'Subiendo música de ') + t.login + '…');
     try { await sendMusic(t, f, box); }
-    catch (e) { msg(box, T('Falha: ', 'Failed: ') + (e.message || e), 'error-box'); }
+    catch (e) { msg(box, T('Falha: ', 'Failed: ', 'Error: ') + (e.message || e), 'error-box'); }
   });
   // botões da música são ÍCONES (⬆ / ×): o cartão tem ~170 px e os rótulos por extenso jogavam
   // o "remover" para uma segunda linha, deixando a grade com cartões de alturas diferentes
   return el('div', { class: 'acts mus' }, inp,
     playBtn(t.has_music ? musicUrl(t) : phMusicUrl(),
-      t.has_music ? T('tocar a música do time', 'play the team music')
-                  : T('tocar a música padrão', 'play the default music')),
+      t.has_music ? T('tocar a música do time', 'play the team music', 'reproducir la música del equipo')
+                  : T('tocar a música padrão', 'play the default music', 'reproducir la música predeterminada')),
     el('span', { class: 'lg' }, t.has_music
       ? `${Math.round((t.music_bytes || 0) / 1024)} KB`
-      : T('padrão', 'default')),
+      : T('padrão', 'default', 'predeterminado')),
     NOWRITE ? '' : el('button', { class: 'btn ghost', onclick: () => inp.click(),
-      title: t.has_music ? T('trocar a música', 'replace the music')
-                         : T('enviar a música', 'upload the music') }, '⬆'),
+      title: t.has_music ? T('trocar a música', 'replace the music', 'reemplazar la música')
+                         : T('enviar a música', 'upload the music', 'subir la música') }, '⬆'),
     (t.has_music && !NOWRITE) ? el('button', { class: 'btn ghost danger',
-      title: T('remover a música', 'remove the music'), onclick: async () => {
-      if (!confirm(T('Remover a música de ', 'Remove the music of ') + (t.name || t.login) + '?')) return;
+      title: T('remover a música', 'remove the music', 'quitar la música'), onclick: async () => {
+      if (!confirm(T('Remover a música de ', 'Remove the music of ', 'Quitar la música de ') + (t.name || t.login) + '?')) return;
       try {
         await apiPost('/contest/animeitor/music?contest=' + enc(CONTEST), { action: 'delete', login: t.login }, G);
         releaseMedia(musicUrl(t));
         Object.assign(t, { has_music: false, music_bytes: 0, music_mtime: 0 });
         if (PHOTOS) PHOTOS.with_music = PHOTOS.teams.filter((x) => x.has_music).length;
         renderPhotos();
-      } catch (e) { msg(box, T('Falha: ', 'Failed: ') + (e.message || e), 'error-box'); }
+      } catch (e) { msg(box, T('Falha: ', 'Failed: ', 'Error: ') + (e.message || e), 'error-box'); }
     } }, '×') : '');
 }
 
@@ -168,34 +168,34 @@ function photoCard(t, box) {
   inp.addEventListener('change', async () => {
     const f = inp.files && inp.files[0];
     if (!f) return;
-    if (f.size > 8 * 1024 * 1024) { msg(box, T('Imagem muito grande (máx 8MB).', 'Image too large (max 8MB).'), 'error-box'); return; }
-    msg(box, T('Enviando ', 'Uploading ') + t.login + '…');
+    if (f.size > 8 * 1024 * 1024) { msg(box, T('Imagem muito grande (máx 8MB).', 'Image too large (max 8MB).', 'Imagen demasiado grande (máx 8MB).'), 'error-box'); return; }
+    msg(box, T('Enviando ', 'Uploading ', 'Subiendo ') + t.login + '…');
     try { await sendPhoto(t, f, box); }
-    catch (e) { msg(box, T('Falha: ', 'Failed: ') + (e.message || e), 'error-box'); }
+    catch (e) { msg(box, T('Falha: ', 'Failed: ', 'Error: ') + (e.message || e), 'error-box'); }
   });
   return el('div', { class: 'card' },
     t.has_photo
       // miniatura + lazy: só as fotos da página corrente são baixadas, e a 2ª visita vem do cache
-      ? mediaLink(photoUrl(t, false), { title: T('ver em tamanho real', 'view full size') },
+      ? mediaLink(photoUrl(t, false), { title: T('ver em tamanho real', 'view full size', 'ver en tamaño real') },
           setMediaSrc(el('img', { class: 'ph', alt: t.name, loading: 'lazy', decoding: 'async' }),
                       photoUrl(t, true), { lazy: true }))
-      : el('div', { class: 'ph none' }, T('sem foto', 'no photo')),
+      : el('div', { class: 'ph none' }, T('sem foto', 'no photo', 'sin foto')),
     el('div', { class: 'nm' }, t.name || t.login),
     el('div', { class: 'lg' }, (t.univ ? '[' + t.univ + '] ' : '') + t.login),
     el('div', { class: 'lg' }, t.has_photo ? `${t.format} · ${Math.round((t.bytes || 0) / 1024)} KB` : ''),
     NOWRITE ? '' : el('div', { class: 'acts' }, inp,
       el('button', { class: 'btn ghost', onclick: () => inp.click() },
-        t.has_photo ? T('trocar', 'replace') : T('enviar', 'upload')),
+        t.has_photo ? T('trocar', 'replace', 'reemplazar') : T('enviar', 'upload', 'subir')),
       t.has_photo ? el('button', { class: 'btn ghost danger', onclick: async () => {
-        if (!confirm(T('Remover a foto de ', 'Remove the photo of ') + (t.name || t.login) + '?')) return;
+        if (!confirm(T('Remover a foto de ', 'Remove the photo of ', 'Quitar la foto de ') + (t.name || t.login) + '?')) return;
         try {
           await apiPost('/contest/animeitor/photo?contest=' + enc(CONTEST), { action: 'delete', login: t.login }, G);
           releaseMedia(photoUrl(t, true)); releaseMedia(photoUrl(t, false));
           Object.assign(t, { has_photo: false, format: '', bytes: 0, mtime: 0 });
           if (PHOTOS) PHOTOS.with_photo = PHOTOS.teams.filter((x) => x.has_photo).length;
           renderPhotos();
-        } catch (e) { msg(box, T('Falha: ', 'Failed: ') + (e.message || e), 'error-box'); }
-      } }, T('remover', 'remove')) : ''),
+        } catch (e) { msg(box, T('Falha: ', 'Failed: ', 'Error: ') + (e.message || e), 'error-box'); }
+      } }, T('remover', 'remove', 'quitar')) : ''),
     musicRow(t, box),
   );
 }
@@ -220,7 +220,7 @@ function selOf(field, label, id) {
   const vals = [...new Set(teamsAll().map((t) => t[field]).filter(Boolean))].sort();
   if (!vals.length) return '';
   const sel = el('select', { id },
-    el('option', { value: '' }, T('todas', 'all')),
+    el('option', { value: '' }, T('todas', 'all', 'todas')),
     ...vals.map((v) => el('option', { value: v }, v)));
   sel.value = F[field] || '';
   sel.addEventListener('change', () => { F[field] = sel.value; PAGE_I = 0; renderPhotos(); });
@@ -242,7 +242,7 @@ function chipRow(fam, label, pool, labels, ids) {
     el('span', { class: 'small muted' }, label),
     chip('no', labels[0], pool.length - nYes, ids[0]),
     chip('yes', labels[1], nYes, ids[1]),
-    chip('all', T('Todos', 'All'), pool.length, ids[2]));
+    chip('all', T('Todos', 'All', 'Todos'), pool.length, ids[2]));
 }
 
 function photosBar(box) {
@@ -253,7 +253,7 @@ function photosBar(box) {
   const poolMusic = F.mode === 'family' ? base.filter(matchPhoto) : base;
 
   const q = el('input', { id: 'fQ', class: 'filter', type: 'search',
-    placeholder: T('buscar time, login, universidade…', 'search team, login, university…') });
+    placeholder: T('buscar time, login, universidade…', 'search team, login, university…', 'buscar equipo, usuario, universidad…') });
   q.value = F.q;
   // debounce: com 1000 times o re-render a cada tecla seria perceptível
   q.addEventListener('input', debounce(() => { F.q = norm(q.value.trim()); PAGE_I = 0; renderPhotos(); }, 150));
@@ -262,25 +262,26 @@ function photosBar(box) {
     // a FILA DE TRABALHO inteira num clique: falta foto, falta música, ou faltam as duas
     el('button', { id: 'fPending', class: 'btn ' + (F.mode === 'pending' ? '' : 'ghost'),
       title: T('times sem foto, sem música ou sem os dois',
-               'teams missing a photo, missing music, or missing both'),
+               'teams missing a photo, missing music, or missing both',
+               'equipos sin foto, sin música o sin ambas'),
       onclick: () => { F.mode = 'pending'; F.photo = 'all'; F.music = 'all'; PAGE_I = 0; renderPhotos(); },
-    }, `⚠ ${T('Pendências', 'To do')} (${nPend})`),
-    chipRow('photo', T('Foto:', 'Photo:'), poolPhoto,
-      [T('Sem foto', 'Missing'), T('Com foto', 'With photo')],
+    }, `⚠ ${T('Pendências', 'To do', 'Pendientes')} (${nPend})`),
+    chipRow('photo', T('Foto:', 'Photo:', 'Foto:'), poolPhoto,
+      [T('Sem foto', 'Missing', 'Falta'), T('Com foto', 'With photo', 'Con foto')],
       ['fPhotoNo', 'fPhotoYes', 'fPhotoAll']),
-    chipRow('music', T('Música:', 'Music:'), poolMusic,
-      [T('Sem música', 'Missing'), T('Com música', 'With music')],
+    chipRow('music', T('Música:', 'Music:', 'Música:'), poolMusic,
+      [T('Sem música', 'Missing', 'Falta'), T('Com música', 'With music', 'Con música')],
       ['fMusicNo', 'fMusicYes', 'fMusicAll']),
-    selOf('cohort', T('Coorte:', 'Cohort:'), 'fCohort'),
-    selOf('univ', T('Universidade:', 'University:'), 'fUniv'),
-    RO ? '' : selOf('region', T('Sede:', 'Site:'), 'fRegion'),   // uma sede só: o select seria ruído
+    selOf('cohort', T('Coorte:', 'Cohort:', 'Cohorte:'), 'fCohort'),
+    selOf('univ', T('Universidade:', 'University:', 'Universidad:'), 'fUniv'),
+    RO ? '' : selOf('region', T('Sede:', 'Site:', 'Sede:'), 'fRegion'),   // uma sede só: o select seria ruído
     q,
     // limpar é limpar: mostra TODOS (não volta a ligar o recorte de pendências)
     el('button', { id: 'fClear', class: 'btn ghost', onclick: () => {
       F.mode = 'family'; F.photo = 'all'; F.music = 'all';
       F.q = ''; F.cohort = ''; F.univ = ''; F.region = '';
       PAGE_I = 0; renderPhotos();
-    } }, T('limpar', 'clear')),
+    } }, T('limpar', 'clear', 'limpiar')),
     el('span', { class: 'fcount', id: 'fCount' }, ''),
   );
 }
@@ -290,7 +291,7 @@ function pager(pages) {
   if (pages <= 1) return '';
   return el('div', { class: 'row', style: 'gap:.4rem; align-items:center; margin:.5rem 0' },
     el('button', { class: 'btn ghost', onclick: () => { if (PAGE_I > 0) { PAGE_I--; renderPhotos(); } } }, '‹'),
-    el('span', { class: 'small' }, ` ${T('página', 'page')} ${PAGE_I + 1} / ${pages} `),
+    el('span', { class: 'small' }, ` ${T('página', 'page', 'página')} ${PAGE_I + 1} / ${pages} `),
     el('button', { class: 'btn ghost', onclick: () => { if (PAGE_I < pages - 1) { PAGE_I++; renderPhotos(); } } }, '›'));
 }
 
@@ -303,30 +304,30 @@ function placeholderMusicRow(box) {
     const f = inp.files && inp.files[0];
     if (!f) return;
     if (f.size > MUSIC_MAX_MB * 1024 * 1024) {
-      msg(box, T(`Música muito grande (máx ${MUSIC_MAX_MB}MB).`, `Music too large (max ${MUSIC_MAX_MB}MB).`), 'error-box'); return;
+      msg(box, T(`Música muito grande (máx ${MUSIC_MAX_MB}MB).`, `Music too large (max ${MUSIC_MAX_MB}MB).`, `Música demasiado grande (máx ${MUSIC_MAX_MB}MB).`), 'error-box'); return;
     }
-    msg(box, T('Enviando a música padrão…', 'Uploading the default music…'));
+    msg(box, T('Enviando a música padrão…', 'Uploading the default music…', 'Subiendo la música predeterminada…'));
     try {
       const r = await apiPost('/contest/animeitor/placeholder?contest=' + enc(CONTEST),
         { kind: 'music', file_b64: await fileToBase64(f) }, G);
       if (PHOTOS) PHOTOS.placeholder = { ...PHOTOS.placeholder, music_custom: r.music.custom, music_mtime: r.music.mtime };
       renderPhotos();
-      msg(document.getElementById('phMsg') || box, T('Música padrão trocada.', 'Default music replaced.'), 'small');
-    } catch (e) { msg(box, T('Falha: ', 'Failed: ') + (e.message || e), 'error-box'); }
+      msg(document.getElementById('phMsg') || box, T('Música padrão trocada.', 'Default music replaced.', 'Música predeterminada reemplazada.'), 'small');
+    } catch (e) { msg(box, T('Falha: ', 'Failed: ', 'Error: ') + (e.message || e), 'error-box'); }
   });
   return el('div', { class: 'row', style: 'gap:.3rem; margin-top:.35rem; align-items:center; flex-wrap:wrap' }, inp,
-    playBtn(phMusicUrl(), T('tocar a música padrão', 'play the default music')),
-    el('span', { class: 'small muted' }, T('Música padrão', 'Default music'),
-      custom ? T(' · sua faixa', ' · your track') : T(' · a do MOJ', ' · the MOJ one')),
+    playBtn(phMusicUrl(), T('tocar a música padrão', 'play the default music', 'reproducir la música predeterminada')),
+    el('span', { class: 'small muted' }, T('Música padrão', 'Default music', 'Música predeterminada'),
+      custom ? T(' · sua faixa', ' · your track', ' · tu pista') : T(' · a do MOJ', ' · the MOJ one', ' · la del MOJ')),
     // o chefe de sede ouve, mas não troca: o padrão é do contest inteiro
-    RO ? '' : el('button', { class: 'btn ghost', onclick: () => inp.click() }, T('trocar música', 'replace music')),
+    RO ? '' : el('button', { class: 'btn ghost', onclick: () => inp.click() }, T('trocar música', 'replace music', 'reemplazar música')),
     (custom && !RO) ? el('button', { class: 'btn ghost', onclick: async () => {
-      if (!confirm(T('Voltar à música padrão do MOJ?', 'Restore the MOJ default music?'))) return;
+      if (!confirm(T('Voltar à música padrão do MOJ?', 'Restore the MOJ default music?', '¿Restaurar la música predeterminada del MOJ?'))) return;
       const r = await apiPost('/contest/animeitor/placeholder?contest=' + enc(CONTEST),
         { kind: 'music', action: 'reset' }, G);
       if (PHOTOS) PHOTOS.placeholder = { ...PHOTOS.placeholder, music_custom: r.music.custom, music_mtime: r.music.mtime };
       renderPhotos();
-    } }, T('voltar ao padrão do MOJ', 'restore MOJ default')) : '');
+    } }, T('voltar ao padrão do MOJ', 'restore MOJ default', 'restaurar la predeterminada del MOJ')) : '');
 }
 
 // cartão do PADRÃO: a foto (e a música) que vão para o telão de quem não mandou as suas
@@ -336,33 +337,34 @@ function placeholderCard(box) {
   inp.addEventListener('change', async () => {
     const f = inp.files && inp.files[0];
     if (!f) return;
-    if (f.size > 8 * 1024 * 1024) { msg(box, T('Imagem muito grande (máx 8MB).', 'Image too large (max 8MB).'), 'error-box'); return; }
-    msg(box, T('Enviando a foto padrão…', 'Uploading the default photo…'));
+    if (f.size > 8 * 1024 * 1024) { msg(box, T('Imagem muito grande (máx 8MB).', 'Image too large (max 8MB).', 'Imagen demasiado grande (máx 8MB).'), 'error-box'); return; }
+    msg(box, T('Enviando a foto padrão…', 'Uploading the default photo…', 'Subiendo la foto predeterminada…'));
     try {
       const r = await apiPost('/contest/animeitor/placeholder?contest=' + enc(CONTEST),
         { file_b64: await fileToBase64(f) }, G);
       if (PHOTOS) PHOTOS.placeholder = { ...PHOTOS.placeholder, custom: r.custom, mtime: r.mtime };
       renderPhotos();
-      msg(document.getElementById('phMsg') || box, T('Foto padrão trocada.', 'Default photo replaced.'), 'small');
-    } catch (e) { msg(box, T('Falha: ', 'Failed: ') + (e.message || e), 'error-box'); }
+      msg(document.getElementById('phMsg') || box, T('Foto padrão trocada.', 'Default photo replaced.', 'Foto predeterminada reemplazada.'), 'small');
+    } catch (e) { msg(box, T('Falha: ', 'Failed: ', 'Error: ') + (e.message || e), 'error-box'); }
   });
   return el('div', { class: 'phdef' },
-    setMediaSrc(el('img', { alt: T('foto padrão', 'default photo'), loading: 'lazy' }), phUrl(true), { lazy: true }),
+    setMediaSrc(el('img', { alt: T('foto padrão', 'default photo', 'foto predeterminada'), loading: 'lazy' }), phUrl(true), { lazy: true }),
     el('div', {},
-      el('div', { class: 'nm' }, T('Foto padrão', 'Default photo'),
-        el('span', { class: 'small muted' }, custom ? T(' · sua imagem', ' · your image')
-                                                    : T(' · a do MOJ', ' · the MOJ one'))),
+      el('div', { class: 'nm' }, T('Foto padrão', 'Default photo', 'Foto predeterminada'),
+        el('span', { class: 'small muted' }, custom ? T(' · sua imagem', ' · your image', ' · tu imagen')
+                                                    : T(' · a do MOJ', ' · the MOJ one', ' · la del MOJ'))),
       el('div', { class: 'small muted' },
         T('É o que a API responde — e o que vai no pacote — para quem ainda não mandou a sua.',
-          'This is what the API answers — and what goes in the package — for teams without their own.')),
+          'This is what the API answers — and what goes in the package — for teams without their own.',
+          'Es lo que responde la API — y lo que va en el paquete — para quienes todavía no enviaron la suya.')),
       el('div', { class: 'row', style: 'gap:.3rem; margin-top:.35rem; align-items:center; flex-wrap:wrap' }, inp,
-        RO ? '' : el('button', { class: 'btn ghost', onclick: () => inp.click() }, T('trocar imagem', 'replace image')),
+        RO ? '' : el('button', { class: 'btn ghost', onclick: () => inp.click() }, T('trocar imagem', 'replace image', 'reemplazar imagen')),
         (custom && !RO) ? el('button', { class: 'btn ghost', onclick: async () => {
-          if (!confirm(T('Voltar à foto padrão do MOJ?', 'Restore the MOJ default photo?'))) return;
+          if (!confirm(T('Voltar à foto padrão do MOJ?', 'Restore the MOJ default photo?', '¿Restaurar la foto predeterminada del MOJ?'))) return;
           const r = await apiPost('/contest/animeitor/placeholder?contest=' + enc(CONTEST), { action: 'reset' }, G);
           if (PHOTOS) PHOTOS.placeholder = { ...PHOTOS.placeholder, custom: r.custom, mtime: r.mtime };
           renderPhotos();
-        } }, T('voltar ao padrão do MOJ', 'restore MOJ default')) : ''),
+        } }, T('voltar ao padrão do MOJ', 'restore MOJ default', 'restaurar la predeterminada del MOJ')) : ''),
       placeholderMusicRow(box)));
 }
 
@@ -384,35 +386,37 @@ function renderPhotos() {
   const nT = (PHOTOS && PHOTOS.total) || 0;
   host.innerHTML = '';
   host.append(
-    el('h2', {}, T('📷 Fotos e ♪ músicas dos times', '📷 Team photos and ♪ music')),
+    el('h2', {}, T('📷 Fotos e ♪ músicas dos times', '📷 Team photos and ♪ music', '📷 Fotos y ♪ música de los equipos')),
     el('p', { class: 'note' },
       T(`${nP} de ${nT} times já têm foto; ${nM} têm música própria (o resto toca a padrão).`,
-        `${nP} of ${nT} teams already have a photo; ${nM} have their own music (the rest play the default).`),
+        `${nP} of ${nT} teams already have a photo; ${nM} have their own music (the rest play the default).`,
+        `${nP} de ${nT} equipos ya tienen foto; ${nM} tienen música propia (el resto reproduce la predeterminada).`),
       // o recorte é da API (staff-filters): dizer isso evita o susto de "sumiram times"
       (PHOTOS && PHOTOS.scoped)
         ? el('span', { class: 'small muted' }, NOWRITE
-            ? T(' Você vê os times da SUA SEDE (somente leitura).', ' You see YOUR SITE’s teams (read-only).')
-            : T(' Você vê e gere apenas os times da SUA SEDE.', ' You see and manage only YOUR SITE’s teams.'))
+            ? T(' Você vê os times da SUA SEDE (somente leitura).', ' You see YOUR SITE’s teams (read-only).', ' Ves los equipos de TU SEDE (solo lectura).')
+            : T(' Você vê e gere apenas os times da SUA SEDE.', ' You see and manage only YOUR SITE’s teams.', ' Ves y gestionas solo los equipos de TU SEDE.'))
         : ''),
     placeholderCard(box),
     // lote e pacote são ESCRITA/exportação: o .staff não tem nenhum dos dois
     NOWRITE ? '' : el('div', { class: 'row', style: 'gap:.5rem; margin-bottom:.4rem; flex-wrap:wrap' }, bulkInput(box),
       el('button', { class: 'btn', onclick: () => document.getElementById('phBulk').click() },
         T('⬆ Enviar em lote — fotos e músicas (nome do arquivo = login)',
-          '⬆ Bulk upload — photos and music (file name = login)')),
+          '⬆ Bulk upload — photos and music (file name = login)',
+          '⬆ Subir en lote — fotos y música (nombre del archivo = usuario)')),
       el('button', { class: 'btn ghost', onclick: () => downloadAuthed(CONTEST,
           '/contest/animeitor/photos-zip?contest=' + enc(CONTEST), 'fotos-' + CONTEST + '.zip') },
-        T('⬇ Baixar pacote (.zip)', '⬇ Download package (.zip)'))),
+        T('⬇ Baixar pacote (.zip)', '⬇ Download package (.zip)', '⬇ Descargar paquete (.zip)'))),
     photosBar(box), box,
     rows.length ? el('div', { class: 'gal' }, ...slice.map((t) => photoCard(t, box)))
-                : el('p', { class: 'muted' }, T('Nenhum time casa com o filtro.', 'No team matches the filter.')),
+                : el('p', { class: 'muted' }, T('Nenhum time casa com o filtro.', 'No team matches the filter.', 'Ningún equipo coincide con el filtro.')),
     pager(pages),
   );
   syncPlay();                                        // o cartão que estava tocando continua ⏸
   const c = document.getElementById('fCount');
   if (c) c.textContent = (rows.length === teamsAll().length)
-    ? T(`${rows.length} times`, `${rows.length} teams`)
-    : T(`Mostrando ${rows.length} de ${teamsAll().length} times`, `Showing ${rows.length} of ${teamsAll().length} teams`);
+    ? T(`${rows.length} times`, `${rows.length} teams`, `${rows.length} equipos`)
+    : T(`Mostrando ${rows.length} de ${teamsAll().length} times`, `Showing ${rows.length} of ${teamsAll().length} teams`, `Mostrando ${rows.length} de ${teamsAll().length} equipos`);
 }
 
 // o lote aceita FOTO e MÚSICA no mesmo arrastar: cada arquivo vai para a rota certa pelo tipo
@@ -427,7 +431,7 @@ function bulkInput(box) {
     if (!fs.length) return;
     let okP = 0; let okM = 0; const bad = [];
     for (let i = 0; i < fs.length; i++) {
-      msg(box, T('Enviando ', 'Uploading ') + (i + 1) + '/' + fs.length + '…');
+      msg(box, T('Enviando ', 'Uploading ', 'Subiendo ') + (i + 1) + '/' + fs.length + '…');
       // o LOGIN vem do nome do arquivo (fulano.jpg / fulano.mp3 -> fulano), como no painel de Times
       const mus = isMusicFile(fs[i]);
       try {
@@ -438,9 +442,10 @@ function bulkInput(box) {
     }
     await loadPhotos(); renderPhotos();
     const b = document.getElementById('phMsg');
-    if (b) msg(b, T(`${okP} foto(s) e ${okM} música(s) enviada(s).`, `${okP} photo(s) and ${okM} music file(s) uploaded.`)
+    if (b) msg(b, T(`${okP} foto(s) e ${okM} música(s) enviada(s).`, `${okP} photo(s) and ${okM} music file(s) uploaded.`, `${okP} foto(s) y ${okM} archivo(s) de música subido(s).`)
       + (bad.length ? T(' Falharam (time inexistente ou formato recusado): ',
-                        ' Failed (no such team or format rejected): ') + bad.join(', ') : ''),
+                        ' Failed (no such team or format rejected): ',
+                        ' Fallaron (equipo inexistente o formato rechazado): ') + bad.join(', ') : ''),
       bad.length ? 'error-box' : 'small');
   });
   return bulk;
@@ -454,59 +459,62 @@ function keyRow(k) {
   return el('tr', { class: revoked ? 'revoked' : '' },
     el('td', {}, el('b', {}, view), k.label ? el('div', { class: 'small muted' }, k.label) : ''),
     el('td', {}, revoked
-      ? el('span', { class: 'small muted' }, T('revogada em ', 'revoked at ') + fmtDate(k.revoked_at))
+      ? el('span', { class: 'small muted' }, T('revogada em ', 'revoked at ', 'revocada el ') + fmtDate(k.revoked_at))
       : el('span', { class: 'keyurl' }, url)),
     el('td', { class: 'n' }, String(k.fetches || 0)),
     el('td', { class: 'small muted' }, k.last_at
       ? fmtDate(k.last_at) + (k.last_ip ? ' · ' + k.last_ip : '')
-      : T('nunca buscada', 'never fetched')),
+      : T('nunca buscada', 'never fetched', 'nunca consultada')),
     el('td', {}, revoked ? '' : el('div', { class: 'row', style: 'gap:.3rem' },
       el('button', { class: 'btn ghost', onclick: async () => {
-        try { await navigator.clipboard.writeText(url); alert(T('URL copiada.', 'URL copied.')); }
-        catch { prompt(T('Copie a URL:', 'Copy the URL:'), url); }
-      } }, T('copiar', 'copy')),
-      el('a', { class: 'btn ghost', href: url, target: '_blank' }, T('testar', 'test')),
+        try { await navigator.clipboard.writeText(url); alert(T('URL copiada.', 'URL copied.', 'URL copiada.')); }
+        catch { prompt(T('Copie a URL:', 'Copy the URL:', 'Copia la URL:'), url); }
+      } }, T('copiar', 'copy', 'copiar')),
+      el('a', { class: 'btn ghost', href: url, target: '_blank' }, T('testar', 'test', 'probar')),
       el('button', { class: 'btn ghost danger', onclick: async () => {
         if (!confirm(T('Revogar esta chave? O Animeitor que a usa para de receber o placar.',
-                       'Revoke this key? The Animeitor using it stops receiving the scoreboard.'))) return;
+                       'Revoke this key? The Animeitor using it stops receiving the scoreboard.',
+                       '¿Revocar esta clave? El Animeitor que la usa deja de recibir el marcador.'))) return;
         await apiPost('/contest/animeitor/webcast?contest=' + enc(CONTEST), { action: 'revoke', id: k.id }, G);
         WC = await apiGet('/contest/animeitor/webcast?contest=' + enc(CONTEST), G); render();
-      } }, T('revogar', 'revoke')))),
+      } }, T('revogar', 'revoke', 'revocar')))),
   );
 }
 
 function streamSection() {
   const sel = el('select', {}, ...((WC.views || []).map((v) => el('option', { value: v.id }, v.name))));
-  const lbl = el('input', { type: 'text', placeholder: T('apelido (ex.: telão principal)', 'label (e.g. main screen)'), style: 'max-width:16rem' });
+  const lbl = el('input', { type: 'text', placeholder: T('apelido (ex.: telão principal)', 'label (e.g. main screen)', 'etiqueta (ej.: pantalla principal)'), style: 'max-width:16rem' });
   const box = el('div', { class: 'small muted' });
   const keys = (WC.keys || []);
   return el('div', { class: 'section' },
-    el('h2', {}, T('🎥 Streaming de placar (Animeitor)', '🎥 Scoreboard streaming (Animeitor)')),
+    el('h2', {}, T('🎥 Streaming de placar (Animeitor)', '🎥 Scoreboard streaming (Animeitor)', '🎥 Transmisión del marcador (Animeitor)')),
     el('p', { class: 'note' },
       T('Cada chave gera uma URL que o Animeitor busca em loop e devolve o pacote .zip no formato do BOCA (contest/runs/time/version). O placar do pacote vai SEMPRE descongelado — quem anima a virada é o Animeitor.',
-        'Each key yields a URL the Animeitor polls, returning the .zip package in BOCA format (contest/runs/time/version). The package is ALWAYS unfrozen — the reveal animation is the Animeitor’s job.')),
+        'Each key yields a URL the Animeitor polls, returning the .zip package in BOCA format (contest/runs/time/version). The package is ALWAYS unfrozen — the reveal animation is the Animeitor’s job.',
+        'Cada clave genera una URL que el Animeitor consulta en bucle y devuelve el paquete .zip en el formato de BOCA (contest/runs/time/version). El marcador del paquete va SIEMPRE descongelado — quien anima la revelación es el Animeitor.')),
     el('p', { class: 'note' }, '⚠ ',
       T('Quem tem a URL vê o placar descongelado durante a prova. Trate como senha e revogue depois do evento.',
-        'Whoever holds the URL sees the unfrozen scoreboard during the contest. Treat it as a password and revoke it after the event.')),
+        'Whoever holds the URL sees the unfrozen scoreboard during the contest. Treat it as a password and revoke it after the event.',
+        'Quien tenga la URL ve el marcador descongelado durante la competencia. Trátala como una contraseña y revócala después del evento.')),
     el('div', { class: 'row', style: 'gap:.5rem; align-items:center; flex-wrap:wrap; margin:.6rem 0' },
-      el('span', { class: 'small muted' }, T('Placar:', 'Board:')), sel, lbl,
+      el('span', { class: 'small muted' }, T('Placar:', 'Board:', 'Marcador:')), sel, lbl,
       el('button', { class: 'btn', onclick: async () => {
-        msg(box, T('Criando…', 'Creating…'));
+        msg(box, T('Criando…', 'Creating…', 'Creando…'));
         try {
           await apiPost('/contest/animeitor/webcast?contest=' + enc(CONTEST),
             { action: 'create', view: sel.value, label: lbl.value }, G);
           WC = await apiGet('/contest/animeitor/webcast?contest=' + enc(CONTEST), G);
           lbl.value = ''; render();
-        } catch (e) { msg(box, T('Falha: ', 'Failed: ') + (e.message || e), 'error-box'); }
-      } }, T('+ Nova chave', '+ New key'))),
+        } catch (e) { msg(box, T('Falha: ', 'Failed: ', 'Error: ') + (e.message || e), 'error-box'); }
+      } }, T('+ Nova chave', '+ New key', '+ Nueva clave'))),
     box,
     keys.length ? el('div', { class: 'chart-wrap' }, el('table', { class: 'moj' },
       el('thead', {}, el('tr', {},
-        el('th', {}, T('Placar', 'Board')), el('th', {}, 'URL'),
-        el('th', { class: 'n' }, T('Buscas', 'Fetches')),
-        el('th', {}, T('Último acesso', 'Last fetch')), el('th', {}, ''))),
+        el('th', {}, T('Placar', 'Board', 'Marcador')), el('th', {}, 'URL'),
+        el('th', { class: 'n' }, T('Buscas', 'Fetches', 'Consultas')),
+        el('th', {}, T('Último acesso', 'Last fetch', 'Última consulta')), el('th', {}, ''))),
       el('tbody', {}, ...keys.map(keyRow))))
-      : el('p', { class: 'muted' }, T('Nenhuma chave criada ainda.', 'No key created yet.')),
+      : el('p', { class: 'muted' }, T('Nenhuma chave criada ainda.', 'No key created yet.', 'Todavía no se creó ninguna clave.')),
   );
 }
 
@@ -517,31 +525,36 @@ function streamSection() {
 // `verify` = a CONFERÊNCIA do MOJ só das sedes dela: o Animeitor tem todas as submissões? "Validado" = a
 // prova acabou p/ todas as sedes, nada pendente e tudo bate — é o sinal verde p/ a cerimônia.
 function verifyBadge(v) {
-  if (!v || !v.at) return el('p', { class: 'muted small' }, T('O MOJ ainda não conferiu o Animeitor para a sua sede.', 'MOJ has not checked the Animeitor for your site yet.'));
-  const at = new Date((v.final ? (v.final_at || v.at) : v.at) * 1000).toLocaleTimeString();
-  if (v.final) return el('p', { class: 'small', style: 'color:var(--ok,#1e7e34);font-weight:600' }, '✓ ', T(`Validado (${at}): a prova acabou e o Animeitor tem todas as submissões da sua sede.`, `Validated (${at}): the contest is over and the Animeitor has every submission of your site.`));
+  if (!v || !v.at) return el('p', { class: 'muted small' }, T('O MOJ ainda não conferiu o Animeitor para a sua sede.', 'MOJ has not checked the Animeitor for your site yet.', 'El MOJ todavía no verificó el Animeitor para tu sede.'));
+  const at = new Date((v.final ? (v.final_at || v.at) : v.at) * 1000).toLocaleTimeString(uiLocale());
+  if (v.final) return el('p', { class: 'small', style: 'color:var(--ok,#1e7e34);font-weight:600' }, '✓ ', T(`Validado (${at}): a prova acabou e o Animeitor tem todas as submissões da sua sede.`, `Validated (${at}): the contest is over and the Animeitor has every submission of your site.`, `Validado (${at}): la competencia terminó y el Animeitor tiene todos los envíos de tu sede.`));
   if (v.ok) return el('p', { class: 'small' }, '✓ ', T(`Conferido às ${at}: o Animeitor tem todas as submissões da sua sede. A validação final sai quando a prova acabar para todas as sedes e nada estiver em julgamento.`,
-    `Checked at ${at}: the Animeitor has every submission of your site. The final validation comes when the contest is over for every site and nothing is being judged.`));
+    `Checked at ${at}: the Animeitor has every submission of your site. The final validation comes when the contest is over for every site and nothing is being judged.`,
+    `Verificado a las ${at}: el Animeitor tiene todos los envíos de tu sede. La validación final llega cuando la competencia termine para todas las sedes y nada esté en evaluación.`));
   return el('p', { class: 'error-box' }, '⚠ ', T(`Na última conferência (${at}) o Animeitor NÃO tinha todas as submissões da sua sede. O MOJ já reenviou e confere de novo em instantes; espere o "validado" antes da cerimônia ou fale com o operador do telão.`,
-    `At the last check (${at}) the Animeitor did NOT have every submission of your site. MOJ has already resent them and checks again shortly; wait for "validated" before the ceremony or talk to the big-screen operator.`));
+    `At the last check (${at}) the Animeitor did NOT have every submission of your site. MOJ has already resent them and checks again shortly; wait for "validated" before the ceremony or talk to the big-screen operator.`,
+    `En la última verificación (${at}) el Animeitor NO tenía todos los envíos de tu sede. El MOJ ya los reenvió y vuelve a verificar en instantes; espera el "validado" antes de la ceremonia o habla con el operador de la pantalla.`));
 }
 function revealCard() {
   const R = REVEAL; if (!R || !R.released) return '';
-  const copy = (u) => el('button', { class: 'btn ghost', onclick: async () => { try { await navigator.clipboard.writeText(u); } catch { prompt(T('Copie:', 'Copy:'), u); } } }, T('copiar', 'copy'));
+  const copy = (u) => el('button', { class: 'btn ghost', onclick: async () => { try { await navigator.clipboard.writeText(u); } catch { prompt(T('Copie:', 'Copy:', 'Copia:'), u); } } }, T('copiar', 'copy', 'copiar'));
   const body = [];
   if (!R.scoped) body.push(el('div', { class: 'error-box' }, T('A sua conta não tem sede definida, então não há link para mostrar. Peça ao administrador do contest para definir a sua sede (Pessoas › escopo do staff).',
-    'Your account has no site defined, so there is no link to show. Ask the contest administrator to define your site (People › staff scope).')));
+    'Your account has no site defined, so there is no link to show. Ask the contest administrator to define your site (People › staff scope).',
+    'Tu cuenta no tiene sede definida, así que no hay enlace para mostrar. Pídele al administrador de la competencia que defina tu sede (Personas › alcance del staff).')));
   else if (!(R.links || []).length) body.push(el('p', { class: 'muted' }, T('Não há link de revelação para a sua sede (' + (R.sites || []).join(', ') + '). Avise o operador do telão.',
-    'There is no reveal link for your site (' + (R.sites || []).join(', ') + '). Tell the big-screen operator.')));
+    'There is no reveal link for your site (' + (R.sites || []).join(', ') + '). Tell the big-screen operator.',
+    'No hay enlace de revelación para tu sede (' + (R.sites || []).join(', ') + '). Avisa al operador de la pantalla.')));
   else body.push(el('div', { class: 'chart-wrap' }, el('table', { class: 'moj' },
-    el('thead', {}, el('tr', {}, el('th', {}, T('Placar', 'Scoreboard')), el('th', {}, T('Sede', 'Site')), el('th', {}, ''))),
+    el('thead', {}, el('tr', {}, el('th', {}, T('Placar', 'Scoreboard', 'Marcador')), el('th', {}, T('Sede', 'Site', 'Sede')), el('th', {}, ''))),
     el('tbody', {}, ...R.links.map((x) => el('tr', {}, el('td', {}, el('b', {}, x.contest)), el('td', {}, x.site),
       el('td', {}, el('div', { class: 'row', style: 'gap:.4rem' },
-        el('a', { class: 'btn', href: x.url, target: '_blank', rel: 'noopener' }, T('abrir a revelação', 'open the reveal')), copy(x.url)))))))));
+        el('a', { class: 'btn', href: x.url, target: '_blank', rel: 'noopener' }, T('abrir a revelação', 'open the reveal', 'abrir la revelación')), copy(x.url)))))))));
   return el('div', { class: 'section', id: 'reveleitor' },
-    el('h2', {}, T('🎬 Reveleitor da sua sede', '🎬 Reveal for your site')),
+    el('h2', {}, T('🎬 Reveleitor da sua sede', '🎬 Reveal for your site', '🎬 Reveleitor de tu sede')),
     el('p', { class: 'note' }, '⚠ ', T('Este link mostra as respostas reais depois do congelamento do placar. Abra só no computador do telão da sede, na hora da cerimônia, e não repasse.',
-      'This link shows the real answers after the scoreboard freeze. Open it only on the site big-screen computer, at ceremony time, and do not pass it on.')),
+      'This link shows the real answers after the scoreboard freeze. Open it only on the site big-screen computer, at ceremony time, and do not pass it on.',
+      'Este enlace muestra las respuestas reales después del congelamiento del marcador. Ábrelo solo en la computadora de la pantalla de la sede, a la hora de la ceremonia, y no lo compartas.')),
     R.scoped && (R.links || []).length ? verifyBadge(R.verify) : '',
     ...body);
 }
@@ -555,19 +568,20 @@ function render() {
   // seção nova é o MESMO a cada render (o estado dela — tabela em edição, timer — não se perde).
   app.append(RO ? revealCard() : '', RO || !API ? '' : API.node,
     RO ? '' : el('details', { class: 'section', open: (WC && (WC.keys || []).some((k) => !k.revoked_at)) ? true : null },
-      el('summary', { style: 'cursor:pointer' }, T('🎥 Webcast BOCA (legado): o pacote .zip que o Animeitor antigo busca por chave', '🎥 BOCA webcast (legacy): the .zip package the old Animeitor polls by key')),
+      el('summary', { style: 'cursor:pointer' }, T('🎥 Webcast BOCA (legado): o pacote .zip que o Animeitor antigo busca por chave', '🎥 BOCA webcast (legacy): the .zip package the old Animeitor polls by key', '🎥 Webcast BOCA (legado): el paquete .zip que el Animeitor antiguo consulta por clave')),
       streamSection()),
     el('div', { class: 'section', id: 'photosSec' }));
   renderPhotos();
 }
 
 async function boot() {
-  if (!CONTEST) { app.innerHTML = '<div class="error-box">' + T('Contest não informado.', 'No contest given.') + '</div>'; return; }
+  if (!CONTEST) { app.innerHTML = '<div class="error-box">' + T('Contest não informado.', 'No contest given.', 'No se indicó ninguna competencia.') + '</div>'; return; }
   const { st } = await initContestShell(CONTEST);
   if (!st || !st.logged_in) { location.replace('/contest/?c=' + enc(CONTEST)); return; }
   if (!(st.is_animeitor || st.is_admin || st.is_cstaff || st.is_staff)) {
     app.innerHTML = '<div class="error-box">' + T('Esta área é da conta de placar (.animeitor).',
-      'This area belongs to the scoreboard account (.animeitor).') + '</div>';
+      'This area belongs to the scoreboard account (.animeitor).',
+      'Esta área es de la cuenta de marcador (.animeitor).') + '</div>';
     return;
   }
   RO = !!(st.is_cstaff || st.is_staff) && !st.is_admin && !st.is_animeitor;
@@ -587,7 +601,7 @@ async function boot() {
   // ainda não deployada) não pode apagar a galeria
   if (!RO) {
     API = makeApiSection(CONTEST, G);
-    API.load().then(() => render()).catch((e) => { API.node.innerHTML = ''; API.node.append(el('h2', {}, T('📡 Animeitor (telão)', '📡 Animeitor (big screen)')), el('div', { class: 'error-box' }, e.message || String(e))); render(); });
+    API.load().then(() => render()).catch((e) => { API.node.innerHTML = ''; API.node.append(el('h2', {}, T('📡 Animeitor (telão)', '📡 Animeitor (big screen)', '📡 Animeitor (pantalla)')), el('div', { class: 'error-box' }, e.message || String(e))); render(); });
   }
 }
 boot();

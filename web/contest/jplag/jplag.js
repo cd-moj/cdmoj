@@ -45,7 +45,7 @@ function openMatch(run, i) {
   fetch('/api/v1/contest/admin/jplag-match?contest=' + enc(CONTEST) + '&run=' + enc(run) + '&i=' + i,
     { headers: { Authorization: 'Bearer ' + getToken(CONTEST) } })
     .then((r) => r.text()).then((html) => { const w = window.open(); if (w) { w.document.write(html); w.document.close(); } })
-    .catch(() => alert(T('Falha ao abrir a comparação.', 'Failed to open the comparison.')));
+    .catch(() => alert(T('Falha ao abrir a comparação.', 'Failed to open the comparison.', 'No se pudo abrir la comparación.')));
 }
 
 // ---- derivados do filtro ----
@@ -67,10 +67,10 @@ const countAbove = (pred) => (DATA.results || []).filter(pred)
 
 // ---- montagem única ----
 function mount() {
-  const runBtn = el('button', { class: 'btn', onclick: run }, T('▶ Rodar jplag', '▶ Run jplag'));
-  const refreshBtn = el('button', { class: 'btn ghost', onclick: load }, T('↻ Atualizar', '↻ Refresh'));
+  const runBtn = el('button', { class: 'btn', onclick: run }, T('▶ Rodar jplag', '▶ Run jplag', '▶ Ejecutar jplag'));
+  const refreshBtn = el('button', { class: 'btn ghost', onclick: load }, T('↻ Atualizar', '↻ Refresh', '↻ Actualizar'));
   const statusTxt = el('span', { class: 'small muted' });
-  const progress = el('div', { class: 'muted small', hidden: true }, T('Análise em andamento — atualizando…', 'Analysis in progress — refreshing…'));
+  const progress = el('div', { class: 'muted small', hidden: true }, T('Análise em andamento — atualizando…', 'Analysis in progress — refreshing…', 'Análisis en curso — actualizando…'));
   const selProb = el('select', { class: 'jp-sel' });
   const selLang = el('select', { class: 'jp-sel' });
   const thrRange = el('input', { type: 'range', min: '0', max: '100', step: '1', value: String(F.thr), class: 'jp-range' });
@@ -88,11 +88,12 @@ function mount() {
     el('div', { class: 'row', style: 'gap:.5rem;align-items:center;margin-bottom:.4rem;flex-wrap:wrap' }, runBtn, refreshBtn, statusTxt),
     el('p', { class: 'muted small', style: 'margin:.2rem 0 .6rem' },
       T('Compara a última solução aceita de cada usuário, por problema e linguagem. Vermelho = similaridade alta. Escolha o problema, a linguagem e o limiar: a lista mostra só os pares acima do limiar.',
-        'Compares the latest accepted solution of each user, by problem and language. Red = high similarity. Pick the problem, the language and the threshold: the list shows only the pairs above the threshold.')),
+        'Compares the latest accepted solution of each user, by problem and language. Red = high similarity. Pick the problem, the language and the threshold: the list shows only the pairs above the threshold.',
+        'Compara la última solución aceptada de cada usuario, por problema y lenguaje. Rojo = similitud alta. Elige el problema, el lenguaje y el umbral: la lista muestra solo los pares por encima del umbral.')),
     progress,
     el('div', { class: 'jp-bar' },
-      fld(T('problema', 'problem'), selProb), fld(T('linguagem', 'language'), selLang),
-      fld(T('limiar de similaridade', 'similarity threshold'), thrRange, thrNum, el('span', { class: 'small' }, '%')),
+      fld(T('problema', 'problem', 'problema'), selProb), fld(T('linguagem', 'language', 'lenguaje'), selLang),
+      fld(T('limiar de similaridade', 'similarity threshold', 'umbral de similitud'), thrRange, thrNum, el('span', { class: 'small' }, '%')),
       count),
     list);
   ui = { runBtn, refreshBtn, statusTxt, progress, selProb, selLang, thrRange, thrNum, count, list };
@@ -102,7 +103,7 @@ function renderStatus() {
   const st = DATA.status || {};
   ui.runBtn.hidden = !DATA.can_run;
   ui.runBtn.disabled = !!st.running;
-  ui.runBtn.textContent = st.running ? T('⏳ rodando…', '⏳ running…') : T('▶ Rodar jplag', '▶ Run jplag');
+  ui.runBtn.textContent = st.running ? T('⏳ rodando…', '⏳ running…', '⏳ ejecutando…') : T('▶ Rodar jplag', '▶ Run jplag', '▶ Ejecutar jplag');
   ui.statusTxt.textContent = st.message || '';
   ui.progress.hidden = !st.running;
   clearTimeout(pollTimer); pollTimer = null;
@@ -119,11 +120,11 @@ function renderFilters(force) {
   if (F.prob && !ps.includes(F.prob)) F.prob = '';
   if (F.lang && !ls.includes(F.lang)) F.lang = '';
   ui.selProb.innerHTML = '';
-  ui.selProb.append(el('option', { value: '' }, T('todos os problemas', 'all problems') + ' (' + countAbove(() => true) + ')'));
+  ui.selProb.append(el('option', { value: '' }, T('todos os problemas', 'all problems', 'todos los problemas') + ' (' + countAbove(() => true) + ')'));
   ps.forEach((p) => ui.selProb.append(el('option', { value: p, selected: F.prob === p }, p + ' (' + countAbove((r) => r.problem === p) + ')')));
   ui.selProb.value = F.prob;
   ui.selLang.innerHTML = '';
-  ui.selLang.append(el('option', { value: '' }, T('todas as linguagens', 'all languages')));
+  ui.selLang.append(el('option', { value: '' }, T('todas as linguagens', 'all languages', 'todos los lenguajes')));
   ls.forEach((l) => ui.selLang.append(el('option', { value: l, selected: F.lang === l },
     l + ' (' + countAbove((r) => (!F.prob || r.problem === F.prob) && r.lang === l) + ')')));
   ui.selLang.value = F.lang;
@@ -144,17 +145,17 @@ function listBuild(st, results, pairs) {
   if (!results.length) {
     ui.count.textContent = '';
     wrap.append(el('div', { class: 'muted' }, st.running
-      ? T('Sem resultados ainda.', 'No results yet.')
-      : (DATA.can_run ? T('Sem resultados. Clique em “Rodar jplag”.', 'No results. Click "Run jplag".')
-        : T('Sem resultados. O admin ou o juiz-chefe precisa rodar o jplag.', 'No results. The admin or the chief judge has to run jplag.'))));
+      ? T('Sem resultados ainda.', 'No results yet.', 'Aún no hay resultados.')
+      : (DATA.can_run ? T('Sem resultados. Clique em “Rodar jplag”.', 'No results. Click "Run jplag".', 'Sin resultados. Haz clic en "Ejecutar jplag".')
+        : T('Sem resultados. O admin ou o juiz-chefe precisa rodar o jplag.', 'No results. The admin or the chief judge has to run jplag.', 'Sin resultados. El admin o el juez principal debe ejecutar jplag.'))));
     return wrap;
   }
   const total = (DATA.results || []).filter((r) => (!F.prob || r.problem === F.prob) && (!F.lang || r.lang === F.lang))
     .reduce((n, r) => n + (r.pairs || []).length, 0);
-  ui.count.textContent = T(`${pairs.length} par(es) ≥ ${F.thr}% (de ${total})`, `${pairs.length} pair(s) ≥ ${F.thr}% (of ${total})`);
+  ui.count.textContent = T(`${pairs.length} par(es) ≥ ${F.thr}% (de ${total})`, `${pairs.length} pair(s) ≥ ${F.thr}% (of ${total})`, `${pairs.length} par(es) ≥ ${F.thr}% (de ${total})`);
   if (!pairs.length) {
     wrap.append(el('div', { class: 'muted small', style: 'margin:.5rem 0' },
-      T('Nenhum par acima do limiar. Baixe o limiar para ver mais.', 'No pair above the threshold. Lower the threshold to see more.')));
+      T('Nenhum par acima do limiar. Baixe o limiar para ver mais.', 'No pair above the threshold. Lower the threshold to see more.', 'Ningún par por encima del umbral. Baja el umbral para ver más.')));
     return wrap;
   }
   const showProb = !F.prob, showLang = !F.lang;
@@ -165,16 +166,17 @@ function listBuild(st, results, pairs) {
     el('td', {}, who(p.a_name, p.a_login || p.a, p.a_univ)),
     el('td', {}, who(p.b_name, p.b_login || p.b, p.b_univ)),
     el('td', { class: 'n ' + simClass(p.similarity) }, (p.similarity || 0).toFixed(1) + '%'),
-    el('td', {}, el('a', { href: '#', onclick: (e) => { e.preventDefault(); openMatch(p.run, p.index); } }, T('ver lado-a-lado', 'view side-by-side'))))));
+    el('td', {}, el('a', { href: '#', onclick: (e) => { e.preventDefault(); openMatch(p.run, p.index); } }, T('ver lado-a-lado', 'view side-by-side', 'ver lado a lado'))))));
   wrap.append(el('div', { class: 'chart-wrap' }, el('table', { class: 'moj' },
     el('thead', {}, el('tr', {},
-      showProb ? el('th', {}, T('Problema', 'Problem')) : null,
-      showLang ? el('th', {}, T('Ling.', 'Lang.')) : null,
-      el('th', {}, T('Solução A', 'Solution A')), el('th', {}, T('Solução B', 'Solution B')),
-      el('th', { class: 'n' }, T('Similaridade', 'Similarity')), el('th', {}, ''))), tb)));
+      showProb ? el('th', {}, T('Problema', 'Problem', 'Problema')) : null,
+      showLang ? el('th', {}, T('Ling.', 'Lang.', 'Leng.')) : null,
+      el('th', {}, T('Solução A', 'Solution A', 'Solución A')), el('th', {}, T('Solução B', 'Solution B', 'Solución B')),
+      el('th', { class: 'n' }, T('Similaridade', 'Similarity', 'Similitud')), el('th', {}, ''))), tb)));
   if (pairs.length > MAX_ROWS) wrap.append(el('div', { class: 'small muted', style: 'margin:.4rem 0' },
     T(`mostrando ${MAX_ROWS} de ${pairs.length} — suba o limiar ou escolha um problema para ver o resto`,
-      `showing ${MAX_ROWS} of ${pairs.length} — raise the threshold or pick a problem to see the rest`)));
+      `showing ${MAX_ROWS} of ${pairs.length} — raise the threshold or pick a problem to see the rest`,
+      `mostrando ${MAX_ROWS} de ${pairs.length} — sube el umbral o elige un problema para ver el resto`)));
   return wrap;
 }
 
@@ -186,22 +188,22 @@ async function load() {
     DATA = { status: d.status || {}, results: d.results || [], can_run: d.can_run === true };
     render();
   } catch (e) {
-    ui.list.innerHTML = ''; ui.list.append(el('div', { class: 'error-box' }, T('Falha: ', 'Error: ') + (e.message || T('erro', 'error'))));
+    ui.list.innerHTML = ''; ui.list.append(el('div', { class: 'error-box' }, T('Falha: ', 'Error: ', 'Error: ') + (e.message || T('erro', 'error', 'error'))));
   }
 }
 async function run() {
   try { await apiPost('/contest/admin/jplag-run?contest=' + enc(CONTEST), {}, G); setTimeout(load, 600); }
-  catch (e) { alert(e.message || T('falha', 'failed')); }
+  catch (e) { alert(e.message || T('falha', 'failed', 'fallido')); }
 }
 
 async function boot() {
-  if (!CONTEST) { app.innerHTML = '<div class="error-box">' + T('Contest não informado.', 'Contest not specified.') + '</div>'; return; }
+  if (!CONTEST) { app.innerHTML = '<div class="error-box">' + T('Contest não informado.', 'Contest not specified.', 'Competencia no especificada.') + '</div>'; return; }
   const { st } = await initContestShell(CONTEST);
   if (!st || !st.logged_in || !(st.is_judge || st.is_admin)) {
     app.innerHTML = '';
-    app.append(el('div', { class: 'section' }, el('h2', {}, T('🔒 Acesso restrito', '🔒 Access restricted')),
-      el('p', { class: 'small muted' }, T('Esta página é do juiz, do juiz-chefe e do admin.', 'This page is for the judge, the chief judge and the admin.')),
-      el('a', { class: 'btn', href: contestLoginHref(CONTEST, hereAsNext()) }, T('Login do contest', 'Contest login'))));
+    app.append(el('div', { class: 'section' }, el('h2', {}, T('🔒 Acesso restrito', '🔒 Access restricted', '🔒 Acceso restringido')),
+      el('p', { class: 'small muted' }, T('Esta página é do juiz, do juiz-chefe e do admin.', 'This page is for the judge, the chief judge and the admin.', 'Esta página es del juez, del juez principal y del admin.')),
+      el('a', { class: 'btn', href: contestLoginHref(CONTEST, hereAsNext()) }, T('Login do contest', 'Contest login', 'Acceso a la competencia'))));
     return;
   }
   loadFilter();

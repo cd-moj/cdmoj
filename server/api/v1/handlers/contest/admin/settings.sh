@@ -11,7 +11,7 @@ source "$_LIBDIR/contest-gate.sh"
 
 if [[ "${REQUEST_METHOD:-GET}" == GET ]]; then
   CONTEST_NAME=""; CONTEST_START=0; CONTEST_END=0; LOGIN_START_TIME=""; LOGIN_ENABLED=""; CONTEST_TZ=""
-  FREEZE_TIME=""; LOCALE=""; SHOWLOG=""; SHOWEDITOR=""; ALLOWLATEUSER=""; LOGIN_UA_SUBSTRING=""; SCORE_ANON=""; SHOWTL=""; LANGUAGES=""; SCORE_FULL_USERS=""; BACKUP=""; PRINT=""; MANUAL_VERDICT=""; SECRET=""; CONTEST_JUDGES=""; BALLOONS_DURING_FREEZE=""; SCORE_BALLOON_STYLE=""
+  FREEZE_TIME=""; LOCALE=""; SHOWLOG=""; SHOWEDITOR=""; LOGIN_UA_SUBSTRING=""; SCORE_ANON=""; SHOWTL=""; LANGUAGES=""; SCORE_FULL_USERS=""; BACKUP=""; PRINT=""; MANUAL_VERDICT=""; SECRET=""; CONTEST_JUDGES=""; BALLOONS_DURING_FREEZE=""; SCORE_BALLOON_STYLE=""
   PENALTY_MINUTES=""; PENALTY_VERDICTS="__unset"; GUEST_NUMBERING=""; STATEMENT_LANGS=""
   load_contest_conf "$contest"
   source "$_LIBDIR/contest-statement.sh"
@@ -26,7 +26,7 @@ if [[ "${REQUEST_METHOD:-GET}" == GET ]]; then
   source "$_LIBDIR/print.sh"; BLN_FROZEN="$(pr_balloons_frozen_count "$contest")"
   BLN_FROZEN="${BLN_FROZEN//[^0-9]/}"; BLN_FROZEN="${BLN_FROZEN:-0}"
   ok_json '{name:$nm, start:$st, end:$en, login_start:$ls, login_enabled:$le, freeze:$fz, locale:$loc, tz:$tz,
-            show_log:$sl, show_editor:$se, allow_late:$al, login_ua_substring:$ua, score_anon:$sa,
+            show_log:$sl, show_editor:$se, login_ua_substring:$ua, score_anon:$sa,
             show_tl:$stl, languages:$langs, judges:$jdg, score_full_users:$sfu, allow_backup:$ab, allow_print:$ap, manual_verdict:$mv,
             secret:$sec, mode:$mode, penalty_minutes:$pm, penalty_verdicts:$pvd, review_judges:$rj,
             balloons_during_freeze:$bdf, balloons_frozen:$bfz, balloon_style:$bsty, modules:$mods,
@@ -49,7 +49,6 @@ if [[ "${REQUEST_METHOD:-GET}" == GET ]]; then
     --argjson le "$([[ "$LOGIN_ENABLED" == n ]] && echo false || echo true)" \
     --argjson sl "$([[ "$(showlog_effective "$contest")" == 0 ]] && echo false || echo true)" \
     --argjson se "$([[ "$SHOWEDITOR" == 0 ]] && echo false || echo true)" \
-    --argjson al "$([[ "$ALLOWLATEUSER" == y ]] && echo true || echo false)" \
     --arg ua "$LOGIN_UA_SUBSTRING" \
     --argjson sa "$([[ "$SCORE_ANON" == 1 ]] && echo true || echo false)" \
     --argjson stl "$([[ "$SHOWTL" == 0 ]] && echo false || echo true)" \
@@ -86,7 +85,7 @@ for pair in start:CONTEST_START end:CONTEST_END login_start:LOGIN_START_TIME fre
     [[ "$k" == freeze ]] && freeze_change_guard "$contest" "$v"
     setvar "$var" "$v"; }
 done
-has locale && { v="$(jq -r '.locale' <<<"$body")"; [[ "$v" =~ ^(pt|en)$ ]] || fail 422 "locale inválido" "locale_invalid"; setvar LOCALE "$v"; }
+has locale && { v="$(jq -r '.locale' <<<"$body")"; contest_locale_ok "$v" || fail 422 "locale inválido (pt, en ou es)" "locale_invalid"; setvar LOCALE "$v"; }
 # FUSO da prova: governa TODA hora que o servidor escreve p/ gente sobre este contest (DM do
 # convite, checklist pré-prova, caderno, relatório). Vazio = volta ao padrão da instalação
 # (MOJ_TZ). Validado contra o zoneinfo: nome errado faria o `date` cair mudo em UTC.
@@ -121,7 +120,10 @@ bset(){ # <jsonkey> <VAR> <on-value-p/-positivos>
 # é ACEITA E IGNORADA (cliente/CLI antigos mandam o formulário inteiro — 422 quebraria o Salvar) e a
 # linha morta sai do conf no primeiro save.
 grep -q '^SHOWCODE=' "$CONTESTSDIR/$contest/conf" 2>/dev/null && delvar SHOWCODE
-bset allow_late  ALLOWLATEUSER y
+# `allow_late` (ALLOWLATEUSER) foi REMOVIDO em 2026-09-28: era o `adduser` do bot do MOJ antigo e nada o
+# lia desde o store por-usuário (o "Permitir auto-cadastro" não fazia nada). Mesmo molde do SHOWCODE:
+# a chave é aceita e ignorada, e a linha morta sai do conf no primeiro save.
+grep -q '^ALLOWLATEUSER=' "$CONTESTSDIR/$contest/conf" 2>/dev/null && delvar ALLOWLATEUSER
 bset score_anon  SCORE_ANON 1
 bset login_enabled LOGIN_ENABLED _
 bset show_log    SHOWLOG _

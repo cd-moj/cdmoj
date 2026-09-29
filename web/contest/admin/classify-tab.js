@@ -52,10 +52,10 @@ function parseSlots(text) {
 }
 
 const VIA_T = () => ({
-  regra1: T('regra 1 — melhores gerais', 'rule 1 — best overall'),
-  regra2: T('regra 2 — vagas por sede', 'rule 2 — site slots'),
-  regra4: T('regra 4 — participação feminina', 'rule 4 — female participation'),
-  comite: T('comitê (regra 3 / promoções)', 'committee (rule 3 / promotions)'),
+  regra1: T('regra 1 — melhores gerais', 'rule 1 — best overall', 'regla 1 — mejores generales'),
+  regra2: T('regra 2 — vagas por sede', 'rule 2 — site slots', 'regla 2 — cupos por sede'),
+  regra4: T('regra 4 — participação feminina', 'rule 4 — female participation', 'regla 4 — participación femenina'),
+  comite: T('comitê (regra 3 / promoções)', 'committee (rule 3 / promotions)', 'comité (regla 3 / promociones)'),
 });
 
 export function makeClassifyTab(CONTEST) {
@@ -63,23 +63,24 @@ export function makeClassifyTab(CONTEST) {
   const G = { contest: CONTEST, auth: true };   // auth:true = manda o Bearer (padrão das abas)
   const call = (body) => apiPost('/contest/admin/classify?contest=' + enc(CONTEST), body, G);
 
-  const head = el('h2', {}, T('🎓 Classificação — próxima fase', '🎓 Qualification — next stage'));
+  const head = el('h2', {}, T('🎓 Classificação — próxima fase', '🎓 Qualification — next stage', '🎓 Clasificación — siguiente etapa'));
   const stageBox = el('div', {});
   const cfgBox = el('div', {});
   const prevBox = el('div', {});
   panel.append(head, stageBox, cfgBox, prevBox,
     el('p', { class: 'muted small', style: 'margin-top:1rem' },
       T('Engate pronto p/ as próximas etapas: Final BR → PDA → Mundial (regras futuras).',
-        'Hooks ready for the next stages: BR Finals → PDA → World Finals (future rules).')));
+        'Hooks ready for the next stages: BR Finals → PDA → World Finals (future rules).',
+        'Enganches listos para las próximas etapas: Final BR → PDA → Mundial (reglas futuras).')));
 
   const fName = el('input', { value: 'Final Brasileira', style: 'min-width:180px' });
   const fVenue = el('input', { value: 'Uberlândia', style: 'min-width:120px' });
   const fWhen = el('input', { value: 'novembro/2026', style: 'min-width:120px' });
-  const fRegion = el('select', {}, el('option', { value: 'Brasil' }, T('Brasil', 'Brazil')));
+  const fRegion = el('select', {}, el('option', { value: 'Brasil' }, T('Brasil', 'Brazil', 'Brasil')));
   // algoritmo de promoção: catálogo vem do servidor (GET .algorithms); a PDA entra lá, não aqui
   const fAlg = el('select', {});
   const msg = el('div', { class: 'small' });
-  const showErr = (e) => { msg.className = 'small error-box'; msg.textContent = (e && e.message) || T('erro', 'error'); };
+  const showErr = (e) => { msg.className = 'small error-box'; msg.textContent = (e && e.message) || T('erro', 'error', 'error'); };
   const fR1 = el('input', { type: 'number', value: '15', style: 'width:5rem' });
   const f3 = el('input', { type: 'number', value: '3', style: 'width:4rem' });
   const f2 = el('input', { type: 'number', value: '2', style: 'width:4rem' });
@@ -108,8 +109,8 @@ export function makeClassifyTab(CONTEST) {
           el('td', { class: 'small' }, t.univ || ''),
           el('td', { class: 'small' }, t.sede || ''),
           el('td', { class: 'small muted' }, t.detail || t.note || ''));
-        if (withRemove) tr.append(el('td', {}, el('button', { class: 'btn ghost danger small', title: T('remover', 'remove'), onclick: async () => {
-          if (!confirm(T('Remover ', 'Remove ') + t.login + T(' da classificação?', ' from the qualification?'))) return;
+        if (withRemove) tr.append(el('td', {}, el('button', { class: 'btn ghost danger small', title: T('remover', 'remove', 'quitar'), onclick: async () => {
+          if (!confirm(T('Remover ', 'Remove ', 'Quitar ') + t.login + T(' da classificação?', ' from the qualification?', ' de la clasificación?'))) return;
           try { await call({ action: 'remove', login: t.login }); load(); } catch (e) { showErr(e); }
         } }, '✖')));
         tb.append(tr);
@@ -117,9 +118,9 @@ export function makeClassifyTab(CONTEST) {
       wrap.append(el('h4', { style: 'margin:.7rem 0 .2rem' }, via[v] + ' — ' + rows.length),
         el('div', { class: 'chart-wrap' }, el('table', { class: 'moj narrow' },
           el('thead', {}, el('tr', {},
-            el('th', { class: 'n' }, T('Posição', 'Place')), el('th', {}, T('Time', 'Team')),
-            el('th', {}, T('Escola', 'School')), el('th', {}, T('Sede', 'Site')),
-            el('th', {}, T('Detalhe', 'Detail')), withRemove ? el('th', {}, '') : null)), tb)));
+            el('th', { class: 'n' }, T('Posição', 'Place', 'Posición')), el('th', {}, T('Time', 'Team', 'Equipo')),
+            el('th', {}, T('Escola', 'School', 'Escuela')), el('th', {}, T('Sede', 'Site', 'Sede')),
+            el('th', {}, T('Detalhe', 'Detail', 'Detalle')), withRemove ? el('th', {}, '') : null)), tb)));
     });
     return wrap;
   }
@@ -128,7 +129,7 @@ export function makeClassifyTab(CONTEST) {
     stageBox.innerHTML = ''; cfgBox.innerHTML = ''; prevBox.innerHTML = ''; msg.textContent = ''; msg.className = 'small';
     let st = null;
     try { st = await apiGet('/contest/admin/classify?contest=' + enc(CONTEST), G); }
-    catch (e) { stageBox.append(el('div', { class: 'error-box' }, e.message || T('erro', 'error'))); return; }
+    catch (e) { stageBox.append(el('div', { class: 'error-box' }, e.message || T('erro', 'error', 'error'))); return; }
     const stage = (st.stages || []).find((s) => s.id === 'final-br') || null;
     // catálogo de algoritmos (id + nome; a descrição vai no title) — o salvo no stage vence
     const algs = st.algorithms || [{ id: 'sbc-fase1', name: 'SBC 1ª fase' }];
@@ -142,78 +143,81 @@ export function makeClassifyTab(CONTEST) {
       const teams = Object.entries(stage.teams || {}).map(([login, v]) => Object.assign({ login }, v))
         .sort((a, b) => (a.place || 9e9) - (b.place || 9e9));
       const addLogin = el('input', { placeholder: 'login', style: 'min-width:150px' });
-      const addNote = el('input', { placeholder: T('nota (ex.: regra 3, sede nova)', 'note (e.g., rule 3, new site)'), style: 'min-width:220px' });
+      const addNote = el('input', { placeholder: T('nota (ex.: regra 3, sede nova)', 'note (e.g., rule 3, new site)', 'nota (ej.: regla 3, sede nueva)'), style: 'min-width:220px' });
       stageBox.append(el('div', { class: 'section', style: 'background:var(--card-bg,#f5f7fb)' },
         el('h3', {}, (stage.name || 'Final Brasileira') + (stage.venue ? ' — ' + stage.venue : '') +
           (stage.when ? ' · ' + stage.when : '')),
         el('p', {}, pub
-          ? el('b', { style: 'color:var(--ok,#1a7f37)' }, T('📢 PUBLICADO no placar (chip ↑BR)', '📢 PUBLISHED on the scoreboard (↑BR chip)'))
-          : el('b', { style: 'color:var(--warn,#a66a00)' }, T('📝 RASCUNHO (só o admin vê)', '📝 DRAFT (admin only)')),
-          el('span', { class: 'small muted' }, ' · ' + teams.length + T(' time(s)', ' team(s)'))),
+          ? el('b', { style: 'color:var(--ok,#1a7f37)' }, T('📢 PUBLICADO no placar (chip ↑BR)', '📢 PUBLISHED on the scoreboard (↑BR chip)', '📢 PUBLICADA en el marcador (chip ↑BR)'))
+          : el('b', { style: 'color:var(--warn,#a66a00)' }, T('📝 RASCUNHO (só o admin vê)', '📝 DRAFT (admin only)', '📝 BORRADOR (solo admin)')),
+          el('span', { class: 'small muted' }, ' · ' + teams.length + T(' time(s)', ' team(s)', ' equipo(s)'))),
         el('div', { class: 'row', style: 'gap:.5rem;flex-wrap:wrap;align-items:center' },
           el('button', { class: pub ? 'btn ghost danger' : 'btn', onclick: async () => {
             const a = pub ? 'unpublish' : 'publish';
-            if (pub) { if (!confirm(T('DESPUBLICAR do placar?', 'UNPUBLISH from the scoreboard?'))) return; }
+            if (pub) { if (!confirm(T('DESPUBLICAR do placar?', 'UNPUBLISH from the scoreboard?', '¿DESPUBLICAR del marcador?'))) return; }
             else {
               // publicar empurra o chip ↑BR p/ TODO mundo que vê o placar: exige o id digitado (molde das rodadas)
               const typed = prompt(T(`PUBLICAR a classificação no placar (chip ↑BR p/ todos)? Digite o id do contest (${CONTEST}) para confirmar:`,
-                                     `PUBLISH the qualification on the scoreboard (↑BR chip for everyone)? Type the contest id (${CONTEST}) to confirm:`));
+                                     `PUBLISH the qualification on the scoreboard (↑BR chip for everyone)? Type the contest id (${CONTEST}) to confirm:`,
+                                     `¿PUBLICAR la clasificación en el marcador (chip ↑BR para todos)? Escribe el id de la competencia (${CONTEST}) para confirmar:`));
               if (typed === null) return;
-              if (typed.trim() !== CONTEST) { showErr({ message: T('id não confere — nada publicado', 'id does not match — nothing published') }); return; }
+              if (typed.trim() !== CONTEST) { showErr({ message: T('id não confere — nada publicado', 'id does not match — nothing published', 'el id no coincide — nada publicado') }); return; }
             }
             try { await call({ action: a }); load(); } catch (e) { showErr(e); }
-          } }, pub ? T('🔕 Despublicar', '🔕 Unpublish') : T('📢 Publicar', '📢 Publish')),
-          el('span', { class: 'small muted' }, T('algoritmo: ', 'algorithm: ') + ((stage.config && stage.config.algorithm) || 'sbc-fase1'))),
+          } }, pub ? T('🔕 Despublicar', '🔕 Unpublish', '🔕 Despublicar') : T('📢 Publicar', '📢 Publish', '📢 Publicar')),
+          el('span', { class: 'small muted' }, T('algoritmo: ', 'algorithm: ', 'algoritmo: ') + ((stage.config && stage.config.algorithm) || 'sbc-fase1'))),
         relationTable(teams, true),
         el('div', { class: 'row', style: 'gap:.5rem;flex-wrap:wrap;align-items:center;margin-top:.5rem' }, addLogin, addNote,
           el('button', { class: 'btn', onclick: async () => {
             const l = addLogin.value.trim(); if (!l) return;
             try { await call({ action: 'add', login: l, note: addNote.value.trim() }); addLogin.value = ''; addNote.value = ''; load(); }
             catch (e) { showErr(e); }
-          } }, T('➕ Promover time (comitê)', '➕ Promote team (committee)'))),
+          } }, T('➕ Promover time (comitê)', '➕ Promote team (committee)', '➕ Promover equipo (comité)'))),
         msg));
     } else {
       stageBox.append(el('p', { class: 'muted' },
         T('Nenhuma classificação aplicada ainda — configure abaixo, faça a prévia e aplique.',
-          'No qualification applied yet — configure below, preview and apply.')));
+          'No qualification applied yet — configure below, preview and apply.',
+          'Ninguna clasificación aplicada todavía — configura abajo, previsualiza y aplica.')));
     }
 
     // --- config + prévia + aplicar ---
     cfgBox.append(el('details', { open: stage ? null : true },
-      el('summary', {}, el('b', {}, T('⚙️ Regras e vagas', '⚙️ Rules and slots'))),
+      el('summary', {}, el('b', {}, T('⚙️ Regras e vagas', '⚙️ Rules and slots', '⚙️ Reglas y cupos'))),
       el('div', { class: 'row', style: 'gap:.6rem;flex-wrap:wrap;align-items:center;margin:.4rem 0' },
-        el('label', {}, T('Algoritmo: ', 'Algorithm: '), fAlg),
-        el('label', {}, T('Etapa: ', 'Stage: '), fName), el('label', {}, T('Local: ', 'Venue: '), fVenue),
-        el('label', {}, T('Quando: ', 'When: '), fWhen), el('label', {}, T('Região: ', 'Region: '), fRegion)),
+        el('label', {}, T('Algoritmo: ', 'Algorithm: ', 'Algoritmo: '), fAlg),
+        el('label', {}, T('Etapa: ', 'Stage: ', 'Etapa: '), fName), el('label', {}, T('Local: ', 'Venue: ', 'Lugar: '), fVenue),
+        el('label', {}, T('Quando: ', 'When: ', 'Cuándo: '), fWhen), el('label', {}, T('Região: ', 'Region: ', 'Región: '), fRegion)),
       el('div', { class: 'row', style: 'gap:.6rem;flex-wrap:wrap;align-items:center;margin:.4rem 0' },
-        el('label', {}, T('Vagas regra 1: ', 'Rule 1 slots: '), fR1),
-        el('label', {}, T('Regra 4 — 3♀: ', 'Rule 4 — 3♀: '), f3),
+        el('label', {}, T('Vagas regra 1: ', 'Rule 1 slots: ', 'Cupos regla 1: '), fR1),
+        el('label', {}, T('Regra 4 — 3♀: ', 'Rule 4 — 3♀: ', 'Regla 4 — 3♀: '), f3),
         el('label', {}, ' ≥2♀: ', f2), el('label', {}, ' ≥1♀: ', f1)),
       el('div', { class: 'two-col' },
-        el('div', {}, el('h4', { style: 'margin:.4rem 0 .2rem' }, T('Vagas por SEDE (regra 2) — "Sede = vagas"', 'Slots per SITE (rule 2) — "Site = slots"')), taSedes),
-        el('div', {}, el('h4', { style: 'margin:.4rem 0 .2rem' }, T('Vagas por SUPERSEDE (≤1 por sede membra)', 'Slots per SUPERSITE (≤1 per member site)')), taSuper)),
+        el('div', {}, el('h4', { style: 'margin:.4rem 0 .2rem' }, T('Vagas por SEDE (regra 2) — "Sede = vagas"', 'Slots per SITE (rule 2) — "Site = slots"', 'Cupos por SEDE (regla 2) — "Sede = cupos"')), taSedes),
+        el('div', {}, el('h4', { style: 'margin:.4rem 0 .2rem' }, T('Vagas por SUPERSEDE (≤1 por sede membra)', 'Slots per SUPERSITE (≤1 per member site)', 'Cupos por SUPERSEDE (≤1 por sede miembro)')), taSuper)),
       el('div', { class: 'row', style: 'gap:.5rem;margin-top:.5rem' },
         el('button', { class: 'btn', onclick: async () => {
-          prevBox.innerHTML = ''; prevBox.append(el('p', { class: 'muted' }, T('calculando…', 'computing…')));
+          prevBox.innerHTML = ''; prevBox.append(el('p', { class: 'muted' }, T('calculando…', 'computing…', 'calculando…')));
           try {
             const r = await call({ action: 'preview', config: cfg() });
             const p = r.preview || {};
             prevBox.innerHTML = '';
-            prevBox.append(el('h3', {}, T('👁 Prévia — ', '👁 Preview — ') + (p.total || 0) + T(' classificados', ' qualified')),
-              el('p', { class: 'small muted' }, T('vagas não usadas: ', 'unused slots: ') +
+            prevBox.append(el('h3', {}, T('👁 Prévia — ', '👁 Preview — ', '👁 Vista previa — ') + (p.total || 0) + T(' classificados', ' qualified', ' clasificados')),
+              el('p', { class: 'small muted' }, T('vagas não usadas: ', 'unused slots: ', 'cupos no usados: ') +
                 Object.entries(p.unused || {}).map(([k, v]) => k + ': ' + v).join(' · ')),
               relationTable(p.classified || [], false),
               el('div', { class: 'row', style: 'gap:.5rem;margin-top:.6rem' },
                 el('button', { class: 'btn', onclick: async () => {
                   if (!confirm(T('Aplicar como RASCUNHO? (promoções manuais do comitê são preservadas; nada aparece no placar até Publicar)',
-                                 'Apply as DRAFT? (manual committee promotions are kept; nothing shows on the scoreboard until you Publish)'))) return;
+                                 'Apply as DRAFT? (manual committee promotions are kept; nothing shows on the scoreboard until you Publish)',
+                                 '¿Aplicar como BORRADOR? (las promociones manuales del comité se conservan; nada aparece en el marcador hasta que Publiques)'))) return;
                   try {
                     await call({ action: 'apply', config: cfg(), name: fName.value, venue: fVenue.value, when: fWhen.value });
                     prevBox.innerHTML = ''; load();
                   } catch (e) { showErr(e); }
-                } }, T('✔ Aplicar rascunho', '✔ Apply draft'))));
-          } catch (e) { prevBox.innerHTML = ''; prevBox.append(el('div', { class: 'error-box' }, e.message || T('erro', 'error'))); }
-        } }, T('👁 Prever classificados', '👁 Preview qualified')))));
+                } }, T('✔ Aplicar rascunho', '✔ Apply draft', '✔ Aplicar borrador'))));
+          } catch (e) { prevBox.innerHTML = ''; prevBox.append(el('div', { class: 'error-box' }, e.message || T('erro', 'error', 'error'))); }
+        } }, T('👁 Prever classificados', '👁 Preview qualified', '👁 Prever clasificados')))));
   }
 
   return { panel, load };

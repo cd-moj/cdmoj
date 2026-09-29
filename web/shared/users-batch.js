@@ -30,20 +30,21 @@ export function parseUsers(text) {
 // parseRichCsv(text) -> [{login, password?, fullname?, email?, country?, region?,
 //                         univ_short?, univ_full?}]  |  null (sem cabeçalho)
 // A 1ª linha não-vazia precisa ter a coluna `login` + ao menos outra conhecida; a ordem é
-// livre e os nomes aceitam aliases PT/EN (ex.: senha, nome, pais, sede, univ, univ_nome).
+// livre e os nomes aceitam aliases PT/EN/ES (ex.: senha, nome, pais, sede, univ, univ_nome; o CSV de
+// credenciais baixado em espanhol — contraseña, nombre, correo — volta a ser aceito no upload).
 // O NOME é campo ÚNICO: `nome`/`time`/`equipe` são a MESMA coluna (fullname) — em contest
 // o usuário É o time. Valores com vírgula vão entre aspas ("Univ de Brasília, Darcy").
 // Sem cabeçalho, o chamador cai no parseUsers clássico — formatos antigos intactos.
 const HEADER_ALIASES = {
   login: 'login', usuario: 'login', username: 'login',
-  senha: 'password', password: 'password',
+  senha: 'password', password: 'password', contraseña: 'password', contrasena: 'password',
   nome: 'fullname', fullname: 'fullname', name: 'fullname',
-  time: 'fullname', team: 'fullname', equipe: 'fullname',
-  email: 'email', 'e-mail': 'email',
+  time: 'fullname', team: 'fullname', equipe: 'fullname', nombre: 'fullname', equipo: 'fullname',
+  email: 'email', 'e-mail': 'email', correo: 'email',
   pais: 'country', país: 'country', country: 'country', bandeira: 'country', flag: 'country',
   sede: 'region', regiao: 'region', região: 'region', region: 'region', site: 'region',
   univ: 'univ_short', univ_curta: 'univ_short', sigla: 'univ_short', school: 'univ_short', univ_short: 'univ_short',
-  univ_nome: 'univ_full', univ_completa: 'univ_full', universidade: 'univ_full', school_full: 'univ_full', univ_full: 'univ_full',
+  univ_nome: 'univ_full', univ_completa: 'univ_full', universidade: 'univ_full', universidad: 'univ_full', school_full: 'univ_full', univ_full: 'univ_full',
 };
 function splitCsvLine(line, sep) {
   const out = []; let cur = '', q = false;
@@ -74,7 +75,7 @@ export function parseRichCsv(text) {
 
 // downloadCsv(filename, users) — baixa login,senha,nome,email (senhas só aparecem aqui).
 export function downloadCsv(filename, users) {
-  const head = T('login,senha,nome,email', 'login,password,name,email');
+  const head = T('login,senha,nome,email', 'login,password,name,email', 'login,contraseña,nombre,correo');
   const esc = (x) => '"' + String(x == null ? '' : x).replace(/"/g, '""') + '"';
   const rows = (users || []).map((u) => [u.login, u.password, u.fullname, u.email].map(esc).join(','));
   const blob = new Blob([head + '\n' + rows.join('\n')], { type: 'text/csv' });
