@@ -4,6 +4,9 @@
 // automaticamente. `cm` é o modo de realce (ver shared/languages.js; 'markdown' p/ enunciados).
 // Opção `images:true` habilita colar/arrastar imagem -> embute no texto como ![](data:...)
 // (downscale via canvas), resolvendo a gestão de imagens de forma transparente.
+// Opção `tab`: 'indent' (editores de CÓDIGO: Tab indenta) | 'literal' (scripts/ em shell: Tab = \t) |
+// false (padrão: o Tab do CodeMirror move o foco — markdown/formulário). Ver shared/editor-tab.js.
+import { tabExtension, attachTabTextarea } from '/shared/editor-tab.js';
 
 const CM = '/shared/vendor/codemirror/cm-bundle.js';
 // modo "legacy" (StreamLanguage): linguagens sem pacote dedicado do CodeMirror 6.
@@ -73,17 +76,20 @@ function attachImages(dom, insert) {
   });
 }
 
-export async function createEditor(parent, { doc = '', cm = 'cpp', images = false } = {}) {
+export async function createEditor(parent, { doc = '', cm = 'cpp', images = false, tab = false } = {}) {
   try {
     const { EditorView, basicSetup } = await import(CM);
     let langExt = null;
     if (cm && LANG[cm]) { try { langExt = await LANG[cm](); } catch { langExt = null; } }
+    // o Tab entra DEPOIS do basicSetup (o keymap — Tab dos campos de snippet — roda antes) e nos
+    // DOIS arrays: sem realce o Tab tem de indentar igual
+    const tabExt = tab ? [tabExtension(EditorView, tab)] : [];
     let view;
     try {
-      view = new EditorView({ doc, extensions: langExt ? [basicSetup, langExt] : [basicSetup], parent });
+      view = new EditorView({ doc, extensions: langExt ? [basicSetup, langExt, ...tabExt] : [basicSetup, ...tabExt], parent });
     } catch {
       // extensão de linguagem incompatível -> CM puro (sem realce), sem cair p/ <textarea>
-      view = new EditorView({ doc, extensions: [basicSetup], parent });
+      view = new EditorView({ doc, extensions: [basicSetup, ...tabExt], parent });
     }
     view.dom.classList.add('cm-mojeditor');
     const insert = (text) => { view.dispatch(view.state.replaceSelection(text)); view.focus(); };
@@ -98,6 +104,7 @@ export async function createEditor(parent, { doc = '', cm = 'cpp', images = fals
   } catch (e) {
     const ta = document.createElement('textarea');
     ta.className = 'code-fallback'; ta.value = doc; ta.spellcheck = false; ta.rows = 20;
+    if (tab) attachTabTextarea(ta, tab);
     parent.appendChild(ta);
     const insert = (text) => {
       const s = ta.selectionStart ?? ta.value.length, en = ta.selectionEnd ?? ta.value.length;

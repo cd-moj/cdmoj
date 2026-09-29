@@ -703,7 +703,7 @@ async function addSol(cat, fn, code, expand) {
   const mount = el('div', { class: 'editor-mount', style: 'display:none' });
   const expandBtn = el('button', { class: 'btn ghost small', type: 'button', title: T('abrir/fechar editor', 'open/close editor', 'abrir/cerrar editor') }, '▸');
   const entry = { code: code || '', ed: null, row: null, fnInput, langSel, mount };
-  const ensureEd = async () => { if (!entry.ed) entry.ed = await createEditor(mount, { doc: entry.code, cm: langSel.value || null }); };
+  const ensureEd = async () => { if (!entry.ed) entry.ed = await createEditor(mount, { doc: entry.code, cm: langSel.value || null, tab: 'indent' }); };
   entry.setOpen = async (open) => { if (open) await ensureEd(); mount.style.display = open ? '' : 'none'; expandBtn.textContent = open ? '▾' : '▸'; };
   entry.get = () => ({ filename: fnInput.value.trim(), code: entry.ed ? entry.ed.getValue() : entry.code });
   expandBtn.onclick = () => entry.setOpen(mount.style.display === 'none');
@@ -745,7 +745,9 @@ function addScript(f, expand) {
     entry.execCb = execCb;
     const mount = el('div', { class: 'editor-mount', style: 'display:none' });
     const expandBtn = el('button', { class: 'btn ghost small', type: 'button', title: T('abrir/fechar editor', 'open/close editor', 'abrir/cerrar editor') }, '▸');
-    const ensureEd = async () => { if (!entry.ed) entry.ed = await createEditor(mount, { doc: entry.code, cm: cmFor(pathInput.value) || 'shell' }); };
+    const ensureEd = async () => { if (!entry.ed) entry.ed = await createEditor(mount, { doc: entry.code, cm: cmFor(pathInput.value) || 'shell',
+      // shell/sem extensão (compile.sh com receita de Makefile, `<<-EOF`): Tab = \t de verdade; linguagem: indenta
+      tab: (cmFor(pathInput.value) || 'shell') === 'shell' ? 'literal' : 'indent' }); };
     entry.setOpen = async (open) => { if (open) await ensureEd(); mount.style.display = open ? '' : 'none'; expandBtn.textContent = open ? '▾' : '▸'; };
     expandBtn.onclick = () => entry.setOpen(mount.style.display === 'none');
     if (isBin) { expandBtn.disabled = true; expandBtn.title = T('binário — preservado como está', 'binary — preserved as is', 'binario — preservado tal cual'); }

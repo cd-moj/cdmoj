@@ -94,7 +94,7 @@ export function makeTestRun(ctx) {
     const cm = ctx.cmFor(fnInput.value) || null;
     if (ed && cm === edCm) { if (doc != null) ed.setValue(doc); return; }
     const keep = doc != null ? doc : (ed ? ed.getValue() : '');
-    mount.innerHTML = ''; ed = await ctx.createEditor(mount, { doc: keep, cm }); edCm = cm;
+    mount.innerHTML = ''; ed = await ctx.createEditor(mount, { doc: keep, cm, tab: 'indent' }); edCm = cm;
   }
   function ensureEditor(doc) { edChain = edChain.then(() => _ensureEditor(doc), () => _ensureEditor(doc)); return edChain; }
   fnInput.addEventListener('change', () => { ensureEditor(null); });

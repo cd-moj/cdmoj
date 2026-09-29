@@ -1639,7 +1639,9 @@ mexa na outra. O índice separa as coleções por `\u001f` (nome é texto livre:
 
 - Vanilla **ES modules, sem build**, servido estático. `shared/` = cliente de API (`api.js`),
   auth/token (`auth.js`), `ui.js` (`el()`, helpers de DOM), editor CodeMirror 6 (`editor.js`, com
-  fallback textarea), gráficos SVG, bandeiras/assets offline.
+  fallback textarea; opção `tab`: `'indent'` nos editores de CÓDIGO, `'literal'` (\t) nos scripts em shell,
+  `false` = padrão, Tab move o foco — regra em `shared/editor-tab.js`, por `EditorView.domEventHandlers`, NUNCA
+  listener no `view.dom`: pegaria o Tab do painel de busca e o dos campos de snippet), gráficos SVG, bandeiras/assets offline.
 - Editar e recarregar vale na hora (sem bundler). Validar: `node --check web/**/<arquivo>.js`.
 - Editor de problema: `web/problemas/editar.{html,js}` (abas; chama `/problems/*`).
   **🧪 testar no juiz** (2026-09-24): sub-aba de Soluções & Correção = o `moj testrun` na web — módulo
