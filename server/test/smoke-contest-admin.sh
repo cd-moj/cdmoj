@@ -180,6 +180,30 @@ printf '{"W1":"FF0000"}' > "$FIX/ac-c/balloons.json"
 call /contest/admin/problems POST '{"action":"rename","letter":"W1","new_letter":"W9"}' cadm 'contest=ac-c'
 ck "rename migra a cor do balão"  '[[ "$(jq -r ".W9" "$FIX/ac-c/balloons.json")" == "FF0000" && "$(jq -r ".W1 // \"-\"" "$FIX/ac-c/balloons.json")" == "-" ]]'
 
+echo "== letra LIVRE e letra repetida (PR #36) =="
+UNIQ='[.problems[].letter | ascii_upcase] | (unique | length) == length'
+call /contest/admin/problems POST '{"action":"add","problem":{"bank_id":"bankprob","name":"Livre1"}}' cadm 'contest=ac-c'
+ck "add sem letra recebe a 1ª LIVRE (a A virou W9), não a da posição" '[[ "$(jq -r ".problems[-1].letter" <<<"$BODY")" == A && "$(jq "$UNIQ" <<<"$BODY")" == true ]]'
+call /contest/admin/problems POST '{"action":"remove","letter":"C"}' cadm 'contest=ac-c' >/dev/null
+call /contest/admin/problems POST '{"action":"add","problem":{"bank_id":"bankprob","name":"Livre2"}}' cadm 'contest=ac-c'
+ck "lacuna no meio (C removida): o novo recebe C, sem letra repetida" '[[ "$(jq -r ".problems[-1].letter" <<<"$BODY")" == C && "$(jq "$UNIQ" <<<"$BODY")" == true ]]'
+call /contest/admin/problems POST '{"action":"add","problem":{"bank_id":"bankprob","name":"X","letter":"c"}}' cadm 'contest=ac-c'
+ck "add com letra ocupada (outra caixa) -> 422 letter_taken" '[[ "$OUT" == *"Status: 422"* && "$(jq -r ".error.code" <<<"$BODY")" == letter_taken ]]'
+call /contest/admin/problems POST '{"action":"rename","letter":"B","new_letter":"c"}' cadm 'contest=ac-c'
+ck "rename p/ letra ocupada (outra caixa) -> 422 letter_taken" '[[ "$OUT" == *"Status: 422"* && "$(jq -r ".error.code" <<<"$BODY")" == letter_taken ]]'
+call /contest/admin/problems POST '{"action":"rename","letter":"B","new_letter":"b"}' cadm 'contest=ac-c'
+ck "rename só de caixa na PRÓPRIA letra passa" '[[ "$(jq -r "[.problems[].letter] | index(\"b\")" <<<"$BODY")" != null ]]'
+call /contest/admin/problems POST '{"action":"rename","letter":"b","new_letter":"B"}' cadm 'contest=ac-c' >/dev/null
+call /contest/admin/problems POST '{"action":"reorder","order":["A","a","B"]}' cadm 'contest=ac-c'
+ck "reorder com letra repetida -> 422 letter_dup (antes duplicava a entrada)" '[[ "$OUT" == *"Status: 422"* && "$(jq -r ".error.code" <<<"$BODY")" == letter_dup ]]'
+# contest de ANTES do conserto, com duas entradas na mesma letra: o rename muda só a 1ª e desfaz
+( . "$FIX/ac-c/conf"; P=("${PROBS[@]}"); P[8]="${P[3]}"; { grep -v '^PROBS=' "$FIX/ac-c/conf"; printf 'PROBS=('; printf ' %q' "${P[@]}"; printf ' )\n'; } > "$FIX/ac-c/conf.t" ) && mv -f "$FIX/ac-c/conf.t" "$FIX/ac-c/conf"
+call /contest/admin/problems GET '' cadm 'contest=ac-c'
+DL="$(jq -r '.problems[0].letter' <<<"$BODY")"
+ck "fixture: duas entradas com a letra $DL" '[[ "$(jq --arg l "$DL" "[.problems[] | select(.letter == \$l)] | length" <<<"$BODY")" == 2 ]]'
+call /contest/admin/problems POST "{\"action\":\"rename\",\"letter\":\"$DL\",\"new_letter\":\"Z9\"}" cadm 'contest=ac-c'
+ck "rename desfaz a duplicata (só a 1ª entrada muda)" '[[ "$(jq --arg l "$DL" "[.problems[] | select(.letter == \$l)] | length" <<<"$BODY")" == 1 && "$(jq -r ".problems[0].letter" <<<"$BODY")" == Z9 && "$(jq "$UNIQ" <<<"$BODY")" == true ]]'
+
 echo "== proteções de acesso =="
 call /contest/admin/config GET '' cuser 'contest=ac-c'
 ck "não-admin do contest 403" '[[ "$OUT" == *"Status: 403"* ]]'

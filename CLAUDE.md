@@ -846,7 +846,14 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   `rd_apply_obj` grava via `cc_balloons_write` (escritor ÚNICO de `balloons.json`, também usado
   por `admin/config.sh`; `cc_balloons_clear` apaga) só quando a rodada tem cores — ausente =
   herda; `rd_sync_active` espelha o arquivo na ativa; a promoção arquiva `rounds/<slug>/balloons.json`.
-  Teste: `smoke-contest-rounds.sh`.
+  **LETRA DE PROBLEMA ÚNICA** (PR #36, 2026-09-29): a letra é a chave de rename/remove/reorder, das
+  clarifications e da cor de balão — nunca repetida, SEM diferenciar caixa. A automática é a 1ª LIVRE
+  (`cc_letters_used`/`cc_letter_next` em `lib/contest-create.sh`, usados pelos DOIS laços, `cc_create` e
+  `cc_build_probs`; era a da POSIÇÃO e duplicava com lacuna na sequência); toda porta recusa repetida
+  (`add`/`rename` 422 `letter_taken`, `reorder`/`rounds problems`/spec 422 `letter_dup`) e a promoção tem
+  o bloqueador DURO `letter_dup` — NUNCA recuse dentro do `cc_build_probs` (o `rd_apply_obj` já gravou a
+  janela no conf). O `rename` muda só a 1ª entrada com a letra: é o conserto de contest antigo com duplicata.
+  Teste: `smoke-contest-rounds.sh` (+ letras em `smoke-contest-admin.sh`/`smoke-contest-create.sh`).
 - **Descongelar o placar só a partir do fim geral + 1 min** (`lib/contest-gate.sh`:
   `freeze_release_at` = `contest_end_all` + `FREEZE_RELEASE_GRACE` (60 s), `freeze_release_ok`,
   `freeze_release_guard` → 409 `freeze_locked`; pedido do Ribas, 2026-09-14). Vale p/ TODO
@@ -854,7 +861,7 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   Central), `admin/config.sh` (`basic.freeze:0`), `admin/finish.sh` (além de
   `contest_over_for_all`; `can_finish` já considera), `admin/rounds.sh` `set` na rodada ATIVA
   (5º caminho, achado na revisão de 15/09) e `rd_promote_blockers` (`freeze_locked` é
-  bloqueador DURO junto de `no_next_round` e `problem_denied` — `force` não passa). Quem EDITA
+  bloqueador DURO junto de `no_next_round`, `problem_denied` e `letter_dup` — `force` não passa). Quem EDITA
   o freeze usa **`freeze_change_guard <c> <novo>`** (contest-gate.sh): compara NUMERICAMENTE
   (`"00"` é zero) e barra também **empurrar um freeze já em vigor para depois de agora** — é
   descongelar com outro nome; mover o freeze antes de ele valer segue livre. `settings`/`finish` GET expõem `freeze_release_at` p/ a UI
