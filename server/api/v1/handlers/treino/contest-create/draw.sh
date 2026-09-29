@@ -1,7 +1,9 @@
-# GET /treino/contest-create/draw?tags=a,b&collections=<json-array>&count=8&match=any|all&difficulty=any|easy|medium|hard|known&seed=
+# GET /treino/contest-create/draw?tags=a,b&collections=<json-array>&count=8&match=any|all&difficulty=any|easy|medium|hard|known&seed=&include_private=1
 # (auth treino, pode criar) -> sorteia problemas do banco por tag, COLEÇÃO e dificuldade
 # (grupos em AND; reproduzível por seed). `collections` é um ARRAY JSON url-encoded
 # (nome de coleção é texto livre — pode ter vírgula/espaço; CSV seria ambíguo).
+# Padrão: só públicos. include_private=1 (opt-in) soma os privados de QUEM CRIA (a sessão — o
+# mesmo sujeito do gate do create.sh); cada sorteado traz private/access p/ o selo 🔒.
 require_method GET
 require_auth_contest treino
 source "$_LIBDIR/contest-create.sh"
@@ -14,10 +16,12 @@ case "$diff" in easy|medium|hard|known) ;; *) diff=any;; esac
 [[ "$seed" =~ ^[0-9]+$ ]] || seed="$RANDOM"
 jq -e 'type=="array" and all(.[]; type=="string")' >/dev/null 2>&1 <<<"$colls" || colls='[]'
 
-list="$(cc_bank_json | cc_bank_filter "$tags" "$match" "$diff" "$colls")"
+inc=0; [[ "$(param include_private)" == 1 ]] && inc=1
+bank="$(cc_bank_json_for "$SESSION_LOGIN" "$inc")" || fail 503 "Índice de problemas indisponível" "index_unavailable"
+list="$(cc_bank_filter "$tags" "$match" "$diff" "$colls" <<<"$bank")"
 [[ -n "$list" ]] || list='[]'
 candidates="$(jq 'length' <<<"$list" 2>/dev/null)"; [[ "$candidates" =~ ^[0-9]+$ ]] || candidates=0
 drawn="$(jq -c '.[]' <<<"$list" 2>/dev/null | awk -v seed="$seed" 'BEGIN{srand(seed)} {print rand()"\t"$0}' | sort -n | cut -f2- | head -n "$count" | jq -cs '.' 2>/dev/null)"
 [[ -n "$drawn" ]] || drawn='[]'
-ok_json '{problems:$d, candidates:$c, drawn:($d|length), seed:$s, count:$n, collections:$cl}' \
-  --argjson d "$drawn" --argjson c "$candidates" --argjson s "$seed" --argjson n "$count" --argjson cl "$colls"
+ok_json '{problems:$d, candidates:$c, drawn:($d|length), seed:$s, count:$n, collections:$cl, private_included:($i == 1)}' \
+  --argjson d "$drawn" --argjson c "$candidates" --argjson s "$seed" --argjson n "$count" --argjson cl "$colls" --argjson i "$inc"

@@ -2,12 +2,17 @@
 // (coleção / tag / dificuldade, filtros em AND, seed reproduzível), compartilhado entre o
 // wizard de criação (rotas /treino/contest-create/*) e a aba Problemas do admin do contest
 // (rotas /contest/admin/{bank,draw}). O chamador injeta o adaptador de API:
-//   api = { meta()   -> {tags:[{tag,count}], collections:[{collection,count}]},
-//           draw(p)  -> {problems[],candidates,drawn,seed}   (p = {tags,collections,count,match,difficulty,seed?}),
+//   api = { meta(q)  -> {tags:[{tag,count}], collections:[{collection,count}]}   (q = {include_private?:'1'}),
+//           draw(p)  -> {problems[],candidates,drawn,seed,private_included}
+//                       (p = {tags,collections,count,match,difficulty,seed?,include_private?:'1'}),
 //           search(q)-> {problems:[{id,title,private?,has_statement?}]} }
 //   onAdd(item) é chamado ao adicionar ({id,title,private?,has_statement?}).
 // opts: searchLabel/searchPlaceholder, noQueryFilter(items) (wizard: só os privados do usuário),
-//       emptyHint (texto quando a busca sem query não tem nada).
+//       emptyHint (texto quando a busca sem query não tem nada),
+//       privateLabel (rótulo do opt-in "incluir privados": de quem são depende da rota).
+// O SORTEIO só usa privados com o opt-in marcado (include_private=1, desligado por padrão):
+// sortear por tag/coleção pode puxar a prova em elaboração de um colega da org. Com ele, as
+// tags/coleções recarregam com os privados e cada privado sorteado vem com o selo 🔒.
 import { el } from '/shared/ui.js';
 import { T } from '/shared/i18n.js';
 import { diffLabel } from '/shared/difficulty.js';
@@ -18,7 +23,7 @@ const DIFF_LABEL = () => ({ any: T('qualquer', 'any', 'cualquiera'), easy: T('f�
 const debounce = (fn, ms) => { let h; return (...a) => { clearTimeout(h); h = setTimeout(() => fn(...a), ms); }; };
 let uid = 0;
 
-export function makeBankPanel({ api, onAdd, searchLabel, searchPlaceholder, noQueryFilter, emptyHint } = {}) {
+export function makeBankPanel({ api, onAdd, searchLabel, searchPlaceholder, noQueryFilter, emptyHint, privateLabel } = {}) {
   const idsuf = String(++uid);
   let allTags = [], allCollections = [];
 
@@ -56,17 +61,26 @@ export function makeBankPanel({ api, onAdd, searchLabel, searchPlaceholder, noQu
   const diff = el('select', {}, ...Object.keys(DL).map((k) => el('option', { value: k }, DL[k])));
   const out = el('div', {});
   const drawBtn = el('button', { class: 'btn' }, T('🎲 Sortear', '🎲 Draw', '🎲 Sortear'));
+  const incPriv = el('input', { type: 'checkbox' });
+  const privQ = () => (incPriv.checked ? { include_private: '1' } : {});
   let lastSeed = null;
 
   const itemRow = (p, extraInfo) => el('div', { class: 'bank-item' },
     el('div', {}, el('div', { class: 't' }, (p.title || p.id), accBadge(p)), el('div', { class: 'i' }, extraInfo || p.id)),
     el('button', { class: 'btn ghost', onclick: () => onAdd(p) }, T('+ adicionar', '+ add', '+ agregar')));
   const accBadge = (it) => it.private
-    ? el('span', { class: 'tag', style: 'margin-left:.4rem;background:#3d3417;color:#ffe08a' }, it.access === 'shared' ? T('compartilhado', 'shared', 'compartido') : T('privado', 'private', 'privado'))
+    ? el('span', { class: 'tag', style: 'margin-left:.4rem;background:#3d3417;color:#ffe08a' }, '🔒 ' + (it.access === 'shared' ? T('compartilhado', 'shared', 'compartido') : T('privado', 'private', 'privado')))
     : '';
+  // "+ adicionar todos" põe o enunciado na frente dos participantes sem revisão: com privado no
+  // meio, confirma antes
+  const addAll = (probs) => {
+    const np = probs.filter((x) => x.private).length;
+    if (np && !confirm(np + T(' problema(s) PRIVADO(S) no sorteio. Adicionar todos mesmo assim?', ' PRIVATE problem(s) in the draw. Add all anyway?', ' problema(s) PRIVADO(S) en el sorteo. ¿Agregar todos de todos modos?'))) return;
+    probs.forEach((p2) => onAdd(p2));
+  };
 
   async function doDraw(reshuffle) {
-    const p = { tags: tagC.selected.join(','), count: count.value || '6', match: match.value, difficulty: diff.value };
+    const p = { tags: tagC.selected.join(','), count: count.value || '6', match: match.value, difficulty: diff.value, ...privQ() };
     if (colC.selected.length) p.collections = JSON.stringify(colC.selected);
     if (!reshuffle && lastSeed != null) p.seed = lastSeed;
     out.innerHTML = T('sorteando…', 'drawing…', 'sorteando…');
@@ -80,8 +94,9 @@ export function makeBankPanel({ api, onAdd, searchLabel, searchPlaceholder, noQu
       }
       out.append(el('div', { class: 'small muted', style: 'margin:.3rem 0' },
         T('Sorteados ', 'Drawn ', 'Sorteados ') + r.drawn + T(' de ', ' of ', ' de ') + r.candidates + T(' candidatos (seed ', ' candidates (seed ', ' candidatos (semilla ') + r.seed + '). ',
+        (incPriv.checked && r.private_included === false) ? T('Só públicos: este contest não tem dono registrado. ', 'Public only: this contest has no registered owner. ', 'Solo públicos: esta competencia no tiene dueño registrado. ') : '',
         el('a', { href: '#', onclick: (e) => { e.preventDefault(); doDraw(true); } }, T('↻ sortear de novo', '↻ draw again', '↻ sortear de nuevo')), ' · ',
-        el('a', { href: '#', onclick: (e) => { e.preventDefault(); r.problems.forEach((p2) => onAdd(p2)); } }, T('+ adicionar todos', '+ add all', '+ agregar todos'))));
+        el('a', { href: '#', onclick: (e) => { e.preventDefault(); addAll(r.problems); } }, T('+ adicionar todos', '+ add all', '+ agregar todos'))));
       r.problems.forEach((p2) => {
         const info = p2.id + ' · ' + (p2.difficulty ? diffLabel(p2.difficulty) : p2.bucket)
           + (p2.total ? (' · ' + (p2.user_rate != null ? Math.round(p2.user_rate * 100) + T('% resolvem · ', '% solve · ', '% resuelven · ') : '') + p2.solvers + T(' resolveram', ' solved', ' resolvieron')) : T(' · sem histórico', ' · no history', ' · sin historial'))
@@ -116,15 +131,18 @@ export function makeBankPanel({ api, onAdd, searchLabel, searchPlaceholder, noQu
   search.addEventListener('input', doSearch);
   search.addEventListener('focus', doSearch);
 
-  // meta (tags+coleções) carregada em background
-  (async () => {
+  // meta (tags+coleções) carregada em background — e de novo quando o opt-in muda (as contagens
+  // passam a incluir, ou não, os privados)
+  async function loadMeta() {
     try {
-      const m = await api.meta();
+      const m = await api.meta(privQ());
       allTags = m.tags || []; allCollections = m.collections || [];
       tagC.setOptions(allTags.map((t) => ({ value: t.tag, count: t.count })));
       colC.setOptions(allCollections.map((c) => ({ value: c.collection, count: c.count })));
     } catch { /* datalists ficam vazios; busca/sorteio seguem funcionando */ }
-  })();
+  }
+  loadMeta();
+  incPriv.addEventListener('change', () => { lastSeed = null; out.innerHTML = ''; loadMeta(); });
 
   const root = el('div', {},
     el('div', { class: 'section', style: 'background:#fbfdff' },
@@ -133,6 +151,11 @@ export function makeBankPanel({ api, onAdd, searchLabel, searchPlaceholder, noQu
       el('div', { class: 'field' }, el('label', {}, 'Tags'), tagC.input, tagC.dl, tagC.chips),
       el('div', { class: 'row' }, el('span', { class: 'small' }, T('quantos:', 'how many:', 'cuántos:')), count,
         el('span', { class: 'small' }, T('casar:', 'match:', 'coincidir:')), match, el('span', { class: 'small' }, T('dificuldade:', 'difficulty:', 'dificultad:')), diff, drawBtn),
+      el('label', { class: 'small', style: 'display:flex;gap:.4rem;align-items:center;margin:.3rem 0',
+        title: T('Desligado, o sorteio usa só o banco público. Ligado, pode sortear a prova em elaboração de um colega da org: confira antes de adicionar.',
+          'Off, the draw uses only the public bank. On, it may draw a colleague\'s exam in progress from the org: check before adding.',
+          'Apagado, el sorteo usa solo el banco público. Encendido, puede sortear la prueba en elaboración de un colega de la org: revisa antes de agregar.') },
+        incPriv, '🔒 ' + (privateLabel || T('incluir meus problemas privados', 'include my private problems', 'incluir mis problemas privados'))),
       out),
     el('div', { class: 'field' }, el('label', {}, searchLabel || T('Buscar problemas', 'Search problems', 'Buscar problemas')), search, results));
   return { el: root };

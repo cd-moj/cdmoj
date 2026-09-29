@@ -3,8 +3,9 @@
 # do contest (arquivo owner) tem acesso (dono/colaborador no índice de owners) — o MESMO
 # sujeito do gate de add (problems.sh), então a busca lista exatamente o que pode ser
 # adicionado. Contest legado sem owner => só públicos. Privados vêm primeiro (como no wizard).
-# ?meta=1 -> {tags:[{tag,count}],collections:[{collection,count}]} p/ o painel de sorteio
-# (agregado do banco público — o sorteio é só público).
+# ?meta=1 -> {tags:[{tag,count}],collections:[{collection,count}],private_included} p/ o painel de
+# sorteio: agregado do MESMO banco que o sorteio usa — público; com &include_private=1, também os
+# privados do dono do contest (sem owner = só públicos). Índice quebrado com include = 503.
 require_method GET
 contest="$(param contest)"
 [[ -n "$contest" ]] || fail 400 "Missing contest" "contest_missing"
@@ -14,11 +15,14 @@ is_admin || fail 403 "Apenas o admin do contest" "admin_required"
 source "$_LIBDIR/contest-create.sh"
 
 if [[ "$(param meta)" == 1 ]]; then
-  bank="$(cc_bank_json)"
+  inc=0; [[ "$(param include_private)" == 1 ]] && inc=1
+  mowner="$(head -1 "$CONTESTSDIR/$contest/owner" 2>/dev/null)"
+  [[ -n "$mowner" ]] || inc=0
+  bank="$(cc_bank_json_for "$mowner" "$inc")" || fail 503 "Índice de problemas indisponível" "index_unavailable"
   tags="$(jq -c '[.[].tags[]?] | reduce .[] as $t ({}; .[$t]+=1) | to_entries | map({tag:.key,count:.value}) | sort_by(-.count)' <<<"$bank" 2>/dev/null)"
   cols="$(jq -c '[.[].collections[]?] | reduce .[] as $c ({}; .[$c]+=1) | to_entries | map({collection:.key,count:.value}) | sort_by(-.count)' <<<"$bank" 2>/dev/null)"
   [[ -n "$tags" ]] || tags='[]'; [[ -n "$cols" ]] || cols='[]'
-  ok_json '{tags:$t, collections:$c}' --argjson t "$tags" --argjson c "$cols"
+  ok_json '{tags:$t, collections:$c, private_included:($i == 1)}' --argjson t "$tags" --argjson c "$cols" --argjson i "$inc"
   exit 0
 fi
 

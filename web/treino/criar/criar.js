@@ -128,10 +128,11 @@ async function boot() {
     },
     // adaptador do painel de busca+sorteio (rotas do wizard)
     bankApi: {
-      meta: async () => {
+      meta: async (q) => {
+        const qs = '?' + new URLSearchParams(q || {}).toString();
         const [t, c] = await Promise.all([
-          apiGet('/treino/contest-create/tags', { contest: 'treino', auth: true }).catch(() => ({ tags: [] })),
-          apiGet('/treino/contest-create/collections', { contest: 'treino', auth: true }).catch(() => ({ collections: [] })),
+          apiGet('/treino/contest-create/tags' + qs, { contest: 'treino', auth: true }).catch(() => ({ tags: [] })),
+          apiGet('/treino/contest-create/collections' + qs, { contest: 'treino', auth: true }).catch(() => ({ collections: [] })),
         ]);
         return { tags: t.tags || [], collections: c.collections || [] };
       },

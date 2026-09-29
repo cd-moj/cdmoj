@@ -104,7 +104,7 @@ export function makeProblemsTab(CONTEST) {
   // (mesmo sujeito do gate de add — a busca lista exatamente o que pode entrar)
   const stmtLangs = makeStatementLangsPanel(CONTEST);   // lista de idiomas oferecidos + disponibilidade
   const bankApi = {
-    meta: () => apiGet('/contest/admin/bank?contest=' + enc(CONTEST) + '&meta=1', G),
+    meta: (q) => apiGet('/contest/admin/bank?contest=' + enc(CONTEST) + '&meta=1&' + new URLSearchParams(q || {}).toString(), G),
     draw: (p) => apiGet('/contest/admin/draw?contest=' + enc(CONTEST) + '&' + new URLSearchParams(p).toString(), G),
     search: (q) => apiGet('/contest/admin/bank?contest=' + enc(CONTEST) + '&limit=30&q=' + enc(q), G),
   };
@@ -118,6 +118,7 @@ export function makeProblemsTab(CONTEST) {
         searchLabel: T('Buscar problemas (públicos + os privados do dono do contest)', 'Search problems (public + the contest owner\'s private ones)', 'Buscar problemas (públicos + los privados del dueño de la competencia)'),
         searchPlaceholder: T('🔎 Buscar problemas (públicos + privados do dono) — título ou id…', '🔎 Search problems (public + owner\'s private) — title or id…', '🔎 Buscar problemas (públicos + privados del dueño) — título o id…'),
         noQueryFilter: (items) => items.filter((it) => it.private),
+        privateLabel: T('incluir no sorteio os privados do dono do contest', 'include the contest owner\'s private problems in the draw', 'incluir en el sorteo los privados del dueño de la competencia'),
         emptyHint: T('o dono do contest não tem problemas privados — digite para buscar no banco público', 'the contest owner has no private problems — type to search the public bank', 'el dueño de la competencia no tiene problemas privados — escribe para buscar en el banco público'),
       });
       panel.append(list, stmtLangs.el, el('h3', { style: 'margin:1rem 0 .3rem' }, T('🏦 Adicionar do banco', '🏦 Add from bank', '🏦 Agregar del banco')), bank.el);

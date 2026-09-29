@@ -1,6 +1,9 @@
-# GET /contest/admin/draw?contest=<id>&tags=&collections=<json-array>&count=&match=any|all&difficulty=&seed=
-# (admin DO contest) -> sorteio no banco PÚBLICO do treino (mesmo contrato do draw do wizard;
-# reusa cc_bank_filter — coleção/tag/dificuldade em AND, reproduzível por seed). Só públicos.
+# GET /contest/admin/draw?contest=<id>&tags=&collections=<json-array>&count=&match=any|all&difficulty=&seed=&include_private=1
+# (admin DO contest) -> sorteio no banco do treino (mesmo contrato do draw do wizard; reusa
+# cc_bank_filter — coleção/tag/dificuldade em AND, reproduzível por seed). Padrão: só públicos.
+# include_private=1 (opt-in) soma os PRIVADOS que o DONO do contest (arquivo owner) pode usar —
+# o mesmo sujeito do gate de add e da busca; contest sem owner = só públicos
+# (private_included:false). Cada sorteado traz private/access p/ o selo 🔒.
 require_method GET
 contest="$(param contest)"
 [[ -n "$contest" ]] || fail 400 "Missing contest" "contest_missing"
@@ -17,10 +20,14 @@ case "$diff" in easy|medium|hard|known) ;; *) diff=any;; esac
 [[ "$seed" =~ ^[0-9]+$ ]] || seed="$RANDOM"
 jq -e 'type=="array" and all(.[]; type=="string")' >/dev/null 2>&1 <<<"$colls" || colls='[]'
 
-list="$(cc_bank_json | cc_bank_filter "$tags" "$match" "$diff" "$colls")"
+inc=0; [[ "$(param include_private)" == 1 ]] && inc=1
+cowner="$(head -1 "$CONTESTSDIR/$contest/owner" 2>/dev/null)"
+[[ -n "$cowner" ]] || inc=0
+bank="$(cc_bank_json_for "$cowner" "$inc")" || fail 503 "Índice de problemas indisponível" "index_unavailable"
+list="$(cc_bank_filter "$tags" "$match" "$diff" "$colls" <<<"$bank")"
 [[ -n "$list" ]] || list='[]'
 candidates="$(jq 'length' <<<"$list" 2>/dev/null)"; [[ "$candidates" =~ ^[0-9]+$ ]] || candidates=0
 drawn="$(jq -c '.[]' <<<"$list" 2>/dev/null | awk -v seed="$seed" 'BEGIN{srand(seed)} {print rand()"\t"$0}' | sort -n | cut -f2- | head -n "$count" | jq -cs '.' 2>/dev/null)"
 [[ -n "$drawn" ]] || drawn='[]'
-ok_json '{problems:$d, candidates:$c, drawn:($d|length), seed:$s, count:$n, collections:$cl}' \
-  --argjson d "$drawn" --argjson c "$candidates" --argjson s "$seed" --argjson n "$count" --argjson cl "$colls"
+ok_json '{problems:$d, candidates:$c, drawn:($d|length), seed:$s, count:$n, collections:$cl, private_included:($i == 1)}' \
+  --argjson d "$drawn" --argjson c "$candidates" --argjson s "$seed" --argjson n "$count" --argjson cl "$colls" --argjson i "$inc"

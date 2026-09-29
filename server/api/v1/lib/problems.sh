@@ -116,13 +116,21 @@ my_orgs_json(){ orgs_json_for "$SESSION_LOGIN"; }
 # owners_emit E /problems/status; ter UMA definição só evita divergência do filtro (ponto crítico).
 # Propaga a FALHA do índice (rc!=0 e stdout vazio) em vez de virar lista vazia — quem chama tem de
 # responder 503, nunca "você não tem problema nenhum".
-owners_visible(){
-  local m; m="$(owners_merged)" || return 1
-  local _orgs; _orgs="$(my_orgs_json)"
-  jq -c --arg _me "$SESSION_LOGIN" --argjson _orgs "$_orgs" \
-    '.problems |= map(select(.public or .owner==$_me
+owners_visible(){ owners_visible_for "$SESSION_LOGIN"; }
+
+# owners_visible_for <login> — a MESMA regra, com o sujeito explícito. O sorteio do admin do
+# contest pergunta pelo DONO do contest (arquivo owner), não pela sessão: o login do admin é
+# LOCAL ao contest (boss.admin) e daria acesso por homonímia a quem tem esse nome no treino.
+# Login VAZIO = só públicos (sem sujeito não há dono, colaborador nem org) — o mesmo que
+# problems_denied_for nega, e o que um contest legado sem owner pode usar.
+owners_visible_for(){
+  local login="$1" m _orgs='[]'
+  m="$(owners_merged)" || return 1
+  [[ -n "$login" ]] && _orgs="$(orgs_json_for "$login")"
+  jq -c --arg _me "$login" --argjson _orgs "$_orgs" \
+    '.problems |= map(select(.public or ($_me != "" and (.owner==$_me
        or ((.collaborators // [])|index($_me)|type=="number")
-       or (((.repo // (.id|split("#")[0])) as $r | $_orgs|index($r))|type=="number")))' \
+       or (((.repo // (.id|split("#")[0])) as $r | $_orgs|index($r))|type=="number")))))' \
     <<<"$m" 2>/dev/null
 }
 # problems_denied_for <login> <ids-json-array> — ecoa (csv) os ids que o LOGIN não pode usar num
