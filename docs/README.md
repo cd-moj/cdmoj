@@ -31,6 +31,9 @@ navegação), rode `bash docs/build-html.sh` e abra `docs/html/index.html`.
   (`updatescore-<modo>.sh` + `score-<modo>.js`).
 - **[DEPLOY.md](DEPLOY.md)** — nginx + fcgiwrap + units systemd (daemon `judged`, bot) + juízes
   **pull** e o subdomínio de contest.
+- **[PULL-REQUESTS.md](PULL-REQUESTS.md)** — como revisar, decidir e aplicar pull requests nos repos do MOJ
+  (revisão adversária, decisão PR a PR, worktree, testes nos dois jq, merge e comentários) e o checklist de
+  quem contribui.
 - **[ADMIN.md](ADMIN.md)** — manual do administrador: instalação **do zero** num servidor limpo
   (podman/bare-metal), segredos e o **bootstrap do `treino` + primeira conta `.admin`**.
 - **[PLAN.md](PLAN.md)** — plano original aprovado da reescrita (arquitetura, contratos,

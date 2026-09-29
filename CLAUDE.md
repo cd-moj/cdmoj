@@ -1761,6 +1761,14 @@ mexa na outra. O índice separa as coleções por `\u001f` (nome é texto livre:
 
 - Commits em PT, presente, prefixados pelo componente (ex.: `problemas: …`, `score/stats: …`). O rodapé
   leva **só** `Co-Authored-By:` — **nunca** uma linha `Claude-Session:` (ruído no histórico).
+- **PULL REQUESTS: `docs/PULL-REQUESTS.md` é o padrão** (fonte única, vale p/ os 4 repos; no workspace a
+  skill `revisar-prs` aponta p/ ele):
+  - revisão ADVERSÁRIA, com as recomendações validadas;
+  - o Ribas decide PR a PR, com recomendação e racional;
+  - worktree (este checkout é o dev), com os nossos commits no branch do PR (nunca rebase nem force-push no
+    fork) e testes que falham sem eles;
+  - integração nos dois jq e no navegador;
+  - publicar (merge commit, comentários, fechamento) SÓ com o OK dele; deploy à parte.
 - **DOCS DE USUÁRIO EM pt · en · es** (`docs/i18n.sh` `DOCS_I18N`, espelho em `web/shared/i18n.js`):
   mudou um doc da lista ⇒ no MESMO commit `bash docs/i18n.sh diff <DOC>` (o que mudou no PT desde o
   carimbo), aplicar em `docs/en/` e `docs/es/` (inglês em STE; comando/código byte a byte iguais, só
