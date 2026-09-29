@@ -70,7 +70,7 @@ async function swapEditor(content, langId) {
   if (langSel) langSel.value = langId;
   if (!editorMount) return;
   editorMount.innerHTML = '';
-  editorApi = await createEditor(editorMount, { doc: content, cm: langById(langId).cm });
+  editorApi = await createEditor(editorMount, { doc: content, cm: langById(langId).cm, tab: 'indent' });
 }
 
 async function loadProblem() {
@@ -317,7 +317,7 @@ async function renderSubmit() {
   body.append(wrap);
   if (EDITOR_ONLY) { document.title = T('Editor — ', 'Editor — ', 'Editor — ') + document.title; expandBtn.style.display = 'none'; popBtn.style.display = 'none'; setTimeout(refreshEd, 50); }
 
-  editorApi = await createEditor(editorMount, { doc: templateFor(curLangId), cm: langById(curLangId).cm });
+  editorApi = await createEditor(editorMount, { doc: templateFor(curLangId), cm: langById(curLangId).cm, tab: 'indent' });
   langSel.addEventListener('change', async () => {
     const cur = editorApi ? editorApi.getValue() : '';
     const keep = cur && !isTemplateContent(cur);   // preserva código digitado; só troca template

@@ -891,10 +891,10 @@ function renderSubmitInline(p) {
 
   async function mountEditor() {
     if (editor) return;
-    editor = await createEditor(editorMount, { doc: '', cm: langById(sel.value).cm });
+    editor = await createEditor(editorMount, { doc: '', cm: langById(sel.value).cm, tab: 'indent' });
     sel.addEventListener('change', async () => {
       const cur = editor.getValue(); editorMount.innerHTML = '';
-      editor = await createEditor(editorMount, { doc: cur, cm: langById(sel.value).cm });
+      editor = await createEditor(editorMount, { doc: cur, cm: langById(sel.value).cm, tab: 'indent' });
     });
     setTimeout(refreshEd, 50);
   }

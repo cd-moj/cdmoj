@@ -4,6 +4,9 @@
 // automaticamente. `cm` é o modo de realce (ver shared/languages.js; 'markdown' p/ enunciados).
 // Opção `images:true` habilita colar/arrastar imagem -> embute no texto como ![](data:...)
 // (downscale via canvas), resolvendo a gestão de imagens de forma transparente.
+// Opção `tab`: 'indent' (editores de CÓDIGO: Tab indenta) | 'literal' (scripts/ em shell: Tab = \t) |
+// false (padrão: o Tab do CodeMirror move o foco — markdown/formulário). Ver shared/editor-tab.js.
+import { tabExtension, attachTabTextarea } from '/shared/editor-tab.js';
 
 const CM = '/shared/vendor/codemirror/cm-bundle.js';
 // modo "legacy" (StreamLanguage): linguagens sem pacote dedicado do CodeMirror 6.
@@ -73,86 +76,22 @@ function attachImages(dom, insert) {
   });
 }
 
-// Tab INDENTA em vez de mudar o foco. O CodeMirror 6 não liga isto por padrão, de
-// propósito: quem navega por teclado precisa do Tab para conseguir sair do editor.
-// A saída de emergência é a convenção do próprio CM — ESC e depois TAB move o foco.
-//
-// Feito por listener de DOM, e não pelo `keymap.of([indentWithTab])` que seria o
-// caminho normal, porque o bundle vendorizado (shared/vendor/codemirror/cm-bundle.js)
-// exporta só EditorView/basicSetup/modos: não exporta `keymap` nem `indentWithTab`
-// (o identificador nem aparece no bundle). Trocar isso exigiria regerar o bundle,
-// que é construído fora deste repositório.
-const NB_INDENT = '    ';   // 4 espaços, igual ao que os esqueletos de languages.js usam
-
-function attachTabIndent(view) {
-  let escaped = false;
-  view.dom.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') { escaped = true; return; }
-    if (e.key !== 'Tab') { escaped = false; return; }
-    if (escaped) { escaped = false; return; }      // ESC+TAB: deixa sair do editor
-    e.preventDefault();
-    const st = view.state;
-    const r = st.selection.main;
-    const l1 = st.doc.lineAt(r.from);
-    const l2 = st.doc.lineAt(r.to);
-    // cursor ou seleção dentro de UMA linha, sem shift: insere um nível
-    if (!e.shiftKey && l1.number === l2.number) {
-      view.dispatch(st.replaceSelection(NB_INDENT));
-      return;
-    }
-    // bloco de linhas (ou shift): indenta / desindenta cada linha
-    const changes = [];
-    for (let n = l1.number; n <= l2.number; n++) {
-      const line = st.doc.line(n);
-      if (e.shiftKey) {
-        const m = /^(\t| {1,4})/.exec(line.text);
-        if (m) changes.push({ from: line.from, to: line.from + m[0].length });
-      } else if (line.length) {
-        changes.push({ from: line.from, insert: NB_INDENT });
-      }
-    }
-    if (changes.length) view.dispatch({ changes });
-  });
-}
-
-// mesma coisa para o <textarea> de emergência (quando o bundle não carrega)
-function attachTabIndentTextarea(ta) {
-  let escaped = false;
-  ta.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') { escaped = true; return; }
-    if (e.key !== 'Tab') { escaped = false; return; }
-    if (escaped) { escaped = false; return; }
-    e.preventDefault();
-    const s = ta.selectionStart, t = ta.selectionEnd, v = ta.value;
-    if (!e.shiftKey && !v.slice(s, t).includes('\n')) {
-      ta.value = v.slice(0, s) + NB_INDENT + v.slice(t);
-      ta.selectionStart = ta.selectionEnd = s + NB_INDENT.length;
-      return;
-    }
-    const ini = v.lastIndexOf('\n', s - 1) + 1;
-    const fim = v.indexOf('\n', t) === -1 ? v.length : v.indexOf('\n', t);
-    const bloco = v.slice(ini, fim).split('\n').map((l) => (
-      e.shiftKey ? l.replace(/^(\t| {1,4})/, '') : (l.length ? NB_INDENT + l : l)
-    )).join('\n');
-    ta.value = v.slice(0, ini) + bloco + v.slice(fim);
-    ta.selectionStart = ini; ta.selectionEnd = ini + bloco.length;
-  });
-}
-
-export async function createEditor(parent, { doc = '', cm = 'cpp', images = false } = {}) {
+export async function createEditor(parent, { doc = '', cm = 'cpp', images = false, tab = false } = {}) {
   try {
     const { EditorView, basicSetup } = await import(CM);
     let langExt = null;
     if (cm && LANG[cm]) { try { langExt = await LANG[cm](); } catch { langExt = null; } }
+    // o Tab entra DEPOIS do basicSetup (o keymap — Tab dos campos de snippet — roda antes) e nos
+    // DOIS arrays: sem realce o Tab tem de indentar igual
+    const tabExt = tab ? [tabExtension(EditorView, tab)] : [];
     let view;
     try {
-      view = new EditorView({ doc, extensions: langExt ? [basicSetup, langExt] : [basicSetup], parent });
+      view = new EditorView({ doc, extensions: langExt ? [basicSetup, langExt, ...tabExt] : [basicSetup, ...tabExt], parent });
     } catch {
       // extensão de linguagem incompatível -> CM puro (sem realce), sem cair p/ <textarea>
-      view = new EditorView({ doc, extensions: [basicSetup], parent });
+      view = new EditorView({ doc, extensions: [basicSetup, ...tabExt], parent });
     }
     view.dom.classList.add('cm-mojeditor');
-    attachTabIndent(view);
     const insert = (text) => { view.dispatch(view.state.replaceSelection(text)); view.focus(); };
     if (images) attachImages(view.dom, insert);
     return {
@@ -165,7 +104,7 @@ export async function createEditor(parent, { doc = '', cm = 'cpp', images = fals
   } catch (e) {
     const ta = document.createElement('textarea');
     ta.className = 'code-fallback'; ta.value = doc; ta.spellcheck = false; ta.rows = 20;
-    attachTabIndentTextarea(ta);
+    if (tab) attachTabTextarea(ta, tab);
     parent.appendChild(ta);
     const insert = (text) => {
       const s = ta.selectionStart ?? ta.value.length, en = ta.selectionEnd ?? ta.value.length;
