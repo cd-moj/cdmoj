@@ -61,17 +61,14 @@ ug_legacy(){
   printf '%s' "$v"
 }
 
-# ug_region_of <c> <login> -> sede do time: `.team.region` explícita, senão derivada pelo regex
-# de regions.json (a mesma derivação de handlers/contest/badges.sh)
+# ug_region_of <c> <login> -> sede do time pela regra ÚNICA (lib/regions.sh): a gravada, senão a regex
+# mais FUNDA. Até 28/09/2026 era a 1ª em pré-ordem — o pai vencia a folha (teamsp01 → "Brasil") e o
+# by_region da sede não valia. Sem gawk/mapa: só a gravada.
 ug_region_of(){
   local c="$1" l="$2" r
-  r="$(jq -r '.team.region // ""' "$CONTESTSDIR/$c/users/$l/account.json" 2>/dev/null)"
-  [[ -n "$r" ]] && { printf '%s' "$r"; return 0; }
-  [[ -s "$CONTESTSDIR/$c/regions.json" ]] || return 0
-  jq -r --arg l "$l" '
-    [.. | objects | select((.regex // "") != "")]
-    | first(.[] | .regex as $rr | select(try ($l|test($rr;"i")) catch false) | (.name // $rr)) // ""' \
-    "$CONTESTSDIR/$c/regions.json" 2>/dev/null
+  declare -F rg_site_of >/dev/null || source "${_LIBDIR:-${BASH_SOURCE[0]%/*}}/regions.sh"
+  if r="$(rg_site_of "$c" "$l" 2>/dev/null)"; then printf '%s' "$r"; return 0; fi
+  jq -r '.team.region // ""' "$CONTESTSDIR/$c/users/$l/account.json" 2>/dev/null
 }
 
 # ug_expected <c> <login> -> a substring de UA esperada ("" = sem gate para este login)
@@ -109,7 +106,7 @@ ug_expected(){
   reg="$(ug_region_of "$c" "$l")"
   if [[ -n "$reg" ]]; then
     local byreg
-    byreg="$(jq -r --arg r "$reg" '(.by_region[$r] // "")' <<<"$g")"
+    byreg="$(jq -r --arg r "$reg" "$UG_JQ"' ug_byregion(.; $r)' <<<"$g")"
     [[ -n "$byreg" ]] && { printf '%s' "$byreg"; return 0; }
   fi
   [[ -n "$out" ]] && { printf '%s' "$out"; return 0; }
@@ -132,6 +129,10 @@ ug_ok(){
 # gate $g. É a MESMA lógica do ug_expected — vive aqui uma vez só para os dois caminhos (o
 # individual, no login, e o em lote, no painel de Máquinas, que não pode forkar por time).
 UG_JQ='
+  # by_region[<sede>] sem diferenciar maiúsculas/espaço nas pontas (a sede gravada vem como foi digitada)
+  def ug_byregion($g; $reg):
+    ($reg | ascii_downcase | gsub("^ +| +$"; "")) as $k
+    | (first(($g.by_region // {}) | to_entries[] | select((.key | ascii_downcase | gsub("^ +| +$"; "")) == $k) | .value) // "");
   def ug_expect($g; $l; $reg):
     if ($g.mode == "off") then ""
     elif any($g.exempt[]; . as $rr | (try ($l|test($rr;"i")) catch false)) then ""
@@ -139,7 +140,7 @@ UG_JQ='
     else
       (((first($g.by_regex[] | .regex as $rr
                 | select(try ($l|test($rr;"i")) catch false) | .expect)) // null) as $byrx
-       | (if $reg != "" then ($g.by_region[$reg] // "") else "" end) as $byreg
+       | (if $reg != "" then ug_byregion($g; $reg) else "" end) as $byreg
        | (if $g.from_login == null then ""
           else (($g.from_login.regex) as $rr | ($g.from_login.expect) as $ex
                 # match SEM casamento devolve VAZIO (não erro): sem o `// null`, o
@@ -158,22 +159,25 @@ UG_JQ='
     end;
 '
 
-# ug_expected_map <c> <logins-json> [<regions-map-json>] -> {login: esperado}
-# `logins-json` = ["login", …]; `regions-map-json` = {"login":"sede"} (opcional — sem ele a sede
-# de cada login é lida do account.json numa passada).
+# ug_expected_map <c> <logins-json> [ignorado] -> {login: esperado}
+# `logins-json` = ["login", …]. A sede de cada login é a da regra ÚNICA (lib/regions.sh: gravada ou pela
+# regex) — a MESMA do login (ug_expected); até 28/09/2026 o lote usava só a gravada e o painel de Máquinas
+# dizia "esperado" diferente do que o login cobrava. O 3º argumento (o mapa de sedes que os chamadores
+# montavam) é aceito e IGNORADO. Logins e sedes vão por ARQUIVO: com ~2.300 contas o mapa passava dos
+# 128 KB de um argumento do jq (ARG_MAX — o erro virava `{}` calado).
 ug_expected_map(){
-  local c="$1" logins="$2" regmap="${3:-}"
+  local c="$1" logins="$2" w g
   [[ -n "$logins" && "$logins" != '[]' ]] || { printf '{}'; return 0; }
-  if [[ -z "$regmap" || "$regmap" == null ]]; then
-    regmap="$( { find "$CONTESTSDIR/$c/users" -mindepth 2 -maxdepth 2 -name account.json -print0 2>/dev/null \
-        | xargs -0 -r jq -c '{key:(.login // ""), value:((.team.region) // "")}'; } \
-        | jq -cs 'from_entries' 2>/dev/null)"
-    [[ -n "$regmap" ]] || regmap='{}'
-  fi
+  w="$(mktemp -d)" || { printf '{}'; return 1; }
+  printf '%s' "$logins" > "$w/logins.json"
+  declare -F rg_sites_json >/dev/null || source "${_LIBDIR:-${BASH_SOURCE[0]%/*}}/regions.sh"
+  rg_sites_json "$c" "$w/sites.json" 2>/dev/null || printf '{}' > "$w/sites.json"
   # o `fallback` do lote já vem resolvido com o legado do conf, senão o resultado divergiria
   # do caminho individual (que consulta o LOGIN_UA_SUBSTRING no fim)
-  local g; g="$(jq -c --arg lg "$(ug_legacy "$c")" \
+  g="$(jq -c --arg lg "$(ug_legacy "$c")" \
       '.fallback = (if (.fallback // "") != "" then .fallback else $lg end)' <<<"$(ug_get "$c")")"
-  jq -cn --argjson g "$g" --argjson ls "$logins" --argjson rm "$regmap" \
-    "$UG_JQ"' [ $ls[] | {key:., value: ug_expect($g; .; ($rm[.] // "")) } ] | from_entries'
+  printf '%s' "$g" > "$w/g.json"
+  jq -cn --slurpfile g "$w/g.json" --slurpfile ls "$w/logins.json" --slurpfile rm "$w/sites.json" \
+    "$UG_JQ"' $g[0] as $g | $rm[0] as $rm | [ $ls[0][] | {key:., value: ug_expect($g; .; ($rm[.] // "")) } ] | from_entries'
+  local rc=$?; rm -rf "$w"; return "$rc"
 }

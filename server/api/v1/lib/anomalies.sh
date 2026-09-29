@@ -123,6 +123,12 @@ an_build(){
       | xargs -0 -r jq -c '((input_filename | split("/"))[-2]) as $l
           | {key:$l, value:{name:(.fullname // .team.name // $l), region:((.team.region) // "")}}' 2>/dev/null \
       | jq -cs 'from_entries' > "$W/users.json"
+    # a SEDE pela regra única (gravada ou pela regex — lib/regions.sh), não só a gravada
+    declare -F rg_sites_json >/dev/null || source "${_LIBDIR:-${BASH_SOURCE[0]%/*}}/regions.sh"
+    if rg_sites_json "$c" "$W/sites.json" 2>/dev/null; then
+      jq -c --slurpfile S "$W/sites.json" 'with_entries(.value.region = ($S[0][.key] // .value.region))' "$W/users.json" > "$W/u2.json" \
+        && mv -f "$W/u2.json" "$W/users.json"
+    fi
     [[ -s "$W/users.json" ]] && resp_cache_store "$ucache" "$(cat "$W/users.json")"
   fi
   [[ -s "$W/users.json" ]] || printf '{}' > "$W/users.json"
@@ -137,9 +143,7 @@ an_build(){
     if resp_cache_fresh "$ecache" 300 "$cdir/ua-gate.json" "$cdir/regions.json" "$cdir/var/access.log"; then cp -f "$ecache" "$W/exp.json"
     else
       jq -sc '[ .[].login ] | unique' "$W/acc.json" "$W/sess.json" 2>/dev/null > "$W/logins.json" || printf '[]' > "$W/logins.json"
-      ug_expected_map "$c" "$(cat "$W/logins.json")" \
-        "$(jq -c 'with_entries(.value |= .region)' "$W/users.json" 2>/dev/null || echo '{}')" > "$W/exp.json" 2>/dev/null \
-        || printf '{}' > "$W/exp.json"
+      ug_expected_map "$c" "$(cat "$W/logins.json")" > "$W/exp.json" 2>/dev/null || printf '{}' > "$W/exp.json"
       [[ -s "$W/exp.json" ]] && resp_cache_store "$ecache" "$(cat "$W/exp.json")"
     fi
     [[ -s "$W/exp.json" ]] || printf '{}' > "$W/exp.json"

@@ -41,7 +41,7 @@ Livre**: submissões feitas em contests de turma não entram.
 
 A dificuldade tem **uma fonte só** no sistema (`lib/difficulty.sh` no servidor,
 `shared/difficulty.js` na web). A busca, a sugestão, o perfil, o sorteio de contest e esta
-página leem a mesma chave. Antes desta página rotular pela taxa por submissão, o mesmo
+página leem a mesma chave. Antes, esta página rotulava pela taxa por submissão, e o mesmo
 problema saía "fácil" na busca e "difícil" aqui (issue #30). A taxa por submissão continua na
 página como número, com o nome certo.
 
@@ -100,7 +100,7 @@ O card "**X% do acervo é mais fácil que este**" compara a **taxa de sucesso po
 - **Veredictos** — rosca com as famílias canônicas (contagem por submissão).
 - **Resolvedores distintos por linguagem** — usuários distintos com aceite naquela
   linguagem (quem resolveu em C e depois em Python conta nas duas). Extensões não
-  reconhecidas são fundidas em "Outros".
+  reconhecidas são fundidas em "Outros (ext. não reconhecidas)".
 - **Taxa de aceitação por linguagem** — aceitas ÷ submissões daquela linguagem; só
   linguagens com **≥3 submissões** aparecem (menos que isso é ruído).
 - **Submissões até o 1º aceite** — para cada usuário que resolveu, quantas submissões ele

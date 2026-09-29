@@ -316,6 +316,50 @@ Antes era um `span` inline antes do ponto do balão e do número: em coluna fixa
 não cabiam e o número vazava para a coluna vizinha (issue #24). O número (`.pv`) continua
 inteiro e sem quebra; no celular a ★ some e a informação fica no `title`.
 
+## Sedes: a regra ÚNICA (`lib/regions.sh` ⇄ `web/shared/regions-match.js`)
+
+Até 28/09/2026 uns 30 consumidores do `regions.json` casavam time→sede cada um do seu jeito (4 famílias
+de regra, 3 dialetos de regex, maiúsculas às vezes). A regra agora é uma só, com dois corpos — bash
+(jq + gawk) e JS — que o `smoke-regions-match.gjs.sh` compara sobre as mesmas árvores (as reais da
+Maratona inclusive, com `MOJ_REGIONS_EXTRA`) exigindo saída idêntica:
+
+- **Árvore** achatada em pré-ordem; nó identificado pelo **índice** (nomes se repetem). Nó com
+  `view:true` (ou filho de um) é **recorte**: nunca é a sede de ninguém.
+- **Sede** (uma por login): a **gravada** (`.team.region`) vence — casa o nome do 1º nó não-recorte
+  (minúsculas ASCII, sem espaço nas pontas); nome fora da árvore vira sede **órfã** sintética. Senão, o
+  nó não-recorte **mais fundo** cuja regex casa o login, sem diferenciar maiúsculas (empate: o 1º em
+  pré-ordem); se ele não é folha, o login "parou no pai" (flag `p`).
+- **Pertença**: a sede; o nó comum com o **mesmo nome** da sede (árvores que repetem as sedes em ramos
+  paralelos sem `view`, como a do mdp-teste-2026); o recorte com regex pela regex, e sem regex pelo nome
+  da sede; e **pai = soma dos filhos**, exceto de recorte para nó comum. A regex de nó comum decide só a
+  SEDE: não puxa de volta quem foi gravado em outro ramo.
+- **Regex** = subconjunto seguro que casa igual em JS, jq, gawk e PCRE (`\d`/`\w`/`\s` viram classes,
+  `(?:` vira `(`; `\b`, lookaround, classes POSIX, preguiçosos, hífen ambíguo em `[...]` e não-ASCII são
+  recusados). Nó com regex recusada fica sem regex e com `err` no `nodes.json`.
+- **Cache**: `var/regions-nodes.json` + `var/regions-map.tsv` (`login \t sede \t nós \t flag`),
+  refeitos quando muda o `regions.json`, o `registrations.json`, a lista de contas ou um `account.json`
+  — submissão não refaz. 2000 contas × 68 nós ≈ 0,1 s (regex compilada uma vez por nó).
+
+**Fases:** F3a (28/09) migrou os consumidores de escopo e credencial — escopo do staff (`region:<nó>` =
+pertença), `staff_regions`, etiquetas, gate de UA (login E lote de Máquinas/anomalias/preflight, agora com
+a MESMA sede), materialize de times e balão "1º da sede" (`smoke-regions-consumers.sh`). F3b (28/09) migrou
+os geradores: estatística (as fatias `r:` = pertença; `teams_idx.r` = a sede, `teams_idx.rs` = os nós, e o
+`statistics.js` filtra por eles, sem regex), Nutella (sede da imagem + nós da imagem), classificação (região =
+pertença ao nó; sede = a canônica — a gravada passa a valer; "parou no pai" = sem sede; auditoria ›
+CLASSIFICAÇÃO: zero diferença na LATAM), Animeitor (times de cada nó; o Geral sem folhas de recorte) e a capa
+do caderno. F3c: o relatório offline embute a árvore com o índice de cada nó (`RTREE`, sem regex) e
+`RMEM` (login → nós, calculado no servidor); placar, runs, staff e a análise da estatística filtram por eles.
+F4 (28/09): o placar ao vivo, a participação virtual, a prévia de escopo das Tarefas e as listas de
+sede (Times, Máquinas, semear escopo) usam a mesma regra (`smoke-score-regions.gjs.sh`). F5 (28/09): o painel
+**Evento › Sedes & escolas** em três modos — Simples (lista + "começa com" + atribuir colando), Intermediário
+(grupos › sedes, regras começa/contém/termina/lista) e Avançado (a árvore) —, vistas da MESMA árvore
+(`web/contest/admin/sites-model.js`, modo que não cabe fica desabilitado com o motivo; a regex é a verdade e o
+campo `rule` do nó só serve p/ a interface voltar do jeito que foi escrita), prévia no navegador com o gêmeo
+e salvar pelo `POST /contest/admin/regions`; a Central ganhou o item `regions`.
+`server/bin/regions-audit.sh <c>` mostra o que muda (sede no gate/materialize e nas etiquetas, membros
+de cada nó no placar e na estatística, e quem cada `.staff`/`.cstaff` com `region:<nome>` passa a ver).
+Em 28/09/2026, sobre os dados de produção (LATAM, mdp-teste e esquenta): **zero** diferenças.
+
 ## Recursos do placar (web/contest/score/)
 
 - **Bandeiras locais (offline):** a coluna `flag` (código de país ISO-2 ou estado `BR-SP`)
@@ -337,7 +381,7 @@ inteiro e sem quebra; no celular a ★ some e a informação fica no `title`.
   habilita **filtro por país/escola**. O logo é um data-URL embutido (offline). Editável na
   criação e no admin do contest.
 - **Relatório estático (31/08)**: o placar, o runs e o staff do relatório filtram por
-  sede com a MESMA árvore do placar ao vivo (`RTREE` com regex; nó de cima casa por login);
+  sede com a MESMA árvore do placar ao vivo (`RTREE` + `RMEM`: a pertença pela regra única de sedes, calculada no servidor);
   os documentos levados são os PUBLICADOS com o PDF ENVIADO vencendo o gerado e aparecem
   também no topo do index; a aba infra saiu. O FREEZE sobrevive ao encerramento: o
   `finish` grava `var/freeze-final.json` + copia os `placar*.txt` congelados p/
@@ -364,9 +408,11 @@ inteiro e sem quebra; no celular a ★ some e a informação fica no `title`.
   estatística (`by_region[...].view:true`) e a UI avisa que somar recortes com sedes conta
   em dobro. Sem a flag o nó se comporta como sempre (a LATAM 2026 tinha 307 times em ≥2
   fatias e a soma "sede a sede" dava 1.272 onde havia 965).
-- **Filtro por região** (`regions.json`, `GET /contest/regions`): árvore hierárquica; cada
-  entrada casa por **nome** (igualdade com a sede `.team.region` do time) **ou** pelo `regex`
-  no login (clássico).
+- **Filtro por região** (`regions.json`, `GET /contest/regions`): árvore hierárquica; o time
+  está no nó pela **regra única de sedes** (seção Sedes acima; `score-filters.js` roda o gêmeo JS
+  com a sede gravada de cada time, do `/contest/teams`): a sede gravada vence, senão a regex mais
+  funda; o pai soma os filhos; recorte pela regex. Sede guardada no navegador ({nome, regex}) é
+  resolvida p/ o nó; sem nó correspondente, vale o casamento antigo (nome OU regex).
 - **Modo anônimo** (`SCORE_ANON=1` no conf, ou toggle local): esconde o desempenho individual e
   mostra agregado — participantes, **quartis** por nº de problemas resolvidos, distribuição e
   resolvedores por problema. Forçado para não-admins quando `SCORE_ANON=1`.

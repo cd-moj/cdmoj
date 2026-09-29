@@ -78,7 +78,7 @@ while IFS= read -r u; do
       '{login:$l,password:$p,fullname:$n,email:$e,created_at:$t,updated_at:$t,status:"active",uname_changes:[]}
        + (if ($tm|length) > 0 then {team:$tm} else {} end)' \
       > "$d/account.json" || { skipj "$login" invalid; continue; }
-    : > "$d/history"
+    [[ -f "$d/history" ]] || : > "$d/history"   # nunca zera o de quem já submeteu (ver user_create)
     credj "$login" "$pass" "$full" "$email" >> "$tmpd/created.jsonl"
   fi
 done < <(jq -c '(.users // [])[]' <<<"$body")

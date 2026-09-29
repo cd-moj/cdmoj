@@ -18,26 +18,26 @@ export function makeStepProblemas(ctx) {
 
   function renderList() {
     listBox.innerHTML = '';
-    if (!d.problems.length) { listBox.append(el('p', { class: 'muted small' }, T('Nenhum problema ainda. Sorteie, busque no banco, ou adicione por ID.', 'No problems yet. Draw, search the bank, or add by ID.'))); return; }
+    if (!d.problems.length) { listBox.append(el('p', { class: 'muted small' }, T('Nenhum problema ainda. Sorteie, busque no banco, ou adicione por ID.', 'No problems yet. Draw, search the bank, or add by ID.', 'Todavía no hay problemas. Sortea, busca en el banco o agrega por ID.'))); return; }
     d.problems.forEach((p, i) => {
       const letter = el('input', { class: 'letter', value: p._letter || autoLetter(i), maxlength: '3' });
       letter.addEventListener('input', () => { p._letter = letter.value; });
-      const name = el('input', { value: p.name || '', placeholder: T('Nome exibido', 'Display name') });
+      const name = el('input', { value: p.name || '', placeholder: T('Nome exibido', 'Display name', 'Nombre mostrado') });
       name.addEventListener('input', () => { p.name = name.value; });
-      const idtxt = p.bank_id ? (T('banco: ', 'bank: ') + p.bank_id) : ((p.source || 'cdmoj') + ' / ' + p.problem_id);
+      const idtxt = p.bank_id ? (T('banco: ', 'bank: ', 'banco: ') + p.bank_id) : ((p.source || 'cdmoj') + ' / ' + p.problem_id);
       const genWarn = (p._private && !p._hasStmt)
-        ? el('div', { class: 'small', style: 'color:#b8860b;margin-top:.2rem' }, T('⏳ enunciado em geração (aguardando juiz)', '⏳ statement being generated (waiting for judge)'))
+        ? el('div', { class: 'small', style: 'color:#b8860b;margin-top:.2rem' }, T('⏳ enunciado em geração (aguardando juiz)', '⏳ statement being generated (waiting for judge)', '⏳ enunciado en generación (esperando al juez)'))
         : '';
       const extras = el('div', { class: 'small muted' },
         (p.languages || []).length ? '💻 ' + p.languages.join(' ') + ' · ' : '',
-        p._stmt_b64 ? T('📄 HTML herdado · ', '📄 inherited HTML · ') : '', p._stmt_pdf_b64 ? T('📕 PDF herdado · ', '📕 inherited PDF · ') : '');
+        p._stmt_b64 ? T('📄 HTML herdado · ', '📄 inherited HTML · ', '📄 HTML heredado · ') : '', p._stmt_pdf_b64 ? T('📕 PDF herdado · ', '📕 inherited PDF · ', '📕 PDF heredado · ') : '');
       // enunciado personalizado (HTML digitado + PDF anexado)
       const stmtWrap = el('div', { style: 'margin-top:.35rem' });
-      const stmtToggle = el('a', { class: 'small', href: '#', style: 'cursor:pointer' }, T('✎ enunciado personalizado', '✎ custom statement'));
+      const stmtToggle = el('a', { class: 'small', href: '#', style: 'cursor:pointer' }, T('✎ enunciado personalizado', '✎ custom statement', '✎ enunciado personalizado'));
       stmtToggle.addEventListener('click', (e) => {
         e.preventDefault();
         if (stmtWrap.firstChild) { stmtWrap.innerHTML = ''; return; }
-        const ta = el('textarea', { rows: '4', placeholder: T('HTML do enunciado (opcional; sobrescreve o do banco)', 'Statement HTML (optional; overrides the bank one)'), style: 'width:100%' });
+        const ta = el('textarea', { rows: '4', placeholder: T('HTML do enunciado (opcional; sobrescreve o do banco)', 'Statement HTML (optional; overrides the bank one)', 'HTML del enunciado (opcional; sobrescribe el del banco)'), style: 'width:100%' });
         ta.value = p._stmt || (p._stmt_b64 ? b64toUtf8(p._stmt_b64) : '');
         ta.addEventListener('input', () => { p._stmt = ta.value; });
         const pdfIn = el('input', { type: 'file', accept: '.pdf,application/pdf', style: 'max-width:220px' });
@@ -45,8 +45,8 @@ export function makeStepProblemas(ctx) {
           if (pdfIn.files[0]) { p._stmt_pdf_b64 = await fileToBase64(pdfIn.files[0]); renderList(); }
         });
         const pdfRow = el('div', { class: 'row', style: 'margin-top:.3rem' },
-          el('span', { class: 'small muted' }, T('PDF (opcional):', 'PDF (optional):')), pdfIn,
-          p._stmt_pdf_b64 ? el('button', { class: 'btn ghost', onclick: () => { delete p._stmt_pdf_b64; renderList(); } }, T('remover PDF', 'remove PDF')) : '');
+          el('span', { class: 'small muted' }, T('PDF (opcional):', 'PDF (optional):', 'PDF (opcional):')), pdfIn,
+          p._stmt_pdf_b64 ? el('button', { class: 'btn ghost', onclick: () => { delete p._stmt_pdf_b64; renderList(); } }, T('remover PDF', 'remove PDF', 'quitar PDF')) : '');
         stmtWrap.append(ta, pdfRow);
       });
       const up = el('button', { class: 'btn ghost', onclick: () => { if (i > 0) { [d.problems[i - 1], d.problems[i]] = [d.problems[i], d.problems[i - 1]]; renderList(); } } }, '↑');
@@ -61,17 +61,17 @@ export function makeStepProblemas(ctx) {
   const bank = makeBankPanel({
     api: ctx.bankApi,
     onAdd: (it) => addProblem({ kind: 'bank', bank_id: it.id, name: it.title || it.id, _private: it.private, _hasStmt: it.has_statement }),
-    searchLabel: T('Buscar problemas (públicos + seus privados)', 'Search problems (public + your private)'),
-    searchPlaceholder: T('🔎 Buscar problemas (públicos + os seus privados) — título ou id…', '🔎 Search problems (public + your private) — title or id…'),
+    searchLabel: T('Buscar problemas (públicos + seus privados)', 'Search problems (public + your private)', 'Buscar problemas (públicos + tus privados)'),
+    searchPlaceholder: T('🔎 Buscar problemas (públicos + os seus privados) — título ou id…', '🔎 Search problems (public + your private) — title or id…', '🔎 Buscar problemas (públicos + tus privados) — título o id…'),
     noQueryFilter: (items) => items.filter((it) => it.private),
-    emptyHint: T('você não tem problemas privados — digite para buscar no banco público', 'you have no private problems — type to search the public bank'),
+    emptyHint: T('você não tem problemas privados — digite para buscar no banco público', 'you have no private problems — type to search the public bank', 'no tienes problemas privados — escribe para buscar en el banco público'),
   });
 
   renderList();
   const root = el('div', { class: 'section' },
-    el('h2', {}, T('2 · Problemas', '2 · Problems')),
+    el('h2', {}, T('2 · Problemas', '2 · Problems', '2 · Problemas')),
     bank.el,
-    el('h3', { style: 'margin:.8rem 0 .2rem' }, T('Problemas do contest', 'Contest problems')), listBox);
+    el('h3', { style: 'margin:.8rem 0 .2rem' }, T('Problemas do contest', 'Contest problems', 'Problemas de la competencia')), listBox);
   return { el: root };
 }
 

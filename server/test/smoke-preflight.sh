@@ -65,11 +65,30 @@ EOF
 
 pass=0; fail=0
 check(){ if eval "$2"; then printf '  ok: %s\n' "$1"; ((pass++)); else printf '  FAIL: %s\n' "$1"; ((fail++)); fi; }
+# TRILÍNGUE (pt/en/es): TODO item de TODA execução leva label_en/detail_en/label_es/detail_es (string;
+# label não-vazio; detail vazio só se vazio nos três) e nada de português no en/es. Acumula por
+# execução — muitos itens (pool/langs fail, judges_warm, telao…) só existem em estados intermediários.
+I18N_BAD=""; I18N_SEEN=""
+i18n_scan(){
+  printf '%s' "$BODY" | jq -e '.checks' >/dev/null 2>&1 || return 0
+  local bad seen
+  bad="$(printf '%s' "$BODY" | jq -r '.checks[]
+      | select(([.label_en, .detail_en, .label_es, .detail_es] | map(type == "string") | all | not)
+               or ((.label_en // "") == "") or ((.label_es // "") == "")
+               or (((.detail // "") == "") != ((.detail_en // "") == ""))
+               or (((.detail // "") == "") != ((.detail_es // "") == ""))
+               or ([.label_en, .detail_en, .label_es, .detail_es] | map(tostring) | join(" ")
+                   | test("[ãõç]|ção|ções|não|você|também"; "i")))
+      | .id' 2>/dev/null)"
+  seen="$(printf '%s' "$BODY" | jq -r '.checks[].id' 2>/dev/null)"
+  [[ -n "$bad" ]] && I18N_BAD+=" $(printf '%s' "$bad" | tr '\n' ' ')"
+  I18N_SEEN+=" $(printf '%s' "$seen" | tr '\n' ' ')"
+}
 run(){ OUT="$(PATH_INFO="/contest/admin/preflight" REQUEST_METHOD=GET QUERY_STRING="contest=$CONTEST" \
   HTTP_AUTHORIZATION="Bearer $TOKEN" \
   CONTESTSDIR="$FIX" SESSIONDIR="$SESS" SPOOLDIR="$SPOOL" REGISTRYDIR="$REG" RUNDIR="$RUN" \
   bash "$ROUTER" <<<'' 2>&1)"
-  BODY="$(printf '%s' "$OUT" | awk 'f{print} /^\r?$/{f=1}')"; }
+  BODY="$(printf '%s' "$OUT" | awk 'f{print} /^\r?$/{f=1}')"; i18n_scan; }
 lvl(){ printf '%s' "$BODY" | jq -r --arg i "$1" 'first(.checks[]|select(.id==$i)|.level) // "(ausente)"'; }
 det(){ printf '%s' "$BODY" | jq -r --arg i "$1" 'first(.checks[]|select(.id==$i)|.detail) // ""'; }
 
@@ -235,6 +254,11 @@ jq -cn --argjson t "$NOW" '{at:$t, state:"ok", ok:true, final:true, final_at:$t}
 check "conferência final => ok \"Telão validado\""                 '[[ "$(lvl telao)" == ok && "$(printf "%s" "$BODY" | jq -r "first(.checks[]|select(.id==\"telao\")|.label)")" == "Telão validado" ]]'
 sed -i 's/,telao,/,/' "$C/conf"; run
 check "módulo telao desligado => checagem ausente"                   '[[ "$(lvl telao)" == "(ausente)" ]]'
+
+echo "== trilíngue: todo item de toda execução acima leva en + es (sem português) =="
+I18N_NSEEN="$(tr ' ' '\n' <<<"$I18N_SEEN" | sed '/^$/d' | sort -u | wc -l)"
+check "varredura cobriu muitos ids (>= 25 distintos; viu $I18N_NSEEN)" '(( I18N_NSEEN >= 25 ))'
+check "nenhum item sem label_en/detail_en/label_es/detail_es ou com PT no en/es" '[[ -z "${I18N_BAD// /}" ]] || { echo "      ids: $(tr " " "\n" <<<"$I18N_BAD" | sed "/^$/d" | sort | uniq -c | tr "\n" " ")"; false; }'
 
 echo ""; echo "RESULT: $pass passed, $fail failed"
 exit $(( fail > 0 ? 1 : 0 ))

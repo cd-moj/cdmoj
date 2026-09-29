@@ -180,8 +180,10 @@ ck "estatísticas: selects sede/país"       'grep -q "id=\"sRegion\"" "$R/stati
 ck "estatísticas: recortes embutidos"      'grep -q "by_region" "$R/statistics.html"'
 ck "estatísticas 2.0: ac_events/top_teams embutidos" \
   'grep -q "ac_events" "$R/statistics.html" && grep -q "top_teams" "$R/statistics.html"'
-ck "estatísticas: árvore de sedes (RTREE, com nó agregador)" \
-  'grep -q "const RTREE=\[{\"n\":\"Brasil\",\"d\":0,\"r\":" "$R/statistics.html"'
+ck "estatísticas: árvore de sedes (RTREE, com nó agregador) — com o índice do mapa e SEM regex" \
+  'grep -q "const RTREE=\[{\"i\":0,\"n\":\"Brasil\",\"d\":0," "$R/statistics.html" && ! grep -q "\"r\":\"^" "$R/statistics.html"'
+ck "placar/runs: RMEM (login → nós, regra única de sedes) embutido; o filtro não compila regex" \
+  'grep -q "var RTREE=.*, RMEM={" "$R/index.html" && grep -q "var RTREE=.*, RMEM={" "$R/runs.html" && ! grep -q "safeRe" "$R/index.html"'
 # --- mlinux.html (nutellaboot) ---
 ck "mlinux: página gerada do cache"        '[[ -s "$R/mlinux.html" ]]'
 ck "mlinux: entra na NAV das outras"       'grep -q "mlinux.html" "$R/index.html"'
@@ -240,6 +242,24 @@ ck "EN: html lang=en"            'grep -q "<html lang=\"en\">" "$EN/index.html"'
 ck "EN: filtros traduzidos"      'grep -q "<label>Flag: <select id=\"fFlag\">" "$EN/index.html" && grep -q "<label>Site: <select id=\"fRegion\">" "$EN/index.html" && grep -q "data-tpl=\"Showing %s of %s teams\"" "$EN/index.html"'
 ck "EN: sem PT vazando"          '! grep -qE "<dt>Competição</dt>|<th>Equipe</th>|Tarefas do staff|>Bandeira:|>Sede:" "$EN/index.html" "$EN/staff-tasks.html"'
 ck "EN: estatística em inglês"   'grep -q "\"en\"" "$EN/statistics.html"'
+
+# --- i18n: e em espanhol (LOCALE=es) — e o documento `es` publicado entra no pacote -------
+sed -i '/^LOCALE=en$/d' "$C/conf"; printf 'LOCALE=es\n' >> "$C/conf"
+printf '%%PDF-1.4 CUADERNILLO_ES\n' > "$C/docs/contest.es.pdf"
+jq -cn '{caderno_version:"v1.0",published:["contest.pt","contest.es"]}' > "$C/docs/config.json"
+ES="$FIX/res"; CONTESTSDIR="$FIX" MOJ_PROBLEMS_DIR="$PKG" bash "$ROOT/score/report-gen.sh" rp "$ES" >/dev/null 2>&1
+ck "ES: chrome traduzido"        'grep -q ">🏆 Marcador<" "$ES/index.html" && grep -q ">📊 Estadísticas<" "$ES/index.html"'
+ck "ES: índice traduzido"        'grep -q "<dt>Competencia</dt>" "$ES/index.html" && grep -q "<th>Autor</th>" "$ES/index.html"'
+ck "ES: placar traduzido"        'grep -q "<th>Equipo</th>" "$ES/index.html" && grep -q "<th>Pen.</th>" "$ES/index.html"'
+ck "ES: runs/clar/staff"         'grep -q "<th>Veredicto</th>" "$ES/runs.html" && grep -q "Todos los envíos" "$ES/runs.html" && grep -q "<th>Tipo</th>" "$ES/staff-tasks.html"'
+ck "ES: documentos (+ o es)"     'grep -q "Cuadernillo de problemas" "$ES/documentos.html" && [[ -s "$ES/documentos/contest.es.pdf" ]] && grep -q "contest.es.pdf" "$ES/documentos.html"'
+ck "ES: html lang=es"            'grep -q "<html lang=\"es\">" "$ES/index.html"'
+ck "ES: filtros traduzidos"      'grep -q "<label>Bandera: <select id=\"fFlag\">" "$ES/index.html" && grep -q "data-tpl=\"Mostrando %s de %s equipos\"" "$ES/index.html"'
+ck "ES: sem PT vazando"          '! grep -qE "<dt>Competição</dt>|<th>Equipe</th>|Tarefas do staff|>Bandeira:|Todas as submissões|Perguntas e respostas" "$ES/index.html" "$ES/staff-tasks.html" "$ES/runs.html" "$ES/clarifications.html"'
+ck "ES: sem EN vazando"          '! grep -qE ">🏆 Scoreboard<|<th>Team</th>|Staff tasks|>Flag:|All submissions" "$ES/index.html" "$ES/staff-tasks.html" "$ES/runs.html"'
+ck "ES: estatística em espanhol" 'grep -q "const LANG=\"es\"" "$ES/statistics.html" && grep -q "function T(pt,en,es)" "$ES/statistics.html"'
+rm -f "$C/docs/contest.es.pdf"; jq -cn '{caderno_version:"v1.0",published:["contest.pt"]}' > "$C/docs/config.json"
+sed -i '/^LOCALE=es$/d' "$C/conf"
 
 # --- COORTES: um placar por visão (o build.sh gera um TXT por coorte) --------------------
 # O relatório não pode filtrar o TXT pronto (a estrela de first-to-solve é mínimo global —

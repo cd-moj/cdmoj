@@ -546,7 +546,8 @@ def r_staff_queue(contest, q, params):
     pr_reconcile_balloons: .score-dirty mais novo que .balloon-stamp, fora do piso de 10 s),
     a requisição DECLINA e o bash reconcilia + serve. Escopo do staff: só via .scope-cache
     FRESCO (senão decline — o bash o recomputa). Fidelidade: o find do bash lista TODO *.json
-    do dir (staff-filters.json inclusive — a linha fantasma do admin é comportamento)."""
+    do dir, mas só entra o que tem `id` (select((.id // "") != "") do PICK) — o
+    staff-filters.json (e o badges.json legado) viravam uma linha fantasma na fila do admin."""
     sess = load_session(params)
     if not (sess and sess[0] == contest):
         raise Decline("queue exige sessão do contest")
@@ -593,6 +594,9 @@ def r_staff_queue(contest, q, params):
             raise Decline("tarefa com JSON inválido")
         if not isinstance(t, dict):
             t = {}
+        tid = t.get("id")                        # .id // "" : null e false contam como vazio
+        if tid is None or tid is False or tid == "":
+            continue
         if vis is not None and (t.get("login") or "") not in vis:
             continue
         g = t.get

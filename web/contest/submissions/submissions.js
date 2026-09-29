@@ -14,7 +14,7 @@ const G = { contest: CONTEST, auth: true };
 
 async function boot() {
   const tableEl = document.getElementById('submissionsTable');
-  if (!CONTEST) { tableEl.innerHTML = '<div class="error-box">' + T('Contest não informado.', 'Contest not specified.') + '</div>'; return; }
+  if (!CONTEST) { tableEl.innerHTML = '<div class="error-box">' + T('Contest não informado.', 'Contest not specified.', 'Competencia no especificada.') + '</div>'; return; }
   const { basic, st } = await initContestShell(CONTEST);
   if (!st || !st.logged_in) { location.href = '/contest/?c=' + enc(CONTEST); return; }
   const [pr, ui] = await Promise.all([
@@ -26,7 +26,7 @@ async function boot() {
     filterEl: document.getElementById('subFilter'), tableEl });
   await table.load();
   if (!table.submissions.length) tableEl.append(el('p', { class: 'small muted' },
-    T('Para enviar uma solução, use a página do contest.', 'To submit a solution, use the contest page.')));
+    T('Para enviar uma solução, use a página do contest.', 'To submit a solution, use the contest page.', 'Para enviar una solución, usa la página de la competencia.')));
   window.addEventListener('pagehide', () => table.stop());
 }
 boot();

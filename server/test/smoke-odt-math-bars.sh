@@ -27,7 +27,8 @@
 #      de conteúdo alto (fração, \binom, vmatrix); `[l, r)` com delimitadores literais (era ¿); `cases`
 #      com o fecho vazio (era a chave espelhada); `\#`/`\&`/`\_` como texto (eram ¿ / ∧ / índice);
 #      relação na ponta do grupo (`$\le 10^9$`, `aligned`) com o grupo vazio `{}` (era ¿); operador
-#      sozinho no índice/expoente (`\mathbb{R}^+`, `\Sigma^*`) como texto (era ¿).
+#      sozinho no índice/expoente (`\mathbb{R}^+`, `\Sigma^*`) como texto (era ¿), e a fórmula de um
+#      símbolo só (`$\oplus$`) como operador (era DejaVu no LibreOffice 25.2).
 # O papel impresso (nenhum `¿` no pdftotext) é afirmado pelo render-docs.sh, que roda o soffice.
 # Precisa de pandoc + python3 (dev e imagem têm); senão SKIP. Roda também dentro da imagem.
 set -u
@@ -193,9 +194,10 @@ ck "as barras nuas saem em par"                    '[[ "$(grep -o "fence=\"true\
 ck "2ª passada não muda nada"                      '[[ "$(python3 "$PY" "$FIX/fn.odt")" == 0 ]]'
 
 echo "== imagens: tamanho da web (px × 0,75 pt) ou do DPI, teto na área útil, largura do autor =="
-# Área útil do caderno-reference.odt: A4 com margens de 2,5 cm = 453,54 pt de largura; altura do corpo
-# (menos o rodapé de 0,6 pol) × 0,9 = 591,26 pt. Mudou o reference-doc? Mude aqui.
-MAXW=453.54; MAXH=591.26
+# Área útil do caderno-reference.odt: A4 com margens laterais de 2,5 cm = 453,54 pt de largura; altura
+# do corpo (margens 2,5/1,8 cm, menos o rodapé: 0,5 cm + 0,6 cm) × 0,9 = 619,94 pt. Mudou o
+# reference-doc? Mude aqui (o valor sai de `text_box` do próprio script).
+MAXW=453.54; MAXH=619.94
 python3 - "$FIX/img.html" "$(mml 'x^2 + |y|')" <<'PY'
 import sys, zlib, struct, base64
 def png(w, h, dpi=None):
@@ -286,6 +288,11 @@ X="$(fx '-x + n!')";                           DBG="$X"; ck "-x e n!: sem grupo 
 # compiladores#analisador-lexico-pascal); vira texto. O primo, o `-1` e o índice comum ficam.
 X="$(fx '\mathbb{R}^+ \cup \Sigma^* \cup x^- \cup a_+')"; DBG="$X"
 ck "^+ ^* ^- _+: o operador do índice vira texto" 'grep -qF "<mtext>+</mtext></msup>" <<<"$X" && grep -qF "<mtext>*</mtext></msup>" <<<"$X" && grep -qF "<mtext>−</mtext></msup>" <<<"$X" && grep -qF "<mtext>+</mtext></msub>" <<<"$X"'
+# fórmula que é SÓ um símbolo (`$\oplus$` em "onde $\oplus$ é o XOR"): o pandoc a emite como <mi> e o
+# LibreOffice 25.2 a desenhava no DejaVu Sans; vira operador com operandos vazios (OpenSymbol)
+X="$(fx '\oplus')";                           DBG="$X"; ck "\oplus sozinho: vira <mo> com grupos vazios" 'grep -qF "<mrow><mrow /><mo>⊕</mo><mrow /></mrow>" <<<"$X"'
+X="$(fx 'v \oplus r')";                        DBG="$X"; ck "v \oplus r: intocado (sem grupo vazio)"   'grep -qF "<mo>⊕</mo>" <<<"$X" && ! grep -qF "<mrow />" <<<"$X"'
+X="$(fx '\mathbb{R}')";                        DBG="$X"; ck "\mathbb{R} sozinho: segue <mi> (letra)"    '! grep -qF "<mo>ℝ</mo>" <<<"$X"'
 X="$(fx "f' + f^{-1} + x_i^2")";               DBG="$X"; ck "f', f^{-1} e x_i^2: intocados"          'grep -q "<math" <<<"$X" && ! grep -q "<mtext>" <<<"$X"'
 ALL="$(mml '(x_1, y_1) + [l, r) + |a| + \binom{n}{2} + \begin{cases} 1 & n = 0 \end{cases} + a \# b + \le')"
 X1="$(python3 "$PY" --fix <<<"$ALL")"; X2="$(python3 "$PY" --fix <<<"$X1")"; DBG="$X1 ≠ $X2"

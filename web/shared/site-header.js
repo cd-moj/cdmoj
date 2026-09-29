@@ -13,15 +13,15 @@ import { T, getLang } from '/shared/i18n.js';
 import { mkLangToggle } from '/shared/lang-toggle.js';
 
 const NAV = [
-  { key: 'home',     href: '/',          pt: 'Início',       en: 'Home' },
-  { key: 'treino',   href: '/treino/',   pt: 'Treino Livre', en: 'Free Training' },
-  { key: 'contests', href: '/contests/', pt: 'Contests',     en: 'Contests' },
-  { key: 'noticias', href: '/noticias/', pt: 'Notícias',     en: 'News' },
-  { key: 'status',   href: '/status/',   pt: 'Status',       en: 'Status' },
+  { key: 'home',     href: '/',          pt: 'Início',       en: 'Home',          es: 'Inicio' },
+  { key: 'treino',   href: '/treino/',   pt: 'Treino Livre', en: 'Free Training', es: 'Entrenamiento libre' },
+  { key: 'contests', href: '/contests/', pt: 'Contests',     en: 'Contests',      es: 'Competencias' },
+  { key: 'noticias', href: '/noticias/', pt: 'Notícias',     en: 'News',          es: 'Noticias' },
+  { key: 'status',   href: '/status/',   pt: 'Status',       en: 'Status',        es: 'Estado' },
   // Docs = o site de documentação (/docs/ serve o HTML renderizado de docs/html/ — manuais,
   // API, formato de pacote, gestão de orgs/coleções). A ajuda do ALUNO (como enviar: E/S,
   // extensões, templates) segue viva nos links contextuais (hero, página do problema, contest).
-  { key: 'docs',     href: '/docs/',     pt: 'Docs',         en: 'Docs' },
+  { key: 'docs',     href: '/docs/',     pt: 'Docs',         en: 'Docs',          es: 'Docs' },
 ];
 
 // seletor pt/en: shared/lang-toggle.js (fonte única; aqui RECARREGA, porque os módulos leem LANG no import)
@@ -50,7 +50,7 @@ export function mountSiteHeader(opts = {}) {
   brand.append(
     el('img', { src: '/shared/assets/logo_moj.svg', alt: 'MOJ' }),
     document.createTextNode(' MOJ '),
-    el('span', { class: 'slogan' }, T('Melhor Online Judge', 'Best Online Judge')),
+    el('span', { class: 'slogan' }, T('Melhor Online Judge', 'Best Online Judge', 'Mejor Online Judge')),
     document.createTextNode(' '),
     el('span', { class: 'badge-beta' }, 'BETA'),
   );
@@ -60,7 +60,7 @@ export function mountSiteHeader(opts = {}) {
   const mkLink = (n) => {
     const attrs = { href: n.href };
     if (n.target) attrs.target = n.target;
-    const a = el('a', attrs, T(n.pt, n.en));
+    const a = el('a', attrs, T(n.pt, n.en, n.es));
     if (n.key === active) a.classList.add('active');
     return a;
   };

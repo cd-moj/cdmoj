@@ -16,12 +16,12 @@ const app = document.getElementById('app');
 const enc = encodeURIComponent;
 
 async function boot() {
-  if (!CONTEST) { app.innerHTML = '<div class="error-box">' + T('Contest não informado.', 'Contest not specified.') + '</div>'; return; }
+  if (!CONTEST) { app.innerHTML = '<div class="error-box">' + T('Contest não informado.', 'Contest not specified.', 'Competencia no especificada.') + '</div>'; return; }
   const { st } = await initContestShell(CONTEST);
   if (!st || !st.logged_in) {
     app.innerHTML = '';
-    app.append(el('div', { class: 'section' }, el('h2', {}, T('🔒 Entre no contest', '🔒 Log in to the contest')),
-      el('a', { class: 'btn', href: contestLoginHref(CONTEST, hereAsNext()) }, T('Login do contest', 'Contest login'))));
+    app.append(el('div', { class: 'section' }, el('h2', {}, T('🔒 Entre no contest', '🔒 Log in to the contest', '🔒 Inicia sesión en la competencia')),
+      el('a', { class: 'btn', href: contestLoginHref(CONTEST, hereAsNext()) }, T('Login do contest', 'Contest login', 'Acceso a la competencia'))));
     return;
   }
   app.innerHTML = '';

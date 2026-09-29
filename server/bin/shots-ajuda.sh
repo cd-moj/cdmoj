@@ -21,6 +21,10 @@ set -uo pipefail
 cd "$(dirname "$(readlink -f "$0")")/../.." || exit 1   # raiz do cdmoj
 ROOT="$PWD"
 OUT="${SHOT_OUT:-$ROOT/web/contest/ajuda/img}"   # SHOT_OUT=<dir>: fotos de conferência fora do repo
+# SHOT_LOCALE=pt|es: conferir as telas em outro idioma. As fotos do repo são as em INGLÊS (ver
+# abaixo) — outro idioma só com SHOT_OUT, senão sobrescreveria a documentação.
+case "${SHOT_LOCALE:-en}" in en) ;; pt|es) [[ -n "${SHOT_OUT:-}" ]] || { echo "SHOT_LOCALE=${SHOT_LOCALE} exige SHOT_OUT=<dir fora do repo>" >&2; exit 2; } ;;
+  *) echo "SHOT_LOCALE: pt, en ou es" >&2; exit 2 ;; esac
 : "${SHOT_DELAY_MS:=2600}"
 : "${SHOT_W:=1280}"
 : "${SHOT_H:=900}"
@@ -49,7 +53,7 @@ mkdir -p "$C/var" "$C/users" "$C/print-requests" "$C/review" "$C/enunciados"
   # ⚠ LOCALE=en: as telas dos tutoriais saem em INGLÊS de propósito — o tutorial é lido por
   # quem compete em prova internacional, e captura em PT amarraria a documentação ao Brasil.
   # O texto do tutorial continua bilíngue; o que a foto mostra é a interface em inglês.
-  printf 'CONTEST_TYPE=icpc\nLOCALE=%s\n' "${SHOT_LOCALE:-en}"     # SHOT_LOCALE=pt: conferir a tela em português
+  printf 'CONTEST_TYPE=icpc\nLOCALE=%s\n' "${SHOT_LOCALE:-en}"     # SHOT_LOCALE=pt|es: conferir a tela em português/espanhol
   # FREEZE_TIME é EPOCH ABSOLUTO (não minutos): congela na última hora
   printf 'CONTEST_START=%s\nCONTEST_END=%s\nFREEZE_TIME=%s\n' "$((NOW-7200))" "$((NOW+3600))" "$((NOW-1800))"
   printf 'PRINT=1\nMANUAL_VERDICT=1\nREVIEW_JUDGES=2\n'

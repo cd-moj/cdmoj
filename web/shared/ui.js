@@ -1,5 +1,5 @@
 // shared/ui.js — helpers de DOM, formatação e área de autenticação (compartilhados).
-import { t, T } from './i18n.js';
+import { t, T, uiLocale } from './i18n.js';
 import { status, login, logout, getToken } from './auth.js';
 import { apiGet } from './api.js';
 
@@ -43,8 +43,8 @@ export function verdictScore(v) {
 export function groupsText(groups) {
   if (!Array.isArray(groups) || !groups.length) return '';
   return groups.map((g, i) => {
-    const n = `${T('Grupo', 'Group')} ${i + 1}`;
-    if (g.earned == null) return `${n}: ${T('não executado', 'not run')}`;
+    const n = `${T('Grupo', 'Group', 'Grupo')} ${i + 1}`;
+    if (g.earned == null) return `${n}: ${T('não executado', 'not run', 'no ejecutado')}`;
     const val = g.max != null ? `${g.earned}/${g.max}` : String(g.earned);
     return `${g.earned > 0 ? '✓' : '✗'} ${n} (${val})`;
   }).join(' · ');
@@ -53,19 +53,19 @@ export function groupsText(groups) {
 // testes — renderiza o que a API der (a redação por modo é do servidor). '' se sem dados.
 export function resumoText(s) {
   if (!s) return '';
-  if (s.heur_score != null) return `Score ${s.heur_score}` + (s.heur_adjusted != null ? ` · ${T('ajustado', 'adjusted')} ${s.heur_adjusted}` : '');
+  if (s.heur_score != null) return `Score ${s.heur_score}` + (s.heur_adjusted != null ? ` · ${T('ajustado', 'adjusted', 'ajustado')} ${s.heur_adjusted}` : '');
   if (s.score_kind === 'points' || (Array.isArray(s.groups) && s.groups.length)) {
-    const pts = s.score != null ? `${s.score}${s.score_max != null ? '/' + s.score_max : ''} ${T('pontos', 'points')}` : '';
+    const pts = s.score != null ? `${s.score}${s.score_max != null ? '/' + s.score_max : ''} ${T('pontos', 'points', 'puntos')}` : '';
     const g = groupsText(s.groups);
     return pts && g ? `${pts} · ${g}` : (pts || g);
   }
-  if (s.total != null && s.total > 0) return `${T('Passou em', 'Passed')} ${s.correct != null ? s.correct : 0}/${s.total} ${T('testes', 'tests')}` + (s.score != null ? ` (${s.score}%)` : '');
+  if (s.total != null && s.total > 0) return `${T('Passou em', 'Passed', 'Aprobado')} ${s.correct != null ? s.correct : 0}/${s.total} ${T('testes', 'tests', 'pruebas')}` + (s.score != null ? ` (${s.score}%)` : '');
   if (s.score != null) return `${s.score}%`;
   return '';
 }
 export function fmtDate(epoch) {
   const d = new Date(Number(epoch) * 1000);
-  return isNaN(d.getTime()) ? '-' : d.toLocaleString();
+  return isNaN(d.getTime()) ? '-' : d.toLocaleString(uiLocale());
 }
 
 // --- avatar do treino: foto de perfil ou círculo de iniciais (cor estável) ---
@@ -162,11 +162,11 @@ export async function renderAuthArea(mount, contest, onChange) {
     wrap.append(trigger, panel);
     const dd = attachDropdown(trigger, panel, wrap, { fixedPos: true });
     const item = (href, label) => el('a', { class: 'menu-item', role: 'menuitem', href }, label);
-    if (st.login) panel.append(item('/treino/stat/?user=' + encodeURIComponent(st.login), '📊 ' + T('Minhas estatísticas', 'My statistics')));
-    if (canCreate) panel.append(item('/problemas/', '🗂 ' + T('Gestão de Problemas', 'Problem Management')));
-    panel.append(item('/treino/perfil/', '⚙ ' + T('Perfil', 'Profile')));
-    if (st.is_admin) panel.append(item('/treino/admin/', '🛡 ' + T('Admin', 'Admin')));
-    if (canCreate) panel.append(item('/treino/criar/', '➕ ' + T('Criar contest', 'Create contest')));
+    if (st.login) panel.append(item('/treino/stat/?user=' + encodeURIComponent(st.login), '📊 ' + T('Minhas estatísticas', 'My statistics', 'Mis estadísticas')));
+    if (canCreate) panel.append(item('/problemas/', '🗂 ' + T('Gestão de Problemas', 'Problem Management', 'Gestión de Problemas')));
+    panel.append(item('/treino/perfil/', '⚙ ' + T('Perfil', 'Profile', 'Perfil')));
+    if (st.is_admin) panel.append(item('/treino/admin/', '🛡 ' + T('Admin', 'Admin', 'Admin')));
+    if (canCreate) panel.append(item('/treino/criar/', '➕ ' + T('Criar contest', 'Create contest', 'Crear competencia')));
     panel.append(el('div', { class: 'menu-sep' }));
     panel.append(el('button', { class: 'menu-item', role: 'menuitem', onclick: () => { dd.close(); doLogout(); } }, t('logout')));
     mount.append(wrap);
@@ -186,7 +186,7 @@ export async function renderAuthArea(mount, contest, onChange) {
   if (contest === 'treino') {
     kids.push(el('a', {
       class: 'small', href: '/treino/cadastro/',
-      title: T('Criar uma conta no Treino Livre', 'Create a Free Training account'), style: 'font-weight:700',
+      title: T('Criar uma conta no Treino Livre', 'Create a Free Training account', 'Crear una cuenta en el Entrenamiento libre'), style: 'font-weight:700',
     }, t('create_account')));
   }
   mount.append(...kids);

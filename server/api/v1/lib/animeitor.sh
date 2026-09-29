@@ -208,33 +208,47 @@ an_derive(){
     bash "$AN_RUNS_SH" "$c" "$v" --teams 2>/dev/null | cut -f1 | jq -Rcn --arg v "$v" '{id:$v, logins:[inputs | select(length > 0)]}' >> "$W/views.jsonl"
   done < <(ch_views "$c" 2>/dev/null)
   [[ -s "$W/views.jsonl" ]] || jq -Rcn '{id:"public", logins:[inputs | select(length > 0)]}' "$W/all.txt" > "$W/views.jsonl"
-  # sede de cada conta (campo .team.region) — UMA varredura (find|xargs jq), login pelo nome do dir
-  find "$d/users" -mindepth 2 -maxdepth 2 -name account.json -print0 2>/dev/null \
-    | xargs -0 -r jq -c '{l: (input_filename | split("/") | .[-2]), r: (.team.region // "")} | select(.r != "")' 2>/dev/null \
-    | jq -cs 'map({key: .l, value: .r}) | from_entries' > "$W/reg.json"
-  [[ -s "$W/reg.json" ]] || printf '{}' > "$W/reg.json"
+  # quem ESTÁ em cada nó da árvore, pela regra ÚNICA de sedes (lib/regions.sh): {índice do nó: [logins]} —
+  # o índice é o da pré-ordem (rg_flat), o mesmo que o jq abaixo anota em cada nó (_i). Antes: regex do nó
+  # (diferenciando maiúsculas) OU .team.region == nome, somando os filhos.
+  declare -F rg_map >/dev/null || source "${_LIBDIR:-${BASH_SOURCE[0]%/*}}/regions.sh"
+  printf '{}' > "$W/mem.json"
+  local rgm; if rgm="$(rg_map "$c" 2>/dev/null)"; then
+    jq -Rn 'reduce (inputs | split("\t") | .[0] as $l | (.[2] | split(",")[] | select(length > 0)) | [., $l]) as $x
+              ({}; .[$x[0]] += [$x[1]])' "$rgm" > "$W/mem.json" 2>/dev/null || printf '{}' > "$W/mem.json"
+  fi
   { [[ -s "$d/regions.json" ]] && jq -c 'if type == "array" then . else [] end' "$d/regions.json" 2>/dev/null || printf '[]'; } > "$W/tree.json"
   [[ -s "$W/tree.json" ]] || printf '[]' > "$W/tree.json"
   ch_get "$c" > "$W/coh.json"
-  jq -n --rawfile allraw "$W/all.txt" --slurpfile views "$W/views.jsonl" --slurpfile reg "$W/reg.json" \
+  jq -n --rawfile allraw "$W/all.txt" --slurpfile views "$W/views.jsonl" --slurpfile mem "$W/mem.json" \
         --slurpfile tree "$W/tree.json" --slurpfile coh "$W/coh.json" '
+    # índice de PRÉ-ORDEM em cada nó (_i; o mesmo do rg_flat de lib/regions.sh) e o recorte herdado (_v);
+    # subregions que não é lista = sem filhos (como no rg_flat)
+    def annot($i; $v):
+      reduce .[]? as $n ({out: [], i: $i};
+        if ($n | type) != "object" then .
+        else .i as $me | ($v or ($n.view == true)) as $vv
+          | ((if (($n.subregions // []) | type) == "array" then ($n.subregions // []) else [] end) | annot($me + 1; $vv)) as $sub
+          | .out += [$n + {_i: $me, _v: $vv, subregions: $sub.out}] | .i = $sub.i end);
     def esc: gsub("(?<c>[.+*?()\\[\\]{}|^$\\\\#/-])"; "\\\(.c)");
     def rustok: (test("\\(\\?[=!<]|\\\\[1-9]") | not);
     def clean: gsub("[/\\n\\r\\t]"; " ") | gsub("^ +| +$"; "") | .[0:64];
     ($allraw | split("\n") | map(select(length > 0))) as $all
-    | ($reg[0] // {}) as $R
+    | ($mem[0] // {}) as $M
     | def pick($rx; $set):
         ($set | unique) as $s
         | if ($s | length) == 0 then {codes: [], kind: "list"}
           elif ($rx != "" and ($rx | rustok) and (([ $all[] | select(try test($rx) catch false) ] | unique) == $s)) then {codes: [$rx], kind: "regex"}
           elif ($s == ($all | unique)) then {codes: [".*"], kind: "regex"}
           else {codes: ["^(" + ($s | map(esc) | join("|")) + ")$"], kind: "list"} end;
-      def nodeset($n): ([ $all[] | select((($n.regex // "") != "" and (try test($n.regex) catch false)) or (($R[.] // "") == ($n.name // "\u0000"))) ]
-                        + [ ($n.subregions // [])[] | nodeset(.)[] ]) | unique;
+      def nodeset($n): (($M[$n._i | tostring] // []) - (($M[$n._i | tostring] // []) - $all)) | unique;
       def leaves($n): if (($n.subregions // []) | length) == 0 then [$n] else [ $n.subregions[] | leaves(.)[] ] end;
     ([ $views[] | {key: .id, value: .logins} ] | from_entries) as $V
     | ($V.public // $all) as $base
-    | ([ $tree[0][] | leaves(.)[] ]) as $LV
+    | ($tree[0] | if type == "array" then annot(0; false).out else [] end) as $T
+    # sedes do Geral = as FOLHAS da árvore que não são recorte (a folha de recorte repete a sede — "CE,
+    # Fortaleza" saía duas vezes no mesmo placar)
+    | ([ $T[] | leaves(.)[] | select(._v | not) ]) as $LV
     | def sites($nodes; $within):
         [ $nodes[] | . as $n | (nodeset($n) - ((nodeset($n)) - $within)) as $s | select(($s | length) > 0)
           | pick(($n.regex // ""); $s) as $p
@@ -252,7 +266,7 @@ an_derive(){
                       (if ($LV | length) > 0 then sites($LV; $s)
                        else [ {name: "Geral", source: {kind: "whole", id: $id}, n: ($s | unique | length), codes: $p.codes, kind: $p.kind} ] end)
                     else [] end) } ]
-      + [ $tree[0][] | select(((.subregions // []) | length) > 0) | . as $n
+      + [ $T[] | select(((.subregions // []) | length) > 0) | . as $n
           | (nodeset($n) - (nodeset($n) - $base)) as $s | select(($s | length) > 0)
           | pick(($n.regex // ""); $s) as $p
           | { name: (($n.name // "") | clean), source: {kind: "region", id: ($n.name // "")}, n: ($s | length),

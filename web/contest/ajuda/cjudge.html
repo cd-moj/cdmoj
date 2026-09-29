@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="pt-br" data-en-doctitle="MOJ — the .cjudge role (chief judge)">
+<html lang="pt-br" data-en-doctitle="MOJ — the .cjudge role (chief judge)" data-es-doctitle="MOJ — el rol .cjudge (juez principal)">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -15,20 +15,20 @@
         <span class="slogan">Melhor Online Judge</span></a>
       <div class="spacer"></div>
       <nav class="navlinks">
-        <a href="/docs/MANUAL-JUIZ.html" target="_blank" data-en="Judge manual">Manual dos juízes</a>
-        <a href="/docs/" target="_blank" data-en="Documentation">Documentação</a>
+        <a href="/docs/MANUAL-JUIZ.html" data-en-href="/docs/en/MANUAL-JUIZ.html" data-es-href="/docs/es/MANUAL-JUIZ.html" target="_blank" data-en="Judge manual" data-es="Manual del juez">Manual dos juízes</a>
+        <a href="/docs/" target="_blank" data-en="Documentation" data-es="Documentación">Documentação</a>
       </nav>
     </div>
   </header>
 
   <main class="container">
     <div class="section">
-      <h1 data-en="👑 The .cjudge role — chief judge">👑 O papel .cjudge — juiz-chefe</h1>
+      <h1 data-en="👑 The .cjudge role — chief judge" data-es="👑 El rol .cjudge — juez principal">👑 O papel .cjudge — juiz-chefe</h1>
       <div class="rolehead">
         <span class="em">👑</span>
         <div>
           <code>alguem.cjudge</code>
-          <div class="d" data-en="You are a judge with the last word: everything a judge does, plus resolving conflicts, seeing the names, tuning the verdict options and keeping the queue moving. You are NOT a full administrator — the contest configuration stays with the admin.">
+          <div class="d" data-en="You are a judge with the last word: everything a judge does, plus resolving conflicts, seeing the names, tuning the verdict options and keeping the queue moving. You are NOT a full administrator — the contest configuration stays with the admin." data-es="Eres un juez con la última palabra: todo lo que hace un juez, más resolver conflictos, ver los nombres, ajustar las opciones de veredicto y mantener la cola en movimiento. NO eres un administrador completo — la configuración de la competencia se queda con el admin.">
             Você é juiz com a última palavra: tudo que um juiz faz, mais resolver conflitos, ver os
             nomes, ajustar as opções de veredicto e manter a fila andando. Você <b>não</b> é
             administrador pleno — a configuração da prova continua com o admin.
@@ -36,14 +36,14 @@
         </div>
       </div>
       <nav class="rolenav">
-        <a href="/contest/ajuda/competidor.html">🏁 <span data-en="competitor">competidor</span></a>
+        <a href="/contest/ajuda/competidor.html">🏁 <span data-en="competitor" data-es="competidor">competidor</span></a>
         <a href="/contest/ajuda/staff.html">🖨️ .staff</a>
         <a href="/contest/ajuda/cstaff.html">🏷️ .cstaff</a>
         <a href="/contest/ajuda/animeitor.html">🎥 .animeitor</a>
         <a href="/contest/ajuda/judge.html">⚖️ .judge</a>
         <a class="cur" href="/contest/ajuda/cjudge.html">👑 .cjudge</a>
       </nav>
-      <p class="small muted" style="margin:.7rem 0 0" data-en-html="The screenshots show the interface in <b>English</b> — the default of an international contest. In a contest set to Portuguese the same buttons appear translated.">
+      <p class="small muted" style="margin:.7rem 0 0" data-en-html="The screenshots show the interface in <b>English</b> — the default of an international contest. In a contest set to Portuguese the same buttons appear translated." data-es-html="Las capturas de pantalla muestran la interfaz en <b>Inglés</b> — el predeterminado de una competencia internacional. En una competencia configurada en portugués, los mismos botones aparecen traducidos.">
         As telas dos exemplos estão em <b>inglês</b> — o padrão de uma prova
         internacional. Num contest em português, os mesmos botões aparecem traduzidos.
       </p>
@@ -51,84 +51,84 @@
 
     <div class="section tlayout">
       <nav class="ttoc">
-        <b data-en="Contents">Conteúdo</b>
-        <a href="#papel" data-en="1. What the role is">1. O que é o papel</a>
-        <a href="#painel" data-en="2. The chief panel">2. O painel do chefe</a>
-        <a href="#conflitos" data-en="3. Resolving conflicts">3. Resolvendo conflitos</a>
-        <a href="#alerta" data-en="4. The conflict alarm">4. O alarme de conflito</a>
-        <a href="#situacao" data-en="5. Watching the queue">5. Vigiando a fila</a>
-        <a href="#config" data-en="6. Verdict options and what goes to review">6. Opções e o que vai para revisão</a>
-        <a href="#extras" data-en="7. Your other powers">7. Seus outros poderes</a>
-        <a href="#prova" data-en="8. Beyond judging: what only you do">8. Além de julgar: o que só você faz</a>
-        <a href="#aquecimento" data-en="9. The warm-up is the rehearsal of the judging desk">9. O aquecimento é o ensaio da mesa</a>
-        <a href="#nao" data-en="10. What you are NOT">10. O que você NÃO é</a>
+        <b data-en="Contents" data-es="Contenido">Conteúdo</b>
+        <a href="#papel" data-en="1. What the role is" data-es="1. Qué es el rol">1. O que é o papel</a>
+        <a href="#painel" data-en="2. The chief panel" data-es="2. El panel del juez principal">2. O painel do chefe</a>
+        <a href="#conflitos" data-en="3. Resolving conflicts" data-es="3. Resolver conflictos">3. Resolvendo conflitos</a>
+        <a href="#alerta" data-en="4. The conflict alarm" data-es="4. La alarma de conflicto">4. O alarme de conflito</a>
+        <a href="#situacao" data-en="5. Watching the queue" data-es="5. Vigilar la cola">5. Vigiando a fila</a>
+        <a href="#config" data-en="6. Verdict options and what goes to review" data-es="6. Opciones de veredicto y qué va a revisión">6. Opções e o que vai para revisão</a>
+        <a href="#extras" data-en="7. Your other powers" data-es="7. Tus otros poderes">7. Seus outros poderes</a>
+        <a href="#prova" data-en="8. Beyond judging: what only you do" data-es="8. Más allá de evaluar: lo que solo tú haces">8. Além de julgar: o que só você faz</a>
+        <a href="#aquecimento" data-en="9. The warm-up is the rehearsal of the judging desk" data-es="9. El calentamiento es el ensayo de la mesa de evaluación">9. O aquecimento é o ensaio da mesa</a>
+        <a href="#nao" data-en="10. What you are NOT" data-es="10. Qué NO eres">10. O que você NÃO é</a>
       </nav>
 
       <article class="tmain">
-        <h2 id="papel" data-en="1. What the role is">1. O que é o papel</h2>
-        <p data-en="A login ending in .cjudge is the chief judge. Everything on the judge page works the same for you — take, look, vote — because the chief is a judge too. What the suffix adds is the authority to close what the judges could not.">
+        <h2 id="papel" data-en="1. What the role is" data-es="1. Qué es el rol">1. O que é o papel</h2>
+        <p data-en="A login ending in .cjudge is the chief judge. Everything on the judge page works the same for you — take, look, vote — because the chief is a judge too. What the suffix adds is the authority to close what the judges could not." data-es="Un usuario que termina en .cjudge es el juez principal. Todo en la página del juez funciona igual para ti — tomar, mirar, votar — porque el juez principal también es un juez. Lo que agrega el sufijo es la autoridad para cerrar lo que los jueces no pudieron.">
           Um login terminado em <code>.cjudge</code> é o juiz-chefe. Tudo da página do juiz
           funciona igual para você — pegar, olhar, votar — porque o chefe também é juiz. O que o
           sufixo acrescenta é a autoridade de fechar o que os juízes não conseguiram.
         </p>
-        <div class="tip" data-en="Read the judge tutorial first: the queue, the two-vote rule and the blindfolds are the same for you (except that you DO see the names and the votes).">
+        <div class="tip" data-en="Read the judge tutorial first: the queue, the two-vote rule and the blindfolds are the same for you (except that you DO see the names and the votes)." data-es="Lee primero el tutorial del juez: la cola, la regla de los dos votos y las vendas son las mismas para ti (excepto que tú SÍ ves los nombres y los votos).">
           Leia antes o <a href="/contest/ajuda/judge.html">tutorial do juiz</a>: a fila, a regra
           dos dois votos e as vendas são as mesmas para você (exceto que você <b>vê</b> os nomes e
           os votos).
         </div>
 
-        <h3 data-en="Your tabs">Suas abas</h3>
-        <p data-en-html="You get everything a judge gets (<b>Contest</b> with the statements, <b>Score</b> always unfrozen, <b>Clarification</b>, <b>Judge</b>, <b>Todas Submissões</b> — complete, with names — and <b>Statistics</b>), plus two that are yours:">
+        <h3 data-en="Your tabs" data-es="Tus pestañas">Suas abas</h3>
+        <p data-en-html="You get everything a judge gets (<b>Contest</b> with the statements, <b>Score</b> always unfrozen, <b>Clarification</b>, <b>Judge</b>, <b>Todas Submissões</b> — complete, with names — and <b>Statistics</b>), plus two that are yours:" data-es-html="Obtienes todo lo que obtiene un juez (<b>Competencia</b> con los enunciados, <b>Marcador</b> siempre descongelado, <b>Aclaraciones</b>, <b>Juez</b>, <b>Todos los envíos</b> — completo, con nombres — y <b>Estadísticas</b>), más dos que son solo tuyas:">
           Você recebe tudo que um juiz recebe (<b>Contest</b> com os enunciados, <b>Score</b>
           sempre descongelado, <b>Clarification</b>, <b>Judge</b>, <b>Todas Submissões</b> —
           completa, com nomes — e <b>Statistics</b>), mais duas que são suas:
         </p>
         <table class="cheat">
-          <tr><th data-en="Tab">Aba</th><th data-en="What it is for">Para que serve</th></tr>
-          <tr><td>👑 <span data-en="Chief judge">Juiz-chefe</span></td><td data-en="Your panel: the state of the judging, the conflicts, the verdict configuration, the documents and the rounds.">O seu painel: o estado do julgamento, os conflitos, a configuração de veredicto, os documentos e as rodadas.</td></tr>
-          <tr><td>🔁 <span data-en="Rounds">Rodadas</span></td><td data-en="Warm-up and official round — you consult the archived one; promoting a round is the administrator's.">Aquecimento e prova oficial — você consulta a arquivada; promover rodada é do administrador.</td></tr>
+          <tr><th data-en="Tab" data-es="Pestaña">Aba</th><th data-en="What it is for" data-es="Para qué sirve">Para que serve</th></tr>
+          <tr><td>👑 <span data-en="Chief judge" data-es="Juez principal">Juiz-chefe</span></td><td data-en="Your panel: the state of the judging, the conflicts, the verdict configuration, the documents and the rounds." data-es="Tu panel: el estado de la evaluación, los conflictos, la configuración de veredictos, los documentos y las rondas.">O seu painel: o estado do julgamento, os conflitos, a configuração de veredicto, os documentos e as rodadas.</td></tr>
+          <tr><td>🔁 <span data-en="Rounds" data-es="Rondas">Rodadas</span></td><td data-en="Warm-up and official round — you consult the archived one; promoting a round is the administrator's." data-es="Calentamiento y ronda oficial — tú consultas la archivada; promover una ronda es del administrador.">Aquecimento e prova oficial — você consulta a arquivada; promover rodada é do administrador.</td></tr>
         </table>
 
-        <h2 id="painel" data-en="2. The chief panel">2. O painel do chefe</h2>
+        <h2 id="painel" data-en="2. The chief panel" data-es="2. El panel del juez principal">2. O painel do chefe</h2>
         <figure class="shot">
           <img src="/contest/ajuda/img/cjudge-painel.png" alt="">
-          <figcaption data-en="The chief panel opens on the 📊 Situação (Status) tab: the red alarm at the top, the situation cards, and the full queue with names, votes and the Resolve button. Note the row in CONFLICT, with both votes shown by name.">
+          <figcaption data-en="The chief panel opens on the 📊 Situação (Status) tab: the red alarm at the top, the situation cards, and the full queue with names, votes and the Resolve button. Note the row in CONFLICT, with both votes shown by name." data-es="El panel del juez principal se abre en la pestaña 📊 Situación: la alarma roja arriba, las tarjetas de situación, y la cola completa con nombres, votos y el botón Resolver. Fíjate en la fila en CONFLICT, con ambos votos mostrados por nombre.">
             O painel do chefe abre na aba <b>📊 Status</b>: o alarme vermelho no topo, os cartões
             de situação e a fila completa
             com nomes, votos e o botão de resolver. Repare na linha em <b>CONFLITO</b>, com os dois
             votos mostrados com nome.
           </figcaption>
         </figure>
-        <p data-en="The panel has six tabs: Situation (the whole queue), Conflicts (only what needs you), Options and What to review (configuration), Documents and Rounds.">
+        <p data-en="The panel has six tabs: Situation (the whole queue), Conflicts (only what needs you), Options and What to review (configuration), Documents and Rounds." data-es="El panel tiene seis pestañas: Situación (toda la cola), Conflictos (solo lo que necesita de ti), Opciones y Qué revisar (configuración), Documentos y Rondas.">
           O painel tem seis abas: <b>Status</b> (a fila inteira), <b>Conflicts</b> (só o que
           precisa de você), <b>Opções</b> e <b>O que revisar</b> (configuração), <b>Documents</b>
           e <b>Rodadas</b>.
         </p>
 
-        <h2 id="conflitos" data-en="3. Resolving conflicts">3. Resolvendo conflitos</h2>
-        <p data-en="A conflict is a submission where the judges voted differently. It is frozen: the competitor keeps seeing &quot;not answered yet&quot; until you decide. This is your most urgent job in a live contest.">
+        <h2 id="conflitos" data-en="3. Resolving conflicts" data-es="3. Resolver conflictos">3. Resolvendo conflitos</h2>
+        <p data-en="A conflict is a submission where the judges voted differently. It is frozen: the competitor keeps seeing &quot;not answered yet&quot; until you decide. This is your most urgent job in a live contest." data-es="Un conflicto es un envío en el que los jueces votaron distinto. Queda congelado: el competidor sigue viendo &quot;aún no respondida&quot; hasta que decides. Este es tu trabajo más urgente en una competencia en vivo.">
           Conflito é uma submissão em que os juízes votaram diferente. Ela fica <b>parada</b>: o
           competidor continua vendo &quot;ainda não respondida&quot; até você decidir. Este é o seu
           trabalho mais urgente durante a prova.
         </p>
         <ol>
-          <li data-en="Open the conflict: you see both votes with the judges' names, plus the log and the source.">Abra o conflito: você vê os dois votos com o nome dos juízes, mais o log e o código.</li>
-          <li data-en="Decide. Your verdict is the final one — it goes straight to the competitor's history and to the scoreboard.">Decida. O seu veredicto é o final — vai direto ao histórico do competidor e ao placar.</li>
-          <li data-en="If the disagreement points to a problem in the problem set (a weak test, an ambiguous statement), that is a signal to talk to the judges and maybe rejudge.">Se a divergência aponta um problema no problema (teste fraco, enunciado ambíguo), é sinal de conversar com os juízes e talvez rejulgar.</li>
+          <li data-en="Open the conflict: you see both votes with the judges' names, plus the log and the source." data-es="Abre el conflicto: ves ambos votos con los nombres de los jueces, más el log y la fuente.">Abra o conflito: você vê os dois votos com o nome dos juízes, mais o log e o código.</li>
+          <li data-en="Decide. Your verdict is the final one — it goes straight to the competitor's history and to the scoreboard." data-es="Decide. Tu veredicto es el final — va directo al historial del competidor y al marcador.">Decida. O seu veredicto é o final — vai direto ao histórico do competidor e ao placar.</li>
+          <li data-en="If the disagreement points to a problem in the problem set (a weak test, an ambiguous statement), that is a signal to talk to the judges and maybe rejudge." data-es="Si la discrepancia apunta a un problema en el problema (una prueba débil, un enunciado ambiguo), es señal de hablar con los jueces y tal vez volver a evaluar.">Se a divergência aponta um problema no problema (teste fraco, enunciado ambíguo), é sinal de conversar com os juízes e talvez rejulgar.</li>
         </ol>
-        <div class="tip" data-en="You can also decide a submission that is NOT in conflict — the Decidir button is on every row. Use it when the queue is stuck (a judge left, an old case is waiting).">
+        <div class="tip" data-en="You can also decide a submission that is NOT in conflict — the Decidir button is on every row. Use it when the queue is stuck (a judge left, an old case is waiting)." data-es="También puedes decidir un envío que NO está en conflicto — el botón Decide está en cada fila. Úsalo cuando la cola se traba (un juez se fue, un caso viejo está esperando).">
           Você também pode decidir uma submissão que <b>não</b> está em conflito — o botão
           <i>Decide</i> está em todas as linhas. Use quando a fila travou (um juiz saiu, um caso
           antigo está esperando).
         </div>
 
-        <h2 id="alerta" data-en="4. The conflict alarm">4. O alarme de conflito</h2>
-        <p data-en="You do not need to keep the panel open. Whenever a conflict appears, a red bar takes over the top of ANY contest page you are on, it beeps and it vibrates on the phone. Clicking it takes you straight to the conflicts.">
+        <h2 id="alerta" data-en="4. The conflict alarm" data-es="4. La alarma de conflicto">4. O alarme de conflito</h2>
+        <p data-en="You do not need to keep the panel open. Whenever a conflict appears, a red bar takes over the top of ANY contest page you are on, it beeps and it vibrates on the phone. Clicking it takes you straight to the conflicts." data-es="No necesitas mantener el panel abierto. Cada vez que aparece un conflicto, una barra roja toma la parte de arriba de CUALQUIER página de la competencia en la que estés, suena y vibra en el celular. Al hacer clic en ella vas directo a los conflictos.">
           Você não precisa ficar com o painel aberto. Sempre que aparece um conflito, uma barra
           vermelha toma o topo de <b>qualquer</b> página do contest em que você esteja, apita e
           vibra no celular. Clicar leva direto aos conflitos.
         </p>
-        <div class="warn" data-en-html="The alarm only sounds when the NUMBER of conflicts goes up — it does not nag while you are working through them. If it went quiet but the bar is still there, there is still something waiting. And <b>do not trust the sound alone</b>: browsers block audio on a page nobody has clicked, so a panel left open on a second monitor may only show the red bar. Click once on the page to release the sound.">
+        <div class="warn" data-en-html="The alarm only sounds when the NUMBER of conflicts goes up — it does not nag while you are working through them. If it went quiet but the bar is still there, there is still something waiting. And <b>do not trust the sound alone</b>: browsers block audio on a page nobody has clicked, so a panel left open on a second monitor may only show the red bar. Click once on the page to release the sound." data-es-html="La alarma solo suena cuando el NÚMERO de conflictos sube — no insiste mientras los vas resolviendo. Si dejó de sonar pero la barra sigue ahí, todavía hay algo esperando. Y <b>no confíes solo en el sonido</b>: los navegadores bloquean el audio en una página que nadie ha hecho clic, así que un panel dejado abierto en un segundo monitor puede mostrar solo la barra roja. Haz clic una vez en la página para liberar el sonido.">
           O alarme só toca quando o <b>número</b> de conflitos sobe — ele não fica insistindo
           enquanto você trabalha. Se parou de apitar mas a barra continua, ainda há algo esperando.
           E <b>não confie só no som</b>: navegador bloqueia áudio em página que ninguém clicou,
@@ -136,167 +136,167 @@
           Clique uma vez na página para liberar o som.
         </div>
 
-        <h2 id="situacao" data-en="5. Watching the queue">5. Vigiando a fila</h2>
-        <p data-en="The Situation tab is the health of the judging. The card that matters most is the OLDEST ONE WAITING: if it starts growing past a few minutes, the contest is about to feel it — either a judge dropped, or something is stuck in conflict.">
+        <h2 id="situacao" data-en="5. Watching the queue" data-es="5. Vigilar la cola">5. Vigiando a fila</h2>
+        <p data-en="The Situation tab is the health of the judging. The card that matters most is the OLDEST ONE WAITING: if it starts growing past a few minutes, the contest is about to feel it — either a judge dropped, or something is stuck in conflict." data-es="La pestaña Situación es la salud de la evaluación. La tarjeta que más importa es LA MÁS ANTIGUA ESPERANDO: si empieza a crecer más allá de unos minutos, la competencia lo va a sentir — o un juez se cayó, o algo se trabó en conflicto.">
           A aba <b>Status</b> é a saúde do julgamento. O cartão que mais importa é a
           <b>mais antiga esperando</b>: se ele passa de alguns minutos, a prova vai sentir — ou um
           juiz caiu, ou algo travou em conflito.
         </p>
-        <p data-en="The panel also shows the performance per judge (how many votes, average response time, how many agreements and conflicts). It is for spotting who needs help or who is voting too fast — not for ranking people.">
+        <p data-en="The panel also shows the performance per judge (how many votes, average response time, how many agreements and conflicts). It is for spotting who needs help or who is voting too fast — not for ranking people." data-es="El panel también muestra el desempeño por juez (cuántos votos, tiempo de respuesta promedio, cuántos acuerdos y conflictos). Sirve para detectar quién necesita ayuda o quién está votando demasiado rápido — no para clasificar a la gente.">
           O painel também mostra o <b>desempenho por juiz</b> (quantos votos, tempo médio de
           resposta, quantas concordâncias e conflitos). Serve para perceber quem precisa de ajuda
           ou quem está votando rápido demais — não para ranquear gente.
         </p>
 
-        <h2 id="config" data-en="6. Verdict options and what goes to review">6. Opções e o que vai para revisão</h2>
-        <p data-en="Two configuration tabs are yours:">Duas abas de configuração são suas:</p>
+        <h2 id="config" data-en="6. Verdict options and what goes to review" data-es="6. Opciones de veredicto y qué va a revisión">6. Opções e o que vai para revisão</h2>
+        <p data-en="Two configuration tabs are yours:" data-es="Dos pestañas de configuración son tuyas:">Duas abas de configuração são suas:</p>
         <ul>
-          <li data-en-html="<b>🏷️ Options</b> — the list of verdicts the judges can vote. Each option has three fields. The first field is the text the judge sees. The second field is the class: one of the six canonical classes (<i>Accepted</i>, <i>Wrong Answer</i>, <i>Time Limit Exceeded</i>, <i>Memory Limit Exceeded</i>, <i>Runtime Error</i>, <i>Compilation Error</i>). The class sets the score, the penalty and the color on the scoreboard. The third field is the text the team sees. Leave the third field empty to show the class. Change the list here and every judge sees the new list."><b>🏷️ Opções</b> — a lista de veredictos que os juízes podem votar. Cada opção tem três campos. O primeiro campo é o texto que o juiz vê. O segundo campo é a classe: uma das seis classes canônicas (<i>Accepted</i>, <i>Wrong Answer</i>, <i>Time Limit Exceeded</i>, <i>Memory Limit Exceeded</i>, <i>Runtime Error</i>, <i>Compilation Error</i>). A classe define a pontuação, a penalidade e a cor no placar. O terceiro campo é o texto que o time vê. Deixe o terceiro campo vazio para mostrar a classe. Mude a lista aqui e todos os juízes veem a lista nova.</li>
-          <li data-en-html="<b>🔎 What to review</b> — a table: one row per problem (letter and title), one column per verdict (AC, WA, TLE, MLE, RTE, CE). <b>Check what the judges review</b>; whatever is not checked goes to the team automatically, straight from the machine. With nothing checked, everything is automatic (only judge errors go to the queue). The <i>All problems</i> row checks a whole column and the box next to each problem checks its row. A common setup: leave <i>Compilation Error</i> automatic (it needs no human judgement and floods the queue in the first minutes) and review <i>Time Limit Exceeded</i>. The per-language exceptions (collapsed) apply to one language and override the table — e.g. <i>Python · TLE · goes to review</i>. If you change the table during the contest and there are held submissions that would now be automatic (no vote, no conflict), the screen offers <b>Release now</b> — it never releases on its own."><b>🔎 O que revisar</b> — uma tabela: uma linha por problema (letra e título), uma coluna por veredicto (AC, WA, TLE, MLE, RTE, CE). <b>Marque o que os juízes revisam</b>; o que não estiver marcado sai para o time automaticamente, direto da máquina. Sem nada marcado, tudo sai automático (só erro do juiz vai para a fila). A linha <i>Todos os problemas</i> marca uma coluna inteira, e a caixa ao lado de cada problema marca a linha. Um uso comum: deixar <i>Compilation Error</i> automático (não precisa de julgamento humano e entope a fila nos primeiros minutos) e revisar <i>Time Limit Exceeded</i>. As exceções por linguagem (recolhidas) valem para uma linguagem e vencem a tabela — por exemplo, <i>Python · TLE · vai para revisão</i>. Se você mudar a tabela durante a prova e houver submissões retidas que agora sairiam automáticas (sem voto e sem conflito), a tela oferece <b>Liberar agora</b> — ela nunca libera sozinha.</li>
+          <li data-en-html="<b>🏷️ Options</b> — the list of verdicts the judges can vote. Each option has three fields. The first field is the text the judge sees. The second field is the class: one of the six canonical classes (<i>Accepted</i>, <i>Wrong Answer</i>, <i>Time Limit Exceeded</i>, <i>Memory Limit Exceeded</i>, <i>Runtime Error</i>, <i>Compilation Error</i>). The class sets the score, the penalty and the color on the scoreboard. The third field is the text the team sees. Leave the third field empty to show the class. Change the list here and every judge sees the new list." data-es-html="<b>🏷️ Opciones</b> — la lista de veredictos que los jueces pueden votar. Cada opción tiene tres campos. El primer campo es el texto que ve el juez. El segundo campo es la clase: una de las seis clases canónicas (<i>Accepted</i>, <i>Wrong Answer</i>, <i>Time Limit Exceeded</i>, <i>Memory Limit Exceeded</i>, <i>Runtime Error</i>, <i>Compilation Error</i>). La clase define la puntuación, la penalidad y el color en el marcador. El tercer campo es el texto que ve el equipo. Deja el tercer campo vacío para mostrar la clase. Cambia la lista aquí y todos los jueces ven la lista nueva."><b>🏷️ Opções</b> — a lista de veredictos que os juízes podem votar. Cada opção tem três campos. O primeiro campo é o texto que o juiz vê. O segundo campo é a classe: uma das seis classes canônicas (<i>Accepted</i>, <i>Wrong Answer</i>, <i>Time Limit Exceeded</i>, <i>Memory Limit Exceeded</i>, <i>Runtime Error</i>, <i>Compilation Error</i>). A classe define a pontuação, a penalidade e a cor no placar. O terceiro campo é o texto que o time vê. Deixe o terceiro campo vazio para mostrar a classe. Mude a lista aqui e todos os juízes veem a lista nova.</li>
+          <li data-en-html="<b>🔎 What to review</b> — a table: one row per problem (letter and title), one column per verdict (AC, WA, TLE, MLE, RTE, CE). <b>Check what the judges review</b>; whatever is not checked goes to the team automatically, straight from the machine. With nothing checked, everything is automatic (only judge errors go to the queue). The <i>All problems</i> row checks a whole column and the box next to each problem checks its row. A common setup: leave <i>Compilation Error</i> automatic (it needs no human judgement and floods the queue in the first minutes) and review <i>Time Limit Exceeded</i>. The per-language exceptions (collapsed) apply to one language and override the table — e.g. <i>Python · TLE · goes to review</i>. If you change the table during the contest and there are held submissions that would now be automatic (no vote, no conflict), the screen offers <b>Release now</b> — it never releases on its own." data-es-html="<b>🔎 Qué revisar</b> — una tabla: una fila por problema (letra y título), una columna por veredicto (AC, WA, TLE, MLE, RTE, CE). <b>Marca lo que revisan los jueces</b>; lo que no esté marcado sale para el equipo automáticamente, directo de la máquina. Sin nada marcado, todo es automático (solo los errores de juez van a la cola). La fila <i>Todos los problemas</i> marca una columna entera y la casilla junto a cada problema marca su fila. Una configuración común: dejar <i>Compilation Error</i> automático (no necesita juicio humano y satura la cola en los primeros minutos) y revisar <i>Time Limit Exceeded</i>. Las excepciones por lenguaje (plegadas) se aplican a un lenguaje y vencen a la tabla — por ejemplo, <i>Python · TLE · va a revisión</i>. Si cambias la tabla durante la competencia y hay envíos retenidos que ahora serían automáticos (sin voto, sin conflicto), la pantalla ofrece <b>Liberar ahora</b> — nunca libera sola."><b>🔎 O que revisar</b> — uma tabela: uma linha por problema (letra e título), uma coluna por veredicto (AC, WA, TLE, MLE, RTE, CE). <b>Marque o que os juízes revisam</b>; o que não estiver marcado sai para o time automaticamente, direto da máquina. Sem nada marcado, tudo sai automático (só erro do juiz vai para a fila). A linha <i>Todos os problemas</i> marca uma coluna inteira, e a caixa ao lado de cada problema marca a linha. Um uso comum: deixar <i>Compilation Error</i> automático (não precisa de julgamento humano e entope a fila nos primeiros minutos) e revisar <i>Time Limit Exceeded</i>. As exceções por linguagem (recolhidas) valem para uma linguagem e vencem a tabela — por exemplo, <i>Python · TLE · vai para revisão</i>. Se você mudar a tabela durante a prova e houver submissões retidas que agora sairiam automáticas (sem voto e sem conflito), a tela oferece <b>Liberar agora</b> — ela nunca libera sozinha.</li>
         </ul>
-        <div class="warn" data-en-html="Turning the manual verdict itself ON or OFF, and choosing how many judges are needed, belongs to the administrator — not to you. When they turn it OFF, MOJ releases the leftovers nobody had contested (with the machine verdict) and <b>leaves you the ones with a vote or in conflict</b>: those stay in Situação for you to decide, one by one.">
+        <div class="warn" data-en-html="Turning the manual verdict itself ON or OFF, and choosing how many judges are needed, belongs to the administrator — not to you. When they turn it OFF, MOJ releases the leftovers nobody had contested (with the machine verdict) and <b>leaves you the ones with a vote or in conflict</b>: those stay in Situação for you to decide, one by one." data-es-html="Encender o apagar el veredicto manual en sí, y elegir cuántos jueces se necesitan, es del administrador — no tuyo. Cuando lo apagan, MOJ libera lo que sobró que nadie había impugnado (con el veredicto de la máquina) y <b>te deja las que tienen voto o están en conflicto</b>: esas se quedan en Situación para que tú decidas, una por una.">
           Ligar ou desligar o veredicto manual, e escolher de quantos juízes ele precisa, é do
           administrador — não seu. Quando ele desliga, o MOJ libera as sobras que ninguém tinha
           contestado (com o veredicto da máquina) e <b>deixa para você as que têm voto ou estão em
           conflito</b>: elas ficam na Situação para você decidir, uma a uma.
         </div>
 
-        <h2 id="extras" data-en="7. Your other powers">7. Seus outros poderes</h2>
+        <h2 id="extras" data-en="7. Your other powers" data-es="7. Tus otros poderes">7. Seus outros poderes</h2>
         <table class="cheat">
-          <tr><th data-en="Power">Poder</th><th data-en="What it is for">Para que serve</th></tr>
-          <tr><td data-en="See the names">Ver os nomes</td><td data-en="In the queue and in All submissions you see who submitted — the judges do not.">Na fila e em Todas Submissões você vê quem submeteu — os juízes não.</td></tr>
-          <tr><td data-en="Rejudge in bulk">Rejulgar em lote</td><td data-en="The checkboxes in All submissions are yours only — pick several and re-run them.">Os checkboxes de Todas Submissões são só seus — marque várias e mande rodar de novo.</td></tr>
-          <tr><td data-en="Rejudge">Rejulgar</td><td data-en="Re-run submissions after fixing a test or a checker.">Rodar de novo as submissões depois de corrigir um teste ou um corretor.</td></tr>
-          <tr><td data-en="Edit answers and news">Editar respostas e notícias</td><td data-en="Fix a clarification already answered, or a news item already sent.">Corrigir uma clarification já respondida, ou uma notícia já enviada.</td></tr>
-          <tr><td data-en="Run jplag">Rodar o jplag</td><td data-en="The jplag link in the bar opens the similarity page. You can run the analysis and see the pairs with the team name. Pick the problem, the language and the threshold to find the pairs.">O link jplag na barra abre a página de similaridade. Você pode rodar a análise e ver os pares com o nome do time. Escolha o problema, a linguagem e o limiar para achar os pares.</td></tr>
-          <tr><td data-en="Documents">Documentos</td><td data-en="Generate and publish the contest documents — including the ones not published yet, which judges cannot see.">Gerar e publicar os documentos da prova — inclusive os não publicados, que os juízes não veem.</td></tr>
-          <tr><td data-en="Statement languages">Idiomas do enunciado</td><td data-en="The 🌐 Languages tab of your panel. Automatic (default): each problem offers every language it has. Only these languages: check the list (Portuguese, English, Spanish); PT alone = Portuguese-only contest. The table shows which translations exist for each problem. An offered language without a translation in a problem shows Portuguese for that problem. The admin has the same panel.">A aba 🌐 Idiomas do seu painel. Automático (padrão): cada problema oferece todos os idiomas que tem. Só estes idiomas: marque a lista (português, inglês, espanhol); só PT = prova só em português. A tabela mostra quais traduções existem em cada problema. Um idioma oferecido sem tradução em um problema mostra o português nesse problema. O admin tem o mesmo painel.</td></tr>
+          <tr><th data-en="Power" data-es="Poder">Poder</th><th data-en="What it is for" data-es="Para qué sirve">Para que serve</th></tr>
+          <tr><td data-en="See the names" data-es="Ver los nombres">Ver os nomes</td><td data-en="In the queue and in All submissions you see who submitted — the judges do not." data-es="En la cola y en Todos los envíos ves quién envió — los jueces no.">Na fila e em Todas Submissões você vê quem submeteu — os juízes não.</td></tr>
+          <tr><td data-en="Rejudge in bulk" data-es="Volver a evaluar en lote">Rejulgar em lote</td><td data-en="The checkboxes in All submissions are yours only — pick several and re-run them." data-es="Las casillas de Todos los envíos son solo tuyas — marca varias y mándalas a correr de nuevo.">Os checkboxes de Todas Submissões são só seus — marque várias e mande rodar de novo.</td></tr>
+          <tr><td data-en="Rejudge" data-es="Volver a evaluar">Rejulgar</td><td data-en="Re-run submissions after fixing a test or a checker." data-es="Vuelve a correr los envíos después de corregir una prueba o un corrector.">Rodar de novo as submissões depois de corrigir um teste ou um corretor.</td></tr>
+          <tr><td data-en="Edit answers and news" data-es="Editar respuestas y noticias">Editar respostas e notícias</td><td data-en="Fix a clarification already answered, or a news item already sent." data-es="Corrige una aclaración ya respondida, o una noticia ya enviada.">Corrigir uma clarification já respondida, ou uma notícia já enviada.</td></tr>
+          <tr><td data-en="Run jplag" data-es="Ejecutar jplag">Rodar o jplag</td><td data-en="The jplag link in the bar opens the similarity page. You can run the analysis and see the pairs with the team name. Pick the problem, the language and the threshold to find the pairs." data-es="El enlace jplag en la barra abre la página de similitud. Puedes ejecutar el análisis y ver los pares con el nombre del equipo. Elige el problema, el lenguaje y el umbral para encontrar los pares.">O link jplag na barra abre a página de similaridade. Você pode rodar a análise e ver os pares com o nome do time. Escolha o problema, a linguagem e o limiar para achar os pares.</td></tr>
+          <tr><td data-en="Documents" data-es="Documentos">Documentos</td><td data-en="Generate and publish the contest documents — including the ones not published yet, which judges cannot see." data-es="Genera y publica los documentos de la competencia — incluyendo los que aún no están publicados, que los jueces no pueden ver.">Gerar e publicar os documentos da prova — inclusive os não publicados, que os juízes não veem.</td></tr>
+          <tr><td data-en="Statement languages" data-es="Idiomas del enunciado">Idiomas do enunciado</td><td data-en="The 🌐 Languages tab of your panel. Automatic (default): each problem offers every language it has. Only these languages: check the list (Portuguese, English, Spanish); PT alone = Portuguese-only contest. The table shows which translations exist for each problem. An offered language without a translation in a problem shows Portuguese for that problem. The admin has the same panel." data-es="La pestaña 🌐 Idiomas de tu panel. Automático (predeterminado): cada problema ofrece todos los idiomas que tiene. Solo estos idiomas: marca la lista (portugués, inglés, español); PT solo = competencia solo en portugués. La tabla muestra qué traducciones existen para cada problema. Un idioma ofrecido sin traducción en un problema muestra el portugués para ese problema. El admin tiene el mismo panel.">A aba 🌐 Idiomas do seu painel. Automático (padrão): cada problema oferece todos os idiomas que tem. Só estes idiomas: marque a lista (português, inglês, espanhol); só PT = prova só em português. A tabela mostra quais traduções existem em cada problema. Um idioma oferecido sem tradução em um problema mostra o português nesse problema. O admin tem o mesmo painel.</td></tr>
         </table>
 
         <figure class="shot">
           <img src="/contest/ajuda/img/cjudge-idiomas.png" alt="">
-          <figcaption data-en="The 🌐 Languages tab: Automatic (the default — each problem offers every language it has) or Only these languages (a fixed list; PT alone makes a Portuguese-only contest), and the table of which translations exist per problem.">
+          <figcaption data-en="The 🌐 Languages tab: Automatic (the default — each problem offers every language it has) or Only these languages (a fixed list; PT alone makes a Portuguese-only contest), and the table of which translations exist per problem." data-es="La pestaña 🌐 Idiomas: Automático (el predeterminado — cada problema ofrece todos los idiomas que tiene) o Solo estos idiomas (una lista fija; PT solo hace una competencia solo en portugués), y la tabla de qué traducciones existen por problema.">
             A aba 🌐 Idiomas: Automático (o padrão — cada problema oferece todos os idiomas que tem)
             ou Só estes idiomas (lista fixa; só PT faz uma prova só em português), e a tabela de
             quais traduções existem em cada problema.
           </figcaption>
         </figure>
 
-        <h3 data-en="All submissions, with names">Todas Submissões, com nomes</h3>
+        <h3 data-en="All submissions, with names" data-es="Todos los envíos, con nombres">Todas Submissões, com nomes</h3>
         <figure class="shot">
           <img src="/contest/ajuda/img/cjudge-todas.png" alt="">
-          <figcaption data-en="The same address the judges open, but for you it comes complete: user and team columns, the search by user, the grouping by user and the checkboxes that let you rejudge in bulk.">
+          <figcaption data-en="The same address the judges open, but for you it comes complete: user and team columns, the search by user, the grouping by user and the checkboxes that let you rejudge in bulk." data-es="La misma dirección que abren los jueces, pero para ti viene completa: columnas de usuario y equipo, la búsqueda por usuario, la agrupación por usuario y las casillas que te permiten volver a evaluar en lote.">
             O mesmo endereço que os juízes abrem, mas para você ele vem completo: colunas de
             usuário e equipe, a busca por usuário, o agrupamento por usuário e os checkboxes que
             permitem rejulgar em lote.
           </figcaption>
         </figure>
-        <p data-en-html="Compare with the <a href='/contest/ajuda/judge.html#todas'>judge's version</a>: it is the same screen and the same endpoint — what changes is the role of who asks. That is the rule of the house: the cut is made by the server, never by hiding a column in the browser.">
+        <p data-en-html="Compare with the <a href='/contest/ajuda/judge.html#todas'>judge's version</a>: it is the same screen and the same endpoint — what changes is the role of who asks. That is the rule of the house: the cut is made by the server, never by hiding a column in the browser." data-es-html="Compáralo con la <a href='/contest/ajuda/judge.html#todas'>versión del juez</a>: es la misma pantalla y el mismo endpoint — lo que cambia es el rol de quien pide. Esa es la regla de la casa: el corte lo hace el servidor, nunca ocultando una columna en el navegador.">
           Compare com a <a href="/contest/ajuda/judge.html#todas">versão do juiz</a>: é a mesma
           tela e o mesmo endereço — o que muda é o papel de quem pede. É a regra da casa: o corte
           é feito pelo servidor, nunca escondendo uma coluna no navegador.
         </p>
-        <div class="tip" data-en="Rejudging is the tool for when a test was wrong or a checker was fixed: mark the affected submissions and send them back to the judges. The verdicts are recomputed and the scoreboard follows.">
+        <div class="tip" data-en="Rejudging is the tool for when a test was wrong or a checker was fixed: mark the affected submissions and send them back to the judges. The verdicts are recomputed and the scoreboard follows." data-es="Volver a evaluar es la herramienta para cuando una prueba estaba mal o se corrigió un corrector: marca los envíos afectados y mándalos de vuelta a los jueces. Los veredictos se recalculan y el marcador los sigue.">
           Rejulgar é a ferramenta para quando um teste estava errado ou um corretor foi consertado:
           marque as submissões afetadas e mande de volta para as máquinas. Os veredictos são
           recomputados e o placar acompanha.
         </div>
 
-        <div class="warn" data-en-html="Two powers exist in the API for you but have <b>no screen</b> in your panel: the pre-flight checklist and the machine map live inside the administration panel, which does not open for a chief judge. If you need them on the day, it is the administrator who opens them.">
+        <div class="warn" data-en-html="Two powers exist in the API for you but have <b>no screen</b> in your panel: the pre-flight checklist and the machine map live inside the administration panel, which does not open for a chief judge. If you need them on the day, it is the administrator who opens them." data-es-html="Dos poderes existen en la API para ti pero <b>no tienen pantalla</b> en tu panel: la lista de verificación previa y el mapa de máquinas viven dentro del panel de administración, que no se abre para un juez principal. Si los necesitas ese día, es el administrador quien los abre.">
           Dois poderes existem na API para você mas <b>não têm tela</b> no seu painel: o checklist
           pré-prova e o mapa de máquinas moram no painel de administração, que não abre para
           juiz-chefe. Se precisar deles no dia, quem abre é o administrador.
         </div>
 
-        <h2 id="prova" data-en="8. Beyond judging: what only you do">8. Além de julgar: o que só você faz</h2>
-        <p data-en="Three jobs of the contest are yours and nobody else's below the administrator: fixing an answer already given, announcing things to the teams, and putting the contest documents in their hands.">
+        <h2 id="prova" data-en="8. Beyond judging: what only you do" data-es="8. Más allá de evaluar: lo que solo tú haces">8. Além de julgar: o que só você faz</h2>
+        <p data-en="Three jobs of the contest are yours and nobody else's below the administrator: fixing an answer already given, announcing things to the teams, and putting the contest documents in their hands." data-es="Tres trabajos de la competencia son tuyos y de nadie más por debajo del administrador: corregir una respuesta ya dada, anunciar cosas a los equipos, y poner los documentos de la competencia en sus manos.">
           Três trabalhos da prova são seus e de mais ninguém abaixo do administrador: consertar
           uma resposta já dada, anunciar coisas aos times, e pôr os documentos da prova na mão
           deles.
         </p>
 
-        <h3 data-en="Fixing a clarification already answered">Consertar uma clarification já respondida</h3>
+        <h3 data-en="Fixing a clarification already answered" data-es="Corregir una aclaración ya respondida">Consertar uma clarification já respondida</h3>
         <figure class="shot">
           <img src="/contest/ajuda/img/cjudge-clarification.png" alt="">
-          <figcaption data-en="The same clarifications screen the judges use. Each answered question has one extra line: &quot;✎ edit answer (chief judge/admin)&quot;. Open it to edit the current text. The button becomes &quot;Save edit&quot;. You also see the login and the name of the team that asked.">
+          <figcaption data-en="The same clarifications screen the judges use. Each answered question has one extra line: &quot;✎ edit answer (chief judge/admin)&quot;. Open it to edit the current text. The button becomes &quot;Save edit&quot;. You also see the login and the name of the team that asked." data-es="La misma pantalla de aclaraciones que usan los jueces. Cada pregunta respondida tiene una línea extra: &quot;✎ editar respuesta (juez principal/admin)&quot;. Ábrela para editar el texto actual. El botón se convierte en &quot;Save edit&quot;. También ves el usuario y el nombre del equipo que preguntó.">
             A mesma tela de clarifications que os juízes usam. Cada pergunta respondida tem uma
             linha a mais: <b>✎ editar resposta (juiz-chefe/admin)</b>. Abra a linha para editar o
             texto atual. O botão vira <i>Salvar edição</i>. Você também vê o login e o nome do time
             que perguntou.
           </figcaption>
         </figure>
-        <p data-en-html="A judge cannot edit an answer after sending it. You can. Use this for the classic accident: an answer that went out wrong, or went out <b>private</b> when it had to be <b>public</b>. Fix the text, check <b>public</b> and save. The teams see the corrected version.">
+        <p data-en-html="A judge cannot edit an answer after sending it. You can. Use this for the classic accident: an answer that went out wrong, or went out <b>private</b> when it had to be <b>public</b>. Fix the text, check <b>public</b> and save. The teams see the corrected version." data-es-html="Un juez no puede editar una respuesta después de enviarla. Tú sí. Úsalo para el accidente clásico: una respuesta que salió mal, o que salió <b>privada</b> cuando tenía que ser <b>pública</b>. Corrige el texto, marca <b>pública</b> y guarda. Los equipos ven la versión corregida.">
           Um juiz não edita uma resposta depois de enviar. Você edita. Use isso para o acidente
           clássico: uma resposta que saiu errada, ou que saiu <b>privada</b> quando tinha de ser
           <b>pública</b>. Corrija o texto, marque <b>pública</b> e salve. Os times veem a versão
           corrigida.
         </p>
-        <div class="tip" data-en-html="A reserved question belongs to the judge who reserved it. You cannot reserve it or answer it. The reservation expires by itself in <b>5 minutes</b>. If the judge left the room, click <b>⚠ Release reservation of &lt;judge&gt;</b> and confirm. The question becomes free again. The audit log records the release.">
+        <div class="tip" data-en-html="A reserved question belongs to the judge who reserved it. You cannot reserve it or answer it. The reservation expires by itself in <b>5 minutes</b>. If the judge left the room, click <b>⚠ Release reservation of &lt;judge&gt;</b> and confirm. The question becomes free again. The audit log records the release." data-es-html="Una pregunta reservada le pertenece al juez que la reservó. No puedes reservarla ni responderla. La reserva expira sola en <b>5 minutos</b>. Si el juez salió de la sala, haz clic en <b>⚠ Release reservation of &lt;judge&gt;</b> y confirma. La pregunta vuelve a quedar libre. La auditoría registra la liberación.">
           Uma pergunta reservada pertence ao juiz que a reservou. Você não a reserva nem a
           responde. A reserva expira sozinha em <b>5 minutos</b>. Se o juiz saiu da sala, clique em
           <b>⚠ Liberar reserva de &lt;juiz&gt;</b> e confirme. A pergunta volta a ficar livre. A
           auditoria registra a liberação.
         </div>
 
-        <h3 data-en="Publishing news">Publicar notícia</h3>
-        <p data-en-html="At the bottom of the same screen is <b>📰 Contest news</b>: a title, an optional text and an optional attachment. It shows up on the teams' home page, with an unread badge. Judges can publish and remove; <b>editing a news item already sent is yours alone</b> (the <i>✎ edit</i> button only appears for you).">
+        <h3 data-en="Publishing news" data-es="Publicar noticias">Publicar notícia</h3>
+        <p data-en-html="At the bottom of the same screen is <b>📰 Contest news</b>: a title, an optional text and an optional attachment. It shows up on the teams' home page, with an unread badge. Judges can publish and remove; <b>editing a news item already sent is yours alone</b> (the <i>✎ edit</i> button only appears for you)." data-es-html="Al final de la misma pantalla está <b>📰 Noticias de la competencia</b>: un título, un texto opcional y un adjunto opcional. Aparece en la página de inicio de los equipos, con una insignia de no leído. Los jueces pueden publicar y quitar; <b>editar una noticia ya enviada es solo tuyo</b> (el botón <i>✎ editar</i> solo aparece para ti).">
           No fim da mesma tela está <b>📰 Contest news</b>: um título, um texto opcional e
           um anexo opcional. Ela aparece na página inicial dos times, com marcação de não-lida.
           Os juízes publicam e removem; <b>editar notícia já enviada é só sua</b> (o botão
           <i>✎ edit</i> só aparece para você).
         </p>
-        <div class="tip" data-en-html="Notice × news: the <b>📣 official notice</b> goes in the clarifications list and is about the contest content (an erratum, a rule). The <b>news</b> is about logistics and can carry a file — it is how the problem set PDF reaches the teams (see below).">
+        <div class="tip" data-en-html="Notice × news: the <b>📣 official notice</b> goes in the clarifications list and is about the contest content (an erratum, a rule). The <b>news</b> is about logistics and can carry a file — it is how the problem set PDF reaches the teams (see below)." data-es-html="Aviso × noticia: el <b>📣 official notice</b> va en la lista de aclaraciones y trata del contenido de la competencia (una errata, una regla). La <b>noticia</b> trata de logística y puede llevar un archivo — es así como el PDF del cuadernillo llega a los equipos (ver abajo).">
           Aviso × notícia: o <b>📣 aviso oficial</b> vai na lista de clarifications e trata do
           conteúdo da prova (uma errata, uma regra). A <b>notícia</b> trata de logística e pode
           levar arquivo — é assim que o PDF do caderno chega aos times (veja abaixo).
         </div>
 
-        <h3 data-en="Publishing the contest documents">Publicar os documentos da prova</h3>
+        <h3 data-en="Publishing the contest documents" data-es="Publicar los documentos de la competencia">Publicar os documentos da prova</h3>
         <figure class="shot">
           <img src="/contest/ajuda/img/cjudge-docs.png" alt="">
-          <figcaption data-en="The 📄 Documents tab: four documents × three languages, each line showing whether it was generated, how big it is, and whether it is published.">
+          <figcaption data-en="The 📄 Documents tab: four documents × three languages, each line showing whether it was generated, how big it is, and whether it is published." data-es="La pestaña 📄 Documentos: cuatro documentos × tres idiomas, cada línea muestra si fue generado, cuánto pesa, y si está publicado.">
             A aba 📄 <b>Documents</b>: quatro documentos × três idiomas, cada linha mostrando se
             foi gerado, o tamanho, e se está publicado.
           </figcaption>
         </figure>
         <table class="cheat">
-          <tr><th data-en="Document">Documento</th><th data-en="What it is">O que é</th></tr>
-          <tr><td data-en="Judging environment">Ambiente de julgamento</td><td data-en="Compilers, memory/time limits and accepted languages — what the team needs to know about the machine.">Compiladores, limites de memória/tempo e linguagens aceitas — o que o time precisa saber da máquina.</td></tr>
-          <tr><td data-en="Problem set">Caderno da prova</td><td data-en="Cover + all statements, the booklet that gets printed.">Capa + todos os enunciados, o caderno que vai para a impressora.</td></tr>
-          <tr><td data-en="Time limits sheet">Folha de time limits</td><td data-en="Letter · name · time limit, plus the errata.">Letra · nome · tempo limite, mais a errata.</td></tr>
-          <tr><td>Editorial</td><td data-en="The solution to each problem. Generate and review whenever you like — but it only PUBLISHES after the contest ends for every site.">A solução de cada problema. Gere e revise quando quiser — mas ele só PUBLICA depois que a prova termina para todas as sedes.</td></tr>
+          <tr><th data-en="Document" data-es="Documento">Documento</th><th data-en="What it is" data-es="Qué es">O que é</th></tr>
+          <tr><td data-en="Judging environment" data-es="Ambiente de evaluación">Ambiente de julgamento</td><td data-en="Compilers, memory/time limits and accepted languages — what the team needs to know about the machine." data-es="Compiladores, límites de memoria/tiempo y lenguajes aceptados — lo que el equipo necesita saber de la máquina.">Compiladores, limites de memória/tempo e linguagens aceitas — o que o time precisa saber da máquina.</td></tr>
+          <tr><td data-en="Problem set" data-es="Cuadernillo de problemas">Caderno da prova</td><td data-en="Cover + all statements, the booklet that gets printed." data-es="Portada + todos los enunciados, el cuadernillo que se imprime.">Capa + todos os enunciados, o caderno que vai para a impressora.</td></tr>
+          <tr><td data-en="Time limits sheet" data-es="Hoja de time limits">Folha de time limits</td><td data-en="Letter · name · time limit, plus the errata." data-es="Letra · nombre · time limit, más la errata.">Letra · nome · tempo limite, mais a errata.</td></tr>
+          <tr><td>Editorial</td><td data-en="The solution to each problem. Generate and review whenever you like — but it only PUBLISHES after the contest ends for every site." data-es="La solución de cada problema. Genera y revisa cuando quieras — pero solo SE PUBLICA después de que la competencia termina para todas las sedes.">A solução de cada problema. Gere e revise quando quiser — mas ele só PUBLICA depois que a prova termina para todas as sedes.</td></tr>
         </table>
-        <p data-en-html="Each line has <b>generate</b> (build it), <b>PDF</b>/<b>HTML</b>/<b>open</b> (check it) and <b>publish</b> (hand it over). Publishing puts the document in the &quot;Prova&quot; section for the teams and releases it to the site chiefs; ticking <b>+ news</b> publishes and announces it at the same time, with the file attached.">
+        <p data-en-html="Each line has <b>generate</b> (build it), <b>PDF</b>/<b>HTML</b>/<b>open</b> (check it) and <b>publish</b> (hand it over). Publishing puts the document in the &quot;Prova&quot; section for the teams and releases it to the site chiefs; ticking <b>+ news</b> publishes and announces it at the same time, with the file attached." data-es-html="Cada línea tiene <b>generate</b> (construirlo), <b>PDF</b>/<b>HTML</b>/<b>open</b> (revisarlo) y <b>publish</b> (entregarlo). Publicar pone el documento en la sección &quot;Competencia&quot; para los equipos y lo libera a los jefes de sede; marcar <b>+ noticia</b> publica y lo anuncia al mismo tiempo, con el archivo adjunto.">
           Cada linha tem <b>generate</b> (construir), <b>PDF</b>/<b>HTML</b>/<b>open</b> (conferir) e
           <b>publish</b> (entregar). Publicar põe o documento na seção &quot;Prova&quot; para os
           times e libera para os chefes de sede; marcar <b>+ news</b> publica e anuncia de uma
           vez, com o arquivo anexado.
         </p>
-        <div class="tip" data-en-html="<b>upload PDF</b> is for a document made outside MOJ — a translated problem set, a booklet laid out by hand. The uploaded file wins over the generated one everywhere, and <b>back to generated</b> undoes it (the generated one is never thrown away).">
+        <div class="tip" data-en-html="<b>upload PDF</b> is for a document made outside MOJ — a translated problem set, a booklet laid out by hand. The uploaded file wins over the generated one everywhere, and <b>back to generated</b> undoes it (the generated one is never thrown away)." data-es-html="<b>subir PDF</b> sirve para un documento hecho fuera de MOJ — un cuadernillo traducido, una diagramación hecha a mano. El archivo subido vence al generado en todo, y <b>volver al generado</b> lo deshace (el generado nunca se descarta).">
           <b>upload PDF</b> serve para documento feito fora do MOJ — um caderno traduzido, uma
           diagramação à mão. O arquivo enviado vence o gerado em tudo, e <b>back to generated</b>
           desfaz (o gerado nunca é jogado fora).
         </div>
-        <div class="warn" data-en-html="You see documents that are not published yet; a plain judge does not, and a team does not. Before the start, the problem set is exam material — publishing it early leaks the contest.">
+        <div class="warn" data-en-html="You see documents that are not published yet; a plain judge does not, and a team does not. Before the start, the problem set is exam material — publishing it early leaks the contest." data-es-html="Ves documentos que aún no están publicados; un juez común no los ve, y un equipo no los ve. Antes del inicio, el cuadernillo es material de examen — publicarlo antes filtra la competencia.">
           Você vê documentos ainda não publicados; um juiz comum não vê, e um time não vê. Antes do
           início, o caderno é material de prova — publicar cedo vaza a competição.
         </div>
 
-<h2 id="aquecimento" data-en="9. The warm-up is the rehearsal of the judging desk">9. O aquecimento é o ensaio da mesa</h2>
-        <p data-en-html="The <b>warm-up</b> — the short round before the contest, at the same address — is the only moment when the whole judging desk runs with real submissions and nothing is at stake. It is where you check what only you can change: how many judges a verdict needs, which verdicts go to review (the rest goes out on its own), and whether the conflict alarm actually reaches you. A conflict that nobody sees in the warm-up is a conflict nobody will see in the contest either.">
+<h2 id="aquecimento" data-en="9. The warm-up is the rehearsal of the judging desk" data-es="9. El calentamiento es el ensayo de la mesa de evaluación">9. O aquecimento é o ensaio da mesa</h2>
+        <p data-en-html="The <b>warm-up</b> — the short round before the contest, at the same address — is the only moment when the whole judging desk runs with real submissions and nothing is at stake. It is where you check what only you can change: how many judges a verdict needs, which verdicts go to review (the rest goes out on its own), and whether the conflict alarm actually reaches you. A conflict that nobody sees in the warm-up is a conflict nobody will see in the contest either." data-es-html="El <b>calentamiento</b> — la ronda corta antes de la competencia, en la misma dirección — es el único momento en que toda la mesa de evaluación corre con envíos reales y nada en juego. Es donde revisas lo que solo tú puedes cambiar: cuántos jueces necesita un veredicto, qué veredictos van a revisión (el resto sale solo), y si la alarma de conflicto realmente te llega. Un conflicto que nadie ve en el calentamiento es un conflicto que nadie verá en la competencia tampoco.">
           O <b>aquecimento</b> — a rodada curta antes da prova, no mesmo endereço — é o único
           momento em que a mesa inteira roda com submissões de verdade e nada em jogo. É ali que
           você confere o que só você muda: quantos juízes um veredicto exige, quais veredictos
           vão para revisão (o resto sai sozinho), e se o alarme de conflito chega mesmo até
           você. Conflito que ninguém vê no aquecimento é conflito que ninguém verá na prova.
         </p>
-        <p data-en-html="It is also where you watch the queue drain — because <b>the promotion to the official round is refused</b> while there is an item without a released verdict, a job in flight or a pending verdict in the history. The panel's <b>📊 Status</b> tab is the screen that tells you when the desk is clean enough for the organizers to switch rounds.">
+        <p data-en-html="It is also where you watch the queue drain — because <b>the promotion to the official round is refused</b> while there is an item without a released verdict, a job in flight or a pending verdict in the history. The panel's <b>📊 Status</b> tab is the screen that tells you when the desk is clean enough for the organizers to switch rounds." data-es-html="También es donde ves la cola drenarse — porque <b>la promoción a la ronda oficial se rechaza</b> mientras haya un ítem sin veredicto liberado, un trabajo en vuelo o un veredicto pendiente en el historial. La pestaña <b>📊 Situación</b> del panel es la pantalla que te dice cuándo la mesa está lo bastante limpia para que los organizadores cambien de ronda.">
           É ali também que você vê a fila drenar — porque <b>a promoção para a prova oficial é
           recusada</b> enquanto houver item sem veredicto liberado, job em voo ou veredicto
           pendente no histórico. A aba <b>📊 Status</b> do painel é a tela que diz quando a mesa
           está limpa o bastante para a organização trocar de rodada.
         </p>
-        <div class="warn" data-en-html="<b>The documents lose the published mark on promotion.</b> The templates and the cover survive (they are configuration), the PDFs generated for the warm-up go into the archive — but what was published stops being published. So the info sheet, the problem set and the time-limits sheet have to be <b>published again</b> for the official round, or the teams open the Files &amp; Resources section and find nothing.">
+        <div class="warn" data-en-html="<b>The documents lose the published mark on promotion.</b> The templates and the cover survive (they are configuration), the PDFs generated for the warm-up go into the archive — but what was published stops being published. So the info sheet, the problem set and the time-limits sheet have to be <b>published again</b> for the official round, or the teams open the Files &amp; Resources section and find nothing." data-es-html="<b>Los documentos pierden la marca de publicado en la promoción.</b> Las plantillas y la portada sobreviven (son configuración), los PDF generados para el calentamiento van al archivo — pero lo que estaba publicado deja de estarlo. Así que el info sheet, el cuadernillo y la hoja de time limits tienen que ser <b>publicados de nuevo</b> para la ronda oficial, o los equipos abren la sección Files &amp; Resources y no encuentran nada.">
           <b>Os documentos perdem a marca de publicado na promoção.</b> Os modelos e a capa
           sobrevivem (são configuração), os PDFs gerados para o aquecimento vão para o arquivo —
           mas o que estava publicado deixa de estar. Então o info sheet, o caderno e a folha de
@@ -304,23 +304,23 @@
           abrem a seção Arquivos &amp; Recursos e não encontram nada.
         </div>
 
-<h2 id="nao" data-en="10. What you are NOT">10. O que você NÃO é</h2>
-        <div class="no" data-en="The chief judge is not a full administrator. These stay with the admin account, and asking for them mid-contest is a sign that the admin should be in the room:">
+<h2 id="nao" data-en="10. What you are NOT" data-es="10. Qué NO eres">10. O que você NÃO é</h2>
+        <div class="no" data-en="The chief judge is not a full administrator. These stay with the admin account, and asking for them mid-contest is a sign that the admin should be in the room:" data-es="El juez principal no es un administrador completo. Estas se quedan con la cuenta de admin, y pedirlas a mitad de la competencia es señal de que el admin debería estar en la sala:">
           O juiz-chefe não é administrador pleno. Estas ficam com a conta de admin, e precisar
           delas no meio da prova é sinal de que o admin deveria estar na sala:
         </div>
         <ul>
-          <li data-en-html="Contest <b>settings</b> — start/end, freeze, turning manual verdict on/off, number of judges.">Configuração do contest — início/fim, congelamento, ligar/desligar o veredicto manual, número de juízes.</li>
-          <li data-en-html="<b>Accounts</b> — creating, disabling, resetting passwords, sessions.">Contas — criar, desabilitar, resetar senha, sessões.</li>
-          <li data-en-html="<b>Problems</b> of the contest, the draw, time extensions per site.">Problemas do contest, sorteio, prorrogação por sede.</li>
-          <li data-en-html="<b>Promoting a round</b> (warm-up → official) and the final report.">Promover rodada (aquecimento → oficial) e o relatório final.</li>
-          <li data-en-html="The <b>staff scope</b> (which venue each staff account sees).">O escopo do staff (que sede cada conta de staff vê).</li>
-          <li data-en-html="Print queue, credential labels and the big screen — those belong to the other roles.">Fila de impressão, etiquetas de credenciais e telão — são dos outros papéis.</li>
+          <li data-en-html="Contest <b>settings</b> — start/end, freeze, turning manual verdict on/off, number of judges." data-es-html="La <b>configuración</b> de la competencia — inicio/fin, congelamiento, activar/desactivar el veredicto manual, número de jueces.">Configuração do contest — início/fim, congelamento, ligar/desligar o veredicto manual, número de juízes.</li>
+          <li data-en-html="<b>Accounts</b> — creating, disabling, resetting passwords, sessions." data-es-html="<b>Cuentas</b> — crear, deshabilitar, restablecer contraseñas, sesiones.">Contas — criar, desabilitar, resetar senha, sessões.</li>
+          <li data-en-html="<b>Problems</b> of the contest, the draw, time extensions per site." data-es-html="<b>Problemas</b> de la competencia, el sorteo, las prórrogas por sede.">Problemas do contest, sorteio, prorrogação por sede.</li>
+          <li data-en-html="<b>Promoting a round</b> (warm-up → official) and the final report." data-es-html="<b>Promover una ronda</b> (calentamiento → oficial) y el informe final.">Promover rodada (aquecimento → oficial) e o relatório final.</li>
+          <li data-en-html="The <b>staff scope</b> (which venue each staff account sees)." data-es-html="El <b>alcance del staff</b> (qué sede ve cada cuenta de staff).">O escopo do staff (que sede cada conta de staff vê).</li>
+          <li data-en-html="Print queue, credential labels and the big screen — those belong to the other roles." data-es-html="Cola de impresión, etiquetas de credenciales y la pantalla grande — esos son de los otros roles.">Fila de impressão, etiquetas de credenciais e telão — são dos outros papéis.</li>
         </ul>
         <p class="small muted">
-          <a href="/contest/ajuda/judge.html" data-en="← The judge (.judge)">← O juiz (.judge)</a> ·
-          <a href="/docs/MANUAL-JUIZ.html" target="_blank" data-en="Full judge manual">Manual completo dos juízes</a> ·
-          <a href="/docs/MANUAL-ADMIN.html" target="_blank" data-en="Organizer manual">Manual do organizador</a>
+          <a href="/contest/ajuda/judge.html" data-en="← The judge (.judge)" data-es="← El juez (.judge)">← O juiz (.judge)</a> ·
+          <a href="/docs/MANUAL-JUIZ.html" data-en-href="/docs/en/MANUAL-JUIZ.html" data-es-href="/docs/es/MANUAL-JUIZ.html" target="_blank" data-en="Full judge manual" data-es="Manual completo del juez">Manual completo dos juízes</a> ·
+          <a href="/docs/MANUAL-ADMIN.html" data-en-href="/docs/en/MANUAL-ADMIN.html" data-es-href="/docs/es/MANUAL-ADMIN.html" target="_blank" data-en="Organizer manual" data-es="Manual del organizador">Manual do organizador</a>
         </p>
       </article>
     </div>

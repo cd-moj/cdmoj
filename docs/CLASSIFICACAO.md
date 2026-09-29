@@ -9,7 +9,10 @@ chip **↑BR** no placar ao vivo (tooltip com etapa/regra/sede), chip + página
 
 ## O motor (`server/score/classify-br.sh <contest> <config.json> [out]`)
 
-Preview PURO (nunca grava) sobre `var/placar-full.txt` + `regions.json`. Regras da 1ª
+Preview PURO (nunca grava) sobre `var/placar-full.txt` + `regions.json`. Quem disputa = quem ESTÁ no
+nó da região (`config.region`, padrão "Brasil") e a sede de cada time = a sede pela regra única de sedes
+(`lib/regions.sh`: a gravada vence, senão a regex mais funda; quem "parou no pai" fica sem sede). Até
+28/09/2026 eram a regex do nó da região e a 1ª folha pela regex, ignorando a sede gravada. Regras da 1ª
 fase, aplicadas EM ORDEM (config define vagas; tudo editável no painel):
 
 - **regra 0** (elegibilidade): Total ≥ 3; o CAMPEÃO da sede (1º dela no ranking) é

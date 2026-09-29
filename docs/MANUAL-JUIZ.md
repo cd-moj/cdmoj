@@ -29,7 +29,7 @@ Como juiz, sua barra de navegação tem estas abas:
 | **Avaliar** | A sua fila de avaliação. É aqui que você trabalha. |
 | **Todas as Submissões** | O feed completo da prova, **anônimo**: você vê horário, problema, veredicto cru, código e log — mas **não** vê usuário nem time (nem a API revela; quem submeteu é irrelevante para avaliar). |
 | **Estatísticas** | Números da prova. |
-| **Sair** | Encerra a sessão. |
+| **Logout** | Encerra a sessão. |
 
 Uma diferença importante em relação a um competidor: você, juiz, também enxerga o **texto cru** do veredicto que a máquina calculou. O competidor não vê isso.
 
@@ -47,7 +47,7 @@ A fila fica na aba **Avaliar** (URL `/contest/judge/`). No topo da página há q
 Abaixo dos contadores vem a lista das submissões seguradas para revisão. Para cada uma, você vê:
 
 - **Problema** a que a submissão pertence.
-- **Veredicto de referência**: o que a máquina calculou (serve de referência, não é decisão final).
+- **Veredicto computado**: o que a máquina calculou (serve de referência, não é decisão final).
 - **Status** da submissão na fila.
 - **Quem está avaliando** (se já houver alguém).
 - **Links de log e de fonte** (o log de execução e o código enviado).
@@ -56,12 +56,12 @@ Abaixo dos contadores vem a lista das submissões seguradas para revisão. Para 
 ### Fluxo de avaliação, passo a passo
 
 1. **Pegar p/ avaliar** (*Claim to evaluate*, numa prova em inglês)**.** Clique para reservar a submissão. No máximo 2 pessoas podem estar na mesma submissão, e sua reserva tem um tempo limite de 5 minutos. Ao pegar, a tela troca para um painel estável, que não recarrega sozinho enquanto você trabalha (assim você não perde o que está fazendo).
-2. **Analisar.** No painel você tem tudo à mão: o **veredicto de referência**, o **log** de execução, o **código** enviado e um seletor de veredicto. Dois botões ajudam: **+5 min** (pede mais tempo, caso os 5 minutos não bastem) e **Desistir** (larga a submissão para outra pessoa pegar).
+2. **Analisar.** No painel você tem tudo à mão: o **veredicto computado**, o **log** de execução, o **código** enviado e um seletor de veredicto. Dois botões ajudam: **+5 min** (pede mais tempo, caso os 5 minutos não bastem) e **Desistir** (larga a submissão para outra pessoa pegar).
 3. **Votar e liberar.** Escolha o veredicto no seletor e clique para votar. Atenção: o **voto é permanente** (não dá para desfazer) e ele **libera você na hora** para pegar a próxima tarefa.
 
 ### Dois juízes têm de concordar
 
-Uma submissão só tem seu veredicto entregue ao competidor quando **N juízes votam a mesma coisa** — o N é decidido pelo admin do contest (Configurações → "Nº de juízes que validam", de 1 a 5; o padrão é 2). Quando os votos batem, o veredicto vai para o competidor (a entrega é feita por um único escritor, o daemon, para não haver bagunça). Com N=1, o seu voto sozinho decide.
+Uma submissão só tem seu veredicto entregue ao competidor quando **N juízes votam a mesma coisa** — o N é decidido pelo admin do contest (Central › Regras → "Nº de juízes que validam cada veredicto", de 1 a 5; o padrão é 2). Quando os votos batem, o veredicto vai para o competidor (a entrega é feita por um único escritor, o daemon, para não haver bagunça). Com N=1, o seu voto sozinho decide.
 
 Quando os dois votos **divergem**, a submissão vira um **conflito** e fica marcada para o **juiz-chefe** resolver. Um juiz comum não resolve conflito: sua parte termina no seu voto.
 
@@ -124,7 +124,7 @@ Em **qualquer página do contest**, o juiz-chefe recebe um **aviso vermelho pisc
 ### Outros poderes do chefe
 
 - Ver **Todas as Submissões** com usuário e time (o juiz comum a vê anônima), com o veredicto cru.
-- Responder **clarifications**. Reserve a pergunta antes de responder. Você não vê quem perguntou. O juiz-chefe e o administrador veem o login e o nome. Ninguém reserva uma pergunta que outro juiz já reservou. Quebras de linha na pergunta e na resposta são preservadas.
+- Responder **clarifications**. Reserve a pergunta antes de responder. Você vê quem perguntou: o login e o nome (o juiz comum não vê). Ninguém reserva uma pergunta que outro juiz já reservou. Quebras de linha na pergunta e na resposta são preservadas.
 - Editar **respostas e notícias** da prova.
 
 ### Aquecimento: o que só o chefe confere
@@ -166,7 +166,7 @@ Os poderes dele se limitam a: julgamento, veredictos, notícias/respostas, estat
 | Editar a lista de veredictos (🏷️ Opções). | Mudar configurações do contest. |
 | Editar **o que vai para revisão** (tabela problema x veredicto + exceções por linguagem). | Gerenciar times ou usuários. |
 | Ver **Todas as Submissões** com usuário/time e veredicto cru. | |
-| Responder clarifications. Reserve antes. O autor fica anônimo para você. | Reservar uma pergunta que outro juiz já reservou. |
+| Responder clarifications. Reserve antes. Você vê quem perguntou (login e nome). | Reservar uma pergunta que outro juiz já reservou. |
 | Editar respostas e notícias. | |
 | Receber o alerta piscante de conflito em qualquer página. | |
 
@@ -177,6 +177,6 @@ Os poderes dele se limitam a: julgamento, veredictos, notícias/respostas, estat
 
 ## Tutorial web com screenshots
 
-As telas deste manual, passo a passo e com imagens (PT/EN), estão em
+As telas deste manual, passo a passo e com imagens (texto em PT/EN/ES; as telas das fotos estão em inglês), estão em
 `/contest/ajuda/judge.html` e `/contest/ajuda/cjudge.html` — o botão
 **📖 Como funciona este papel** na sua tela abre direto.

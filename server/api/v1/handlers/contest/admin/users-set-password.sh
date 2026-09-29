@@ -11,6 +11,11 @@ contest="$(param contest)"
 require_contest "$contest"
 require_auth_contest "$contest"
 is_admin || fail 403 "Apenas o admin do contest" "admin_required"
+# contest COMPARTILHADO: os participantes entram com a senha do TREINO; gravar uma senha local nos overlays
+# (inscrição/bloqueio) era uma conversão PARCIAL por acidente (a senha local é autoritativa e passava a sair
+# nas etiquetas). Converter p/ contas próprias é outra ação, com prévia: /contest/admin/users-convert.
+[[ "$(_users_source "$contest")" != "$contest" ]] \
+  && fail 409 "Contest com usuários do Treino Livre: a senha é a do treino. Para contas próprias, converta (Pessoas › Contas)." "shared_users"
 body="$(read_body)"
 jq -e . >/dev/null 2>&1 <<<"$body" || fail 400 "JSON inválido" "bad_json"
 password="$(jq -r '.password // empty' <<<"$body")"

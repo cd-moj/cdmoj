@@ -20,20 +20,20 @@ function newsCard(n) {
   if (ext) { attrs.target = '_blank'; attrs.rel = 'noopener'; }
   return el('a', attrs,
     el('div', { class: 'small muted' }, fmtDate(n.date)),
-    el('div', { class: 'news-card-title' }, n.title || T('(sem título)', '(untitled)')),
+    el('div', { class: 'news-card-title' }, n.title || T('(sem título)', '(untitled)', '(sin título)')),
     el('div', { class: 'news-card-sum muted' }, n.summary || ''),
-    el('div', { class: 'news-card-more' }, ext ? T('abrir ↗', 'open ↗') : T('ler mais →', 'read more →')));
+    el('div', { class: 'news-card-more' }, ext ? T('abrir ↗', 'open ↗', 'abrir ↗') : T('ler mais →', 'read more →', 'leer más →')));
 }
 
 async function renderList() {
-  document.title = T('Notícias — MOJ', 'News — MOJ');
-  document.getElementById('page-title').textContent = T('📰 Notícias', '📰 News');
+  document.title = T('Notícias — MOJ', 'News — MOJ', 'Noticias — MOJ');
+  document.getElementById('page-title').textContent = T('📰 Notícias', '📰 News', '📰 Noticias');
   let j;
   try { j = await apiGet('/index/news', {}); }
-  catch { app.innerHTML = T('<div class="error-box">Não foi possível carregar as notícias.</div>', '<div class="error-box">Could not load the news.</div>'); return; }
+  catch { app.innerHTML = T('<div class="error-box">Não foi possível carregar as notícias.</div>', '<div class="error-box">Could not load the news.</div>', '<div class="error-box">No se pudieron cargar las noticias.</div>'); return; }
   const news = j.news || [];
   app.innerHTML = '';
-  if (!news.length) { app.innerHTML = T('<div class="muted">Nenhuma notícia ainda.</div>', '<div class="muted">No news yet.</div>'); return; }
+  if (!news.length) { app.innerHTML = T('<div class="muted">Nenhuma notícia ainda.</div>', '<div class="muted">No news yet.</div>', '<div class="muted">Aún no hay noticias.</div>'); return; }
   const grid = el('div', { class: 'news-grid' });
   news.forEach((n) => grid.append(newsCard(n)));
   app.append(grid);
@@ -42,19 +42,19 @@ async function renderList() {
 async function renderDetail(key) {
   let j;
   try { j = await apiGet('/index/news?id=' + encodeURIComponent(key), {}); }
-  catch { app.innerHTML = T('<div class="error-box">Notícia não encontrada. <a href="/noticias/">← voltar</a></div>', '<div class="error-box">News item not found. <a href="/noticias/">← back</a></div>'); return; }
+  catch { app.innerHTML = T('<div class="error-box">Notícia não encontrada. <a href="/noticias/">← voltar</a></div>', '<div class="error-box">News item not found. <a href="/noticias/">← back</a></div>', '<div class="error-box">Noticia no encontrada. <a href="/noticias/">← volver</a></div>'); return; }
   const n = j.news || {};
-  document.title = (n.title || T('Notícia', 'News')) + ' — MOJ';
-  document.getElementById('page-title').textContent = n.title || T('Notícia', 'News');
+  document.title = (n.title || T('Notícia', 'News', 'Noticia')) + ' — MOJ';
+  document.getElementById('page-title').textContent = n.title || T('Notícia', 'News', 'Noticia');
   app.innerHTML = '';
   app.append(
-    el('a', { class: 'small', href: '/noticias/', style: 'display:inline-block; margin-bottom:.5rem' }, T('← todas as notícias', '← all news')),
+    el('a', { class: 'small', href: '/noticias/', style: 'display:inline-block; margin-bottom:.5rem' }, T('← todas as notícias', '← all news', '← todas las noticias')),
     el('div', { class: 'small muted', style: 'margin-bottom:1rem' }, fmtDate(n.date)));
   const html = b64ToText(n.body_html_b64);
   if (html.trim()) { const art = el('article', { class: 'news-body' }); art.innerHTML = html; app.append(art); }
-  else app.append(el('p', { class: 'muted' }, n.summary || T('Sem conteúdo.', 'No content.')));
+  else app.append(el('p', { class: 'muted' }, n.summary || T('Sem conteúdo.', 'No content.', 'Sin contenido.')));
   if (n.url) app.append(el('p', { style: 'margin-top:1.2rem' },
-    el('a', { href: n.url, target: '_blank', rel: 'noopener' }, T('Fonte original ↗', 'Original source ↗'))));
+    el('a', { href: n.url, target: '_blank', rel: 'noopener' }, T('Fonte original ↗', 'Original source ↗', 'Fuente original ↗'))));
 }
 
 if (id) renderDetail(id); else renderList();

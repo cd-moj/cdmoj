@@ -293,16 +293,17 @@ export function heatmap(countsByDate, opts = {}) {
   };
 
   // dias da semana (Seg, Qua, Sex)
-  const DOW = ['', T('Seg', 'Mon'), '', T('Qua', 'Wed'), '', T('Sex', 'Fri'), ''];
+  const DOW = ['', T('Seg', 'Mon', 'Lun'), '', T('Qua', 'Wed', 'Mié'), '', T('Sex', 'Fri', 'Vie'), ''];
   DOW.forEach((lbl, r) => {
     if (!lbl) return;
     const tx = svgEl('text', { x: 2, y: padTop + r * (cell + gap) + cell - 2, 'font-size': 10, fill: '#5b6b7d' });
     tx.textContent = lbl; svg.append(tx);
   });
 
-  const MONTHS = T('pt', 'en') === 'en'
-    ? ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-    : ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+  // (T devolve o ARRAY do idioma — a detecção antiga por T('pt','en')==='en' dava PT em espanhol)
+  const MONTHS = T(['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'],
+    ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+    ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic']);
   let lastMonth = -1;
   const cur = new Date(start);
   for (let c = 0; c < cols; c++) {
@@ -318,7 +319,7 @@ export function heatmap(countsByDate, opts = {}) {
       const x = padLeft + c * (cell + gap), y = padTop + r * (cell + gap);
       const rect = svgEl('rect', { x, y, width: cell, height: cell, rx: 2, fill: shade(v) });
       const title = svgEl('title', {});
-      title.textContent = opts.fmt ? opts.fmt(v, tag(cur)) : `${tag(cur)}: ${v} ${v === 1 ? T('submissão', 'submission') : T('submissões', 'submissions')}`;
+      title.textContent = opts.fmt ? opts.fmt(v, tag(cur)) : `${tag(cur)}: ${v} ${v === 1 ? T('submissão', 'submission', 'envío') : T('submissões', 'submissions', 'envíos')}`;
       rect.append(title); svg.append(rect);
       cur.setDate(cur.getDate() + 1);
     }
@@ -330,14 +331,14 @@ export function heatmap(countsByDate, opts = {}) {
   legend.className = 'legend';
   const lg = document.createElement('span');
   lg.style.cssText = 'display:inline-flex;align-items:center;gap:.25rem';
-  lg.append(document.createTextNode(T('menos ', 'less ')));
+  lg.append(document.createTextNode(T('menos ', 'less ', 'menos ')));
   [0, 0.3, 0.5, 0.72, 0.95].forEach(l => {
     const s = document.createElement('span');
     s.className = 'sw';
     s.style.background = l === 0 ? '#eef3fb' : mix('#eef3fb', base, l);
     lg.append(s);
   });
-  lg.append(document.createTextNode(T(' mais', ' more')));
+  lg.append(document.createTextNode(T(' mais', ' more', ' más')));
   legend.append(lg);
   wrap.append(legend);
   return wrap;
@@ -352,10 +353,10 @@ export function heatmap(countsByDate, opts = {}) {
 export function heatmapGrid(cells, opts = {}) {
   const cell = opts.cell || 22, gap = opts.gap || 4;
   const base = opts.color || '#c4314b';
-  const fmt = opts.fmt || ((v) => T('média ', 'avg ') + v + 's');
-  const DAYS = T('pt', 'en') === 'en'
-    ? ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
-    : ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+  const fmt = opts.fmt || ((v) => T('média ', 'avg ', 'prom ') + v + 's');
+  const DAYS = T(['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'],
+    ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
+    ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb']);
   const wrap = document.createElement('div');
 
   // grade[dow][hour] = {value, n}
@@ -397,7 +398,7 @@ export function heatmapGrid(cells, opts = {}) {
       const title = svgEl('title', {});
       title.textContent = g
         ? `${DAYS[d]} ${h}h · ${fmt(v)} · ${g.n} ${g.n === 1 ? 'sub' : 'subs'}`
-        : `${DAYS[d]} ${h}h · ${T('sem dados', 'no data')}`;
+        : `${DAYS[d]} ${h}h · ${T('sem dados', 'no data', 'sin datos')}`;
       rect.append(title); svg.append(rect);
     }
   }
@@ -408,14 +409,14 @@ export function heatmapGrid(cells, opts = {}) {
   legend.className = 'legend';
   const lg = document.createElement('span');
   lg.style.cssText = 'display:inline-flex;align-items:center;gap:.25rem';
-  lg.append(document.createTextNode(T('menos ', 'less ')));
+  lg.append(document.createTextNode(T('menos ', 'less ', 'menos ')));
   [0, 0.3, 0.5, 0.72, 0.95].forEach(l => {
     const s = document.createElement('span');
     s.className = 'sw';
     s.style.background = l === 0 ? '#eef3fb' : mix('#eef3fb', base, l);
     lg.append(s);
   });
-  lg.append(document.createTextNode(T(' mais', ' more')));
+  lg.append(document.createTextNode(T(' mais', ' more', ' más')));
   legend.append(lg);
   wrap.append(legend);
   return wrap;

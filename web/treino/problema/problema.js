@@ -74,12 +74,12 @@ async function swapEditor(content, langId) {
 }
 
 async function loadProblem() {
-  if (!ID) { document.getElementById('ptitle').textContent = T('Problema não informado', 'No problem specified'); return; }
+  if (!ID) { document.getElementById('ptitle').textContent = T('Problema não informado', 'No problem specified', 'Problema no especificado'); return; }
   let p;
   // manda o Bearer quando existe: a rota segue pública, mas o log de atividade
   // (problem-view) registra QUEM abriu em vez de "anon"
   try { p = await apiGet('/treino/problem?id=' + encodeURIComponent(ID), { contest: CONTEST, auth: !!getToken(CONTEST) }); }
-  catch { document.getElementById('ptitle').textContent = T('Problema não encontrado', 'Problem not found'); return; }
+  catch { document.getElementById('ptitle').textContent = T('Problema não encontrado', 'Problem not found', 'Problema no encontrado'); return; }
 
   document.title = (p.title || ID) + ' — MOJ';
   document.getElementById('ptitle').textContent = p.title || ID;
@@ -87,14 +87,14 @@ async function loadProblem() {
   // autor: string do pacote exibida verbatim (pode ter vários, juntados por ', ' na origem)
   const au = (p.author || '').trim();
   const pa = document.getElementById('pauthor');
-  if (au) pa.textContent = (au.includes(', ') ? T('Autores: ', 'Authors: ') : T('Autor: ', 'Author: ')) + au;
+  if (au) pa.textContent = (au.includes(', ') ? T('Autores: ', 'Authors: ', 'Autores: ') : T('Autor: ', 'Author: ', 'Autor: ')) + au;
 
   // coleções (organização/curso — sempre visíveis, sem borrão)
   const colsEl = document.getElementById('pcols');
   colsEl.innerHTML = '';
   const cols = p.collections || [];
   if (cols.length) {
-    colsEl.append(el('span', { class: 'small muted' }, T('Coleções: ', 'Collections: ')));
+    colsEl.append(el('span', { class: 'small muted' }, T('Coleções: ', 'Collections: ', 'Colecciones: ')));
     cols.forEach((c) => {
       const name = String(c);
       colsEl.append(el('a', { class: 'collection', href: '/treino/?searchcol=' + encodeURIComponent(name) }, name));
@@ -122,9 +122,9 @@ async function loadProblem() {
   const tEntries = Object.entries(tl)
     .sort((a, b) => (a[0] === 'default' ? -1 : b[0] === 'default' ? 1 : a[0].localeCompare(b[0])));
   if (tEntries.length) {
-    ptl.append(el('span', { class: 'tl-label' }, T('⏱ Tempo limite', '⏱ Time limit')));
+    ptl.append(el('span', { class: 'tl-label' }, T('⏱ Tempo limite', '⏱ Time limit', '⏱ Tiempo límite')));
     tEntries.forEach(([k, v]) => {
-      const label = k === 'default' ? T('padrão', 'default') : (langById(k).label || k);
+      const label = k === 'default' ? T('padrão', 'default', 'predeterminado') : (langById(k).label || k);
       ptl.append(el('span', { class: 'tl-chip' }, el('b', {}, label), el('span', { class: 'tl-time' }, fmtTime(v))));
     });
   }
@@ -132,7 +132,7 @@ async function loadProblem() {
   document.getElementById('problem-head').append(
     el('div', { style: 'margin-top:.6rem' },
       el('a', { class: 'btn ghost', style: 'padding:.32rem .7rem;font-size:.85rem',
-                href: '/treino/problema/stats/?id=' + encodeURIComponent(ID) }, T('📊 Estatísticas deste problema', '📊 Statistics for this problem'))));
+                href: '/treino/problema/stats/?id=' + encodeURIComponent(ID) }, T('📊 Estatísticas deste problema', '📊 Statistics for this problem', '📊 Estadísticas de este problema'))));
 
   // IDIOMA DO ENUNCIADO: `statement_langs` + `statements{<lang>}` (PT segue em statement_html_b64).
   // Chips acima do enunciado só quando há mais de um; a troca é em lugar (título + corpo).
@@ -152,7 +152,7 @@ async function loadProblem() {
   const chips = makeStmtLangChips(langs, cur, (l) => { cur = l; rememberStmtLang(l); setChipsActive(chips, l); showStatement(l); });
   if (langs.length > 1) {
     const bar = el('div', { class: 'row', style: 'justify-content:space-between;align-items:center;margin:0 0 .5rem' },
-      el('span', { class: 'small muted' }, T('Idioma do enunciado:', 'Statement language:')), chips);
+      el('span', { class: 'small muted' }, T('Idioma do enunciado:', 'Statement language:', 'Idioma del enunciado:')), chips);
     stmtEl.before(bar);
   }
   // ⬇ Exemplos: todos os pares de exemplo num zip (p.samples vem do /treino/problem — o MESMO
@@ -160,9 +160,9 @@ async function loadProblem() {
   const dlable = downloadableSamples(p.samples);   // too_big fica de fora (o enunciado mostra o começo)
   if (dlable.length) {
     const slug = (ID.split('#')[1] || ID).replace(/[^A-Za-z0-9._-]/g, '_');
-    const dl = el('button', { class: 'btn ghost small', type: 'button', title: T('Baixa entrada e saída de cada exemplo (.in/.out) num zip', 'Downloads each sample input and output (.in/.out) in a zip'),
+    const dl = el('button', { class: 'btn ghost small', type: 'button', title: T('Baixa entrada e saída de cada exemplo (.in/.out) num zip', 'Downloads each sample input and output (.in/.out) in a zip', 'Descarga la entrada y salida de cada ejemplo (.in/.out) en un zip'),
       onclick: () => downloadSamplesZip(dlable, slug, slug + '-exemplos.zip') },
-      T(`⬇ Exemplos (${dlable.length})`, `⬇ Samples (${dlable.length})`));
+      T(`⬇ Exemplos (${dlable.length})`, `⬇ Samples (${dlable.length})`, `⬇ Ejemplos (${dlable.length})`));
     stmtEl.before(el('div', { class: 'row', style: 'justify-content:flex-end;margin:0 0 .4rem' }, dl));
   }
   showStatement(cur);
@@ -181,14 +181,14 @@ async function openReportAuthed(path) {
   try {
     const r = await fetch('/api/v1' + path, { headers: { 'Authorization': 'Bearer ' + getToken(CONTEST) } });
     openHtmlReport(await r.text());
-  } catch { alert(T('Falha ao abrir o report.', 'Failed to open the report.')); }
+  } catch { alert(T('Falha ao abrir o report.', 'Failed to open the report.', 'No se pudo abrir el informe.')); }
 }
 
 async function openSubmissionInEditor(subid, time, langField) {
   let txt;
   try {
     txt = await apiGetText(`/submission/source?contest=${CONTEST}&id=${subid}&time=${time}`, { contest: CONTEST, auth: true });
-  } catch (e) { alert(T('Não foi possível abrir o código: ', 'Could not open the code: ') + (e.message || '')); return; }
+  } catch (e) { alert(T('Não foi possível abrir o código: ', 'Could not open the code: ', 'No se pudo abrir el código: ') + (e.message || '')); return; }
   await swapEditor(txt, langById((langField || '').toLowerCase()).id);
   document.getElementById('submitSection').scrollIntoView({ behavior: 'smooth' });
 }
@@ -202,14 +202,14 @@ function parseHistLine(line) {
 
 async function loadHistory() {
   const box = document.getElementById('history');
-  if (!getToken(CONTEST)) { box.innerHTML = `<span class="muted small">${T('Entre para ver seu histórico.', 'Log in to view your history.')}</span>`; return; }
+  if (!getToken(CONTEST)) { box.innerHTML = `<span class="muted small">${T('Entre para ver seu histórico.', 'Log in to view your history.', 'Inicia sesión para ver tu historial.')}</span>`; return; }
   let txt;
   try { txt = await apiGetText('/treino/history?id=' + encodeURIComponent(ID), { contest: CONTEST, auth: true }); }
   catch { box.innerHTML = '<span class="muted small">—</span>'; return; }
   const rows = txt.split('\n').map((s) => s.trim()).filter(Boolean).map(parseHistLine).filter(Boolean)
                   .sort((a, b) => Number(b.epoch) - Number(a.epoch));
   box.innerHTML = '';
-  if (!rows.length) { box.innerHTML = `<span class="muted small">${T('Nenhuma submissão ainda.', 'No submissions yet.')}</span>`; return; }
+  if (!rows.length) { box.innerHTML = `<span class="muted small">${T('Nenhuma submissão ainda.', 'No submissions yet.', 'Aún no hay envíos.')}</span>`; return; }
 
   // resumo (testes/pontos) das submissões já julgadas — uma chamada em lote (best-effort)
   let summ = {};
@@ -221,18 +221,18 @@ async function loadHistory() {
 
   const tbl = el('table', { class: 'moj' },
     el('thead', {}, el('tr', {},
-      el('th', {}, T('Data/Hora', 'Date/Time')), el('th', {}, T('Ações', 'Actions')), el('th', {}, T('Linguagem', 'Language')), el('th', {}, T('Status', 'Status')))));
+      el('th', {}, T('Data/Hora', 'Date/Time', 'Fecha/Hora')), el('th', {}, T('Ações', 'Actions', 'Acciones')), el('th', {}, T('Linguagem', 'Language', 'Lenguaje')), el('th', {}, T('Status', 'Status', 'Estado')))));
   const tb = el('tbody');
   let anyPending = false;
   rows.forEach((r) => {
     if (isPending(r.verdict)) anyPending = true;
     const ext = (r.lang || 'txt').toLowerCase();
     const acts = el('td', { class: 'small' },
-      el('a', { href: '#', title: T('abrir no editor', 'open in editor'), onclick: (e) => { e.preventDefault(); openSubmissionInEditor(r.subid, r.epoch, r.lang); } }, T('✎ editor', '✎ editor')),
+      el('a', { href: '#', title: T('abrir no editor', 'open in editor', 'abrir en el editor'), onclick: (e) => { e.preventDefault(); openSubmissionInEditor(r.subid, r.epoch, r.lang); } }, T('✎ editor', '✎ editor', '✎ editor')),
       ' · ',
-      el('a', { href: '#', onclick: (e) => { e.preventDefault(); downloadAuthed(`/submission/source?contest=${CONTEST}&id=${r.subid}&time=${r.epoch}`, r.subid + '.' + ext); } }, T('cód', 'code')),
+      el('a', { href: '#', onclick: (e) => { e.preventDefault(); downloadAuthed(`/submission/source?contest=${CONTEST}&id=${r.subid}&time=${r.epoch}`, r.subid + '.' + ext); } }, T('cód', 'code', 'código')),
       ' · ',
-      el('a', { href: '#', onclick: (e) => { e.preventDefault(); openReportAuthed(`/submission/log?contest=${CONTEST}&id=${r.subid}&time=${r.epoch}`); } }, T('log', 'log')));
+      el('a', { href: '#', onclick: (e) => { e.preventDefault(); openReportAuthed(`/submission/log?contest=${CONTEST}&id=${r.subid}&time=${r.epoch}`); } }, T('log', 'log', 'log')));
     const rtxt = isPending(r.verdict) ? '' : resumoText(summ[r.subid]);
     const vcell = el('td', {},
       el('span', { class: 'verdict ' + verdictClass(r.verdict) },
@@ -252,7 +252,7 @@ async function renderSubmit() {
   const st = await status(CONTEST);
   if (!st.logged_in) {
     editorApi = null; editorMount = null;
-    body.append(el('p', { class: 'notice' }, T('Você precisa estar logado para enviar. Use o login no topo da página.', 'You must be logged in to submit. Use the login at the top of the page.')));
+    body.append(el('p', { class: 'notice' }, T('Você precisa estar logado para enviar. Use o login no topo da página.', 'You must be logged in to submit. Use the login at the top of the page.', 'Debes iniciar sesión para enviar. Usa el inicio de sesión en la parte superior de la página.')));
     return;
   }
   // linguagens ofertadas: problema DECLARA -> exatamente esses ids (via langById, que sintetiza
@@ -270,31 +270,32 @@ async function renderSubmit() {
   const editorBox = el('div', { class: 'editor-box' }, editorMount);
   const fileInput = el('input', { type: 'file' });
   const steps = el('div', { class: 'submit-steps' });
-  const btn = el('button', { class: 'btn' }, T('Enviar solução', 'Submit solution'));
+  const btn = el('button', { class: 'btn' }, T('Enviar solução', 'Submit solution', 'Enviar solución'));
   const toggle = el('button', { class: 'btn ghost', type: 'button', onclick: () => {
     const c = editorBox.classList.toggle('collapsed');
-    toggle.textContent = c ? T('▸ Mostrar editor', '▸ Show editor') : T('▾ Ocultar editor', '▾ Hide editor');
-  } }, T('▾ Ocultar editor', '▾ Hide editor'));
+    toggle.textContent = c ? T('▸ Mostrar editor', '▸ Show editor', '▸ Mostrar editor') : T('▾ Ocultar editor', '▾ Hide editor', '▾ Ocultar editor');
+  } }, T('▾ Ocultar editor', '▾ Hide editor', '▾ Ocultar editor'));
   injectEditorCss();
   const refreshEd = () => { if (editorApi && typeof editorApi.refresh === 'function') editorApi.refresh(); };
   const focusEd = () => { if (editorApi && typeof editorApi.focus === 'function') editorApi.focus(); };
   // ⛶ Tela cheia (dialog no top layer — acima do header, com backdrop própria, acessível).
-  const expandBtn = el('button', { class: 'btn ghost', type: 'button', title: T('Editor em tela cheia', 'Full-screen editor') }, T('⛶ Tela cheia', '⛶ Full screen'));
+  const expandBtn = el('button', { class: 'btn ghost', type: 'button', title: T('Editor em tela cheia', 'Full-screen editor', 'Editor en pantalla completa') }, T('⛶ Tela cheia', '⛶ Full screen', '⛶ Pantalla completa'));
   // ⧉ Editor em nova janela: abre a MESMA página em modo "só editor" (?editoronly=1).
-  const popBtn = el('button', { class: 'btn ghost', type: 'button', title: T('Abrir só o editor numa nova janela', 'Open only the editor in a new window'),
-    onclick: () => { const u = new URL(location.href); u.searchParams.set('editoronly', '1'); window.open(u.toString(), '_blank', 'width=900,height=820'); } }, T('⧉ Nova janela', '⧉ New window'));
-  const closeFullBtn = el('button', { class: 'btn ghost', type: 'button', title: T('Sair da tela cheia (Esc)', 'Exit full screen (Esc)'), onclick: () => exitFull() }, T('✕ Fechar', '✕ Close'));
+  const popBtn = el('button', { class: 'btn ghost', type: 'button', title: T('Abrir só o editor numa nova janela', 'Open only the editor in a new window', 'Abrir solo el editor en una ventana nueva'),
+    onclick: () => { const u = new URL(location.href); u.searchParams.set('editoronly', '1'); window.open(u.toString(), '_blank', 'width=900,height=820'); } }, T('⧉ Nova janela', '⧉ New window', '⧉ Nueva ventana'));
+  const closeFullBtn = el('button', { class: 'btn ghost', type: 'button', title: T('Sair da tela cheia (Esc)', 'Exit full screen (Esc)', 'Salir de pantalla completa (Esc)'), onclick: () => exitFull() }, T('✕ Fechar', '✕ Close', '✕ Cerrar'));
   closeFullBtn.style.display = 'none';
   // ajuda no PONTO DE USO: é aqui que o aluno escolhe a linguagem e descobre que não sabe como
   // ler a entrada. Nova aba p/ não perder o código já digitado.
   const helpLink = el('a', { class: 'small', href: '/treino/ajuda/', target: '_blank', rel: 'noopener',
     title: T('Entrada e saída, extensões e o código inicial de cada linguagem',
-             'Input and output, extensions and the starter code for each language') },
-    T('📖 Como enviar', '📖 How to submit'));
+             'Input and output, extensions and the starter code for each language',
+             'Entrada y salida, extensiones y el código inicial de cada lenguaje') },
+    T('📖 Como enviar', '📖 How to submit', '📖 Cómo enviar'));
   const wrap = el('div', { class: 'editor-wrap' },
     el('div', { class: 'editor-bar' },
-      el('label', {}, T('Linguagem: ', 'Language: ')), langSel,
-      el('span', { class: 'small muted' }, T('ou arquivo:', 'or file:')), fileInput,
+      el('label', {}, T('Linguagem: ', 'Language: ', 'Lenguaje: ')), langSel,
+      el('span', { class: 'small muted' }, T('ou arquivo:', 'or file:', 'o archivo:')), fileInput,
       helpLink,
       el('span', { style: 'flex:1' }), expandBtn, popBtn, closeFullBtn, toggle),
     editorBox, steps, btn);
@@ -314,7 +315,7 @@ async function renderSubmit() {
   expandBtn.onclick = enterFull;
   dlg.addEventListener('cancel', (e) => { e.preventDefault(); exitFull(); });  // Esc fecha limpo
   body.append(wrap);
-  if (EDITOR_ONLY) { document.title = T('Editor — ', 'Editor — ') + document.title; expandBtn.style.display = 'none'; popBtn.style.display = 'none'; setTimeout(refreshEd, 50); }
+  if (EDITOR_ONLY) { document.title = T('Editor — ', 'Editor — ', 'Editor — ') + document.title; expandBtn.style.display = 'none'; popBtn.style.display = 'none'; setTimeout(refreshEd, 50); }
 
   editorApi = await createEditor(editorMount, { doc: templateFor(curLangId), cm: langById(curLangId).cm });
   langSel.addEventListener('change', async () => {
@@ -324,7 +325,7 @@ async function renderSubmit() {
   });
 
   btn.addEventListener('click', async () => {
-    btn.disabled = true; steps.textContent = T('Preparando…', 'Preparing…');
+    btn.disabled = true; steps.textContent = T('Preparando…', 'Preparing…', 'Preparando…');
     try {
       let filename, code_b64, source;
       if (fileInput.files && fileInput.files[0]) {
@@ -335,7 +336,8 @@ async function renderSubmit() {
         if (problemLangs.length && !problemLangs.map(extCanon).includes(extCanon(fext))) {
           steps.innerHTML = '<span class="error-box">'
             + T(`Este problema só aceita: ${problemLangs.join(', ')} — o arquivo .${fext || '?'} não pode ser enviado.`,
-                `This problem only accepts: ${problemLangs.join(', ')} — the .${fext || '?'} file cannot be submitted.`)
+                `This problem only accepts: ${problemLangs.join(', ')} — the .${fext || '?'} file cannot be submitted.`,
+                `Este problema solo acepta: ${problemLangs.join(', ')} — el archivo .${fext || '?'} no puede enviarse.`)
             + '</span>';
           return;
         }
@@ -346,12 +348,12 @@ async function renderSubmit() {
         code_b64 = textToBase64(editorApi.getValue());
         source = 'web';    // editor web do MOJ
       }
-      steps.textContent = T('Enviando…', 'Sending…');
+      steps.textContent = T('Enviando…', 'Sending…', 'Enviando…');
       await apiPost('/submit?contest=' + CONTEST, { problem_id: ID, filename, code_b64, source }, { contest: CONTEST, auth: true });
-      steps.innerHTML = `<span class="v-ok" style="padding:.2rem .5rem;border-radius:6px">${T('✓ Enviado! Acompanhe no histórico abaixo.', '✓ Submitted! Follow it in the history below.')}</span>`;
+      steps.innerHTML = `<span class="v-ok" style="padding:.2rem .5rem;border-radius:6px">${T('✓ Enviado! Acompanhe no histórico abaixo.', '✓ Submitted! Follow it in the history below.', '✓ ¡Enviado! Sigue su estado en el historial de abajo.')}</span>`;
       await loadHistory();
     } catch (e) {
-      steps.innerHTML = '<span class="error-box">' + T('Erro: ', 'Error: ') + (e.message || T('falha ao enviar', 'failed to submit')) + '</span>';
+      steps.innerHTML = '<span class="error-box">' + T('Erro: ', 'Error: ', 'Error: ') + (e.message || T('falha ao enviar', 'failed to submit', 'no se pudo enviar')) + '</span>';
     } finally { btn.disabled = false; }
   });
 }

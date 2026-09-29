@@ -64,7 +64,7 @@ moj/
   descongelado, fotos/músicas de todos os times, as chaves de webcast e as estatísticas — não
   submete, não vê enunciado, e não é coberto por `is_judge`: os handlers testam
   `is_judge || is_animeitor` explicitamente). Cada papel tem **tutorial próprio com screenshots**
-  em `/contest/ajuda/<papel>.html` (pt/en), alcançável pelo botão *📖 Como funciona este papel*
+  em `/contest/ajuda/<papel>.html` (pt/en/es), alcançável pelo botão *📖 Como funciona este papel*
   na tela dele; os manuais de usuário são `MANUAL-{STAFF,JUIZ,ANIMEITOR}.md`. **Login SEM sufixo
   é o COMPETIDOR**, e ele também tem o seu — `/contest/ajuda/competidor.html`, pelo botão *📖 Como
   funciona a prova* da página da prova (só p/ quem não tem papel: organização e juiz já têm o
@@ -84,7 +84,8 @@ moj/
 
 Vanilla ES modules, **sem build**, servido estático. `shared/` concentra o cliente de API
 (fetch + Bearer + envelope), auth/token (localStorage), `ui.js` (`el()`, avatares, i18n
-pt/en — idioma pelo LOCALE do contest › **`?lang=` na URL** › seletor do header › navegador;
+pt/en/es — idioma pelo LOCALE do contest › **`?lang=` na URL** › seletor do header › navegador;
+mecanismo e glossário do espanhol em [`I18N.md`](I18N.md);
 o `?lang=` é o que faz um link mandado por e-mail abrir na versão certa), o editor
 **CodeMirror 6** (bundle **vendorizado** em `shared/vendor/codemirror/` —
 sem CDN, contest roda em LAN isolada; fallback textarea), os gráficos SVG
@@ -217,6 +218,9 @@ username = `mv` do diretório** e a maioria dos scripts de conta/julgamento só 
 (`lib/users.sh`, `emit_history_stream`). Os handlers de usuário do **admin do contest**
 (`user-add`/`user-disable`/`user-remove`/`users-set-password`) escrevem no `account.json` (fonte
 da verdade); remover = `mv` do diretório p/ `.removed-users/` (submissões preservadas).
+Um contest compartilhado (`USERS_FROM`) pode virar de **contas próprias** a qualquer momento
+(`POST /contest/admin/users-convert`: prévia → confirmação; senhas novas, histórico e placar
+preservados, cada time vira uma conta) — sem volta.
 ### Inscrição em contest (roster, janela e TIMES de contas do treino)
 Contest que usa as contas do treino (`USERS_FROM=treino`) pode exigir **inscrição prévia**:
 `contests/<c>/registrations.json` — **existir = ligado** (mesma doutrina do `cohorts.json`).
@@ -424,7 +428,7 @@ na aba Configurações do admin e por `moj-contest extend --group`, auditado). T
   é ali que se descobre de onde cada um vem, quem divide IP e, na prova, **quem trocou de
   máquina**; alimenta a sede do time e o gate de UA pelos endpoints que já existem);
   **Documentos** (`web/contest/admin/docs-tab.js` — os três documentos impressos da prova em
-  **PDF+HTML × pt/en**: *info sheet* (versões de compilador do `run/registry`, memória/pilha do
+  **PDF+HTML × pt/en/es**: *info sheet* (versões de compilador do `run/registry`, memória/pilha do
   conf, TL calibrado, linguagens), **caderno** (capa + enunciados; usa o **PDF próprio** do
   problema quando existe e junta com `pdfunite`, capa regerada no fim com o total real de páginas)
   **folha de time limits** e **EDITORIAL** (a solução de cada problema, lida do `docs/solucao.md` do

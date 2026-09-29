@@ -7,6 +7,11 @@ navegação), rode `bash docs/build-html.sh` e abra `docs/html/index.html`.
 > atualiza a doc no **mesmo commit** — rotas/campos em [API.md](API.md) **e** em
 > `../web/api/openapi.json` (os dois em sincronia); arquitetura/fluxo em
 > [OVERVIEW.md](OVERVIEW.md)/[FLOW.md](FLOW.md); regras de trabalho nos `CLAUDE.md`.
+>
+> **Docs em pt · en · es:** os de usuário da lista `DOCS_I18N` (`docs/i18n.sh`) têm tradução em
+> `en/` e `es/`, que muda no **mesmo commit** do PT: `bash docs/i18n.sh diff <DOC>`, aplicar,
+> `bash docs/i18n.sh stamp <DOC>`. O `server/test/smoke-docs-i18n.sh` reprova tradução atrasada.
+> Regras e estilo em [I18N.md](I18N.md), seção "Documentação".
 
 - **[OVERVIEW.md](OVERVIEW.md)** — **comece aqui.** Visão geral: arquitetura, estrutura
   do repositório, camada de API, frontend e tudo o que existe (treino, criação de contest,
@@ -22,6 +27,7 @@ navegação), rode `bash docs/build-html.sh` e abra `docs/html/index.html`.
   O roteiro prático de montar um pacote fica no `README.md` do **mojtools**.
 - **[VIRTUAL.md](VIRTUAL.md)** — participação virtual: refazer um contest encerrado contra o placar oficial (portão, regra de desistência, feed, motor do placar)
 - **[SCOREBOARD.md](SCOREBOARD.md)** — formato do TXT de placar e como adicionar um modo
+- **[I18N.md](I18N.md)** — idiomas da interface (pt · en · es): `T(pt, en, es)`, `data-en`/`data-es`, `LOCALE` do contest, o que o servidor traduz (papel, relatório, DM, Central) e o glossário do espanhol; seção "Documentação": os docs de usuário em en/es e como mantê-los
   (`updatescore-<modo>.sh` + `score-<modo>.js`).
 - **[DEPLOY.md](DEPLOY.md)** — nginx + fcgiwrap + units systemd (daemon `judged`, bot) + juízes
   **pull** e o subdomínio de contest.
@@ -39,7 +45,7 @@ Voltados ao usuário final, em português simples e sem travessão:
 
 - **[MANUAL-TREINO.md](MANUAL-TREINO.md)**: o aluno no Treino Livre (cadastro por Telegram, busca, enviar solução, perfil, estatísticas).
 - **[MANUAL-CONTEST.md](MANUAL-CONTEST.md)**: o competidor num contest (entrar, enviar, placar, clarifications, impressão, backup).
-- **[MANUAL-LINGUAGENS.md](MANUAL-LINGUAGENS.md)**: como enviar em cada linguagem e como funciona a entrada/saída. **Virou página do site** (`/treino/ajuda/`, o link contextual de ajuda): a tabela de linguagens é gerada da lista real e a página é bilíngue. Este `.md` é só o ponteiro.
+- **[MANUAL-LINGUAGENS.md](MANUAL-LINGUAGENS.md)**: como enviar em cada linguagem e como funciona a entrada/saída. **Virou página do site** (`/treino/ajuda/`, o link contextual de ajuda): a tabela de linguagens é gerada da lista real e a página é trilíngue (pt/en/es). Este `.md` é só o ponteiro.
 - **[MANUAL-STAFF.md](MANUAL-STAFF.md)**: a equipe de sala (`.staff` e `.cstaff`): fila de impressão, balões, etiquetas, revelação por sede.
 - **[MANUAL-ANIMEITOR.md](MANUAL-ANIMEITOR.md)**: quem opera o **telão** (`.animeitor`): chaves de streaming, fotos e músicas dos times, foto/música padrão, cerimônia. O técnico é o [WEBCAST.md](WEBCAST.md).
 - **[MANUAL-JUIZ.md](MANUAL-JUIZ.md)**: os juízes (`.judge` e `.cjudge`): fila de avaliação, votos, conflitos, painel do chefe.

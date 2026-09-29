@@ -270,7 +270,8 @@ plano das outras. Promover (`POST /contest/admin/rounds {action:"promote"}`, `li
 é **arquivar + zerar + reapontar**, sob `flock` em `var/.round.lock`:
 
 1. **checklist** — recusa (409 `not_ready`) com job no spool/fila, veredicto pendente, review
-   aberto, daemon caído, sem rodada planejada ou contas compartilhadas (`USERS_FROM`);
+   aberto, daemon caído ou sem rodada planejada (contest com contas compartilhadas, `USERS_FROM`, promove
+   normalmente — a inscrição cuida de quem entra na prova);
 2. `pr_reconcile_balloons` → `build.sh` → `stats-gen.sh` (fecha os números da rodada);
 3. `report-gen.sh` → `rounds/<slug>/relatorio/` — **antes** de mover qualquer coisa;
 4. `mv` do que é dado de rodada (`users/<l>/{history,metrics.json,submissions,mojlog,results}`,
@@ -287,6 +288,23 @@ plano das outras. Promover (`POST /contest/admin/rounds {action:"promote"}`, `li
 
 O arquivo é lido depois por `/contest/round` (site estático, gate por `published`) e por
 `/contest/admin/round-archive` (tar.gz cru, só admin).
+
+## Conversão: contas compartilhadas → contas próprias
+
+Contest com `USERS_FROM` (entra-se com a conta do Treino Livre) vira de contas PRÓPRIAS por
+`POST /contest/admin/users-convert` (`lib/users-convert.sh`), a qualquer momento:
+
+1. **prévia** (`dry_run`, padrão) — levanta a população SÓ do contest: dirs em `users/`, o roster
+   (`registrations.json`), as **sessões vivas** e o `var/access.log`; confere cada login na fonte por
+   caminho (nunca varre o treino) e devolve contagens, amostras, avisos em códigos e o `plan_id`;
+2. **execução** — confirmação (`true` antes da prova; o id do contest digitado depois do início) e,
+   sob os locks rodadas → inscrição → conversão, a população é levantada DE NOVO: `plan_id` diferente =
+   409 `plan_changed` com a prévia nova;
+3. contas gravadas em lote (senha nova; time = uma conta; membro de time com history = conta local
+   desabilitada; o admin do treino vira `.admin` local), roster arquivado em `var/`;
+4. **ponto de commit**: `USERS_FROM`/`SHARED_ADMIN` saem do conf. Depois: varredura de quem criou dir
+   durante a conversão, `logout_all` opcional, `var/users-convert.json` (resumo sem senha) e placar
+   sujo. Interrompida antes do commit, repetir completa (marcador `var/users-convert.pending`).
 
 ## Serviços systemd (`server/etc/systemd/`)
 

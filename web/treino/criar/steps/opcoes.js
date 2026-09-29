@@ -13,7 +13,7 @@ export function makeStepOpcoes(ctx) {
   // o usuário pode voltar ao passo Dados e trocar o modo — ressincroniza a seção de penalidade
   ctx.editors.settings.setContestMode?.(ctx.draft.mode);
   const root = el('div', { class: 'section' },
-    el('h2', {}, T('5 · Opções ', '5 · Options '), el('span', { class: 'small muted' }, T('(as mesmas da aba Configurações do admin)', "(same as the admin's Settings tab)"))),
+    el('h2', {}, T('5 · Opções ', '5 · Options ', '5 · Opciones '), el('span', { class: 'small muted' }, T('(as mesmas da aba Configurações do admin)', "(same as the admin's Settings tab)", "(lo mismo que en la pestaña Configuración del admin)"))),
     ctx.editors.settings.el);
   return { el: root };
 }

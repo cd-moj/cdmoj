@@ -15,7 +15,7 @@ import { status } from '/shared/auth.js';
 import { el, fmtDate, avatarEl, renderAuthArea } from '/shared/ui.js';
 import { barChart, hBarChart, lineChart, heatmap, heatmapGrid } from '/lib/charts.js';
 import { openHtmlReport } from '/shared/submission-links.js';
-import { T } from '/shared/i18n.js';
+import { T, uiLocale } from '/shared/i18n.js';
 
 const CONTEST = 'treino';
 const G = (opts) => ({ contest: CONTEST, auth: true, ...opts });
@@ -50,25 +50,25 @@ function ymd(daySec) {
 function errBox(message) {
   return el('div', { class: 'error-box', style: 'margin:.6rem 0' }, message);
 }
-function loading() { return el('div', { class: 'muted small' }, T('carregando…', 'loading…')); }
+function loading() { return el('div', { class: 'muted small' }, T('carregando…', 'loading…', 'cargando…')); }
 
 // ============================ aba: Sessões ativas ============================
 function makeSessionsTab() {
   const panel = el('div', { class: 'section' });
-  const head = el('h2', {}, T('👥 Sessões ativas', '👥 Active sessions'));
+  const head = el('h2', {}, T('👥 Sessões ativas', '👥 Active sessions', '👥 Sesiones activas'));
   const countBadge = el('span', { class: 'tag' }, '…');
   head.append(countBadge);
 
-  const search = el('input', { type: 'search', placeholder: T('Buscar nome, handle ou IP (aceita regex)…', 'Search name, handle or IP (regex allowed)…'), style: 'min-width:240px' });
+  const search = el('input', { type: 'search', placeholder: T('Buscar nome, handle ou IP (aceita regex)…', 'Search name, handle or IP (regex allowed)…', 'Buscar nombre, alias o IP (admite regex)…'), style: 'min-width:240px' });
   const matchInfo = el('span', { class: 'small muted' });
-  const selAll = el('input', { type: 'checkbox', title: T('Selecionar todos os filtrados', 'Select all filtered') });
-  const bulkLogout = el('button', { class: 'btn ghost', disabled: true }, T('Deslogar selecionados', 'Log out selected'));
-  const bulkLock = el('button', { class: 'btn danger', disabled: true }, T('Travar selecionados', 'Lock selected'));
+  const selAll = el('input', { type: 'checkbox', title: T('Selecionar todos os filtrados', 'Select all filtered', 'Seleccionar todos los filtrados') });
+  const bulkLogout = el('button', { class: 'btn ghost', disabled: true }, T('Deslogar selecionados', 'Log out selected', 'Cerrar sesión de los seleccionados'));
+  const bulkLock = el('button', { class: 'btn danger', disabled: true }, T('Travar selecionados', 'Lock selected', 'Bloquear seleccionados'));
   const tools = el('div', { class: 'toolbar' },
     search, matchInfo, el('span', { style: 'flex:1' }),
-    el('label', { class: 'row', style: 'gap:.3rem' }, selAll, T('todos', 'all')),
+    el('label', { class: 'row', style: 'gap:.3rem' }, selAll, T('todos', 'all', 'todos')),
     bulkLogout, bulkLock,
-    el('button', { class: 'btn ghost', onclick: () => load() }, T('↻ Atualizar', '↻ Refresh')));
+    el('button', { class: 'btn ghost', onclick: () => load() }, T('↻ Atualizar', '↻ Refresh', '↻ Actualizar')));
   const body = el('div', {}, loading());
   panel.append(head, tools, body);
 
@@ -90,26 +90,26 @@ function makeSessionsTab() {
   function updateBulk() {
     const n = checked.size;
     bulkLogout.disabled = bulkLock.disabled = n === 0;
-    bulkLogout.textContent = T('Deslogar selecionados', 'Log out selected') + (n ? ' (' + n + ')' : '');
-    bulkLock.textContent = T('Travar selecionados', 'Lock selected') + (n ? ' (' + n + ')' : '');
+    bulkLogout.textContent = T('Deslogar selecionados', 'Log out selected', 'Cerrar sesión de los seleccionados') + (n ? ' (' + n + ')' : '');
+    bulkLock.textContent = T('Travar selecionados', 'Lock selected', 'Bloquear seleccionados') + (n ? ' (' + n + ')' : '');
   }
   function syncSelAll(rows) { selAll.checked = rows.length > 0 && rows.every(s => checked.has(s.login)); }
 
   function render() {
     const rows = ALL.filter(matcher());
-    matchInfo.textContent = rows.length + T(' de ', ' of ') + ALL.length;
+    matchInfo.textContent = rows.length + T(' de ', ' of ', ' de ') + ALL.length;
     body.innerHTML = '';
-    if (!ALL.length) { body.append(el('div', { class: 'muted' }, T('Nenhuma sessão ativa.', 'No active sessions.'))); syncSelAll(rows); updateBulk(); return; }
-    if (!rows.length) { body.append(el('div', { class: 'muted' }, T('Nenhuma sessão casa com a busca.', 'No session matches the search.'))); syncSelAll(rows); updateBulk(); return; }
+    if (!ALL.length) { body.append(el('div', { class: 'muted' }, T('Nenhuma sessão ativa.', 'No active sessions.', 'No hay sesiones activas.'))); syncSelAll(rows); updateBulk(); return; }
+    if (!rows.length) { body.append(el('div', { class: 'muted' }, T('Nenhuma sessão casa com a busca.', 'No session matches the search.', 'Ninguna sesión coincide con la búsqueda.'))); syncSelAll(rows); updateBulk(); return; }
 
     const tb = el('tbody');
     rows.forEach(s => {
       const cb = el('input', { type: 'checkbox' });
       cb.checked = checked.has(s.login);
       cb.addEventListener('change', () => { cb.checked ? checked.add(s.login) : checked.delete(s.login); syncSelAll(rows); updateBulk(); });
-      const deslogarBtn = el('button', { class: 'btn ghost' }, T('Deslogar', 'Log out'));
+      const deslogarBtn = el('button', { class: 'btn ghost' }, T('Deslogar', 'Log out', 'Cerrar sesión'));
       deslogarBtn.addEventListener('click', () => actLogout([s.login], deslogarBtn));
-      const travarBtn = el('button', { class: 'btn danger' }, T('Travar', 'Lock'));
+      const travarBtn = el('button', { class: 'btn danger' }, T('Travar', 'Lock', 'Bloquear'));
       travarBtn.addEventListener('click', () => actLock([s.login], travarBtn));
       tb.append(el('tr', {},
         el('td', {}, cb),
@@ -119,7 +119,7 @@ function makeSessionsTab() {
             el('div', {}, s.name || s.login || '—'),
             el('div', { class: 'lg' }, '~' + (s.login || '?'))))),
         el('td', { class: 'ip' }, s.ip
-          ? el('a', { href: '#', title: T('Deslogar todos deste IP', 'Log out all from this IP'), onclick: (e) => { e.preventDefault(); actLogoutIp(s.ip); } }, s.ip)
+          ? el('a', { href: '#', title: T('Deslogar todos deste IP', 'Log out all from this IP', 'Cerrar sesión de todos desde esta IP'), onclick: (e) => { e.preventDefault(); actLogoutIp(s.ip); } }, s.ip)
           : '—'),
         el('td', { class: 'ua', title: s.user_agent || '' }, s.user_agent || '—'),
         el('td', { class: 'small' }, fmtDate(s.login_at)),
@@ -127,8 +127,8 @@ function makeSessionsTab() {
     });
     body.append(el('div', { class: 'chart-wrap' }, el('table', { class: 'moj' },
       el('thead', {}, el('tr', {},
-        el('th', {}, ''), el('th', {}, T('Usuário', 'User')), el('th', {}, 'IP'), el('th', {}, 'User-Agent'),
-        el('th', {}, T('Logado em', 'Logged in at')), el('th', {}, T('Ações', 'Actions')))), tb)));
+        el('th', {}, ''), el('th', {}, T('Usuário', 'User', 'Usuario')), el('th', {}, 'IP'), el('th', {}, 'User-Agent'),
+        el('th', {}, T('Logado em', 'Logged in at', 'Inició sesión el')), el('th', {}, T('Ações', 'Actions', 'Acciones')))), tb)));
     syncSelAll(rows); updateBulk();
   }
 
@@ -143,9 +143,9 @@ function makeSessionsTab() {
     body.innerHTML = ''; body.append(loading());
     let data;
     try { data = await apiGet('/treino/admin/sessions', G()); }
-    catch (e) { body.innerHTML = ''; body.append(errBox(T('Falha ao carregar sessões: ', 'Failed to load sessions: ') + (e.message || T('erro', 'error')))); return; }
+    catch (e) { body.innerHTML = ''; body.append(errBox(T('Falha ao carregar sessões: ', 'Failed to load sessions: ', 'Error al cargar sesiones: ') + (e.message || T('erro', 'error', 'error')))); return; }
     ALL = data.sessions || [];
-    countBadge.textContent = ALL.length + ' ' + (ALL.length === 1 ? T('sessão', 'session') : T('sessões', 'sessions'));
+    countBadge.textContent = ALL.length + ' ' + (ALL.length === 1 ? T('sessão', 'session', 'sesión') : T('sessões', 'sessions', 'sesiones'));
     const present = new Set(ALL.map(s => s.login));
     [...checked].forEach(l => { if (!present.has(l)) checked.delete(l); });
     render();
@@ -156,29 +156,29 @@ function makeSessionsTab() {
     if (btn) btn.disabled = true;
     try {
       const r = await apiPost('/treino/admin/logout-user', logins.length === 1 ? { login: logins[0] } : { logins }, G());
-      alert(T('Deslogados: ', 'Logged out: ') + num(r.users_count) + T(' usuário(s), ', ' user(s), ') + num(r.sessions_removed) + T(' sessão(ões) removida(s).', ' session(s) removed.'));
-    } catch (e) { alert(T('Falha ao deslogar: ', 'Failed to log out: ') + (e.message || T('erro', 'error'))); }
+      alert(T('Deslogados: ', 'Logged out: ', 'Cerraron sesión: ') + num(r.users_count) + T(' usuário(s), ', ' user(s), ', ' usuario(s), ') + num(r.sessions_removed) + T(' sessão(ões) removida(s).', ' session(s) removed.', ' sesión(es) eliminada(s).'));
+    } catch (e) { alert(T('Falha ao deslogar: ', 'Failed to log out: ', 'Error al cerrar sesión: ') + (e.message || T('erro', 'error', 'error'))); }
     checked.clear(); await load();
   }
   async function actLock(logins, btn) {
     if (!logins.length) return;
-    const who = logins.length === 1 ? '"' + logins[0] + '"' : logins.length + T(' usuário(s)', ' user(s)');
-    if (!confirm(T('Travar o acesso de ', 'Lock access for ') + who + T('?\n\nIsto TROCA a senha por uma aleatória (eles não conseguirão mais entrar até a senha ser redefinida) e encerra as sessões.', '?\n\nThis CHANGES the password to a random one (they will no longer be able to log in until the password is reset) and ends the sessions.'))) return;
+    const who = logins.length === 1 ? '"' + logins[0] + '"' : logins.length + T(' usuário(s)', ' user(s)', ' usuario(s)');
+    if (!confirm(T('Travar o acesso de ', 'Lock access for ', 'Bloquear el acceso de ') + who + T('?\n\nIsto TROCA a senha por uma aleatória (eles não conseguirão mais entrar até a senha ser redefinida) e encerra as sessões.', '?\n\nThis CHANGES the password to a random one (they will no longer be able to log in until the password is reset) and ends the sessions.', '?\n\nEsto CAMBIA la contraseña por una aleatoria (no podrán volver a entrar hasta que se restablezca la contraseña) y termina las sesiones.'))) return;
     if (btn) btn.disabled = true;
     try {
       const r = await apiPost('/treino/admin/lock-user', logins.length === 1 ? { login: logins[0] } : { logins }, G());
-      alert(T('Travados: ', 'Locked: ') + num(r.users_count) + T(' usuário(s) (senha trocada), ', ' user(s) (password changed), ') + num(r.sessions_removed) + T(' sessão(ões) removida(s).', ' session(s) removed.'));
-    } catch (e) { alert(T('Falha ao travar: ', 'Failed to lock: ') + (e.message || T('erro', 'error'))); }
+      alert(T('Travados: ', 'Locked: ', 'Bloqueados: ') + num(r.users_count) + T(' usuário(s) (senha trocada), ', ' user(s) (password changed), ', ' usuario(s) (contraseña cambiada), ') + num(r.sessions_removed) + T(' sessão(ões) removida(s).', ' session(s) removed.', ' sesión(es) eliminada(s).'));
+    } catch (e) { alert(T('Falha ao travar: ', 'Failed to lock: ', 'Error al bloquear: ') + (e.message || T('erro', 'error', 'error'))); }
     checked.clear(); await load();
   }
   async function actLogoutIp(ip) {
     if (!ip) return;
     const n = ALL.filter(s => s.ip === ip).length;
-    if (!confirm(T('Deslogar TODAS as ', 'Log out ALL ') + n + T(' sessão(ões) do IP ', ' session(s) from IP ') + ip + '?')) return;
+    if (!confirm(T('Deslogar TODAS as ', 'Log out ALL ', 'Cerrar sesión de TODAS las ') + n + T(' sessão(ões) do IP ', ' session(s) from IP ', ' sesión(es) de la IP ') + ip + '?')) return;
     try {
       const r = await apiPost('/treino/admin/logout-ip', { ip }, G());
-      alert('IP ' + ip + ': ' + num(r.sessions_removed) + T(' sessão(ões) removida(s) (', ' session(s) removed (') + num(r.users_count) + T(' usuário(s)).', ' user(s)).'));
-    } catch (e) { alert(T('Falha ao deslogar IP: ', 'Failed to log out IP: ') + (e.message || T('erro', 'error'))); }
+      alert('IP ' + ip + ': ' + num(r.sessions_removed) + T(' sessão(ões) removida(s) (', ' session(s) removed (', ' sesión(es) eliminada(s) (') + num(r.users_count) + T(' usuário(s)).', ' user(s)).', ' usuario(s)).'));
+    } catch (e) { alert(T('Falha ao deslogar IP: ', 'Failed to log out IP: ', 'Error al cerrar sesión de la IP: ') + (e.message || T('erro', 'error', 'error'))); }
     await load();
   }
   bulkLogout.addEventListener('click', () => actLogout([...checked], bulkLogout));
@@ -190,12 +190,12 @@ function makeSessionsTab() {
 // ============================ aba: Acessos (log) ============================
 function makeAccessLogTab() {
   const panel = el('div', { class: 'section' });
-  const head = el('h2', {}, T('📝 Acessos (log)', '📝 Access (log)'));
+  const head = el('h2', {}, T('📝 Acessos (log)', '📝 Access (log)', '📝 Accesos (registro)'));
   const dateInput = el('input', { type: 'date', value: todayStr() });
   dateInput.addEventListener('change', () => load());
   const tools = el('div', { class: 'toolbar' },
-    el('span', { class: 'small muted' }, T('Dia:', 'Day:')), dateInput,
-    el('button', { class: 'btn ghost', onclick: () => load() }, T('↻ Atualizar', '↻ Refresh')));
+    el('span', { class: 'small muted' }, T('Dia:', 'Day:', 'Día:')), dateInput,
+    el('button', { class: 'btn ghost', onclick: () => load() }, T('↻ Atualizar', '↻ Refresh', '↻ Actualizar')));
   const body = el('div', {}, loading());
   panel.append(head, tools, body);
 
@@ -204,12 +204,12 @@ function makeAccessLogTab() {
     const day = dateInput.value;
     let data;
     try { data = await apiGet('/treino/admin/access-log?day=' + encodeURIComponent(day), G()); }
-    catch (e) { body.innerHTML = ''; body.append(errBox(T('Falha ao carregar o log: ', 'Failed to load the log: ') + (e.message || T('erro', 'error')))); return; }
+    catch (e) { body.innerHTML = ''; body.append(errBox(T('Falha ao carregar o log: ', 'Failed to load the log: ', 'Error al cargar el registro: ') + (e.message || T('erro', 'error', 'error')))); return; }
     const entries = data.entries || [];
     body.innerHTML = '';
     body.append(el('div', { class: 'small muted', style: 'margin-bottom:.5rem' },
-      entries.length + ' ' + (entries.length === 1 ? T('acesso', 'access') : T('acessos', 'accesses')) + T(' em ', ' on ') + (data.day || day) + T(' (mais recentes primeiro).', ' (most recent first).')));
-    if (!entries.length) { body.append(el('div', { class: 'muted' }, T('Nenhum acesso neste dia.', 'No access on this day.'))); return; }
+      entries.length + ' ' + (entries.length === 1 ? T('acesso', 'access', 'acceso') : T('acessos', 'accesses', 'accesos')) + T(' em ', ' on ', ' en ') + (data.day || day) + T(' (mais recentes primeiro).', ' (most recent first).', ' (más recientes primero).')));
+    if (!entries.length) { body.append(el('div', { class: 'muted' }, T('Nenhum acesso neste dia.', 'No access on this day.', 'Ningún acceso en este día.'))); return; }
 
     const tb = el('tbody');
     entries.forEach(e2 => {
@@ -221,7 +221,7 @@ function makeAccessLogTab() {
     });
     const table = el('table', { class: 'moj' },
       el('thead', {}, el('tr', {},
-        el('th', {}, T('Data/Hora', 'Date/Time')), el('th', {}, 'Login'), el('th', {}, 'IP'), el('th', {}, 'User-Agent'))),
+        el('th', {}, T('Data/Hora', 'Date/Time', 'Fecha/Hora')), el('th', {}, 'Login'), el('th', {}, 'IP'), el('th', {}, 'User-Agent'))),
       tb);
     body.append(el('div', { class: 'chart-wrap' }, table));
   }
@@ -241,7 +241,7 @@ function dayBarBox(title, arr, color) {
     box.append(el('div', { class: 'chart-wrap' },
       barChart(arr.map(d => ({ label: ddmm(d.day), value: num(d.count) })),
         { width: 460, height: 240, color, rotateLabels: true, maxLabels: 15 })));
-  } else box.append(el('div', { class: 'muted small center', style: 'padding:1rem' }, T('Sem dados.', 'No data.')));
+  } else box.append(el('div', { class: 'muted small center', style: 'padding:1rem' }, T('Sem dados.', 'No data.', 'Sin datos.')));
   return box;
 }
 // seção com âncora + link no índice (TOC). Devolve {node, link}.
@@ -256,9 +256,9 @@ function tocSection(id, title, toc, body) {
 
 function makeStatsTab() {
   const panel = el('div', { class: 'section' });
-  const head = el('h2', {}, T('📊 Estatísticas', '📊 Statistics'));
+  const head = el('h2', {}, T('📊 Estatísticas', '📊 Statistics', '📊 Estadísticas'));
   const tools = el('div', { class: 'toolbar' },
-    el('button', { class: 'btn ghost', onclick: () => load() }, T('↻ Atualizar', '↻ Refresh')));
+    el('button', { class: 'btn ghost', onclick: () => load() }, T('↻ Atualizar', '↻ Refresh', '↻ Actualizar')));
   const toc = el('div', { style: 'display:flex;gap:1rem;flex-wrap:wrap;margin:.2rem 0 .4rem;padding:.4rem .7rem;background:var(--card-bg,#f5f7fb);border-radius:.5rem' });
   const body = el('div', {}, loading());
   panel.append(head, tools, toc, body);
@@ -267,20 +267,20 @@ function makeStatsTab() {
     body.innerHTML = ''; body.append(loading()); toc.innerHTML = '';
     let data;
     try { data = await apiGet('/treino/admin/stats', G()); }
-    catch (e) { body.innerHTML = ''; body.append(errBox(T('Falha ao carregar estatísticas: ', 'Failed to load statistics: ') + (e.message || T('erro', 'error')))); return; }
+    catch (e) { body.innerHTML = ''; body.append(errBox(T('Falha ao carregar estatísticas: ', 'Failed to load statistics: ', 'Error al cargar estadísticas: ') + (e.message || T('erro', 'error', 'error')))); return; }
     body.innerHTML = '';
     const p = data.problems || {};
 
     // (a) Visão geral
-    tocSection('st-geral', T('Visão geral', 'Overview'), toc, body).append(el('div', { class: 'stat-cards' },
-      card(num(data.users), T('usuários totais', 'total users'), true),
-      card(num(data.active_sessions), T('sessões ativas', 'active sessions'), true),
-      card(num(p.total), T('problemas (total)', 'problems (total)'), true),
-      card(num(p.public), T('públicos', 'public')),
-      card(num(p.private), T('privados', 'private'))));
+    tocSection('st-geral', T('Visão geral', 'Overview', 'Visión general'), toc, body).append(el('div', { class: 'stat-cards' },
+      card(num(data.users), T('usuários totais', 'total users', 'usuarios totales'), true),
+      card(num(data.active_sessions), T('sessões ativas', 'active sessions', 'sesiones activas'), true),
+      card(num(p.total), T('problemas (total)', 'problems (total)', 'problemas (total)'), true),
+      card(num(p.public), T('públicos', 'public', 'públicos')),
+      card(num(p.private), T('privados', 'private', 'privados'))));
 
     // (b) Problemas por autor
-    const s2 = tocSection('st-autor', T('Problemas por autor', 'Problems by author'), toc, body);
+    const s2 = tocSection('st-autor', T('Problemas por autor', 'Problems by author', 'Problemas por autor'), toc, body);
     const authors = (data.by_author || []).filter(a => num(a.total) > 0);
     if (authors.length) {
       s2.append(el('div', { class: 'chart-wrap' },
@@ -290,28 +290,28 @@ function makeStatsTab() {
       authors.forEach(a => tb.append(el('tr', {},
         el('td', {}, a.author || '—'),
         el('td', {}, el('b', {}, String(num(a.total)))),
-        el('td', { class: 'small' }, String(num(a.public)) + T(' públicos', ' public')),
-        el('td', { class: 'small muted' }, String(num(a.private)) + T(' privados', ' private')))));
+        el('td', { class: 'small' }, String(num(a.public)) + T(' públicos', ' public', ' públicos')),
+        el('td', { class: 'small muted' }, String(num(a.private)) + T(' privados', ' private', ' privados')))));
       s2.append(el('div', { class: 'chart-wrap' }, el('table', { class: 'moj' },
-        el('thead', {}, el('tr', {}, el('th', {}, T('Autor', 'Author')), el('th', {}, T('Total', 'Total')), el('th', {}, T('Públicos', 'Public')), el('th', {}, T('Privados', 'Private')))), tb)));
-    } else s2.append(el('div', { class: 'muted small' }, T('Sem dados de autoria.', 'No authorship data.')));
+        el('thead', {}, el('tr', {}, el('th', {}, T('Autor', 'Author', 'Autor')), el('th', {}, T('Total', 'Total', 'Total')), el('th', {}, T('Públicos', 'Public', 'Públicos')), el('th', {}, T('Privados', 'Private', 'Privados')))), tb)));
+    } else s2.append(el('div', { class: 'muted small' }, T('Sem dados de autoria.', 'No authorship data.', 'Sin datos de autoría.')));
 
     // (c) Entrada de problemas públicos (mapa de calor)
-    const s3 = tocSection('st-entrada', T('Entrada de problemas públicos', 'Public problem entry'), toc, body);
+    const s3 = tocSection('st-entrada', T('Entrada de problemas públicos', 'Public problem entry', 'Ingreso de problemas públicos'), toc, body);
     const byDate = {}; (data.problems_public_by_day || []).forEach(d => { byDate[ymd(d.day)] = num(d.count); });
     if (Object.keys(byDate).length) {
       s3.append(el('div', { class: 'muted small', style: 'margin:.1rem 0 .5rem;line-height:1.45' },
-        T('Quando cada problema virou público. ⚠ Ressalva: problemas migrados não têm data real de publicação — a maioria aparece concentrada na janela da migração (meados de 2026). Datas de problemas publicados a partir de agora são exatas.', 'When each problem became public. ⚠ Caveat: migrated problems have no real publication date — most appear concentrated in the migration window (mid-2026). Dates of problems published from now on are exact.')));
+        T('Quando cada problema virou público. ⚠ Ressalva: problemas migrados não têm data real de publicação — a maioria aparece concentrada na janela da migração (meados de 2026). Datas de problemas publicados a partir de agora são exatas.', 'When each problem became public. ⚠ Caveat: migrated problems have no real publication date — most appear concentrated in the migration window (mid-2026). Dates of problems published from now on are exact.', 'Cuándo se hizo público cada problema. ⚠ Advertencia: los problemas migrados no tienen fecha real de publicación — la mayoría aparece concentrada en la ventana de la migración (mediados de 2026). Las fechas de los problemas publicados de ahora en adelante son exactas.')));
       s3.append(el('div', { class: 'chart-wrap' },
-        heatmap(byDate, { weeks: 30, cell: 13, color: '#1a7f37', fmt: (v, date) => date + ': ' + v + ' ' + (v === 1 ? T('problema público', 'public problem') : T('problemas públicos', 'public problems')) })));
-    } else s3.append(el('div', { class: 'muted small' }, T('Sem datas de entrada ainda.', 'No entry dates yet.')));
+        heatmap(byDate, { weeks: 30, cell: 13, color: '#1a7f37', fmt: (v, date) => date + ': ' + v + ' ' + (v === 1 ? T('problema público', 'public problem', 'problema público') : T('problemas públicos', 'public problems', 'problemas públicos')) })));
+    } else s3.append(el('div', { class: 'muted small' }, T('Sem datas de entrada ainda.', 'No entry dates yet.', 'Aún no hay fechas de ingreso.')));
 
     // (d) Atividade
-    const s4 = tocSection('st-atividade', T('Atividade', 'Activity'), toc, body);
+    const s4 = tocSection('st-atividade', T('Atividade', 'Activity', 'Actividad'), toc, body);
     const logins = (data.logins_per_day || []).slice().sort((a, b) => num(a.day) - num(b.day));
     const subs = (data.submissions_per_day || []).slice().sort((a, b) => num(a.day) - num(b.day));
     const grid = el('div', { class: 'stat-grid two' });
-    grid.append(dayBarBox(T('Logins por dia', 'Logins per day'), logins, '#216097'), dayBarBox(T('Submissões por dia', 'Submissions per day'), subs, '#1a7f37'));
+    grid.append(dayBarBox(T('Logins por dia', 'Logins per day', 'Inicios de sesión por día'), logins, '#216097'), dayBarBox(T('Submissões por dia', 'Submissions per day', 'Envíos por día'), subs, '#1a7f37'));
     s4.append(grid);
   }
 
@@ -324,39 +324,39 @@ function makeStatsTab() {
 function renderResponseInto(box, data) {
   const ov = data.overall || {}, cov = data.coverage || {};
   box.append(el('div', { class: 'muted small', style: 'margin:.1rem 0 .8rem' },
-    T('Baseado em ', 'Based on ') + num(cov.with_finalized) + T(' de ', ' of ') + num(cov.history_total) + T(' submissões com tempo de veredito registrado (pipeline v2). Horários em UTC.', ' submissions with recorded verdict time (pipeline v2). Times in UTC.')));
+    T('Baseado em ', 'Based on ', 'Basado en ') + num(cov.with_finalized) + T(' de ', ' of ', ' de ') + num(cov.history_total) + T(' submissões com tempo de veredito registrado (pipeline v2). Horários em UTC.', ' submissions with recorded verdict time (pipeline v2). Times in UTC.', ' envíos con tiempo de veredicto registrado (pipeline v2). Horarios en UTC.')));
   if (!num(ov.n)) {
     box.append(el('div', { class: 'muted small center', style: 'padding:1.2rem' },
-      T('Ainda não há submissões com tempo de resposta registrado (preenche conforme novas submissões forem julgadas).', 'There are no submissions with recorded response time yet (fills in as new submissions are judged).')));
+      T('Ainda não há submissões com tempo de resposta registrado (preenche conforme novas submissões forem julgadas).', 'There are no submissions with recorded response time yet (fills in as new submissions are judged).', 'Aún no hay envíos con tiempo de respuesta registrado (se completa a medida que se evalúan nuevos envíos).')));
     return;
   }
   box.append(el('div', { class: 'stat-cards' },
-    card(fmtDur(ov.avg_wait_s), T('espera média (submit→veredito)', 'avg wait (submit→verdict)'), true),
-    card(fmtDur(ov.p50_wait_s), T('espera mediana (p50)', 'median wait (p50)')),
-    card(fmtDur(ov.p95_wait_s), T('espera p95', 'wait p95')),
-    card(fmtDur(ov.max_wait_s), T('espera máxima', 'max wait')),
-    card(fmtDur(ov.avg_judge_s), T('julgamento médio (execução)', 'avg judging (execution)')),
-    card(fmtDur(ov.avg_queue_s), T('fila média (espera − julgamento)', 'avg queue (wait − judging)'), true),
-    card(num(ov.n), T('submissões medidas', 'submissions measured'))));
+    card(fmtDur(ov.avg_wait_s), T('espera média (submit→veredito)', 'avg wait (submit→verdict)', 'espera promedio (envío→veredicto)'), true),
+    card(fmtDur(ov.p50_wait_s), T('espera mediana (p50)', 'median wait (p50)', 'espera mediana (p50)')),
+    card(fmtDur(ov.p95_wait_s), T('espera p95', 'wait p95', 'espera p95')),
+    card(fmtDur(ov.max_wait_s), T('espera máxima', 'max wait', 'espera máxima')),
+    card(fmtDur(ov.avg_judge_s), T('julgamento médio (execução)', 'avg judging (execution)', 'evaluación promedio (ejecución)')),
+    card(fmtDur(ov.avg_queue_s), T('fila média (espera − julgamento)', 'avg queue (wait − judging)', 'cola promedio (espera − evaluación)'), true),
+    card(num(ov.n), T('submissões medidas', 'submissions measured', 'envíos medidos'))));
   const days = (data.per_day || []).slice().sort((a, b) => num(a.day) - num(b.day));
   const lineBox = (title, key, color) => {
     const b = el('div', {}, el('div', { class: 'chart-title' }, title));
     if (days.length) b.append(el('div', { class: 'chart-wrap' }, lineChart(days.map(d => ({ x: num(d.day), y: num(d[key]), label: ddmm(d.day) })), { width: 460, height: 220, color, maxLabels: 7 })));
-    else b.append(el('div', { class: 'muted small center', style: 'padding:1rem' }, T('Sem dados.', 'No data.')));
+    else b.append(el('div', { class: 'muted small center', style: 'padding:1rem' }, T('Sem dados.', 'No data.', 'Sin datos.')));
     return b;
   };
   const g1 = el('div', { class: 'stat-grid two' });
-  g1.append(lineBox(T('Espera média por dia', 'Avg wait per day'), 'avg_wait_s', '#216097'), lineBox(T('Espera p95 por dia', 'Wait p95 per day'), 'p95_wait_s', '#c4314b'));
+  g1.append(lineBox(T('Espera média por dia', 'Avg wait per day', 'Espera promedio por día'), 'avg_wait_s', '#216097'), lineBox(T('Espera p95 por dia', 'Wait p95 per day', 'Espera p95 por día'), 'p95_wait_s', '#c4314b'));
   const g2 = el('div', { class: 'stat-grid two' });
-  g2.append(lineBox(T('Julgamento médio por dia', 'Avg judging per day'), 'avg_judge_s', '#1a7f37'), lineBox(T('Fila média por dia', 'Avg queue per day'), 'avg_queue_s', '#a66a00'));
+  g2.append(lineBox(T('Julgamento médio por dia', 'Avg judging per day', 'Evaluación promedio por día'), 'avg_judge_s', '#1a7f37'), lineBox(T('Fila média por dia', 'Avg queue per day', 'Cola promedio por día'), 'avg_queue_s', '#a66a00'));
   box.append(g1, g2);
   const scaleMax = num(ov.p95_wait_s) || num(ov.avg_wait_s) || 1;   // corta no p95 p/ 1 outlier não lavar o mapa
   const byDate = {}; days.forEach(d => { byDate[ymd(d.day)] = num(d.avg_wait_s); });
-  box.append(el('div', {}, el('div', { class: 'chart-title' }, T('Mapa de calor — espera média por dia', 'Heatmap — avg wait per day')),
+  box.append(el('div', {}, el('div', { class: 'chart-title' }, T('Mapa de calor — espera média por dia', 'Heatmap — avg wait per day', 'Mapa de calor — espera promedio por día')),
     el('div', { class: 'chart-wrap' }, heatmap(byDate, { weeks: 26, cell: 18, gap: 4, color: '#216097', scaleMax, fmt: (v, date) => `${date}: ${fmtDur(v)}` }))));
   // heatmapGrid lê c.value (cor/escala); as células trazem a magnitude em avg_wait_s -> mapeia.
   const waitCells = (data.by_dow_hour || []).map(c => ({ dow: num(c.dow), hour: num(c.hour), value: num(c.avg_wait_s), n: num(c.n) }));
-  box.append(el('div', {}, el('div', { class: 'chart-title' }, T('Mapa de calor — espera média por dia da semana × hora (UTC)', 'Heatmap — avg wait per weekday × hour (UTC)')),
+  box.append(el('div', {}, el('div', { class: 'chart-title' }, T('Mapa de calor — espera média por dia da semana × hora (UTC)', 'Heatmap — avg wait per weekday × hour (UTC)', 'Mapa de calor — espera promedio por día de la semana × hora (UTC)')),
     el('div', { class: 'chart-wrap' }, heatmapGrid(waitCells, { color: '#c4314b', scaleMax, fmt: (v) => fmtDur(v) }))));
 }
 
@@ -366,21 +366,21 @@ function renderVolumeInto(box, resp, calib) {
   const dhCells = (arr) => (arr || []).map(c => ({ dow: num(c.dow), hour: num(c.hour), value: num(c.n), n: num(c.n) }));
   const calHeat = (m, color, unit) => Object.keys(m).length
     ? heatmap(m, { weeks: 40, cell: 13, color, fmt: (v, date) => `${date}: ${v} ${unit}${v === 1 ? '' : 's'}` })
-    : el('div', { class: 'muted small' }, T('Sem dados.', 'No data.'));
+    : el('div', { class: 'muted small' }, T('Sem dados.', 'No data.', 'Sin datos.'));
   const gridHeat = (cells, color, unit) => cells.length
     ? heatmapGrid(cells, { color, fmt: (v) => v + ' ' + unit + (v === 1 ? '' : 's') })
-    : el('div', { class: 'muted small' }, T('Sem dados.', 'No data.'));
+    : el('div', { class: 'muted small' }, T('Sem dados.', 'No data.', 'Sin datos.'));
 
-  box.append(el('div', { class: 'chart-title' }, T('Submissões por dia', 'Submissions per day')),
-    el('div', { class: 'chart-wrap' }, calHeat(calMap(resp.subs_per_day), '#1a7f37', T('submissão', 'submission'))));
-  box.append(el('div', { class: 'chart-title', style: 'margin-top:.6rem' }, T('Submissões por dia da semana × hora (UTC)', 'Submissions per weekday × hour (UTC)')),
+  box.append(el('div', { class: 'chart-title' }, T('Submissões por dia', 'Submissions per day', 'Envíos por día')),
+    el('div', { class: 'chart-wrap' }, calHeat(calMap(resp.subs_per_day), '#1a7f37', T('submissão', 'submission', 'envío'))));
+  box.append(el('div', { class: 'chart-title', style: 'margin-top:.6rem' }, T('Submissões por dia da semana × hora (UTC)', 'Submissions per weekday × hour (UTC)', 'Envíos por día de la semana × hora (UTC)')),
     el('div', { class: 'chart-wrap' }, gridHeat(dhCells(resp.subs_by_dow_hour), '#1a7f37', 'sub')));
 
   box.append(el('div', { class: 'muted small', style: 'margin:.9rem 0 .3rem;line-height:1.4' },
-    T('Calibrações (do log de eventos dos juízes; run/ pode rotacionar → cobertura histórica parcial).', 'Calibrations (from the judges\' event log; run/ may rotate → partial historical coverage).')));
-  box.append(el('div', { class: 'chart-title' }, T('Calibrações por dia', 'Calibrations per day')),
-    el('div', { class: 'chart-wrap' }, calHeat(calMap(calib.calib_per_day), '#7a5ada', T('calibração', 'calibration'))));
-  box.append(el('div', { class: 'chart-title', style: 'margin-top:.6rem' }, T('Calibrações por dia da semana × hora (UTC)', 'Calibrations per weekday × hour (UTC)')),
+    T('Calibrações (do log de eventos dos juízes; run/ pode rotacionar → cobertura histórica parcial).', 'Calibrations (from the judges\' event log; run/ may rotate → partial historical coverage).', 'Calibraciones (del registro de eventos de los jueces; run/ puede rotar → cobertura histórica parcial).')));
+  box.append(el('div', { class: 'chart-title' }, T('Calibrações por dia', 'Calibrations per day', 'Calibraciones por día')),
+    el('div', { class: 'chart-wrap' }, calHeat(calMap(calib.calib_per_day), '#7a5ada', T('calibração', 'calibration', 'calibración'))));
+  box.append(el('div', { class: 'chart-title', style: 'margin-top:.6rem' }, T('Calibrações por dia da semana × hora (UTC)', 'Calibrations per weekday × hour (UTC)', 'Calibraciones por día de la semana × hora (UTC)')),
     el('div', { class: 'chart-wrap' }, gridHeat(dhCells(calib.calib_by_dow_hour), '#7a5ada', 'calib')));
 }
 
@@ -389,9 +389,9 @@ function renderVolumeInto(box, resp, calib) {
 // resposta (movido da antiga aba) e Volume (mapas de calor de submissões e calibrações).
 function makeQueueTab() {
   const panel = el('div', { class: 'section' });
-  const head = el('h2', {}, T('⏳ Fila & tempo de resposta', '⏳ Queue & response time'));
+  const head = el('h2', {}, T('⏳ Fila & tempo de resposta', '⏳ Queue & response time', '⏳ Cola y tiempo de respuesta'));
   const tools = el('div', { class: 'toolbar' },
-    el('button', { class: 'btn ghost', onclick: () => load() }, T('↻ Atualizar', '↻ Refresh')));
+    el('button', { class: 'btn ghost', onclick: () => load() }, T('↻ Atualizar', '↻ Refresh', '↻ Actualizar')));
   const toc = el('div', { style: 'display:flex;gap:1rem;flex-wrap:wrap;margin:.2rem 0 .4rem;padding:.4rem .7rem;background:var(--card-bg,#f5f7fb);border-radius:.5rem' });
   const body = el('div', {}, loading());
   panel.append(head, tools, toc, body);
@@ -406,16 +406,16 @@ function makeQueueTab() {
         apiGet('/treino/admin/response-stats', G()).catch(() => ({})),
         apiGet('/treino/admin/calib-activity', G()).catch(() => ({})),
       ]);
-    } catch (e) { body.innerHTML = ''; body.append(errBox(T('Falha ao carregar a fila: ', 'Failed to load the queue: ') + (e.message || T('erro', 'error')))); return; }
+    } catch (e) { body.innerHTML = ''; body.append(errBox(T('Falha ao carregar a fila: ', 'Failed to load the queue: ', 'Error al cargar la cola: ') + (e.message || T('erro', 'error', 'error')))); return; }
     body.innerHTML = '';
 
     // (a) Agora — contadores + o que cada máquina roda
-    const s1 = tocSection('q-agora', T('Agora', 'Now'), toc, body);
+    const s1 = tocSection('q-agora', T('Agora', 'Now', 'Ahora'), toc, body);
     s1.append(el('div', { class: 'stat-cards' },
-      card(num(q.total_pending), T('submissões pendentes', 'pending submissions'), true),
-      card(num(q.spool_queued), T('na fila (spool)', 'in queue (spool)')),
-      card(num(q.calib_pending), T('calibrações na fila', 'calibrations in queue')),
-      card(num(q.calib_inflight) + num(q.calib_targeted), T('calibrando agora', 'calibrating now'))));
+      card(num(q.total_pending), T('submissões pendentes', 'pending submissions', 'envíos pendientes'), true),
+      card(num(q.spool_queued), T('na fila (spool)', 'in queue (spool)', 'en cola (spool)')),
+      card(num(q.calib_pending), T('calibrações na fila', 'calibrations in queue', 'calibraciones en cola')),
+      card(num(q.calib_inflight) + num(q.calib_targeted), T('calibrando agora', 'calibrating now', 'calibrando ahora'))));
 
     // Roteamento do ESCRITOR (shards do judged): entrada (aguardando intake) e a volta dos
     // resultados (aguardando ingest) POR SHARD, vivacidade de cada worker, fila do cluster
@@ -426,9 +426,9 @@ function makeQueueTab() {
       rt.workers.forEach(w => {
         const age = Number(w.alive_age_s);
         let alive;
-        if (age < 0) alive = el('span', { style: 'color:var(--err,#c00);font-weight:600' }, T('⚠ morto (nunca bateu)', '⚠ dead (never beat)'));
-        else if (age > 120) alive = el('span', { style: 'color:var(--err,#c00);font-weight:600' }, T('⚠ parado há ' + age + 's', '⚠ stalled for ' + age + 's'));
-        else alive = el('span', { style: 'color:var(--ok,#1a7f37)' }, T('🟢 vivo (há ' + age + 's)', '🟢 alive (' + age + 's ago)'));
+        if (age < 0) alive = el('span', { style: 'color:var(--err,#c00);font-weight:600' }, T('⚠ morto (nunca bateu)', '⚠ dead (never beat)', '⚠ muerto (nunca latió)'));
+        else if (age > 120) alive = el('span', { style: 'color:var(--err,#c00);font-weight:600' }, T('⚠ parado há ' + age + 's', '⚠ stalled for ' + age + 's', '⚠ detenido hace ' + age + 's'));
+        else alive = el('span', { style: 'color:var(--ok,#1a7f37)' }, T('🟢 vivo (há ' + age + 's)', '🟢 alive (' + age + 's ago)', '🟢 vivo (hace ' + age + 's)'));
         const warn = (n) => n > 0 ? el('b', { style: 'color:var(--warn,#a66a00)' }, String(n)) : el('span', { class: 'muted' }, '0');
         wtb.append(el('tr', {},
           el('td', {}, el('code', {}, 's' + w.shard)),
@@ -439,23 +439,24 @@ function makeQueueTab() {
       });
       const box = el('div', { style: 'margin:.6rem 0' },
         el('div', { class: 'chart-title' },
-          T('✍ Roteamento do escritor — ', '✍ Writer routing — ') +
-          (rt.shards > 1 ? T(rt.shards + ' shards por hash(login)', rt.shards + ' shards by hash(login)') : T('escritor único', 'single writer'))),
+          T('✍ Roteamento do escritor — ', '✍ Writer routing — ', '✍ Enrutamiento del escritor — ') +
+          (rt.shards > 1 ? T(rt.shards + ' shards por hash(login)', rt.shards + ' shards by hash(login)', rt.shards + ' shards por hash(login)') : T('escritor único', 'single writer', 'escritor único'))),
         el('div', { class: 'chart-wrap' }, el('table', { class: 'moj narrow' },
           el('thead', {}, el('tr', {},
             el('th', {}, 'Shard'),
             el('th', {}, 'Worker'),
-            el('th', { class: 'n' }, T('entrada (p/ julgar)', 'inbound (to judge)')),
-            el('th', { class: 'n' }, T('volta (resultados)', 'returning (results)')),
-            el('th', { class: 'n' }, T('outros', 'other')))), wtb)),
+            el('th', { class: 'n' }, T('entrada (p/ julgar)', 'inbound (to judge)', 'entrada (para evaluar)')),
+            el('th', { class: 'n' }, T('volta (resultados)', 'returning (results)', 'retorno (resultados)')),
+            el('th', { class: 'n' }, T('outros', 'other', 'otros')))), wtb)),
         el('div', { class: 'small muted', style: 'margin-top:.3rem' },
-          T('fila do cluster: ', 'cluster queue: '), el('b', {}, String(num(rt.queue_depth))),
-          T(' · em julgamento: ', ' · being judged: '), el('b', {}, String(num(rt.assigned))),
-          T(' · veredictos entregues (5 min): ', ' · verdicts delivered (5 min): '), el('b', {}, String(num(rt.delivered_5m)))));
+          T('fila do cluster: ', 'cluster queue: ', 'cola del clúster: '), el('b', {}, String(num(rt.queue_depth))),
+          T(' · em julgamento: ', ' · being judged: ', ' · en evaluación: '), el('b', {}, String(num(rt.assigned))),
+          T(' · veredictos entregues (5 min): ', ' · verdicts delivered (5 min): ', ' · veredictos entregados (5 min): '), el('b', {}, String(num(rt.delivered_5m)))));
       if (num(rt.orphans) > 0) {
         box.append(el('div', { class: 'error-box', style: 'margin-top:.3rem' },
           T('⚠ ' + num(rt.orphans) + ' arquivo(s) em shard ÓRFÃO (JUDGED_SHARDS da API ≠ daemon?) — o worker 0 devolve à raiz em ≤30 s; se persistir, confira o env dos dois containers.',
-            '⚠ ' + num(rt.orphans) + ' file(s) in ORPHAN shard (API JUDGED_SHARDS ≠ daemon?) — worker 0 returns them to the root in ≤30 s; if it persists, check both containers’ env.')));
+            '⚠ ' + num(rt.orphans) + ' file(s) in ORPHAN shard (API JUDGED_SHARDS ≠ daemon?) — worker 0 returns them to the root in ≤30 s; if it persists, check both containers’ env.',
+            '⚠ ' + num(rt.orphans) + ' archivo(s) en shard HUÉRFANO (¿JUDGED_SHARDS de la API ≠ daemon?) — el worker 0 los devuelve a la raíz en ≤30 s; si persiste, revisa el env de los dos contenedores.')));
       }
       s1.append(box);
     }
@@ -467,7 +468,7 @@ function makeQueueTab() {
         if (!since) return '';
         const s = Math.max(0, Math.floor(Date.now() / 1000 - since));
         const mm = Math.floor(s / 60);
-        return mm >= 1 ? T(' · há ' + mm + 'm', ' · for ' + mm + 'm') : T(' · há ' + s + 's', ' · for ' + s + 's');
+        return mm >= 1 ? T(' · há ' + mm + 'm', ' · for ' + mm + 'm', ' · hace ' + mm + 'm') : T(' · há ' + s + 's', ' · for ' + s + 's', ' · hace ' + s + 's');
       };
       machines.forEach(m => {
         // TODOS os segmentos/slots (current_jobs) — m.current é só o 1º (compat) e escondia o resto
@@ -475,28 +476,28 @@ function makeQueueTab() {
         const jobLine = (cur) => {
           if (!cur || !cur.kind) return null;
           const age = el('span', { class: 'small muted' }, fmtAge(cur.since));
-          if (cur.kind === 'submission') return el('div', {}, T('📥 submissão · ', '📥 submission · '), el('b', {}, cur.problem_id || '?'), cur.login ? el('span', { class: 'small muted' }, ' · ' + cur.login) : '', age);
-          if (cur.kind === 'calibrate') return el('div', {}, T('⚙ calibração · ', '⚙ calibration · '), el('b', {}, cur.problem_id || '?'), age);
-          if (cur.kind === 'index') return el('div', {}, T('🗂 indexação · ', '🗂 indexing · '), el('b', {}, cur.problem_id || '?'), age);
-          if (cur.kind === 'draining') return el('div', { class: 'muted small' }, T('⏸ drenando (config nova a aplicar)', '⏸ draining (new config pending)'));
-          if (cur.kind === 'disabled') return el('div', { class: 'muted small' }, T('⏸ desabilitada pelo admin', '⏸ disabled by admin'));
-          if (cur.kind === 'unknown_busy') return el('div', { class: 'muted small' }, T('⚠ ocupada sem job atribuído — use `moj judges reset`', '⚠ busy with no attributed job — use `moj judges reset`'));
-          return el('div', { class: 'muted small' }, T('ocupada (calibração direcionada)', 'busy (targeted calibration)'));
+          if (cur.kind === 'submission') return el('div', {}, T('📥 submissão · ', '📥 submission · ', '📥 envío · '), el('b', {}, cur.problem_id || '?'), cur.login ? el('span', { class: 'small muted' }, ' · ' + cur.login) : '', age);
+          if (cur.kind === 'calibrate') return el('div', {}, T('⚙ calibração · ', '⚙ calibration · ', '⚙ calibración · '), el('b', {}, cur.problem_id || '?'), age);
+          if (cur.kind === 'index') return el('div', {}, T('🗂 indexação · ', '🗂 indexing · ', '🗂 indexación · '), el('b', {}, cur.problem_id || '?'), age);
+          if (cur.kind === 'draining') return el('div', { class: 'muted small' }, T('⏸ drenando (config nova a aplicar)', '⏸ draining (new config pending)', '⏸ drenando (config nueva pendiente)'));
+          if (cur.kind === 'disabled') return el('div', { class: 'muted small' }, T('⏸ desabilitada pelo admin', '⏸ disabled by admin', '⏸ deshabilitada por el admin'));
+          if (cur.kind === 'unknown_busy') return el('div', { class: 'muted small' }, T('⚠ ocupada sem job atribuído — use `moj judges reset`', '⚠ busy with no attributed job — use `moj judges reset`', '⚠ ocupada sin job atribuido — usa `moj judges reset`'));
+          return el('div', { class: 'muted small' }, T('ocupada (calibração direcionada)', 'busy (targeted calibration)', 'ocupada (calibración dirigida)'));
         };
         let job;
-        if (!jobs.length) job = el('span', { class: 'muted small' }, m.online ? (m.busy ? T('ocupada', 'busy') : T('livre', 'free')) : 'offline');
+        if (!jobs.length) job = el('span', { class: 'muted small' }, m.online ? (m.busy ? T('ocupada', 'busy', 'ocupada') : T('livre', 'free', 'libre')) : 'offline');
         else { job = el('div', {}); jobs.forEach(c => { const l = jobLine(c); if (l) job.append(l); }); }
         const qc = num(m.queued_calibrate);
         const slotsInfo = (m.slots && m.slots.total > 1 && m.slots.free != null)
           ? el('div', { class: 'small muted' }, (m.slots.total - m.slots.free) + '/' + m.slots.total + ' slots') : '';
         mtb.append(el('tr', {},
           el('td', {}, '🖧 ' + (m.host || '?')),
-          el('td', {}, m.online ? (m.busy ? T('🟡 ocupada', '🟡 busy') : T('🟢 livre', '🟢 free')) : '🔴 offline', slotsInfo),
+          el('td', {}, m.online ? (m.busy ? T('🟡 ocupada', '🟡 busy', '🟡 ocupada') : T('🟢 livre', '🟢 free', '🟢 libre')) : '🔴 offline', slotsInfo),
           el('td', {}, job),
-          el('td', { class: 'small muted' }, qc ? (qc + T(' na fila', ' in queue')) : '—')));
+          el('td', { class: 'small muted' }, qc ? (qc + T(' na fila', ' in queue', ' en cola')) : '—')));
       });
       s1.append(el('div', { class: 'chart-wrap' }, el('table', { class: 'moj' },
-        el('thead', {}, el('tr', {}, el('th', {}, T('Máquina', 'Machine')), el('th', {}, T('Estado', 'State')), el('th', {}, T('Rodando agora', 'Running now')), el('th', {}, T('Calib. direcionada', 'Targeted calib.')))), mtb)));
+        el('thead', {}, el('tr', {}, el('th', {}, T('Máquina', 'Machine', 'Máquina')), el('th', {}, T('Estado', 'State', 'Estado')), el('th', {}, T('Rodando agora', 'Running now', 'Ejecutando ahora')), el('th', {}, T('Calib. direcionada', 'Targeted calib.', 'Calib. dirigida')))), mtb)));
     }
     const lists = q.lists || [];
     if (lists.length) {
@@ -505,9 +506,9 @@ function makeQueueTab() {
         el('td', {}, l.name || l.contest || '—'),
         el('td', { class: 'small', style: 'font-family:var(--mono)' }, l.contest || '—'),
         el('td', {}, el('b', { style: 'color:var(--warn)' }, String(num(l.pending)))))));
-      s1.append(el('div', { class: 'chart-title', style: 'margin-top:.6rem' }, T('Pendentes por lista', 'Pending per list')));
+      s1.append(el('div', { class: 'chart-title', style: 'margin-top:.6rem' }, T('Pendentes por lista', 'Pending per list', 'Pendientes por lista')));
       s1.append(el('div', { class: 'chart-wrap' }, el('table', { class: 'moj' },
-        el('thead', {}, el('tr', {}, el('th', {}, T('Lista', 'List')), el('th', {}, 'Contest'), el('th', {}, T('Pendentes', 'Pending')))), tb)));
+        el('thead', {}, el('tr', {}, el('th', {}, T('Lista', 'List', 'Lista')), el('th', {}, T('Contest', 'Contest', 'Competencia')), el('th', {}, T('Pendentes', 'Pending', 'Pendientes')))), tb)));
     }
 
     // QUAIS são as pendentes (quem, o quê, desde quando, estado no pipeline) + ações.
@@ -516,10 +517,10 @@ function makeQueueTab() {
     if (pend.length) {
       const ptb = el('tbody');
       const stLabel = (st) => ({
-        'no-spool': T('no spool', 'in spool'), 'na-fila': T('na fila', 'queued'),
-        'em-julgamento': T('em julgamento', 'judging'),
-        'consumido-sem-veredicto': T('consumida SEM veredicto', 'consumed WITHOUT verdict'),
-        'sem-rastro': T('sem rastro', 'no trace') }[st] || st);
+        'no-spool': T('no spool', 'in spool', 'en el spool'), 'na-fila': T('na fila', 'queued', 'en cola'),
+        'em-julgamento': T('em julgamento', 'judging', 'en evaluación'),
+        'consumido-sem-veredicto': T('consumida SEM veredicto', 'consumed WITHOUT verdict', 'consumido SIN veredicto'),
+        'sem-rastro': T('sem rastro', 'no trace', 'sin rastro') }[st] || st);
       pend.forEach(pd => {
         const age = pd.age_s || 0;
         const ageEl = el('span', { style: age > 3600 ? 'color:var(--err);font-weight:700'
@@ -535,7 +536,7 @@ function makeQueueTab() {
           el('td', { class: 'small' }, fmtDate(pd.since), ' (', ageEl, ')'),
           el('td', { class: 'small' }, stLabel(pd.state)),
           el('td', {},
-            el('button', { class: 'btn ghost', title: T('log e estado desta submissão', 'this submission’s log and state'),
+            el('button', { class: 'btn ghost', title: T('log e estado desta submissão', 'this submission’s log and state', 'registro y estado de este envío'),
               onclick: async () => {
                 if (logBox.style.display !== 'none') { logBox.style.display = 'none'; return; }
                 try {
@@ -544,9 +545,9 @@ function makeQueueTab() {
                   cell.append(
                     el('div', { class: 'small', style: 'font-family:var(--mono)' }, d.history_line || ''),
                     el('div', { class: 'small muted' },
-                      T('estado: ', 'state: ') + stLabel(d.state)
-                      + T(' · fonte: ', ' · source: ') + (d.has_source ? d.source_bytes + ' B' : T('AUSENTE', 'MISSING'))
-                      + T(' · mojlog: ', ' · mojlog: ') + (d.mojlog_bytes ? d.mojlog_bytes + ' B' : T('não existe', 'none'))),
+                      T('estado: ', 'state: ', 'estado: ') + stLabel(d.state)
+                      + T(' · fonte: ', ' · source: ', ' · fuente: ') + (d.has_source ? d.source_bytes + ' B' : T('AUSENTE', 'MISSING', 'AUSENTE'))
+                      + T(' · mojlog: ', ' · mojlog: ', ' · mojlog: ') + (d.mojlog_bytes ? d.mojlog_bytes + ' B' : T('não existe', 'none', 'no existe'))),
                     // prévia embutida (sandbox: sem JS). ⚠ as âncoras dos casos de teste NÃO
                     // rolam aqui — num srcdoc o `#alvo` resolve contra a URL do pai; para isso
                     // existe o "abrir em aba", que usa blob (shared/submission-links.js).
@@ -554,40 +555,40 @@ function makeQueueTab() {
                       sandbox: '', srcdoc: d.mojlog }) : '',
                     d.mojlog ? el('div', { class: 'small', style: 'margin-top:.25rem' },
                       el('a', { href: '#', onclick: (ev) => { ev.preventDefault(); openHtmlReport(d.mojlog); } },
-                        T('abrir em aba (com as âncoras funcionando) →', 'open in a tab (anchors working) →'))) : '');
+                        T('abrir em aba (com as âncoras funcionando) →', 'open in a tab (anchors working) →', 'abrir en una pestaña (con los anclajes funcionando) →'))) : '');
                   logBox.style.display = '';
-                } catch (e) { msg.textContent = e.message || T('falha', 'failed'); }
+                } catch (e) { msg.textContent = e.message || T('falha', 'failed', 'fallido'); }
               } }, '📜'),
-            pd.has_source ? el('button', { class: 'btn ghost', title: T('re-enfileirar para julgamento', 're-queue for judging'),
+            pd.has_source ? el('button', { class: 'btn ghost', title: T('re-enfileirar para julgamento', 're-queue for judging', 'volver a encolar para evaluación'),
               onclick: async () => {
-                if (!confirm(T('Re-enfileirar esta submissão?', 'Re-queue this submission?'))) return;
+                if (!confirm(T('Re-enfileirar esta submissão?', 'Re-queue this submission?', '¿Volver a encolar este envío?'))) return;
                 try {
                   await apiPost('/treino/admin/queue', { action: 'requeue', contest: pd.contest, login: pd.login, id: pd.id }, G());
-                  msg.textContent = T('re-enfileirada — recarregue em instantes', 're-queued — reload shortly');
-                } catch (e) { msg.textContent = e.message || T('falha', 'failed'); }
+                  msg.textContent = T('re-enfileirada — recarregue em instantes', 're-queued — reload shortly', 'reencolado — recarga en unos instantes');
+                } catch (e) { msg.textContent = e.message || T('falha', 'failed', 'fallido'); }
               } }, '🔁') : '',
-            el('button', { class: 'btn ghost danger', title: T('resolver como Judge Error (não penaliza; o aluno reenvia)', 'resolve as Judge Error (non-penalizing; the student resubmits)'),
+            el('button', { class: 'btn ghost danger', title: T('resolver como Judge Error (não penaliza; o aluno reenvia)', 'resolve as Judge Error (non-penalizing; the student resubmits)', 'resolver como Judge Error (no penaliza; el alumno reenvía)'),
               onclick: async () => {
-                if (!confirm(T('Resolver como Judge Error?', 'Resolve as Judge Error?'))) return;
+                if (!confirm(T('Resolver como Judge Error?', 'Resolve as Judge Error?', '¿Resolver como Judge Error?'))) return;
                 try {
                   await apiPost('/treino/admin/queue', { action: 'resolve', contest: pd.contest, login: pd.login, id: pd.id, verdict: 'Judge Error' }, G());
-                  msg.textContent = T('resolvida — recarregue em instantes', 'resolved — reload shortly');
-                } catch (e) { msg.textContent = e.message || T('falha', 'failed'); }
+                  msg.textContent = T('resolvida — recarregue em instantes', 'resolved — reload shortly', 'resuelto — recarga en unos instantes');
+                } catch (e) { msg.textContent = e.message || T('falha', 'failed', 'fallido'); }
               } }, '✔'),
             msg));
         ptb.append(row, logBox);
       });
       s1.append(el('div', { class: 'chart-title', style: 'margin-top:.6rem' },
-        T('As pendentes, uma a uma', 'The pending ones, one by one')));
+        T('As pendentes, uma a uma', 'The pending ones, one by one', 'Los pendientes, uno por uno')));
       s1.append(el('div', { class: 'chart-wrap' }, el('table', { class: 'moj' },
-        el('thead', {}, el('tr', {}, el('th', {}, 'Contest'), el('th', {}, 'Login'),
-          el('th', {}, T('Problema', 'Problem')), el('th', {}, T('Entrou em', 'Entered at')),
-          el('th', {}, T('Estado', 'State')), el('th', {}, T('Ações', 'Actions')))), ptb)));
+        el('thead', {}, el('tr', {}, el('th', {}, T('Contest', 'Contest', 'Competencia')), el('th', {}, 'Login'),
+          el('th', {}, T('Problema', 'Problem', 'Problema')), el('th', {}, T('Entrou em', 'Entered at', 'Ingresó a las')),
+          el('th', {}, T('Estado', 'State', 'Estado')), el('th', {}, T('Ações', 'Actions', 'Acciones')))), ptb)));
     }
 
     // (b) Tempo de resposta   (c) Volume
-    renderResponseInto(tocSection('q-resposta', T('Tempo de resposta', 'Response time'), toc, body), resp);
-    renderVolumeInto(tocSection('q-volume', T('Volume de submissões e calibrações', 'Submission and calibration volume'), toc, body), resp, calib);
+    renderResponseInto(tocSection('q-resposta', T('Tempo de resposta', 'Response time', 'Tiempo de respuesta'), toc, body), resp);
+    renderVolumeInto(tocSection('q-volume', T('Volume de submissões e calibrações', 'Submission and calibration volume', 'Volumen de envíos y calibraciones'), toc, body), resp, calib);
   }
 
   return { panel, load };
@@ -596,9 +597,9 @@ function makeQueueTab() {
 // ============================ aba: Máquinas de julgamento ============================
 function makeJudgesTab() {
   const panel = el('div', { class: 'section' });
-  const head = el('h2', {}, T('🖥️ Máquinas de julgamento', '🖥️ Judging machines'));
+  const head = el('h2', {}, T('🖥️ Máquinas de julgamento', '🖥️ Judging machines', '🖥️ Máquinas de evaluación'));
   const tools = el('div', { class: 'toolbar' },
-    el('button', { class: 'btn ghost', onclick: () => load() }, T('↻ Atualizar', '↻ Refresh')));
+    el('button', { class: 'btn ghost', onclick: () => load() }, T('↻ Atualizar', '↻ Refresh', '↻ Actualizar')));
   const body = el('div', {}, loading());
   panel.append(head, tools, body);
 
@@ -606,7 +607,7 @@ function makeJudgesTab() {
     body.innerHTML = ''; body.append(loading());
     let data;
     try { data = await apiGet('/treino/admin/judges', G()); }
-    catch (e) { body.innerHTML = ''; body.append(errBox(T('Falha ao carregar o status do juiz: ', 'Failed to load judge status: ') + (e.message || T('erro', 'error')))); return; }
+    catch (e) { body.innerHTML = ''; body.append(errBox(T('Falha ao carregar o status do juiz: ', 'Failed to load judge status: ', 'Error al cargar el estado del juez: ') + (e.message || T('erro', 'error', 'error')))); return; }
     body.innerHTML = '';
 
     // status online/offline + ocupado/livre
@@ -614,16 +615,16 @@ function makeJudgesTab() {
     if (data.online) {
       statusLine.append(el('span', { class: 'judge-dot' }, '🟢 online'));
       statusLine.append(el('span', { class: 'tag', style: data.busy ? 'background:var(--warn-bg);color:var(--warn)' : 'background:var(--ok-bg);color:var(--ok)' },
-        data.busy ? T('ocupado', 'busy') : T('livre', 'free')));
+        data.busy ? T('ocupado', 'busy', 'ocupado') : T('livre', 'free', 'libre')));
     } else {
-      statusLine.append(el('span', { class: 'judge-dot' }, T('🔴 juiz inacessível', '🔴 judge unreachable')));
+      statusLine.append(el('span', { class: 'judge-dot' }, T('🔴 juiz inacessível', '🔴 judge unreachable', '🔴 juez inaccesible')));
     }
     body.append(statusLine);
 
     // endereço do master
     body.append(el('div', { class: 'small muted', style: 'margin-bottom:.4rem' },
-      data.model === 'pull' ? T('Modelo: pull (registro + heartbeat)', 'Model: pull (registry + heartbeat)')
-        : (T('Master (escalonador): ', 'Master (scheduler): ') + (data.master_host || '?') + ':' + (data.master_port != null ? data.master_port : '?'))));
+      data.model === 'pull' ? T('Modelo: pull (registro + heartbeat)', 'Model: pull (registry + heartbeat)', 'Modelo: pull (registro + heartbeat)')
+        : (T('Master (escalonador): ', 'Master (scheduler): ', 'Master (planificador): ') + (data.master_host || '?') + ':' + (data.master_port != null ? data.master_port : '?'))));
 
     // specs do master que respondeu
     const m = data.master;
@@ -631,44 +632,44 @@ function makeJudgesTab() {
       const specs = el('div', { class: 'specs' });
       const spec = (k, v) => el('div', { class: 'spec' }, el('div', { class: 'k' }, k), el('div', { class: 'v' }, v));
       if (m.hostname != null) specs.append(spec('hostname', String(m.hostname)));
-      if (m.arch != null) specs.append(spec(T('arquitetura', 'architecture'), String(m.arch)));
+      if (m.arch != null) specs.append(spec(T('arquitetura', 'architecture', 'arquitectura'), String(m.arch)));
       if (m.cpu != null) specs.append(spec('CPU', String(m.cpu)));
       if (m.memory != null) {
         const gb = num(m.memory) / 1048576;   // inventário do juiz devolve kB (/proc/meminfo)
-        specs.append(spec(T('memória', 'memory'), gb.toFixed(1) + ' GB'));
+        specs.append(spec(T('memória', 'memory', 'memoria'), gb.toFixed(1) + ' GB'));
       }
       body.append(specs);
     } else if (data.online && data.model !== 'pull') {
-      body.append(el('div', { class: 'muted small' }, T('O master respondeu, mas não informou especificações.', 'The master responded but reported no specs.')));
+      body.append(el('div', { class: 'muted small' }, T('O master respondeu, mas não informou especificações.', 'The master responded but reported no specs.', 'El master respondió, pero no informó especificaciones.')));
     }
 
     // máquinas: se o master agregou (listmachines), mostra cada uma com estado+specs
     if (data.has_machine_list && (data.machines || []).length) {
       body.append(el('div', { class: 'section-head', style: 'margin-top:1rem' },
-        T('Juízes — ', 'Judges — ') + data.machines_online + '/' + data.machines_count + ' online'));
+        T('Juízes — ', 'Judges — ', 'Jueces — ') + data.machines_online + '/' + data.machines_count + ' online'));
       // POLÍTICA GLOBAL de testes em paralelo (judges-config chave "*"): off = todo job com par_max 1
       // (o recomendado em prova); auto = a sobra de slots além do colchão vira testes em paralelo.
       // Nada disso vai ao agente (fora do cfg_hash): mudar aqui NÃO drena juiz nenhum.
       const pol = data.policy || {};
       const polSel = el('select', { class: 'small' });
-      [['off', T('desligado (recomendado em prova)', 'off (recommended in contests)')], ['auto', T('auto (sobra de slots vira testes em paralelo)', 'auto (spare slots become parallel tests)')]]
+      [['off', T('desligado (recomendado em prova)', 'off (recommended in contests)', 'apagado (recomendado en competencias)')], ['auto', T('auto (sobra de slots vira testes em paralelo)', 'auto (spare slots become parallel tests)', 'auto (los slots libres se vuelven pruebas en paralelo)')]]
         .forEach(([v, l]) => polSel.append(el('option', { value: v }, l)));
       polSel.value = pol.parallel === 'auto' ? 'auto' : 'off';
-      const polCus = el('input', { type: 'text', value: String(pol.cushion != null ? pol.cushion : 0.25), style: 'width:3.5rem', title: T('colchão: fração dos slots que NUNCA vira teste em paralelo (0..1)', 'cushion: fraction of the slots that NEVER becomes parallel tests (0..1)') });
-      const polShare = el('input', { type: 'text', value: String(pol.share_max != null ? pol.share_max : 0.5), style: 'width:3.5rem', title: T('fração máxima dos slots do juiz que UM job pode tomar (0..1)', 'max fraction of a judge\'s slots ONE job may take (0..1)') });
-      const polBtn = el('button', { class: 'btn ghost', type: 'button', style: 'font-size:.82em;padding:.1rem .5rem' }, T('Aplicar', 'Apply'));
+      const polCus = el('input', { type: 'text', value: String(pol.cushion != null ? pol.cushion : 0.25), style: 'width:3.5rem', title: T('colchão: fração dos slots que NUNCA vira teste em paralelo (0..1)', 'cushion: fraction of the slots that NEVER becomes parallel tests (0..1)', 'colchón: fracción de los slots que NUNCA se vuelve prueba en paralelo (0..1)') });
+      const polShare = el('input', { type: 'text', value: String(pol.share_max != null ? pol.share_max : 0.5), style: 'width:3.5rem', title: T('fração máxima dos slots do juiz que UM job pode tomar (0..1)', 'max fraction of a judge\'s slots ONE job may take (0..1)', 'fracción máxima de los slots del juez que UN job puede tomar (0..1)') });
+      const polBtn = el('button', { class: 'btn ghost', type: 'button', style: 'font-size:.82em;padding:.1rem .5rem' }, T('Aplicar', 'Apply', 'Aplicar'));
       polBtn.onclick = async () => {
         polBtn.disabled = true; polBtn.textContent = '…';
         try {
           await apiPost('/ops/judge-config', { host: '*', parallel: polSel.value, cushion: parseFloat(polCus.value) || 0, share_max: parseFloat(polShare.value) || 0 }, G());
           setTimeout(load, 1500);
-        } catch (e) { alert(T('Falha na política: ', 'Policy failed: ') + e); polBtn.disabled = false; polBtn.textContent = T('Aplicar', 'Apply'); }
+        } catch (e) { alert(T('Falha na política: ', 'Policy failed: ', 'Error en la política: ') + e); polBtn.disabled = false; polBtn.textContent = T('Aplicar', 'Apply', 'Aplicar'); }
       };
       body.append(el('div', { class: 'row small', style: 'gap:.4rem;align-items:center;flex-wrap:wrap;margin:.3rem 0 .5rem' },
-        el('b', {}, T('Testes em paralelo:', 'Parallel tests:')), polSel,
-        el('span', { class: 'muted' }, T('colchão', 'cushion')), polCus,
-        el('span', { class: 'muted' }, T('máx. por job', 'max per job')), polShare, polBtn,
-        el('span', { class: 'muted' }, T('— só vale p/ problemas com ALLOWPARALLELTEST; não drena juiz (fora do cfg_hash)', '— only for problems with ALLOWPARALLELTEST; never drains a judge (outside cfg_hash)'))));
+        el('b', {}, T('Testes em paralelo:', 'Parallel tests:', 'Pruebas en paralelo:')), polSel,
+        el('span', { class: 'muted' }, T('colchão', 'cushion', 'colchón')), polCus,
+        el('span', { class: 'muted' }, T('máx. por job', 'max per job', 'máx. por job')), polShare, polBtn,
+        el('span', { class: 'muted' }, T('— só vale p/ problemas com ALLOWPARALLELTEST; não drena juiz (fora do cfg_hash)', '— only for problems with ALLOWPARALLELTEST; never drains a judge (outside cfg_hash)', '— solo vale para problemas con ALLOWPARALLELTEST; nunca drena un juez (fuera del cfg_hash)'))));
       // célula de SLOTS: partição vigente (do agente) + LARGURA (cpus do menor slot, slots por nó,
       // SMT, hold) + form da config desejada (o agente drena os jobs em andamento e aplica;
       // 'moj judges config' faz o mesmo pela CLI; parallel_max NÃO drena — é só do servidor)
@@ -678,32 +679,32 @@ function makeJudgesTab() {
         const sl = mc.slots || {};
         const wrap = el('div', {});
         wrap.append(el('div', {}, ((sl.total || 1) + ' slot(s) · ' + cur)
-          + (sl.cpus != null ? (' · ' + sl.cpus + T(' CPU/slot', ' CPU/slot')) : '')
-          + (cfg.partition && cfg.partition !== cur ? ' → ' + cfg.partition + T(' (aplicando…)', ' (applying…)') : '')
-          + (cfg.disabled ? T(' · ⛔ desabilitado', ' · ⛔ disabled') : '')));
+          + (sl.cpus != null ? (' · ' + sl.cpus + T(' CPU/slot', ' CPU/slot', ' CPU/slot')) : '')
+          + (cfg.partition && cfg.partition !== cur ? ' → ' + cfg.partition + T(' (aplicando…)', ' (applying…)', ' (aplicando…)') : '')
+          + (cfg.disabled ? T(' · ⛔ desabilitado', ' · ⛔ disabled', ' · ⛔ deshabilitado') : '')));
         const byNode = sl.by_node && Object.keys(sl.by_node).length > 1
-          ? Object.entries(sl.by_node).map(([n, k]) => T('nó ', 'node ') + n + ': ' + k).join(' · ') : '';
+          ? Object.entries(sl.by_node).map(([n, k]) => T('nó ', 'node ', 'nodo ') + n + ': ' + k).join(' · ') : '';
         if (byNode || sl.smt) wrap.append(el('div', { class: 'muted', style: 'font-size:.82em' },
           byNode + (sl.smt ? (byNode ? ' · ' : '') + 'SMT' : '')
-          + (sl.max_free_group != null && byNode ? T(' · maior grupo livre ', ' · largest free group ') + sl.max_free_group : '')));
-        if (mc.hold && mc.hold.job) wrap.append(el('div', { class: 'small', style: 'color:#9a6700', title: T('juiz SEGURADO: não recebe trabalho novo até ter os slots livres p/ este job largo (CPUNEEDED)', 'judge HELD: gets no new work until it has the free slots for this wide job (CPUNEEDED)') },
-          '⏳ ' + T('segurado p/ ', 'held for ') + mc.hold.job + ' (' + mc.hold.k_slots + ' slots' + (mc.hold.numa ? ', NUMA' : '') + ')'));
+          + (sl.max_free_group != null && byNode ? T(' · maior grupo livre ', ' · largest free group ', ' · mayor grupo libre ') + sl.max_free_group : '')));
+        if (mc.hold && mc.hold.job) wrap.append(el('div', { class: 'small', style: 'color:#9a6700', title: T('juiz SEGURADO: não recebe trabalho novo até ter os slots livres p/ este job largo (CPUNEEDED)', 'judge HELD: gets no new work until it has the free slots for this wide job (CPUNEEDED)', 'juez RETENIDO: no recibe trabajo nuevo hasta tener los slots libres para este job ancho (CPUNEEDED)') },
+          '⏳ ' + T('segurado p/ ', 'held for ', 'retenido para ') + mc.hold.job + ' (' + mc.hold.k_slots + ' slots' + (mc.hold.numa ? ', NUMA' : '') + ')'));
         const sel = el('select', { class: 'small', style: 'max-width:8rem' });
         ['off', 'numa', 'cpus:1', 'cpus:2', 'cpus:4', 'cpus:8', 'cpus:16'].forEach(v => sel.append(el('option', { value: v }, v)));
         sel.value = ['off', 'numa', 'cpus:1', 'cpus:2', 'cpus:4', 'cpus:8', 'cpus:16'].includes(cfg.partition || cur) ? (cfg.partition || cur) : 'off';
-        const res = el('input', { type: 'text', value: String(cfg.reserve || 0), title: T('cpus reservadas p/ o SO (fora dos slots)', 'cpus reserved for the OS (outside the slots)'), style: 'width:3rem' });
-        const pmax = el('input', { type: 'text', value: String(cfg.parallel_max || 4), title: T('teto de testes ao mesmo tempo por job NESTE juiz (parallel_max; só o servidor lê — não drena)', 'ceiling of tests at once per job ON THIS judge (parallel_max; server-side only — no drain)'), style: 'width:2.6rem' });
-        const dis = el('input', { type: 'checkbox', title: T('desabilitar (drena e para de receber trabalho)', 'disable (drains and stops receiving work)') }); dis.checked = !!cfg.disabled;
-        const btn = el('button', { class: 'btn ghost', type: 'button', style: 'font-size:.82em;padding:.1rem .5rem' }, T('Aplicar', 'Apply'));
+        const res = el('input', { type: 'text', value: String(cfg.reserve || 0), title: T('cpus reservadas p/ o SO (fora dos slots)', 'cpus reserved for the OS (outside the slots)', 'cpus reservadas para el SO (fuera de los slots)'), style: 'width:3rem' });
+        const pmax = el('input', { type: 'text', value: String(cfg.parallel_max || 4), title: T('teto de testes ao mesmo tempo por job NESTE juiz (parallel_max; só o servidor lê — não drena)', 'ceiling of tests at once per job ON THIS judge (parallel_max; server-side only — no drain)', 'tope de pruebas simultáneas por job EN ESTE juez (parallel_max; solo lo lee el servidor — no drena)'), style: 'width:2.6rem' });
+        const dis = el('input', { type: 'checkbox', title: T('desabilitar (drena e para de receber trabalho)', 'disable (drains and stops receiving work)', 'deshabilitar (drena y deja de recibir trabajo)') }); dis.checked = !!cfg.disabled;
+        const btn = el('button', { class: 'btn ghost', type: 'button', style: 'font-size:.82em;padding:.1rem .5rem' }, T('Aplicar', 'Apply', 'Aplicar'));
         btn.onclick = async () => {
           btn.disabled = true; btn.textContent = '…';
           try {
             await apiPost('/ops/judge-config', { host: mc.host, partition: sel.value, reserve: parseInt(res.value, 10) || 0, disabled: dis.checked, parallel_max: parseInt(pmax.value, 10) || 4 }, G());
             setTimeout(load, 2500);
-          } catch (e) { alert(T('Falha na config: ', 'Config failed: ') + e); btn.disabled = false; btn.textContent = T('Aplicar', 'Apply'); }
+          } catch (e) { alert(T('Falha na config: ', 'Config failed: ', 'Error en la config: ') + e); btn.disabled = false; btn.textContent = T('Aplicar', 'Apply', 'Aplicar'); }
         };
         wrap.append(el('div', { class: 'row', style: 'gap:.25rem;align-items:center;flex-wrap:wrap;margin-top:.2rem' },
-          sel, res, el('span', { class: 'muted', style: 'font-size:.8em' }, T('P≤', 'P≤')), pmax,
+          sel, res, el('span', { class: 'muted', style: 'font-size:.8em' }, T('P≤', 'P≤', 'P≤')), pmax,
           el('label', { class: 'row', style: 'gap:.15rem' }, dis, el('span', { class: 'muted', style: 'font-size:.8em' }, 'off')), btn));
         return wrap;
       };
@@ -713,9 +714,9 @@ function makeJudgesTab() {
         const slots = mc.slots || {};
         const nTot = num(slots.total) || 1, nFree = (slots.free == null) ? (mc.busy ? 0 : nTot) : num(slots.free);
         const st = !mc.online ? '🔴 offline'
-          : (mc.status === 'draining' ? T('⏸ drenando', '⏸ draining')
-            : (mc.status === 'disabled' ? T('⏸ desabilitada', '⏸ disabled')
-              : (nFree === 0 ? T('🟡 ocupada', '🟡 busy') : (nFree < nTot ? `🟡 ${nTot - nFree}/${nTot} slots` : T('🟢 livre', '🟢 free')))));
+          : (mc.status === 'draining' ? T('⏸ drenando', '⏸ draining', '⏸ drenando')
+            : (mc.status === 'disabled' ? T('⏸ desabilitada', '⏸ disabled', '⏸ deshabilitada')
+              : (nFree === 0 ? T('🟡 ocupada', '🟡 busy', '🟡 ocupada') : (nFree < nTot ? `🟡 ${nTot - nFree}/${nTot} slots` : T('🟢 livre', '🟢 free', '🟢 libre')))));
         const mem = rep.memory != null ? (num(rep.memory) / 1048576).toFixed(1) + ' GB' : '—';
         const langs = mc.langs || [];
         const cage = mc.cage_root ? '📦 rootfs' : '🖥 host';
@@ -723,12 +724,12 @@ function makeJudgesTab() {
         const tlLangs = tl.langs || [];
         const cache = mc.cache || {};
         const cacheMB = cache.bytes ? (num(cache.bytes) / 1048576).toFixed(0) + ' MB' : '0 MB';
-        const clearBtn = el('button', { class: 'btn ghost', type: 'button', title: T('Limpar o cache deste juiz (vai recalibrar sob demanda)', 'Clear this judge\'s cache (will recalibrate on demand)'), style: 'font-size:.82em;padding:.1rem .5rem;margin-top:.2rem' }, T('🗑 Limpar', '🗑 Clear'));
+        const clearBtn = el('button', { class: 'btn ghost', type: 'button', title: T('Limpar o cache deste juiz (vai recalibrar sob demanda)', 'Clear this judge\'s cache (will recalibrate on demand)', 'Limpiar la caché de este juez (recalibrará bajo demanda)'), style: 'font-size:.82em;padding:.1rem .5rem;margin-top:.2rem' }, T('🗑 Limpar', '🗑 Clear', '🗑 Limpiar'));
         clearBtn.onclick = async () => {
-          if (!confirm(T('Limpar o cache de ', 'Clear the cache of ') + mc.host + T('?\nEle vai re-baixar e recalibrar os problemas sob demanda.', '?\nIt will re-download and recalibrate the problems on demand.'))) return;
+          if (!confirm(T('Limpar o cache de ', 'Clear the cache of ', 'Limpiar la caché de ') + mc.host + T('?\nEle vai re-baixar e recalibrar os problemas sob demanda.', '?\nIt will re-download and recalibrate the problems on demand.', '?\nVolverá a descargar y recalibrar los problemas bajo demanda.'))) return;
           clearBtn.disabled = true; clearBtn.textContent = '…';
           try { await apiPost('/ops/judge-cache', { host: mc.host, action: 'clearcache' }, G()); setTimeout(load, 3000); }
-          catch (e) { alert(T('Falha ao limpar cache: ', 'Failed to clear cache: ') + e); clearBtn.disabled = false; clearBtn.textContent = T('🗑 Limpar', '🗑 Clear'); }
+          catch (e) { alert(T('Falha ao limpar cache: ', 'Failed to clear cache: ', 'Error al limpiar la caché: ') + e); clearBtn.disabled = false; clearBtn.textContent = T('🗑 Limpar', '🗑 Clear', '🗑 Limpiar'); }
         };
         // GPU: o registro só traz .gpu com COMPUTE comprovado (nvidia-smi/rocm-smi)
         const gpu = rep.gpu && rep.gpu.names ? rep.gpu.names : '';
@@ -737,47 +738,47 @@ function makeJudgesTab() {
           el('td', {}, st),
           el('td', { class: 'small' },
             el('div', {}, rep.cpu ? String(rep.cpu).trim() : '—'),
-            gpu ? el('div', { class: 'muted', style: 'font-size:.82em;word-break:break-word;max-width:26ch', title: T('GPU de compute (', 'Compute GPU (') + (rep.gpu.vendor || '') + ')' }, '🎮 ' + gpu) : ''),
+            gpu ? el('div', { class: 'muted', style: 'font-size:.82em;word-break:break-word;max-width:26ch', title: T('GPU de compute (', 'Compute GPU (', 'GPU de cómputo (') + (rep.gpu.vendor || '') + ')' }, '🎮 ' + gpu) : ''),
           el('td', {}, mem),
           // toolchains: raiz da jaula (host/rootfs) + as linguagens que a máquina roda
-          el('td', { class: 'small', title: mc.cage_root ? ('CAGE_ROOT=' + mc.cage_root) : T('raiz do sistema do host', 'host system root') },
+          el('td', { class: 'small', title: mc.cage_root ? ('CAGE_ROOT=' + mc.cage_root) : T('raiz do sistema do host', 'host system root', 'raíz del sistema del host') },
             el('div', {}, cage),
             el('div', { class: 'muted', style: 'font-size:.82em;word-break:break-word;max-width:22ch' },
               langs.length ? langs.join(' ') : '—')),
           // time limits: nº de problemas calibrados + as linguagens com TL medido aqui
           el('td', { class: 'small' },
-            el('div', {}, (tl.calibrated || 0) + ' ' + ((tl.calibrated === 1) ? T('problema', 'problem') : T('problemas', 'problems'))),
+            el('div', {}, (tl.calibrated || 0) + ' ' + ((tl.calibrated === 1) ? T('problema', 'problem', 'problema') : T('problemas', 'problems', 'problemas'))),
             el('div', { class: 'muted', style: 'font-size:.82em;word-break:break-word;max-width:18ch' },
-              tlLangs.length ? ('TL: ' + tlLangs.join(' ')) : T('sem TL ainda', 'no TL yet'))),
+              tlLangs.length ? ('TL: ' + tlLangs.join(' ')) : T('sem TL ainda', 'no TL yet', 'sin TL todavía'))),
           // cache local: nº de problemas em cache + tamanho EM DISCO (não é RAM! — a leitura
           // errada disso custou caro no diagnóstico do incidente 2026-07-15) + limpar
-          el('td', { class: 'small', title: T('Cache de pacotes de problema EM DISCO do juiz (não é uso de RAM)', 'Judge\'s problem-package cache ON DISK (not RAM usage)') },
-            el('div', {}, T('disco: ', 'disk: ') + (cache.problems || 0) + ' probs · ' + cacheMB),
+          el('td', { class: 'small', title: T('Cache de pacotes de problema EM DISCO do juiz (não é uso de RAM)', 'Judge\'s problem-package cache ON DISK (not RAM usage)', 'Caché de paquetes de problema EN DISCO del juez (no es uso de RAM)') },
+            el('div', {}, T('disco: ', 'disk: ', 'disco: ') + (cache.problems || 0) + ' probs · ' + cacheMB),
             clearBtn),
           // SLOTS (particionamento): config fina por juiz — o agente aplica após drenar
           el('td', { class: 'small' }, slotsCell(mc))));
       });
       body.append(el('table', { class: 'moj' }, el('thead', {}, el('tr', {},
-        el('th', {}, T('Máquina', 'Machine')), el('th', {}, T('Estado', 'State')),
-        el('th', {}, 'CPU'), el('th', {}, T('Memória', 'Memory')),
+        el('th', {}, T('Máquina', 'Machine', 'Máquina')), el('th', {}, T('Estado', 'State', 'Estado')),
+        el('th', {}, 'CPU'), el('th', {}, T('Memória', 'Memory', 'Memoria')),
         el('th', {}, 'Toolchains'), el('th', {}, 'Time limits'), el('th', {}, 'Cache'),
-        el('th', { title: T('Particionamento em slots (a máquina corrige N problemas ao mesmo tempo, cada job pinado no seu conjunto de cpus)', 'Slot partitioning (the machine judges N problems at once, each job pinned to its own set of cpus)') }, 'Slots'))), tb));
+        el('th', { title: T('Particionamento em slots (a máquina corrige N problemas ao mesmo tempo, cada job pinado no seu conjunto de cpus)', 'Slot partitioning (the machine judges N problems at once, each job pinned to its own set of cpus)', 'Particionamiento en slots (la máquina evalúa N problemas a la vez, cada job fijado a su propio conjunto de cpus)') }, 'Slots'))), tb));
     } else {
       const workers = data.configured_workers || [];
-      body.append(el('div', { class: 'section-head', style: 'margin-top:1rem' }, T('Máquinas configuradas', 'Configured machines')));
+      body.append(el('div', { class: 'section-head', style: 'margin-top:1rem' }, T('Máquinas configuradas', 'Configured machines', 'Máquinas configuradas')));
       const count = data.configured_count != null ? data.configured_count : workers.length;
       body.append(el('div', { class: 'small', style: 'margin:.3rem 0' },
-        el('b', {}, String(count)), ' ' + (count === 1 ? T('máquina configurada', 'machine configured') : T('máquinas configuradas', 'machines configured')) + T(' no escalonador.', ' in the scheduler.')));
+        el('b', {}, String(count)), ' ' + (count === 1 ? T('máquina configurada', 'machine configured', 'máquina configurada') : T('máquinas configuradas', 'machines configured', 'máquinas configuradas')) + T(' no escalonador.', ' in the scheduler.', ' en el planificador.')));
       if (workers.length) {
         const wl = el('div', { class: 'worker-list' });
         workers.forEach(w => wl.append(el('div', { class: 'worker' }, '🖧 ' + w)));
         body.append(wl);
       } else {
-        body.append(el('div', { class: 'muted small' }, T('Nenhum worker listado na configuração.', 'No worker listed in the configuration.')));
+        body.append(el('div', { class: 'muted small' }, T('Nenhum worker listado na configuração.', 'No worker listed in the configuration.', 'Ningún worker listado en la configuración.')));
       }
       body.append(el('div', { class: 'small muted', style: 'margin-top:.7rem;line-height:1.45' },
-        T('Este master ainda não tem o comando agregado de máquinas — mostrando a lista configurada. ', 'This master does not yet have the aggregated machines command — showing the configured list. ') +
-        T('Faça o deploy do job-receiveitor-master.sh atualizado para ver o estado de cada máquina.', 'Deploy the updated job-receiveitor-master.sh to see each machine\'s state.')));
+        T('Este master ainda não tem o comando agregado de máquinas — mostrando a lista configurada. ', 'This master does not yet have the aggregated machines command — showing the configured list. ', 'Este master todavía no tiene el comando agregado de máquinas — mostrando la lista configurada. ') +
+        T('Faça o deploy do job-receiveitor-master.sh atualizado para ver o estado de cada máquina.', 'Deploy the updated job-receiveitor-master.sh to see each machine\'s state.', 'Despliega el job-receiveitor-master.sh actualizado para ver el estado de cada máquina.')));
     }
   }
 
@@ -795,10 +796,10 @@ const dtToEpoch = (s) => { const t = Date.parse(s); return isNaN(t) ? nowEpoch()
 
 function makeNewsTab() {
   const panel = el('div', { class: 'section' });
-  const head = el('h2', {}, T('📰 Notícias', '📰 News'));
+  const head = el('h2', {}, T('📰 Notícias', '📰 News', '📰 Noticias'));
   const tools = el('div', { class: 'toolbar' },
-    el('button', { class: 'btn', onclick: () => openForm() }, T('➕ Nova notícia', '➕ New article')),
-    el('button', { class: 'btn ghost', onclick: () => load() }, T('↻ Atualizar', '↻ Refresh')));
+    el('button', { class: 'btn', onclick: () => openForm() }, T('➕ Nova notícia', '➕ New article', '➕ Nueva noticia')),
+    el('button', { class: 'btn ghost', onclick: () => load() }, T('↻ Atualizar', '↻ Refresh', '↻ Actualizar')));
   const formBox = el('div', {});
   const body = el('div', {}, loading());
   panel.append(head, tools, formBox, body);
@@ -807,13 +808,13 @@ function makeNewsTab() {
 
   function openForm(news) {
     const editing = !!news;
-    const title = el('input', { value: editing ? (news.title || '') : '', placeholder: T('Título', 'Title'), style: 'width:100%' });
-    const summary = el('input', { value: editing ? (news.summary || '') : '', placeholder: T('Resumo (1 linha, aparece na lista)', 'Summary (1 line, shown in the list)'), style: 'width:100%' });
-    const url = el('input', { value: editing ? (news.url || '') : '', placeholder: T('URL externa — vazio = notícia local (texto completo no MOJ)', 'External URL — empty = local article (full text in MOJ)'), style: 'width:100%' });
+    const title = el('input', { value: editing ? (news.title || '') : '', placeholder: T('Título', 'Title', 'Título'), style: 'width:100%' });
+    const summary = el('input', { value: editing ? (news.summary || '') : '', placeholder: T('Resumo (1 linha, aparece na lista)', 'Summary (1 line, shown in the list)', 'Resumen (1 línea, aparece en la lista)'), style: 'width:100%' });
+    const url = el('input', { value: editing ? (news.url || '') : '', placeholder: T('URL externa — vazio = notícia local (texto completo no MOJ)', 'External URL — empty = local article (full text in MOJ)', 'URL externa — vacío = noticia local (texto completo en el MOJ)'), style: 'width:100%' });
     const dateI = el('input', { type: 'datetime-local', value: toLocalDT(editing ? news.date : nowEpoch()) });
 
     // editor de markdown + preview ao vivo (mesmo renderizador do detalhe público)
-    const bodyt = el('textarea', { rows: '16', placeholder: T('Texto completo em Markdown…', 'Full text in Markdown…'),
+    const bodyt = el('textarea', { rows: '16', placeholder: T('Texto completo em Markdown…', 'Full text in Markdown…', 'Texto completo en Markdown…'),
       style: 'width:100%; font-family:var(--mono,monospace); font-size:.9rem; line-height:1.5' });
     bodyt.value = editing ? (news.body || '') : '';
     const preview = el('article', { class: 'news-body',
@@ -821,8 +822,8 @@ function makeNewsTab() {
     let pvTimer;
     const schedulePreview = () => { clearTimeout(pvTimer); pvTimer = setTimeout(refreshPreview, 400); };
     async function refreshPreview() {
-      try { const r = await apiPost('/treino/admin/news/preview', { body: bodyt.value }, G()); preview.innerHTML = b64ToText(r.html_b64) || T('<span class="muted small">(vazio)</span>', '<span class="muted small">(empty)</span>'); }
-      catch { preview.innerHTML = T('<span class="muted small">(não foi possível pré-visualizar)</span>', '<span class="muted small">(could not preview)</span>'); }
+      try { const r = await apiPost('/treino/admin/news/preview', { body: bodyt.value }, G()); preview.innerHTML = b64ToText(r.html_b64) || T('<span class="muted small">(vazio)</span>', '<span class="muted small">(empty)</span>', '<span class="muted small">(vacío)</span>'); }
+      catch { preview.innerHTML = T('<span class="muted small">(não foi possível pré-visualizar)</span>', '<span class="muted small">(could not preview)</span>', '<span class="muted small">(no se pudo previsualizar)</span>'); }
     }
     const wrapSel = (before, after) => {
       const t = bodyt, s = t.selectionStart, e = t.selectionEnd, v = t.value;
@@ -832,71 +833,71 @@ function makeNewsTab() {
     };
     const mdBtn = (label, tip, fn) => el('button', { class: 'btn ghost', type: 'button', title: tip, style: 'padding:.2rem .55rem', onclick: fn }, label);
     const toolbar = el('div', { class: 'md-toolbar' },
-      mdBtn('B', T('negrito', 'bold'), () => wrapSel('**', '**')),
-      mdBtn('i', T('itálico', 'italic'), () => wrapSel('*', '*')),
-      mdBtn('H2', T('título', 'heading'), () => wrapSel('## ', '')),
-      mdBtn(T('• lista', '• list'), T('lista', 'list'), () => wrapSel('- ', '')),
-      mdBtn('< >', T('código', 'code'), () => wrapSel('`', '`')),
+      mdBtn('B', T('negrito', 'bold', 'negrita'), () => wrapSel('**', '**')),
+      mdBtn('i', T('itálico', 'italic', 'cursiva'), () => wrapSel('*', '*')),
+      mdBtn('H2', T('título', 'heading', 'título'), () => wrapSel('## ', '')),
+      mdBtn(T('• lista', '• list', '• lista'), T('lista', 'list', 'lista'), () => wrapSel('- ', '')),
+      mdBtn('< >', T('código', 'code', 'código'), () => wrapSel('`', '`')),
       mdBtn('🔗', 'link', () => wrapSel('[', '](https://)')),
-      mdBtn('“ ”', T('citação', 'quote'), () => wrapSel('> ', '')));
+      mdBtn('“ ”', T('citação', 'quote', 'cita'), () => wrapSel('> ', '')));
     bodyt.addEventListener('input', schedulePreview);
     refreshPreview();
 
     const msg = el('div', { class: 'small', style: 'margin-top:.4rem' });
-    const saveBtn = el('button', { class: 'btn' }, editing ? T('Salvar alterações', 'Save changes') : T('Publicar notícia', 'Publish article'));
+    const saveBtn = el('button', { class: 'btn' }, editing ? T('Salvar alterações', 'Save changes', 'Guardar cambios') : T('Publicar notícia', 'Publish article', 'Publicar noticia'));
     saveBtn.addEventListener('click', async () => {
-      if (!title.value.trim()) { msg.className = 'small error-box'; msg.textContent = T('Informe o título', 'Enter the title'); return; }
-      saveBtn.disabled = true; msg.className = 'small'; msg.textContent = T('Salvando…', 'Saving…');
+      if (!title.value.trim()) { msg.className = 'small error-box'; msg.textContent = T('Informe o título', 'Enter the title', 'Ingresa el título'); return; }
+      saveBtn.disabled = true; msg.className = 'small'; msg.textContent = T('Salvando…', 'Saving…', 'Guardando…');
       const payload = { title: title.value.trim(), summary: summary.value.trim(), url: url.value.trim(), body: bodyt.value, date: dtToEpoch(dateI.value) };
       try {
         if (editing) { payload.key = news.key; await apiPost('/treino/admin/news/update', payload, G()); }
         else { await apiPost('/treino/admin/news', payload, G()); }
         formBox.innerHTML = ''; await load();
-      } catch (e) { saveBtn.disabled = false; msg.className = 'small error-box'; msg.textContent = e.message || T('falha', 'failed'); }
+      } catch (e) { saveBtn.disabled = false; msg.className = 'small error-box'; msg.textContent = e.message || T('falha', 'failed', 'fallido'); }
     });
 
     formBox.innerHTML = '';
     formBox.append(el('div', { class: 'section', style: 'background:#fafcff' },
-      el('h3', { style: 'margin:.1rem 0 .6rem' }, editing ? T('Editar notícia', 'Edit article') : T('Nova notícia', 'New article')),
+      el('h3', { style: 'margin:.1rem 0 .6rem' }, editing ? T('Editar notícia', 'Edit article', 'Editar noticia') : T('Nova notícia', 'New article', 'Nueva noticia')),
       el('div', { style: 'display:grid; grid-template-columns:2fr 1fr; gap:.8rem' },
-        el('div', { class: 'field' }, el('label', {}, T('Título', 'Title')), title),
-        el('div', { class: 'field' }, el('label', {}, T('Data/hora', 'Date/time')), dateI)),
-      el('div', { class: 'field' }, el('label', {}, T('Resumo', 'Summary')), summary),
-      el('div', { class: 'field' }, el('label', {}, T('URL externa (opcional)', 'External URL (optional)')), url),
-      el('div', { class: 'field' }, el('label', {}, T('Texto completo (Markdown)', 'Full text (Markdown)')),
+        el('div', { class: 'field' }, el('label', {}, T('Título', 'Title', 'Título')), title),
+        el('div', { class: 'field' }, el('label', {}, T('Data/hora', 'Date/time', 'Fecha/hora')), dateI)),
+      el('div', { class: 'field' }, el('label', {}, T('Resumo', 'Summary', 'Resumen')), summary),
+      el('div', { class: 'field' }, el('label', {}, T('URL externa (opcional)', 'External URL (optional)', 'URL externa (opcional)')), url),
+      el('div', { class: 'field' }, el('label', {}, T('Texto completo (Markdown)', 'Full text (Markdown)', 'Texto completo (Markdown)')),
         el('div', { class: 'news-editor-split' },
           el('div', {}, toolbar, bodyt),
-          el('div', {}, el('div', { class: 'small muted', style: 'margin-bottom:.25rem' }, T('Pré-visualização', 'Preview')), preview))),
+          el('div', {}, el('div', { class: 'small muted', style: 'margin-bottom:.25rem' }, T('Pré-visualização', 'Preview', 'Vista previa')), preview))),
       el('div', { class: 'row', style: 'margin-top:.6rem' }, saveBtn,
-        el('button', { class: 'btn ghost', onclick: () => { formBox.innerHTML = ''; } }, T('Cancelar', 'Cancel'))),
+        el('button', { class: 'btn ghost', onclick: () => { formBox.innerHTML = ''; } }, T('Cancelar', 'Cancel', 'Cancelar'))),
       msg));
   }
 
   async function actDelete(news) {
-    if (!confirm(T('Remover a notícia "', 'Remove the article "') + (news.title || news.key) + '"?')) return;
+    if (!confirm(T('Remover a notícia "', 'Remove the article "', 'Eliminar la noticia "') + (news.title || news.key) + '"?')) return;
     try { await apiPost('/treino/admin/news/delete', { key: news.key }, G()); await load(); }
-    catch (e) { alert(T('Falha ao remover: ', 'Failed to remove: ') + (e.message || T('erro', 'error'))); }
+    catch (e) { alert(T('Falha ao remover: ', 'Failed to remove: ', 'Error al eliminar: ') + (e.message || T('erro', 'error', 'error'))); }
   }
 
   async function load() {
     body.innerHTML = ''; body.append(loading());
     let data;
     try { data = await apiGet('/treino/admin/news', G()); }
-    catch (e) { body.innerHTML = ''; body.append(errBox(T('Falha ao carregar notícias: ', 'Failed to load news: ') + (e.message || T('erro', 'error')))); return; }
+    catch (e) { body.innerHTML = ''; body.append(errBox(T('Falha ao carregar notícias: ', 'Failed to load news: ', 'Error al cargar noticias: ') + (e.message || T('erro', 'error', 'error')))); return; }
     const news = data.news || [];
     body.innerHTML = '';
-    if (!news.length) { body.append(el('div', { class: 'muted' }, T('Nenhuma notícia. Use "➕ Nova notícia".', 'No news. Use "➕ New article".'))); return; }
+    if (!news.length) { body.append(el('div', { class: 'muted' }, T('Nenhuma notícia. Use "➕ Nova notícia".', 'No news. Use "➕ New article".', 'Sin noticias. Usa "➕ Nueva noticia".'))); return; }
     const tb = el('tbody');
     news.forEach((n) => {
       tb.append(el('tr', {},
-        el('td', {}, el('b', {}, n.title || T('(sem título)', '(untitled)')), el('div', { class: 'small muted' }, n.summary || '')),
+        el('td', {}, el('b', {}, n.title || T('(sem título)', '(untitled)', '(sin título)')), el('div', { class: 'small muted' }, n.summary || '')),
         el('td', { class: 'small' }, fmtDate(n.date)),
         el('td', {}, el('div', { class: 'row-actions' },
-          el('button', { class: 'btn ghost', onclick: () => openForm(n) }, T('Editar', 'Edit')),
-          el('button', { class: 'btn danger', onclick: () => actDelete(n) }, T('Remover', 'Remove'))))));
+          el('button', { class: 'btn ghost', onclick: () => openForm(n) }, T('Editar', 'Edit', 'Editar')),
+          el('button', { class: 'btn danger', onclick: () => actDelete(n) }, T('Remover', 'Remove', 'Eliminar'))))));
     });
     body.append(el('div', { class: 'chart-wrap' }, el('table', { class: 'moj' },
-      el('thead', {}, el('tr', {}, el('th', {}, T('Notícia', 'Article')), el('th', {}, T('Data', 'Date')), el('th', {}, T('Ações', 'Actions')))), tb)));
+      el('thead', {}, el('tr', {}, el('th', {}, T('Notícia', 'Article', 'Noticia')), el('th', {}, T('Data', 'Date', 'Fecha')), el('th', {}, T('Ações', 'Actions', 'Acciones')))), tb)));
   }
   return { panel, load };
 }
@@ -908,22 +909,22 @@ function makeNewsTab() {
 function makeActivityTab() {
   const panel = el('div', { class: 'section' });
   const KIND = {
-    login: '🔑 login', submit: T('📤 submissão', '📤 submission'),
-    verdict: T('⚖️ veredicto', '⚖️ verdict'), read: T('👁 leitura', '👁 read'),
-    admin: '🛠️ admin', calib: T('🖥 máquina', '🖥 machine'),
+    login: '🔑 login', submit: T('📤 submissão', '📤 submission', '📤 envío'),
+    verdict: T('⚖️ veredicto', '⚖️ verdict', '⚖️ veredicto'), read: T('👁 leitura', '👁 read', '👁 lectura'),
+    admin: '🛠️ admin', calib: T('🖥 máquina', '🖥 machine', '🖥 máquina'),
   };
   const RACT = {
-    'problem-view': T('abriu problema', 'opened problem'),
-    'log-view': T('viu log', 'viewed log'),
-    'source-download': T('baixou código', 'downloaded code'),
+    'problem-view': T('abriu problema', 'opened problem', 'abrió el problema'),
+    'log-view': T('viu log', 'viewed log', 'vio el registro'),
+    'source-download': T('baixou código', 'downloaded code', 'descargó el código'),
   };
   async function load() {
     panel.innerHTML = '';
-    panel.append(el('h2', {}, T('📜 Atividade do treino', '📜 Training activity')));
-    const fUser = el('input', { type: 'search', placeholder: T('usuário…', 'user…'), style: 'width:130px' });
-    const fAction = el('input', { type: 'search', placeholder: T('ação/veredicto…', 'action/verdict…'), style: 'width:160px' });
+    panel.append(el('h2', {}, T('📜 Atividade do treino', '📜 Training activity', '📜 Actividad del entrenamiento')));
+    const fUser = el('input', { type: 'search', placeholder: T('usuário…', 'user…', 'usuario…'), style: 'width:130px' });
+    const fAction = el('input', { type: 'search', placeholder: T('ação/veredicto…', 'action/verdict…', 'acción/veredicto…'), style: 'width:160px' });
     const fKind = el('select', {},
-      el('option', { value: '' }, T('tudo (sem máquina)', 'all (no machine)')),
+      el('option', { value: '' }, T('tudo (sem máquina)', 'all (no machine)', 'todo (sin máquina)')),
       ...Object.entries(KIND).map(([k, l]) => el('option', { value: k }, l)));
     const fSince = el('input', { type: 'date' });
     const fUntil = el('input', { type: 'date' });
@@ -938,7 +939,7 @@ function makeActivityTab() {
       return qp;
     };
     // CSV pelo SERVIDOR (format=csv): o range INTEIRO filtrado, não só os 500 da tela
-    const dl = el('button', { class: 'btn ghost', title: T('Baixar o range filtrado inteiro em CSV', 'Download the whole filtered range as CSV'), onclick: async () => {
+    const dl = el('button', { class: 'btn ghost', title: T('Baixar o range filtrado inteiro em CSV', 'Download the whole filtered range as CSV', 'Descargar todo el rango filtrado en CSV'), onclick: async () => {
       const qp = qs(); qp.set('format', 'csv');
       try {
         const r = await fetch('/api/v1/treino/admin/activity-log?' + qp.toString(),
@@ -946,18 +947,18 @@ function makeActivityTab() {
         if (!r.ok) throw new Error('HTTP ' + r.status);
         const blob = await r.blob(), a = el('a', { href: URL.createObjectURL(blob), download: 'atividade-treino.csv' });
         document.body.append(a); a.click(); setTimeout(() => { a.remove(); URL.revokeObjectURL(a.href); }, 0);
-      } catch (e) { alert(T('Falha ao baixar CSV: ', 'Failed to download CSV: ') + (e.message || e)); }
+      } catch (e) { alert(T('Falha ao baixar CSV: ', 'Failed to download CSV: ', 'Error al descargar el CSV: ') + (e.message || e)); }
     } }, '⬇ CSV');
     async function run() {
       body.innerHTML = ''; body.append(loading());
       let r;
       try { r = await apiGet('/treino/admin/activity-log?' + qs().toString(), G()); }
-      catch (e) { body.innerHTML = ''; body.append(errBox(T('Falha: ', 'Failed: ') + (e.message || T('erro', 'error')))); return; }
+      catch (e) { body.innerHTML = ''; body.append(errBox(T('Falha: ', 'Failed: ', 'Error: ') + (e.message || T('erro', 'error', 'error')))); return; }
       const ev = r.events || [];
       body.innerHTML = '';
       body.append(el('div', { class: 'small muted', style: 'margin:.3rem 0' },
-        ev.length + T(' evento(s) na tela (o CSV baixa o range inteiro).', ' event(s) on screen (CSV downloads the whole range).')));
-      if (!ev.length) { body.append(el('div', { class: 'muted' }, T('Nada encontrado.', 'Nothing found.'))); return; }
+        ev.length + T(' evento(s) na tela (o CSV baixa o range inteiro).', ' event(s) on screen (CSV downloads the whole range).', ' evento(s) en pantalla (el CSV descarga todo el rango).')));
+      if (!ev.length) { body.append(el('div', { class: 'muted' }, T('Nada encontrado.', 'Nothing found.', 'No se encontró nada.'))); return; }
       const tb = el('tbody');
       ev.forEach((x) => tb.append(el('tr', {},
         el('td', { class: 'small' }, fmtDate(x.time)),
@@ -968,14 +969,14 @@ function makeActivityTab() {
           (x.details || '') + (x.ip ? ' · ' + x.ip : '')))));
       body.append(el('div', { class: 'chart-wrap' }, el('table', { class: 'moj' },
         el('thead', {}, el('tr', {},
-          el('th', {}, T('Quando', 'When')), el('th', {}, T('Tipo', 'Type')), el('th', {}, T('Quem', 'Who')),
-          el('th', {}, T('Ação', 'Action')), el('th', {}, T('Detalhes', 'Details')))), tb)));
+          el('th', {}, T('Quando', 'When', 'Cuándo')), el('th', {}, T('Tipo', 'Type', 'Tipo')), el('th', {}, T('Quem', 'Who', 'Quién')),
+          el('th', {}, T('Ação', 'Action', 'Acción')), el('th', {}, T('Detalhes', 'Details', 'Detalles')))), tb)));
     }
     [fUser, fAction, fKind, fSince, fUntil].forEach((i) => i.addEventListener('change', run));
     panel.append(el('div', { class: 'row', style: 'margin-bottom:.4rem;flex-wrap:wrap;gap:.3rem' },
-      el('span', { class: 'small muted' }, T('Filtros:', 'Filters:')), fKind, fUser, fAction,
-      el('span', { class: 'small muted' }, T('de', 'from')), fSince,
-      el('span', { class: 'small muted' }, T('até', 'to')), fUntil,
+      el('span', { class: 'small muted' }, T('Filtros:', 'Filters:', 'Filtros:')), fKind, fUser, fAction,
+      el('span', { class: 'small muted' }, T('de', 'from', 'desde')), fSince,
+      el('span', { class: 'small muted' }, T('até', 'to', 'hasta')), fUntil,
       el('button', { class: 'btn ghost', onclick: run }, '↻'), dl), body);
     await run();
   }
@@ -985,28 +986,28 @@ function makeActivityTab() {
 // ============================ aba: Auditoria ============================
 function makeAuditTab() {
   const panel = el('div', { class: 'section' });
-  const head = el('h2', {}, T('🛡 Auditoria', '🛡 Audit'));
+  const head = el('h2', {}, T('🛡 Auditoria', '🛡 Audit', '🛡 Auditoría'));
   const dateInput = el('input', { type: 'date', value: todayStr() });
   dateInput.addEventListener('change', () => load());
   const tools = el('div', { class: 'toolbar' },
-    el('span', { class: 'small muted' }, T('Dia:', 'Day:')), dateInput,
-    el('button', { class: 'btn ghost', onclick: () => load() }, T('↻ Atualizar', '↻ Refresh')));
+    el('span', { class: 'small muted' }, T('Dia:', 'Day:', 'Día:')), dateInput,
+    el('button', { class: 'btn ghost', onclick: () => load() }, T('↻ Atualizar', '↻ Refresh', '↻ Actualizar')));
   const body = el('div', {}, loading());
   panel.append(head, tools, body);
-  const ACT = { 'logout-user': T('🚪 deslogou usuário(s)', '🚪 logged out user(s)'), 'logout-ip': T('🚪 deslogou IP', '🚪 logged out IP'), 'lock-user': T('🔒 travou usuário(s)', '🔒 locked user(s)'),
-                'news-add': T('📰 criou notícia', '📰 created article'), 'news-edit': T('✏️ editou notícia', '✏️ edited article'), 'news-delete': T('🗑 removeu notícia', '🗑 removed article') };
+  const ACT = { 'logout-user': T('🚪 deslogou usuário(s)', '🚪 logged out user(s)', '🚪 cerró sesión de usuario(s)'), 'logout-ip': T('🚪 deslogou IP', '🚪 logged out IP', '🚪 cerró sesión de IP'), 'lock-user': T('🔒 travou usuário(s)', '🔒 locked user(s)', '🔒 bloqueó usuario(s)'),
+                'news-add': T('📰 criou notícia', '📰 created article', '📰 creó noticia'), 'news-edit': T('✏️ editou notícia', '✏️ edited article', '✏️ editó noticia'), 'news-delete': T('🗑 removeu notícia', '🗑 removed article', '🗑 eliminó noticia') };
 
   async function load() {
     body.innerHTML = ''; body.append(loading());
     const day = dateInput.value;
     let data;
     try { data = await apiGet('/treino/admin/audit-log?day=' + encodeURIComponent(day), G()); }
-    catch (e) { body.innerHTML = ''; body.append(errBox(T('Falha ao carregar a auditoria: ', 'Failed to load the audit: ') + (e.message || T('erro', 'error')))); return; }
+    catch (e) { body.innerHTML = ''; body.append(errBox(T('Falha ao carregar a auditoria: ', 'Failed to load the audit: ', 'Error al cargar la auditoría: ') + (e.message || T('erro', 'error', 'error')))); return; }
     const entries = data.entries || [];
     body.innerHTML = '';
     body.append(el('div', { class: 'small muted', style: 'margin-bottom:.5rem' },
-      entries.length + T(' ação(ões) em ', ' action(s) on ') + (data.day || day) + T(' (mais recentes primeiro).', ' (most recent first).')));
-    if (!entries.length) { body.append(el('div', { class: 'muted' }, T('Nenhuma ação administrativa neste dia.', 'No administrative action on this day.'))); return; }
+      entries.length + T(' ação(ões) em ', ' action(s) on ', ' acción(es) en ') + (data.day || day) + T(' (mais recentes primeiro).', ' (most recent first).', ' (más recientes primero).')));
+    if (!entries.length) { body.append(el('div', { class: 'muted' }, T('Nenhuma ação administrativa neste dia.', 'No administrative action on this day.', 'Ninguna acción administrativa en este día.'))); return; }
     const tb = el('tbody');
     entries.forEach((e2) => {
       tb.append(el('tr', {},
@@ -1016,7 +1017,7 @@ function makeAuditTab() {
         el('td', { class: 'small', style: 'font-family:var(--mono);word-break:break-all' }, e2.details || '')));
     });
     body.append(el('div', { class: 'chart-wrap' }, el('table', { class: 'moj' },
-      el('thead', {}, el('tr', {}, el('th', {}, T('Data/Hora', 'Date/Time')), el('th', {}, 'Admin'), el('th', {}, T('Ação', 'Action')), el('th', {}, T('Detalhes', 'Details')))), tb)));
+      el('thead', {}, el('tr', {}, el('th', {}, T('Data/Hora', 'Date/Time', 'Fecha/Hora')), el('th', {}, 'Admin'), el('th', {}, T('Ação', 'Action', 'Acción')), el('th', {}, T('Detalhes', 'Details', 'Detalles')))), tb)));
   }
   return { panel, load };
 }
@@ -1031,7 +1032,7 @@ function personCell(login, name, hasPhoto, extra) {
     avatarEl(login, name || login, 24, !!hasPhoto),
     el('div', {}, el('div', {}, statLink(login, name), extra || ''),
       el('div', { class: 'small muted', style: 'font-family:var(--mono)' }, login,
-        name ? '' : el('span', { class: 'muted' }, ' · ' + T('conta não existe', 'account does not exist')))));
+        name ? '' : el('span', { class: 'muted' }, ' · ' + T('conta não existe', 'account does not exist', 'la cuenta no existe')))));
   return box;
 }
 function makeContestsTab() {
@@ -1040,46 +1041,46 @@ function makeContestsTab() {
 
   // ---------- quem pode criar contests e problemas ----------
   const thr = el('input', { type: 'number', min: '0', style: 'width:90px' });
-  const thrSave = el('button', { class: 'btn ghost' }, T('Salvar limite', 'Save threshold'));
+  const thrSave = el('button', { class: 'btn ghost' }, T('Salvar limite', 'Save threshold', 'Guardar umbral'));
   const permMsg = el('div', { class: 'small' });
   const listsBox = el('div', {});
   let PERMS = null;
   const say = (t, err) => { permMsg.className = err ? 'small error-box' : 'small'; permMsg.textContent = t || ''; };
   async function permPost(body) {
-    say(T('Salvando…', 'Saving…'));
-    try { const r = await apiPost('/treino/admin/contest-perms', body, G()); say(T('✓ salvo', '✓ saved')); renderPerms(r); }
-    catch (e) { say(e.message || T('falha', 'failed'), true); }
+    say(T('Salvando…', 'Saving…', 'Guardando…'));
+    try { const r = await apiPost('/treino/admin/contest-perms', body, G()); say(T('✓ salvo', '✓ saved', '✓ guardado')); renderPerms(r); }
+    catch (e) { say(e.message || T('falha', 'failed', 'fallido'), true); }
   }
   thrSave.addEventListener('click', () => permPost({ action: 'threshold', threshold: num(thr.value) }));
   function permTable(kind, info) {
     const allow = kind === 'allow';
     const login = el('input', { placeholder: 'login', style: 'width:12rem;font-family:var(--mono)' });
-    const note = el('input', { placeholder: T('nota (opcional)', 'note (optional)'), style: 'flex:1;min-width:10rem' });
+    const note = el('input', { placeholder: T('nota (opcional)', 'note (optional)', 'nota (opcional)'), style: 'flex:1;min-width:10rem' });
     const add = el('button', { class: 'btn' + (allow ? '' : ' danger'), onclick: () => {
       const l = login.value.trim(); if (!l) { login.focus(); return; }
       permPost({ action: 'add', list: kind, login: l, note: note.value.trim() }).then(() => { login.value = ''; note.value = ''; });
-    } }, allow ? T('✅ Liberar', '✅ Allow') : T('⛔ Bloquear', '⛔ Block'));
+    } }, allow ? T('✅ Liberar', '✅ Allow', '✅ Permitir') : T('⛔ Bloquear', '⛔ Block', '⛔ Bloquear'));
     login.addEventListener('keydown', (e) => { if (e.key === 'Enter') add.click(); });
     const tb = el('tbody');
     (info || []).forEach((u) => {
-      const rm = el('button', { class: 'btn ghost danger small', title: T('remover da lista', 'remove from the list'), onclick: () => {
-        if (!confirm(T(`Tirar ${u.login} da lista?`, `Remove ${u.login} from the list?`))) return;
+      const rm = el('button', { class: 'btn ghost danger small', title: T('remover da lista', 'remove from the list', 'quitar de la lista'), onclick: () => {
+        if (!confirm(T(`Tirar ${u.login} da lista?`, `Remove ${u.login} from the list?`, `¿Quitar a ${u.login} de la lista?`))) return;
         permPost({ action: 'remove', list: kind, login: u.login });
       } }, '✕');
       tb.append(el('tr', {},
         el('td', {}, personCell(u.login, u.name, u.has_photo)),
-        el('td', { class: 'small' }, u.by ? statLink(u.by, u.by_name) : el('span', { class: 'muted' }, T('(antes da trilha)', '(before the audit trail)'))),
+        el('td', { class: 'small' }, u.by ? statLink(u.by, u.by_name) : el('span', { class: 'muted' }, T('(antes da trilha)', '(before the audit trail)', '(antes de la auditoría)'))),
         el('td', { class: 'small', style: 'white-space:nowrap' }, u.at ? fmtDate(u.at) : '—'),
         el('td', { class: 'small' }, u.note || ''),
         el('td', {}, rm)));
     });
     const table = el('table', { class: 'moj narrow' },
-      el('thead', {}, el('tr', {}, el('th', {}, T('Pessoa', 'Person')),
-        el('th', {}, allow ? T('Liberado por', 'Allowed by') : T('Bloqueado por', 'Blocked by')), el('th', {}, T('Quando', 'When')), el('th', {}, T('Nota', 'Note')), el('th', {}, ''))), tb);
+      el('thead', {}, el('tr', {}, el('th', {}, T('Pessoa', 'Person', 'Persona')),
+        el('th', {}, allow ? T('Liberado por', 'Allowed by', 'Permitido por') : T('Bloqueado por', 'Blocked by', 'Bloqueado por')), el('th', {}, T('Quando', 'When', 'Cuándo')), el('th', {}, T('Nota', 'Note', 'Nota')), el('th', {}, ''))), tb);
     return el('div', { class: 'field' },
-      el('label', {}, allow ? T('✅ Liberados (allow)', '✅ Allowed (allow)') : T('⛔ Bloqueados (deny)', '⛔ Blocked (deny)'),
+      el('label', {}, allow ? T('✅ Liberados (allow)', '✅ Allowed (allow)', '✅ Permitidos (allow)') : T('⛔ Bloqueados (deny)', '⛔ Blocked (deny)', '⛔ Bloqueados (deny)'),
         el('span', { class: 'small muted' }, ` · ${(info || []).length}`)),
-      (info || []).length ? el('div', { class: 'chart-wrap' }, table) : el('div', { class: 'small muted' }, allow ? T('Ninguém liberado por lista.', 'Nobody allowed by list.') : T('Ninguém bloqueado.', 'Nobody blocked.')),
+      (info || []).length ? el('div', { class: 'chart-wrap' }, table) : el('div', { class: 'small muted' }, allow ? T('Ninguém liberado por lista.', 'Nobody allowed by list.', 'Nadie permitido por lista.') : T('Ninguém bloqueado.', 'Nobody blocked.', 'Nadie bloqueado.')),
       el('div', { class: 'row', style: 'gap:.4rem;align-items:center;margin-top:.35rem;flex-wrap:wrap' }, login, note, add));
   }
   function renderPerms(r) {
@@ -1088,34 +1089,34 @@ function makeContestsTab() {
     listsBox.innerHTML = ''; listsBox.append(permTable('allow', r.allow_info), permTable('deny', r.deny_info));
   }
   const permBox = el('div', { class: 'section', style: 'background:#fafcff' },
-    el('h3', { style: 'margin:.1rem 0 .5rem' }, T('Quem pode criar contests e problemas', 'Who can create contests and problems')),
-    el('p', { class: 'muted small' }, T('Esta mesma permissão controla a criação de contests E a criação de problemas/coleções na Gestão de Problemas. Usuários .admin sempre podem. Além deles: a lista “liberados” OU quem atingir o limite de problemas resolvidos. A lista “bloqueados” impede até quem atingiria o limite. Cada linha registra quem liberou e quando.', 'This same permission controls creating contests AND creating problems/collections in Problem Management. .admin users always can. Beyond them: the “allowed” list OR whoever reaches the solved-problems threshold. The “blocked” list stops even those who would reach the threshold. Each row records who granted it and when.')),
-    el('div', { class: 'field' }, el('label', {}, T('Liberar automaticamente quem resolveu ≥', 'Auto-allow whoever solved ≥')),
-      el('div', { class: 'row', style: 'gap:.4rem;align-items:center' }, thr, el('span', { class: 'small muted' }, T('problemas (0 = desativado)', 'problems (0 = disabled)')), thrSave)),
+    el('h3', { style: 'margin:.1rem 0 .5rem' }, T('Quem pode criar contests e problemas', 'Who can create contests and problems', 'Quién puede crear competencias y problemas')),
+    el('p', { class: 'muted small' }, T('Esta mesma permissão controla a criação de contests E a criação de problemas/coleções na Gestão de Problemas. Usuários .admin sempre podem. Além deles: a lista “liberados” OU quem atingir o limite de problemas resolvidos. A lista “bloqueados” impede até quem atingiria o limite. Cada linha registra quem liberou e quando.', 'This same permission controls creating contests AND creating problems/collections in Problem Management. .admin users always can. Beyond them: the “allowed” list OR whoever reaches the solved-problems threshold. The “blocked” list stops even those who would reach the threshold. Each row records who granted it and when.', 'Este mismo permiso controla la creación de competencias Y la creación de problemas/colecciones en la Gestión de Problemas. Los usuarios .admin siempre pueden. Además de ellos: la lista de “permitidos” O quien alcance el umbral de problemas resueltos. La lista de “bloqueados” impide incluso a quien alcanzaría el umbral. Cada fila registra quién lo otorgó y cuándo.')),
+    el('div', { class: 'field' }, el('label', {}, T('Liberar automaticamente quem resolveu ≥', 'Auto-allow whoever solved ≥', 'Permitir automáticamente a quien resolvió ≥')),
+      el('div', { class: 'row', style: 'gap:.4rem;align-items:center' }, thr, el('span', { class: 'small muted' }, T('problemas (0 = desativado)', 'problems (0 = disabled)', 'problemas (0 = desactivado)')), thrSave)),
     listsBox, permMsg);
   async function loadPerms() {
     try { renderPerms(await apiGet('/treino/admin/contest-perms', G())); }
-    catch { say(T('Falha ao carregar permissões.', 'Failed to load permissions.'), true); }
+    catch { say(T('Falha ao carregar permissões.', 'Failed to load permissions.', 'Error al cargar los permisos.'), true); }
   }
 
   // ---------- contests criados pela interface ----------
   let ALL = [], META = { scope: 'admin', me: '', is_superadmin: false };
   const norm = (v) => String(v || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
-  const q = el('input', { placeholder: T('buscar: nome, id, dono…', 'search: name, id, owner…'), style: 'min-width:14rem' });
-  const ownerSel = el('select', {}, el('option', { value: '' }, T('todos os donos', 'all owners')));
-  const modeSel = el('select', {}, el('option', { value: '' }, T('todos os modos', 'all modes')));
+  const q = el('input', { placeholder: T('buscar: nome, id, dono…', 'search: name, id, owner…', 'buscar: nombre, id, propietario…'), style: 'min-width:14rem' });
+  const ownerSel = el('select', {}, el('option', { value: '' }, T('todos os donos', 'all owners', 'todos los propietarios')));
+  const modeSel = el('select', {}, el('option', { value: '' }, T('todos os modos', 'all modes', 'todos los modos')));
   const statusSel = el('select', {},
-    el('option', { value: '' }, T('qualquer situação', 'any status')), el('option', { value: 'running' }, T('em andamento', 'running')),
-    el('option', { value: 'upcoming' }, T('por vir', 'upcoming')), el('option', { value: 'ended' }, T('encerrados', 'ended')));
+    el('option', { value: '' }, T('qualquer situação', 'any status', 'cualquier estado')), el('option', { value: 'running' }, T('em andamento', 'running', 'en curso')),
+    el('option', { value: 'upcoming' }, T('por vir', 'upcoming', 'próximas')), el('option', { value: 'ended' }, T('encerrados', 'ended', 'finalizadas')));
   const sortSel = el('select', {},
-    el('option', { value: 'created' }, T('mais recentes', 'newest first')), el('option', { value: 'start' }, T('por início', 'by start')),
-    el('option', { value: 'name' }, T('por nome', 'by name')), el('option', { value: 'owner' }, T('por dono', 'by owner')));
+    el('option', { value: 'created' }, T('mais recentes', 'newest first', 'más recientes primero')), el('option', { value: 'start' }, T('por início', 'by start', 'por inicio')),
+    el('option', { value: 'name' }, T('por nome', 'by name', 'por nombre')), el('option', { value: 'owner' }, T('por dono', 'by owner', 'por propietario')));
   const mineChk = el('input', { type: 'checkbox' });
   const count = el('span', { class: 'small muted' });
   const scopeNote = el('p', { class: 'small muted', style: 'margin:.2rem 0 .5rem' });
   const tableBox = el('div', {}, loading());
   const statusOf = (c) => { const now = Date.now() / 1000; if (c.start && now < c.start) return 'upcoming'; if (c.end && now > c.end) return 'ended'; return 'running'; };
-  const STATUS = () => ({ running: [T('em andamento', 'running'), 'v-ok'], upcoming: [T('por vir', 'upcoming'), 'v-warn'], ended: [T('encerrado', 'ended'), ''] });
+  const STATUS = () => ({ running: [T('em andamento', 'running', 'en curso'), 'v-ok'], upcoming: [T('por vir', 'upcoming', 'próximas'), 'v-warn'], ended: [T('encerrado', 'ended', 'finalizada'), ''] });
   const dt = (e) => (e ? new Date(e * 1000).toLocaleString(undefined, { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—');
   function renderList() {
     const f = norm(q.value), own = ownerSel.value, md = modeSel.value, st = statusSel.value;
@@ -1125,18 +1126,18 @@ function makeContestsTab() {
     const cmp = { created: (a, b) => (b.created_at || 0) - (a.created_at || 0), start: (a, b) => (b.start || 0) - (a.start || 0),
       name: (a, b) => String(a.name || a.id).localeCompare(String(b.name || b.id)), owner: (a, b) => String(a.owner_name || a.owner).localeCompare(String(b.owner_name || b.owner)) }[sortSel.value] || (() => 0);
     rows = rows.slice().sort(cmp);
-    count.textContent = T(`${rows.length} de ${ALL.length}`, `${rows.length} of ${ALL.length}`);
+    count.textContent = T(`${rows.length} de ${ALL.length}`, `${rows.length} of ${ALL.length}`, `${rows.length} de ${ALL.length}`);
     tableBox.innerHTML = '';
-    if (!ALL.length) { tableBox.append(el('div', { class: 'muted' }, T('Nenhum contest criado pela interface no seu escopo.', 'No contest created via the interface in your scope.'))); return; }
-    if (!rows.length) { tableBox.append(el('div', { class: 'muted' }, T('Nenhum contest casa com os filtros.', 'No contest matches the filters.'))); return; }
+    if (!ALL.length) { tableBox.append(el('div', { class: 'muted' }, T('Nenhum contest criado pela interface no seu escopo.', 'No contest created via the interface in your scope.', 'Ninguna competencia creada por la interfaz en tu ámbito.'))); return; }
+    if (!rows.length) { tableBox.append(el('div', { class: 'muted' }, T('Nenhum contest casa com os filtros.', 'No contest matches the filters.', 'Ninguna competencia coincide con los filtros.'))); return; }
     const tb = el('tbody'); const ST = STATUS();
     rows.forEach((c) => {
       const canRemove = META.is_superadmin || c.owner === META.me;
       const rm = el('button', { class: 'btn danger small', onclick: async () => {
-        if (!confirm(T('Remover o contest "', 'Remove the contest "') + (c.name || c.id) + T('"? (vai para a lixeira, reversível pelo servidor)', '"? (goes to trash, reversible by the server)'))) return;
+        if (!confirm(T('Remover o contest "', 'Remove the contest "', '¿Eliminar la competencia "') + (c.name || c.id) + T('"? (vai para a lixeira, reversível pelo servidor)', '"? (goes to trash, reversible by the server)', '"? (va a la papelera, reversible por el servidor)'))) return;
         try { await apiPost('/treino/admin/contest-remove', { contest: c.id }, G()); loadList(); }
-        catch (e) { alert(T('Falha ao remover: ', 'Failed to remove: ') + (e.message || T('erro', 'error'))); }
-      } }, T('Remover', 'Remove'));
+        catch (e) { alert(T('Falha ao remover: ', 'Failed to remove: ', 'Error al eliminar: ') + (e.message || T('erro', 'error', 'error'))); }
+      } }, T('Remover', 'Remove', 'Eliminar'));
       const sk = statusOf(c);
       tb.append(el('tr', {},
         el('td', {}, el('b', {}, c.name || c.id), el('div', { class: 'small muted', style: 'font-family:var(--mono)' }, c.id)),
@@ -1146,13 +1147,13 @@ function makeContestsTab() {
         el('td', { class: 'n' }, String(c.problems_count ?? '—')),
         el('td', { class: 'small', style: 'white-space:nowrap' }, c.created_at ? fmtDate(c.created_at) : '—'),
         el('td', {}, el('div', { class: 'row-actions' },
-          el('a', { class: 'btn ghost small', href: '/contest/?c=' + encodeURIComponent(c.id), target: '_blank' }, T('Abrir', 'Open')),
-          el('a', { class: 'btn ghost small', href: '/contest/score/?c=' + encodeURIComponent(c.id), target: '_blank' }, T('Placar', 'Scoreboard')),
+          el('a', { class: 'btn ghost small', href: '/contest/?c=' + encodeURIComponent(c.id), target: '_blank' }, T('Abrir', 'Open', 'Abrir')),
+          el('a', { class: 'btn ghost small', href: '/contest/score/?c=' + encodeURIComponent(c.id), target: '_blank' }, T('Placar', 'Scoreboard', 'Marcador')),
           canRemove ? rm : ''))));
     });
     tableBox.append(el('div', { class: 'chart-wrap' }, el('table', { class: 'moj' },
-      el('thead', {}, el('tr', {}, el('th', {}, 'Contest'), el('th', {}, T('Modo', 'Mode')), el('th', {}, T('Dono', 'Owner')), el('th', {}, T('Período', 'Period')),
-        el('th', { class: 'n' }, T('Probl.', 'Probl.')), el('th', {}, T('Criado', 'Created')), el('th', {}, T('Ações', 'Actions')))), tb)));
+      el('thead', {}, el('tr', {}, el('th', {}, T('Contest', 'Contest', 'Competencia')), el('th', {}, T('Modo', 'Mode', 'Modo')), el('th', {}, T('Dono', 'Owner', 'Dueño')), el('th', {}, T('Período', 'Period', 'Período')),
+        el('th', { class: 'n' }, T('Probl.', 'Probl.', 'Probl.')), el('th', {}, T('Criado', 'Created', 'Creado')), el('th', {}, T('Ações', 'Actions', 'Acciones')))), tb)));
   }
   function rebuildSelects() {
     const keepO = ownerSel.value, keepM = modeSel.value;
@@ -1167,19 +1168,19 @@ function makeContestsTab() {
   }
   async function loadList() {
     let r; try { r = await apiGet('/treino/admin/contests', G()); }
-    catch (e) { tableBox.innerHTML = ''; tableBox.append(errBox(T('Falha ao carregar: ', 'Failed to load: ') + (e.message || T('erro', 'error')))); return; }
+    catch (e) { tableBox.innerHTML = ''; tableBox.append(errBox(T('Falha ao carregar: ', 'Failed to load: ', 'Error al cargar: ') + (e.message || T('erro', 'error', 'error')))); return; }
     ALL = r.contests || []; META = { scope: r.scope || 'admin', me: r.me || '', is_superadmin: !!r.is_superadmin };
     scopeNote.textContent = META.is_superadmin
-      ? T('Você é super-admin: vê e opera os contests de todos.', 'You are a super-admin: you see and operate everyone\'s contests.')
-      : T('Você vê os seus contests e os de criadores sem papel de admin. Contests de outros administradores não aparecem.', 'You see your own contests and those of creators without an admin role. Contests of other administrators are not shown.');
+      ? T('Você é super-admin: vê e opera os contests de todos.', 'You are a super-admin: you see and operate everyone\'s contests.', 'Eres superadministrador: ves y operas las competencias de todos.')
+      : T('Você vê os seus contests e os de criadores sem papel de admin. Contests de outros administradores não aparecem.', 'You see your own contests and those of creators without an admin role. Contests of other administrators are not shown.', 'Ves tus propias competencias y las de creadores sin rol de administrador. Las competencias de otros administradores no se muestran.');
     rebuildSelects(); renderList();
   }
   [q, ownerSel, modeSel, statusSel, sortSel, mineChk].forEach((x) => x.addEventListener(x === q ? 'input' : 'change', renderList));
   const filters = el('div', { class: 'row', style: 'gap:.5rem;align-items:center;flex-wrap:wrap;margin:.3rem 0 .5rem' },
     q, ownerSel, modeSel, statusSel, sortSel,
-    el('label', { class: 'row', style: 'gap:.3rem;align-items:center;cursor:pointer' }, mineChk, el('span', { class: 'small' }, T('só os meus', 'only mine'))), count);
+    el('label', { class: 'row', style: 'gap:.3rem;align-items:center;cursor:pointer' }, mineChk, el('span', { class: 'small' }, T('só os meus', 'only mine', 'solo las mías'))), count);
 
-  panel.append(permBox, el('h3', { style: 'margin:1rem 0 .3rem' }, T('Contests criados pela interface', 'Contests created via the interface')), scopeNote, filters, tableBox);
+  panel.append(permBox, el('h3', { style: 'margin:1rem 0 .3rem' }, T('Contests criados pela interface', 'Contests created via the interface', 'Competencias creadas por la interfaz')), scopeNote, filters, tableBox);
   function load() { loadPerms(); loadList(); }
   return { panel, load };
 }
@@ -1189,28 +1190,29 @@ function makeContestsTab() {
 // + POST /treino/admin/achievements (salvar/restaurar). Conquista de um tipo (kind)
 // existente é só DADO; kind novo é código — ver docs/PERFIL.md.
 const ACH_KINDS = {
-  solved_gte:          { pt: 'Resolvidos ≥ n', en: 'Solved ≥ n', fields: [['n', 'number']] },
-  submissions_gte:     { pt: 'Envios ≥ n', en: 'Submissions ≥ n', fields: [['n', 'number']] },
-  streak_gte:          { pt: 'Maior streak ≥ dias', en: 'Longest streak ≥ days', fields: [['days', 'number']] },
-  langs_gte:           { pt: 'Linguagens distintas ≥ n', en: 'Distinct languages ≥ n', fields: [['n', 'number']] },
-  oneshots_gte:        { pt: 'ACs de primeira ≥ n', en: 'First-try ACs ≥ n', fields: [['n', 'number']] },
-  collection_complete: { pt: 'Alguma coleção 100% (≥ min_size)', en: 'Any collection 100% (≥ min_size)', fields: [['min_size', 'number']] },
-  collection_named:    { pt: 'Coleção específica 100%', en: 'Specific collection 100%', fields: [['collection', 'text']] },
-  tag_solved_gte:      { pt: 'Resolvidos numa tag ≥ n', en: 'Solved in a tag ≥ n', fields: [['tag', 'text'], ['n', 'number']] },
-  diff_solved_gte:     { pt: 'Resolvidos por dificuldade ≥ n', en: 'Solved by difficulty ≥ n', fields: [['diff', 'select'], ['n', 'number']] },
+  solved_gte:          { pt: 'Resolvidos ≥ n', en: 'Solved ≥ n', es: 'Resueltos ≥ n', fields: [['n', 'number']] },
+  submissions_gte:     { pt: 'Envios ≥ n', en: 'Submissions ≥ n', es: 'Envíos ≥ n', fields: [['n', 'number']] },
+  streak_gte:          { pt: 'Maior streak ≥ dias', en: 'Longest streak ≥ days', es: 'Racha más larga ≥ días', fields: [['days', 'number']] },
+  langs_gte:           { pt: 'Linguagens distintas ≥ n', en: 'Distinct languages ≥ n', es: 'Lenguajes distintos ≥ n', fields: [['n', 'number']] },
+  oneshots_gte:        { pt: 'ACs de primeira ≥ n', en: 'First-try ACs ≥ n', es: 'AC al primer intento ≥ n', fields: [['n', 'number']] },
+  collection_complete: { pt: 'Alguma coleção 100% (≥ min_size)', en: 'Any collection 100% (≥ min_size)', es: 'Alguna colección al 100% (≥ min_size)', fields: [['min_size', 'number']] },
+  collection_named:    { pt: 'Coleção específica 100%', en: 'Specific collection 100%', es: 'Colección específica al 100%', fields: [['collection', 'text']] },
+  tag_solved_gte:      { pt: 'Resolvidos numa tag ≥ n', en: 'Solved in a tag ≥ n', es: 'Resueltos en una etiqueta ≥ n', fields: [['tag', 'text'], ['n', 'number']] },
+  diff_solved_gte:     { pt: 'Resolvidos por dificuldade ≥ n', en: 'Solved by difficulty ≥ n', es: 'Resueltos por dificultad ≥ n', fields: [['diff', 'select'], ['n', 'number']] },
 };
 function makeAchievementsTab() {
   const panel = el('div', { class: 'section' });
-  const head = el('h2', {}, '🏅 ' + T('Conquistas do perfil', 'Profile achievements'));
+  const head = el('h2', {}, '🏅 ' + T('Conquistas do perfil', 'Profile achievements', 'Logros del perfil'));
   const intro = el('p', { class: 'small muted', style: 'margin:.2rem 0 .6rem' },
     T('O registro vale para TODOS os perfis do treino. Editar/criar conquista de um tipo existente é só dado — salve e pronto. Tipo novo de regra é código (docs/PERFIL.md).',
-      'The registry applies to ALL training profiles. Editing/creating an achievement of an existing kind is just data — save and done. A new rule kind is code (docs/PERFIL.md).'));
+      'The registry applies to ALL training profiles. Editing/creating an achievement of an existing kind is just data — save and done. A new rule kind is code (docs/PERFIL.md).',
+      'El registro aplica a TODOS los perfiles del entrenamiento. Editar/crear un logro de un tipo existente es solo dato — guarda y listo. Un tipo nuevo de regla es código (docs/PERFIL.md).'));
   const srcSpan = el('span', { class: 'small muted' });
   const msg = el('div', { class: 'small', style: 'margin:.4rem 0' });
   const tools = el('div', { class: 'row', style: 'margin:.4rem 0' },
-    el('button', { class: 'btn', onclick: () => openForm() }, T('➕ Nova conquista', '➕ New achievement')),
-    el('button', { class: 'btn', onclick: save }, T('💾 Salvar registro', '💾 Save registry')),
-    el('button', { class: 'btn ghost', onclick: restore }, T('↺ Restaurar padrão', '↺ Restore default')),
+    el('button', { class: 'btn', onclick: () => openForm() }, T('➕ Nova conquista', '➕ New achievement', '➕ Nuevo logro')),
+    el('button', { class: 'btn', onclick: save }, T('💾 Salvar registro', '💾 Save registry', '💾 Guardar registro')),
+    el('button', { class: 'btn ghost', onclick: restore }, T('↺ Restaurar padrão', '↺ Restore default', '↺ Restaurar predeterminado')),
     srcSpan);
   const formBox = el('div', {});
   const body = el('div', {}, loading());
@@ -1220,14 +1222,14 @@ function makeAchievementsTab() {
   let CUSTOM = false;
 
   const paramsText = (a) => Object.entries(a.params || {}).map(([k, v]) => `${k}=${v}`).join(' ');
-  const kindLabel = (k) => (ACH_KINDS[k] ? T(ACH_KINDS[k].pt, ACH_KINDS[k].en) : k);
+  const kindLabel = (k) => (ACH_KINDS[k] ? T(ACH_KINDS[k].pt, ACH_KINDS[k].en, ACH_KINDS[k].es) : k);
 
   function renderList() {
     srcSpan.textContent = CUSTOM
-      ? T('· registro PERSONALIZADO (var/achievements.json)', '· CUSTOM registry (var/achievements.json)')
-      : T('· padrão embarcado (nunca salvo)', '· built-in default (never saved)');
+      ? T('· registro PERSONALIZADO (var/achievements.json)', '· CUSTOM registry (var/achievements.json)', '· registro PERSONALIZADO (var/achievements.json)')
+      : T('· padrão embarcado (nunca salvo)', '· built-in default (never saved)', '· predeterminado incorporado (nunca guardado)');
     body.innerHTML = '';
-    if (!REG.length) { body.append(el('div', { class: 'muted small' }, T('Registro vazio.', 'Empty registry.'))); return; }
+    if (!REG.length) { body.append(el('div', { class: 'muted small' }, T('Registro vazio.', 'Empty registry.', 'Registro vacío.'))); return; }
     const tb = el('tbody');
     REG.forEach((a, i) => {
       const en = el('input', { type: 'checkbox', onchange: () => { a.enabled = en.checked; } });
@@ -1235,7 +1237,7 @@ function makeAchievementsTab() {
       tb.append(el('tr', {},
         el('td', { style: 'font-size:1.2rem' }, a.icon || ''),
         el('td', { class: 'small', style: 'font-family:var(--mono)' }, a.id),
-        el('td', {}, a.pt, el('div', { class: 'small muted' }, a.en)),
+        el('td', {}, a.pt, el('div', { class: 'small muted' }, a.en), a.es ? el('div', { class: 'small muted' }, a.es) : null),
         el('td', { class: 'small' }, kindLabel(a.kind), el('div', { class: 'muted', style: 'font-family:var(--mono)' }, paramsText(a))),
         el('td', {}, en),
         el('td', { class: 'small', style: 'white-space:nowrap' },
@@ -1244,8 +1246,8 @@ function makeAchievementsTab() {
     });
     body.append(el('div', { class: 'chart-wrap' }, el('table', { class: 'moj' },
       el('thead', {}, el('tr', {}, el('th', {}, ''), el('th', {}, 'id'),
-        el('th', {}, T('Nome (pt/en)', 'Name (pt/en)')), el('th', {}, T('Regra', 'Rule')),
-        el('th', {}, T('Ligada', 'On')), el('th', {}, ''))), tb)));
+        el('th', {}, T('Nome (pt/en)', 'Name (pt/en)', 'Nombre (pt/en)')), el('th', {}, T('Regra', 'Rule', 'Regla')),
+        el('th', {}, T('Ligada', 'On', 'Activada')), el('th', {}, ''))), tb)));
   }
 
   function openForm(a, idx) {
@@ -1253,8 +1255,9 @@ function makeAchievementsTab() {
     const icon = el('input', { value: editing ? (a.icon || '') : '', placeholder: '🏅', style: 'width:4.5rem' });
     const id = el('input', { value: editing ? a.id : '', placeholder: 'minha-conquista', style: 'width:14rem;font-family:var(--mono)' });
     if (editing) id.disabled = true;
-    const pt = el('input', { value: editing ? (a.pt || '') : '', placeholder: T('Nome em português', 'Name in Portuguese'), style: 'width:100%' });
-    const enI = el('input', { value: editing ? (a.en || '') : '', placeholder: T('Nome em inglês', 'Name in English'), style: 'width:100%' });
+    const pt = el('input', { value: editing ? (a.pt || '') : '', placeholder: T('Nome em português', 'Name in Portuguese', 'Nombre en portugués'), style: 'width:100%' });
+    const enI = el('input', { value: editing ? (a.en || '') : '', placeholder: T('Nome em inglês', 'Name in English', 'Nombre en inglés'), style: 'width:100%' });
+    const esI = el('input', { value: editing ? (a.es || '') : '', placeholder: T('Nome em espanhol (opcional: vazio = o inglês)', 'Name in Spanish (optional: empty = English)', 'Nombre en español (opcional: vacío = el inglés)'), style: 'width:100%' });
     const kind = el('select', { onchange: renderParams }, ...Object.keys(ACH_KINDS).map(k =>
       el('option', { value: k }, `${k} — ${kindLabel(k)}`)));
     if (editing) kind.value = a.kind;
@@ -1277,44 +1280,44 @@ function makeAchievementsTab() {
     renderParams();
     const ferr = el('span', { class: 'small error-box hidden' });
     const saveB = el('button', { class: 'btn', onclick: () => {
-      const item = { id: id.value.trim(), icon: icon.value.trim(), pt: pt.value.trim(), en: enI.value.trim(),
+      const item = { id: id.value.trim(), icon: icon.value.trim(), pt: pt.value.trim(), en: enI.value.trim(), es: esI.value.trim(),
         kind: kind.value, params: {}, enabled: editing ? a.enabled !== false : true };
       for (const inp of paramsBox.querySelectorAll('[data-p]')) {
         const v = inp.type === 'number' ? Number(inp.value) : inp.value.trim();
         item.params[inp.getAttribute('data-p')] = v;
       }
-      const bad = !/^[a-z0-9-]{1,40}$/.test(item.id) ? T('id inválido (minúsculas/dígitos/hífen)', 'invalid id (lowercase/digits/hyphen)')
-        : (!item.icon ? T('ícone vazio', 'empty icon') : (!item.pt || !item.en) ? T('nomes pt/en obrigatórios', 'pt/en names required')
-          : (!editing && REG.some(x => x.id === item.id)) ? T('id já existe', 'id already exists')
-            : Object.values(item.params).some(v => v === '' || (typeof v === 'number' && !(v > 0))) ? T('parâmetros inválidos', 'invalid params') : '');
+      const bad = !/^[a-z0-9-]{1,40}$/.test(item.id) ? T('id inválido (minúsculas/dígitos/hífen)', 'invalid id (lowercase/digits/hyphen)', 'id inválido (minúsculas/dígitos/guion)')
+        : (!item.icon ? T('ícone vazio', 'empty icon', 'ícono vacío') : (!item.pt || !item.en) ? T('nomes pt/en obrigatórios', 'pt/en names required', 'nombres pt/en obligatorios')
+          : (!editing && REG.some(x => x.id === item.id)) ? T('id já existe', 'id already exists', 'el id ya existe')
+            : Object.values(item.params).some(v => v === '' || (typeof v === 'number' && !(v > 0))) ? T('parâmetros inválidos', 'invalid params', 'parámetros inválidos') : '');
       if (bad) { ferr.classList.remove('hidden'); ferr.textContent = bad; return; }
       if (editing) REG[idx] = item; else REG.push(item);
       formBox.innerHTML = '';
-      msg.className = 'small'; msg.textContent = T('Alterado localmente — clique em 💾 Salvar registro para publicar.', 'Changed locally — click 💾 Save registry to publish.');
+      msg.className = 'small'; msg.textContent = T('Alterado localmente — clique em 💾 Salvar registro para publicar.', 'Changed locally — click 💾 Save registry to publish.', 'Cambiado localmente — haz clic en 💾 Guardar registro para publicar.');
       renderList();
-    } }, editing ? T('Aplicar', 'Apply') : T('Adicionar', 'Add'));
+    } }, editing ? T('Aplicar', 'Apply', 'Aplicar') : T('Adicionar', 'Add', 'Agregar'));
     formBox.innerHTML = '';
     formBox.append(el('div', { class: 'subcard', style: 'margin:.5rem 0' },
       el('div', { class: 'row' }, icon, id, kind),
-      el('div', { class: 'row', style: 'margin-top:.4rem' }, pt), el('div', { class: 'row' }, enI),
+      el('div', { class: 'row', style: 'margin-top:.4rem' }, pt), el('div', { class: 'row' }, enI), el('div', { class: 'row' }, esI),
       el('div', { style: 'margin-top:.4rem' }, paramsBox),
       el('div', { class: 'row', style: 'margin-top:.5rem' }, saveB,
-        el('button', { class: 'btn ghost', onclick: () => { formBox.innerHTML = ''; } }, T('Cancelar', 'Cancel')), ferr)));
+        el('button', { class: 'btn ghost', onclick: () => { formBox.innerHTML = ''; } }, T('Cancelar', 'Cancel', 'Cancelar')), ferr)));
   }
 
   async function save() {
-    msg.className = 'small'; msg.textContent = T('Salvando…', 'Saving…');
+    msg.className = 'small'; msg.textContent = T('Salvando…', 'Saving…', 'Guardando…');
     try {
       const j = await apiPost('/treino/admin/achievements', { achievements: REG }, G());
-      msg.textContent = T(`Salvo (${j.count} conquistas).`, `Saved (${j.count} achievements).`);
+      msg.textContent = T(`Salvo (${j.count} conquistas).`, `Saved (${j.count} achievements).`, `Guardado (${j.count} logros).`);
       await load();
-    } catch (e) { msg.className = 'small error-box'; msg.textContent = e.message || T('falha', 'failed'); }
+    } catch (e) { msg.className = 'small error-box'; msg.textContent = e.message || T('falha', 'failed', 'fallido'); }
   }
   async function restore() {
-    if (!confirm(T('Descartar o registro personalizado e voltar ao padrão embarcado?', 'Discard the custom registry and return to the built-in default?'))) return;
+    if (!confirm(T('Descartar o registro personalizado e voltar ao padrão embarcado?', 'Discard the custom registry and return to the built-in default?', '¿Descartar el registro personalizado y volver al predeterminado incorporado?'))) return;
     msg.className = 'small'; msg.textContent = '…';
-    try { await apiPost('/treino/admin/achievements', { restore_default: true }, G()); msg.textContent = T('Padrão restaurado.', 'Default restored.'); await load(); }
-    catch (e) { msg.className = 'small error-box'; msg.textContent = e.message || T('falha', 'failed'); }
+    try { await apiPost('/treino/admin/achievements', { restore_default: true }, G()); msg.textContent = T('Padrão restaurado.', 'Default restored.', 'Predeterminado restaurado.'); await load(); }
+    catch (e) { msg.className = 'small error-box'; msg.textContent = e.message || T('falha', 'failed', 'fallido'); }
   }
   async function load() {
     body.innerHTML = ''; body.append(loading());
@@ -1323,7 +1326,7 @@ function makeAchievementsTab() {
       REG = (j.achievements || []).map(a => ({ ...a }));
       CUSTOM = !!j.custom;
       renderList();
-    } catch (e) { body.innerHTML = ''; body.append(el('div', { class: 'error-box' }, e.message || T('falha', 'failed'))); }
+    } catch (e) { body.innerHTML = ''; body.append(el('div', { class: 'error-box' }, e.message || T('falha', 'failed', 'fallido'))); }
   }
   return { panel, load };
 }
@@ -1333,18 +1336,19 @@ function makeAchievementsTab() {
 // (caem sozinhos), senha gerada mostrada UMA vez, reset só por aqui. docs/CONTAS-GERIDAS.md.
 function makeManagedTab() {
   const panel = el('div', { class: 'section' });
-  const head = el('h2', {}, '🧒 ' + T('Contas geridas', 'Managed accounts'));
+  const head = el('h2', {}, '🧒 ' + T('Contas geridas', 'Managed accounts', 'Cuentas gestionadas'));
   const intro = el('p', { class: 'small muted', style: 'margin:.2rem 0 .6rem' },
     T('Contas para MENORES, sem Telegram: perfil sempre privado e vínculo bloqueado até os 18 anos (liberam sozinhos pela data de nascimento). A senha aparece UMA única vez — anote/imprima na hora. Detalhes: docs/CONTAS-GERIDAS.md.',
-      'Accounts for MINORS, without Telegram: profile always private and linking blocked until 18 (auto-unlocks by birthdate). Passwords are shown ONCE — write them down right away. Details: docs/CONTAS-GERIDAS.md.'));
-  const q = el('input', { placeholder: T('filtrar…', 'filter…'), style: 'width:12rem',
+      'Accounts for MINORS, without Telegram: profile always private and linking blocked until 18 (auto-unlocks by birthdate). Passwords are shown ONCE — write them down right away. Details: docs/CONTAS-GERIDAS.md.',
+      'Cuentas para MENORES, sin Telegram: perfil siempre privado y vínculo bloqueado hasta los 18 años (se liberan solos según la fecha de nacimiento). La contraseña aparece UNA sola vez — anótala/imprímela de inmediato. Detalles: docs/CONTAS-GERIDAS.md.'));
+  const q = el('input', { placeholder: T('filtrar…', 'filter…', 'filtrar…'), style: 'width:12rem',
     oninput: () => renderList() });
   const mineChk = el('input', { type: 'checkbox', onchange: () => renderList() });
   const tools = el('div', { class: 'row', style: 'margin:.4rem 0' },
-    el('button', { class: 'btn', onclick: () => openForm() }, T('➕ Nova conta', '➕ New account')),
-    el('button', { class: 'btn', onclick: () => openBatch() }, T('📥 Criar em lote', '📥 Batch create')),
+    el('button', { class: 'btn', onclick: () => openForm() }, T('➕ Nova conta', '➕ New account', '➕ Nueva cuenta')),
+    el('button', { class: 'btn', onclick: () => openBatch() }, T('📥 Criar em lote', '📥 Batch create', '📥 Crear en lote')),
     el('button', { class: 'btn ghost', onclick: load }, '↻'),
-    q, el('label', { class: 'small row', style: 'gap:.3rem;cursor:pointer' }, mineChk, T('só as minhas', 'only mine')));
+    q, el('label', { class: 'small row', style: 'gap:.3rem;cursor:pointer' }, mineChk, T('só as minhas', 'only mine', 'solo las mías')));
   const msg = el('div', { class: 'small', style: 'margin:.3rem 0' });
   const credsBox = el('div', {});
   const formBox = el('div', {});
@@ -1357,7 +1361,7 @@ function makeManagedTab() {
     const n = new Date(); let a = n.getFullYear() - d.getFullYear();
     if (n.getMonth() < d.getMonth() || (n.getMonth() === d.getMonth() && n.getDate() < d.getDate())) a--;
     return a; };
-  const fmtD = (e) => e ? new Date(e * 1000).toLocaleDateString() : '';
+  const fmtD = (e) => e ? new Date(e * 1000).toLocaleDateString(uiLocale()) : '';
   const dateToEpoch = (v) => v ? Math.floor(new Date(v + 'T23:59:59').getTime() / 1000) : null;
   // par do dateToEpoch: componentes LOCAIS. Com toISOString() (UTC) a validade gravada às 23:59
   // de Brasília voltava para a tela como o DIA SEGUINTE — e reabrir+salvar empurrava +1 dia.
@@ -1370,18 +1374,19 @@ function makeManagedTab() {
     const box = el('div', { class: 'subcard', style: 'margin:.5rem 0;border-left:4px solid var(--warn)' });
     if (list.length) {
       box.append(el('b', {}, T('⚠️ Credenciais geradas — aparecem SÓ AGORA. Copie/anote antes de sair.',
-        '⚠️ Generated credentials — shown ONLY NOW. Copy them before leaving.')));
+        '⚠️ Generated credentials — shown ONLY NOW. Copy them before leaving.',
+        '⚠️ Credenciales generadas — se muestran SOLO AHORA. Cópialas/anótalas antes de salir.')));
       const tb = el('tbody');
       list.forEach(u => tb.append(el('tr', {},
         el('td', { style: 'font-family:var(--mono)' }, u.login),
         el('td', { style: 'font-family:var(--mono);font-weight:700' }, u.password),
         el('td', { class: 'small' }, u.fullname || ''))));
       box.append(el('table', { class: 'moj', style: 'margin:.5rem 0' },
-        el('thead', {}, el('tr', {}, el('th', {}, 'login'), el('th', {}, T('senha', 'password')), el('th', {}, T('nome', 'name')))), tb));
+        el('thead', {}, el('tr', {}, el('th', {}, 'login'), el('th', {}, T('senha', 'password', 'contraseña')), el('th', {}, T('nome', 'name', 'nombre')))), tb));
       const txt = list.map(u => `${u.login}\t${u.password}\t${u.fullname || ''}`).join('\n');
       box.append(el('button', { class: 'btn ghost', onclick: () => {
-        navigator.clipboard.writeText(txt).then(() => { msg.className = 'small'; msg.textContent = T('✓ copiado', '✓ copied'); });
-      } }, T('📋 Copiar tudo', '📋 Copy all')));
+        navigator.clipboard.writeText(txt).then(() => { msg.className = 'small'; msg.textContent = T('✓ copiado', '✓ copied', '✓ copiado'); });
+      } }, T('📋 Copiar tudo', '📋 Copy all', '📋 Copiar todo')));
     }
     (skipped || []).forEach(s => box.append(el('div', { class: 'small error-box', style: 'margin-top:.3rem' },
       `${s.fullname || s.login || '?'}: ${s.reason}`)));
@@ -1396,7 +1401,7 @@ function makeManagedTab() {
     const rows = USERS.filter(u =>
       (!mineChk.checked || u.by === ME)
       && (!f || norm(u.login).includes(f) || norm(u.fullname).includes(f) || norm(u.note).includes(f) || norm(u.by).includes(f)));
-    if (!rows.length) { body.append(el('div', { class: 'muted small' }, T('Nenhuma conta gerida.', 'No managed accounts.'))); return; }
+    if (!rows.length) { body.append(el('div', { class: 'muted small' }, T('Nenhuma conta gerida.', 'No managed accounts.', 'Ninguna cuenta gestionada.'))); return; }
     const tb = el('tbody');
     rows.forEach(u => {
       const minor = u.minor;
@@ -1406,26 +1411,26 @@ function makeManagedTab() {
         el('td', {}, u.fullname),
         el('td', { class: 'small', style: 'white-space:nowrap' }, `${u.birthdate} `,
           el('span', { class: 'verdict ' + (minor ? 'v-warn' : 'v-ok'), style: 'font-size:.72rem;padding:.1rem .45rem' },
-            minor ? T(`menor (${ageOf(u.birthdate)})`, `minor (${ageOf(u.birthdate)})`) : '18+')),
+            minor ? T(`menor (${ageOf(u.birthdate)})`, `minor (${ageOf(u.birthdate)})`, `menor (${ageOf(u.birthdate)})`) : '18+')),
         el('td', { class: 'small' }, u.by),
         el('td', { class: 'small' }, u.note || ''),
         el('td', { class: 'small', style: 'white-space:nowrap' }, u.expires_at
           ? el('span', { style: expired ? 'color:var(--err);font-weight:700' : '' }, fmtD(u.expires_at) + (expired ? ' ⛔' : '')) : '—'),
         el('td', {}, u.disabled
-          ? el('span', { class: 'verdict v-err', style: 'font-size:.75rem;padding:.15rem .5rem' }, T('desabilitada', 'disabled'))
-          : el('span', { class: 'verdict v-ok', style: 'font-size:.75rem;padding:.15rem .5rem' }, T('ativa', 'active'))),
+          ? el('span', { class: 'verdict v-err', style: 'font-size:.75rem;padding:.15rem .5rem' }, T('desabilitada', 'disabled', 'deshabilitada'))
+          : el('span', { class: 'verdict v-ok', style: 'font-size:.75rem;padding:.15rem .5rem' }, T('ativa', 'active', 'activa'))),
         el('td', { class: 'small', style: 'white-space:nowrap' },
-          el('a', { style: 'cursor:pointer', title: T('nova senha', 'new password'), onclick: () => resetPw(u) }, '🔑'), ' ',
-          el('a', { style: 'cursor:pointer', title: T('editar', 'edit'), onclick: () => openForm(u) }, '✎'), ' ',
-          el('a', { style: 'cursor:pointer', title: u.disabled ? T('reabilitar', 'enable') : T('desabilitar', 'disable'),
+          el('a', { style: 'cursor:pointer', title: T('nova senha', 'new password', 'nueva contraseña'), onclick: () => resetPw(u) }, '🔑'), ' ',
+          el('a', { style: 'cursor:pointer', title: T('editar', 'edit', 'editar'), onclick: () => openForm(u) }, '✎'), ' ',
+          el('a', { style: 'cursor:pointer', title: u.disabled ? T('reabilitar', 'enable', 'habilitar') : T('desabilitar', 'disable', 'deshabilitar'),
             onclick: () => toggleDisabled(u) }, u.disabled ? '▶' : '⏻'), ' ',
-          el('a', { style: 'cursor:pointer;color:var(--err)', title: T('remover', 'remove'), onclick: () => removeU(u) }, '✕'))));
+          el('a', { style: 'cursor:pointer;color:var(--err)', title: T('remover', 'remove', 'quitar'), onclick: () => removeU(u) }, '✕'))));
     });
     body.append(el('div', { class: 'chart-wrap' }, el('table', { class: 'moj' },
-      el('thead', {}, el('tr', {}, el('th', {}, 'login'), el('th', {}, T('nome', 'name')),
-        el('th', {}, T('nascimento', 'birthdate')), el('th', {}, T('responsável', 'created by')),
-        el('th', {}, T('nota', 'note')), el('th', {}, T('expira', 'expires')),
-        el('th', {}, T('estado', 'state')), el('th', {}, ''))), tb)),
+      el('thead', {}, el('tr', {}, el('th', {}, 'login'), el('th', {}, T('nome', 'name', 'nombre')),
+        el('th', {}, T('nascimento', 'birthdate', 'nacimiento')), el('th', {}, T('responsável', 'created by', 'responsable')),
+        el('th', {}, T('nota', 'note', 'nota')), el('th', {}, T('expira', 'expires', 'expira')),
+        el('th', {}, T('estado', 'state', 'estado')), el('th', {}, ''))), tb)),
       el('div', { class: 'small muted', style: 'margin-top:.3rem' }, `${rows.length}/${USERS.length}`));
   }
 
@@ -1438,8 +1443,9 @@ function makeManagedTab() {
   async function resetPw(u) {
     if (busy) return;
     if (!confirm(T(`Gerar senha NOVA para ${u.login}? A atual deixa de valer e as sessões caem.`,
-      `Generate a NEW password for ${u.login}? The current one stops working and sessions are dropped.`))) return;
-    busy = true; working(T(`⏳ Gerando senha nova para ${u.login}…`, `⏳ Generating a new password for ${u.login}…`));
+      `Generate a NEW password for ${u.login}? The current one stops working and sessions are dropped.`,
+      `¿Generar una contraseña NUEVA para ${u.login}? La actual deja de funcionar y las sesiones se cierran.`))) return;
+    busy = true; working(T(`⏳ Gerando senha nova para ${u.login}…`, `⏳ Generating a new password for ${u.login}…`, `⏳ Generando contraseña nueva para ${u.login}…`));
     try { const j = await post('/treino/admin/managed-reset', { login: u.login });
       msg.textContent = '';
       showCreds([{ login: j.login, password: j.password, fullname: u.fullname }]); }
@@ -1449,9 +1455,9 @@ function makeManagedTab() {
   async function toggleDisabled(u) {
     if (busy) return;
     const dis = !u.disabled;
-    if (!confirm(dis ? T(`Desabilitar ${u.login}?`, `Disable ${u.login}?`)
-      : T(`Reabilitar ${u.login}? Uma senha nova será gerada.`, `Enable ${u.login}? A new password will be generated.`))) return;
-    busy = true; working(dis ? T(`⏳ Desabilitando ${u.login}…`, `⏳ Disabling ${u.login}…`) : T(`⏳ Reabilitando ${u.login}…`, `⏳ Enabling ${u.login}…`));
+    if (!confirm(dis ? T(`Desabilitar ${u.login}?`, `Disable ${u.login}?`, `¿Deshabilitar a ${u.login}?`)
+      : T(`Reabilitar ${u.login}? Uma senha nova será gerada.`, `Enable ${u.login}? A new password will be generated.`, `¿Habilitar a ${u.login}? Se generará una contraseña nueva.`))) return;
+    busy = true; working(dis ? T(`⏳ Desabilitando ${u.login}…`, `⏳ Disabling ${u.login}…`, `⏳ Deshabilitando a ${u.login}…`) : T(`⏳ Reabilitando ${u.login}…`, `⏳ Enabling ${u.login}…`, `⏳ Habilitando a ${u.login}…`));
     try {
       const j = await post('/treino/admin/managed-update', { login: u.login, disabled: dis });
       msg.textContent = '';
@@ -1462,19 +1468,20 @@ function makeManagedTab() {
   }
   async function removeU(u) {
     if (!confirm(T(`REMOVER a conta ${u.login} (${u.fullname})? As submissões ficam arquivadas em .removed-users.`,
-      `REMOVE account ${u.login} (${u.fullname})? Submissions are archived under .removed-users.`))) return;
+      `REMOVE account ${u.login} (${u.fullname})? Submissions are archived under .removed-users.`,
+      `¿ELIMINAR la cuenta ${u.login} (${u.fullname})? Los envíos quedan archivados en .removed-users.`))) return;
     try { await post('/treino/admin/managed-remove', { login: u.login }); await load(); }
     catch (e) { msg.className = 'small error-box'; msg.textContent = e.message; }
   }
 
   function openForm(u) {
     const editing = !!u;
-    const nameI = el('input', { value: editing ? u.fullname : '', placeholder: T('Nome completo', 'Full name'), style: 'width:100%' });
+    const nameI = el('input', { value: editing ? u.fullname : '', placeholder: T('Nome completo', 'Full name', 'Nombre completo'), style: 'width:100%' });
     if (editing) nameI.disabled = true;
     const bdI = el('input', { type: 'date', value: editing ? u.birthdate : '' });
-    const loginI = el('input', { value: '', placeholder: T('login (vazio = gerado do nome)', 'login (empty = generated)'), style: 'width:16rem;font-family:var(--mono)' });
+    const loginI = el('input', { value: '', placeholder: T('login (vazio = gerado do nome)', 'login (empty = generated)', 'usuario (vacío = generado del nombre)'), style: 'width:16rem;font-family:var(--mono)' });
     if (editing) { loginI.value = u.login; loginI.disabled = true; }
-    const noteI = el('input', { value: editing ? (u.note || '') : '', placeholder: T('nota (turma, escola, responsável…)', 'note (class, school, guardian…)'), style: 'width:100%' });
+    const noteI = el('input', { value: editing ? (u.note || '') : '', placeholder: T('nota (turma, escola, responsável…)', 'note (class, school, guardian…)', 'nota (clase, escuela, responsable…)'), style: 'width:100%' });
     const expI = el('input', { type: 'date', value: editing ? epochToDate(u.expires_at) : '' });
     const ferr = el('span', { class: 'small error-box hidden' });
     const saveB = el('button', { class: 'btn', onclick: async () => {
@@ -1485,7 +1492,7 @@ function makeManagedTab() {
             birthdate: bdI.value, expires_at: expI.value ? dateToEpoch(expI.value) : null });
           formBox.innerHTML = ''; await load();
         } else {
-          if (!nameI.value.trim() || !bdI.value) { ferr.classList.remove('hidden'); ferr.textContent = T('nome e nascimento são obrigatórios', 'name and birthdate are required'); return; }
+          if (!nameI.value.trim() || !bdI.value) { ferr.classList.remove('hidden'); ferr.textContent = T('nome e nascimento são obrigatórios', 'name and birthdate are required', 'el nombre y la fecha de nacimiento son obligatorios'); return; }
           const item = { fullname: nameI.value.trim(), birthdate: bdI.value, note: noteI.value.trim() };
           if (loginI.value.trim()) item.login = loginI.value.trim();
           if (expI.value) item.expires_at = dateToEpoch(expI.value);
@@ -1493,23 +1500,23 @@ function makeManagedTab() {
           formBox.innerHTML = ''; showCreds(j.created || [], j.skipped || []); await load();
         }
       } catch (e) { ferr.classList.remove('hidden'); ferr.textContent = e.message; }
-    } }, editing ? T('Salvar', 'Save') : T('Criar conta', 'Create account'));
+    } }, editing ? T('Salvar', 'Save', 'Guardar') : T('Criar conta', 'Create account', 'Crear cuenta'));
     formBox.innerHTML = '';
     formBox.append(el('div', { class: 'subcard', style: 'margin:.5rem 0' },
       el('div', { class: 'row' }, nameI),
       el('div', { class: 'row', style: 'margin-top:.4rem' },
-        el('label', { class: 'small' }, T('nascimento ', 'birthdate '), bdI), loginI),
+        el('label', { class: 'small' }, T('nascimento ', 'birthdate ', 'nacimiento '), bdI), loginI),
       el('div', { class: 'row', style: 'margin-top:.4rem' }, noteI),
       el('div', { class: 'row', style: 'margin-top:.4rem' },
-        el('label', { class: 'small' }, T('expira em (opcional) ', 'expires on (optional) '), expI)),
+        el('label', { class: 'small' }, T('expira em (opcional) ', 'expires on (optional) ', 'expira el (opcional) '), expI)),
       el('div', { class: 'row', style: 'margin-top:.5rem' }, saveB,
-        el('button', { class: 'btn ghost', onclick: () => { formBox.innerHTML = ''; } }, T('Cancelar', 'Cancel')), ferr)));
+        el('button', { class: 'btn ghost', onclick: () => { formBox.innerHTML = ''; } }, T('Cancelar', 'Cancel', 'Cancelar')), ferr)));
   }
 
   function openBatch() {
-    const ta = el('textarea', { rows: '8', placeholder: T('Um por linha:  Nome Completo;AAAA-MM-DD', 'One per line:  Full Name;YYYY-MM-DD'),
+    const ta = el('textarea', { rows: '8', placeholder: T('Um por linha:  Nome Completo;AAAA-MM-DD', 'One per line:  Full Name;YYYY-MM-DD', 'Uno por línea:  Nombre Completo;AAAA-MM-DD'),
       style: 'width:100%;font-family:var(--mono);font-size:.88rem' });
-    const noteI = el('input', { placeholder: T('nota comum (turma, escola…)', 'shared note (class, school…)'), style: 'width:100%' });
+    const noteI = el('input', { placeholder: T('nota comum (turma, escola…)', 'shared note (class, school…)', 'nota común (clase, escuela…)'), style: 'width:100%' });
     const expI = el('input', { type: 'date' });
     const ferr = el('span', { class: 'small error-box hidden' });
     const goB = el('button', { class: 'btn', onclick: async () => {
@@ -1520,19 +1527,19 @@ function makeManagedTab() {
         if (expI.value) it.expires_at = dateToEpoch(expI.value);
         return it;
       });
-      if (!users.length) { ferr.classList.remove('hidden'); ferr.textContent = T('nada para criar', 'nothing to create'); return; }
+      if (!users.length) { ferr.classList.remove('hidden'); ferr.textContent = T('nada para criar', 'nothing to create', 'nada para crear'); return; }
       try {
         const j = await post('/treino/admin/managed-create', { users });
         formBox.innerHTML = ''; showCreds(j.created || [], j.skipped || []); await load();
       } catch (e) { ferr.classList.remove('hidden'); ferr.textContent = e.message; }
-    } }, T('Criar todas', 'Create all'));
+    } }, T('Criar todas', 'Create all', 'Crear todas'));
     formBox.innerHTML = '';
     formBox.append(el('div', { class: 'subcard', style: 'margin:.5rem 0' }, ta,
       el('div', { class: 'row', style: 'margin-top:.4rem' }, noteI),
       el('div', { class: 'row', style: 'margin-top:.4rem' },
-        el('label', { class: 'small' }, T('expira em (opcional) ', 'expires on (optional) '), expI)),
+        el('label', { class: 'small' }, T('expira em (opcional) ', 'expires on (optional) ', 'expira el (opcional) '), expI)),
       el('div', { class: 'row', style: 'margin-top:.5rem' }, goB,
-        el('button', { class: 'btn ghost', onclick: () => { formBox.innerHTML = ''; } }, T('Cancelar', 'Cancel')), ferr)));
+        el('button', { class: 'btn ghost', onclick: () => { formBox.innerHTML = ''; } }, T('Cancelar', 'Cancel', 'Cancelar')), ferr)));
   }
 
   async function load() {
@@ -1542,7 +1549,7 @@ function makeManagedTab() {
       const j = await apiGet('/treino/admin/managed-users', G());
       USERS = j.users || [];
       renderList();
-    } catch (e) { body.innerHTML = ''; body.append(el('div', { class: 'error-box' }, e.message || T('falha', 'failed'))); }
+    } catch (e) { body.innerHTML = ''; body.append(el('div', { class: 'error-box' }, e.message || T('falha', 'failed', 'fallido'))); }
   }
   return { panel, load };
 }
@@ -1552,16 +1559,16 @@ function renderPanel(content) {
   content.innerHTML = '';
 
   const TABS = [
-    { id: 'sessions', label: T('👥 Sessões ativas', '👥 Active sessions'), make: makeSessionsTab },
-    { id: 'news', label: T('📰 Notícias', '📰 News'), make: makeNewsTab },
-    { id: 'achievements', label: T('🏅 Conquistas', '🏅 Achievements'), make: makeAchievementsTab },
-    { id: 'managed', label: T('🧒 Contas geridas', '🧒 Managed accounts'), make: makeManagedTab },
+    { id: 'sessions', label: T('👥 Sessões ativas', '👥 Active sessions', '👥 Sesiones activas'), make: makeSessionsTab },
+    { id: 'news', label: T('📰 Notícias', '📰 News', '📰 Noticias'), make: makeNewsTab },
+    { id: 'achievements', label: T('🏅 Conquistas', '🏅 Achievements', '🏅 Logros'), make: makeAchievementsTab },
+    { id: 'managed', label: T('🧒 Contas geridas', '🧒 Managed accounts', '🧒 Cuentas gestionadas'), make: makeManagedTab },
     { id: 'contests', label: '🏆 Contests', make: makeContestsTab },
-    { id: 'access', label: T('📝 Acessos (log)', '📝 Access (log)'), make: makeAccessLogTab },
-    { id: 'activity', label: T('📜 Atividade', '📜 Activity'), make: makeActivityTab },
-    { id: 'stats', label: T('📊 Estatísticas', '📊 Statistics'), make: makeStatsTab },
-    { id: 'queue', label: T('⏳ Fila & tempo de resposta', '⏳ Queue & response time'), make: makeQueueTab },
-    { id: 'judges', label: T('🖥️ Máquinas de julgamento', '🖥️ Judging machines'), make: makeJudgesTab },
+    { id: 'access', label: T('📝 Acessos (log)', '📝 Access (log)', '📝 Accesos (registro)'), make: makeAccessLogTab },
+    { id: 'activity', label: T('📜 Atividade', '📜 Activity', '📜 Actividad'), make: makeActivityTab },
+    { id: 'stats', label: T('📊 Estatísticas', '📊 Statistics', '📊 Estadísticas'), make: makeStatsTab },
+    { id: 'queue', label: T('⏳ Fila & tempo de resposta', '⏳ Queue & response time', '⏳ Cola y tiempo de respuesta'), make: makeQueueTab },
+    { id: 'judges', label: T('🖥️ Máquinas de julgamento', '🖥️ Judging machines', '🖥️ Máquinas de evaluación'), make: makeJudgesTab },
   ];
 
   const tabsBar = el('div', { class: 'tabs' });
@@ -1600,12 +1607,12 @@ async function boot() {
   const st = await status(CONTEST);
   if (!st.logged_in) {
     content.innerHTML = '';
-    content.append(el('div', { class: 'access-restricted' }, T('Entre como administrador.', 'Log in as administrator.')));
+    content.append(el('div', { class: 'access-restricted' }, T('Entre como administrador.', 'Log in as administrator.', 'Inicia sesión como administrador.')));
     return;
   }
   if (!st.is_admin) {
     content.innerHTML = '';
-    content.append(el('div', { class: 'access-restricted' }, T('🚫 Acesso restrito a administradores', '🚫 Access restricted to administrators')));
+    content.append(el('div', { class: 'access-restricted' }, T('🚫 Acesso restrito a administradores', '🚫 Access restricted to administrators', '🚫 Acceso restringido a administradores')));
     return;
   }
   renderPanel(content);

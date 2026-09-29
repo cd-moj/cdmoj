@@ -91,6 +91,31 @@ account_team_merge(){
     --argjson tm "$teamj" --argjson t "$EPOCHSECONDS"
 }
 
+# shared_overlay_ensure <c> <login> [new] — garante um account.json LOCAL p/ um participante COMPARTILHADO
+# (contest com USERS_FROM, onde o participante tem dir local SEM account.json e a identidade vem do treino).
+# O overlay NÃO tem senha: o login continua pela conta do treino (verify_password cai p/ a fonte quando a
+# senha local é vazia) — ele existe p/ o admin poder AGIR na conta: desabilitar (grava `!…`, que é
+# autoritativo), desclassificar, remover (tombstone), gravar campos de time. Só `fullname` vem da fonte.
+# Sem `new`, exige o dir local (a pessoa JÁ entrou/submeteu/se inscreveu — criar overlay de quem nunca
+# entrou poria uma linha nova no placar); com `new`=1 aceita quem só existe na fonte (o tombstone da
+# remoção, que é desclassificado e não aparece). rc 0 = existe/criado; 1 = não é contest compartilhado ou
+# o login não existe nem no contest nem na fonte. History nunca é tocado.
+shared_overlay_ensure(){
+  local c="$1" u="$2" new="${3:-0}" d f src name
+  valid_id "$u" || return 1
+  d="$(user_dir "$c" "$u")"; f="$d/account.json"
+  [[ -f "$f" ]] && return 0
+  declare -F _users_source >/dev/null || return 1
+  src="$(_users_source "$c")"; [[ "$src" != "$c" ]] || return 1
+  [[ -f "$CONTESTSDIR/$src/users/$u/account.json" ]] || return 1
+  [[ -d "$d" || "$new" == 1 ]] || return 1
+  name="$(jq -r '.fullname // ""' "$CONTESTSDIR/$src/users/$u/account.json" 2>/dev/null)"; [[ -n "$name" ]] || name="$u"
+  mkdir -p "$d/submissions" "$d/mojlog" "$d/results" || return 1
+  jq -cn --arg l "$u" --arg n "$name" --argjson t "$EPOCHSECONDS" \
+    '{login:$l, fullname:$n, status:"active", created_at:$t, updated_at:$t, shared_overlay:true}' > "$f.tmp" \
+    && mv -f "$f.tmp" "$f" || { rm -f "$f.tmp"; return 1; }
+}
+
 # --- criação / senha ------------------------------------------------------
 # user_create <c> <login> <fullname> <password> [email] -> 0 ok | 2 já existe
 # NÃO valida sufixo de papel (isso é responsabilidade do handler/signup).
@@ -102,12 +127,14 @@ user_create(){
   jq -cn --arg l "$u" --arg p "$pw" --arg n "$name" --arg e "$email" --argjson t "$EPOCHSECONDS" \
      '{login:$l,password:$p,fullname:$n,email:$e,created_at:$t,updated_at:$t,status:"active",uname_changes:[]}' \
      > "$d/account.json" || return 1
-  : > "$d/history"
+  # history que JÁ existe nunca é zerado: dir de participante compartilhado (sem account.json) que já
+  # submeteu, ou resto de conta removida — criar a conta por cima zerava o histórico dele (28/09/2026)
+  [[ -f "$d/history" ]] || : > "$d/history"
 }
 
 # user_genpass — senha legível: palavra do dicionário + 4 dígitos (igual cc_genpass).
 user_genpass(){
-  local wl="${PASSWORD_WORDLIST:-/home/ribas/moj/cdmoj/mojinho-bot/palavras-para-senha}" w=""
+  local wl="${PASSWORD_WORDLIST:-}" w=""
   [[ -f "$wl" ]] && w="$(shuf -n1 "$wl" 2>/dev/null | tr -cd 'a-z0-9')"
   [[ -n "$w" ]] || w="$(head -c8 /dev/urandom | base64 | tr -dc 'a-z0-9' | head -c6)"
   printf '%s%04d' "$w" "$(( RANDOM % 10000 ))"
@@ -317,6 +344,42 @@ user_rename(){
   # o handle aparece em placar/home/estatísticas — os caches preguiçosos (gate .score-dirty)
   # precisam regenerar, senão servem o login VELHO p/ sempre (top10 da home ficou stale)
   _score_dirty "$c"
+}
+
+# --- CASCATA DO RENAME EM CONTEST COMPARTILHADO (28/09/2026) ------------------
+# Num contest com USERS_FROM=<fonte> o participante tem dir local users/<login>/ (history, submissões) SEM
+# account.json — a identidade vem da fonte. Trocar o handle na fonte deixava esse dir ÓRFÃO: sumia do
+# placar (sc_users só lista dir cujo login existe na fonte) e o competidor recomeçava do zero em
+# users/<novo>/. Só os contests com INSCRIÇÃO eram cobertos (reg_rename_login). Agora TODO contest
+# compartilhado leva o dir (e o `.login` do overlay, se houver) e as sessões daquele contest.
+# _shared_contests_of <fonte> — contests cujo conf aponta USERS_FROM=<fonte> (um grep, sem source)
+_shared_contests_of(){
+  find "$CONTESTSDIR" -mindepth 2 -maxdepth 2 -name conf -type f -print0 2>/dev/null \
+    | xargs -0 -r grep -lx -e "USERS_FROM=$1" -e "USERS_FROM='$1'" 2>/dev/null \
+    | sed 's#/conf$##; s#.*/##'
+}
+# shared_pending_for <fonte> <login> — rc 0 se há submissão PENDENTE do login em algum contest compartilhado
+shared_pending_for(){
+  local c h
+  while IFS= read -r c; do
+    h="$(user_hist_file "$c" "$2")"
+    [[ -f "$h" ]] && grep -qE ':(Not Answered Yet|[Oo]n queue|[Rr]unning):' "$h" && return 0
+  done < <(_shared_contests_of "$1")
+  return 1
+}
+# shared_rename_login <fonte> <old> <new> — ecoa quantos dirs foram movidos
+shared_rename_login(){
+  local src="$1" old="$2" new="$3" c od nd n=0
+  valid_id "$old" && valid_id "$new" && [[ "$old" != "$new" ]] || { printf '0'; return 0; }
+  while IFS= read -r c; do
+    od="$(user_dir "$c" "$old")"; nd="$(user_dir "$c" "$new")"
+    [[ -d "$od" && ! -e "$nd" ]] || continue
+    mv "$od" "$nd" || continue
+    [[ -f "$nd/account.json" ]] && account_merge "$c" "$new" '.login=$l|.updated_at=$t' --arg l "$new" --argjson t "$EPOCHSECONDS"
+    declare -F rename_contest_sessions >/dev/null && rename_contest_sessions "$c" "$old" "$new" >/dev/null
+    _score_dirty "$c"; n=$((n+1))
+  done < <(_shared_contests_of "$src")
+  printf '%s' "$n"
 }
 
 # --- compat de leitura: emite o history no FORMATO GLOBAL de 7 campos --------

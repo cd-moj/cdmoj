@@ -18,15 +18,15 @@ let st = null, busy = false, tick = null, FLAGS = null;
 // offline (shared/flags/). Devolve {sel, box} — box mostra o preview da bandeira escolhida.
 function flagPicker(current) {
   const sel = el('select', { style: 'max-width:16rem' },
-    el('option', { value: '' }, T('bandeira (opcional)', 'flag (optional)')));
+    el('option', { value: '' }, T('bandeira (opcional)', 'flag (optional)', 'bandera (opcional)')));
   const prev = el('span', { style: 'display:inline-flex;align-items:center;min-width:26px' });
   const draw = () => { prev.innerHTML = ''; const f = flagEl(sel.value, { height: 18 }); if (f) prev.append(f); };
   if (FLAGS) {
-    const gBR = el('optgroup', { label: T('Estados do Brasil', 'Brazilian states') });
+    const gBR = el('optgroup', { label: T('Estados do Brasil', 'Brazilian states', 'Estados de Brasil') });
     // o manifest guarda o código do estado PURO ("rj"); a bandeira renderiza por "br-rj"
     // (2 letras sem prefixo = PAÍS — "sc" é Seychelles, não Santa Catarina)
     (FLAGS.br_states || []).forEach((x) => gBR.append(el('option', { value: 'br-' + x.code }, x.name)));
-    const gW = el('optgroup', { label: T('Países', 'Countries') });
+    const gW = el('optgroup', { label: T('Países', 'Countries', 'Países') });
     (FLAGS.countries || []).forEach((x) => gW.append(el('option', { value: x.code }, x.name)));
     sel.append(gBR, gW);
   }
@@ -56,7 +56,7 @@ async function act(body, okText) {
   try {
     st = await apiPost('/treino/contest-registration', { contest: TARGET, ...body }, { contest: CONTEST, auth: true });
     render(); if (okText) ok(okText);
-  } catch (e) { err(e.message || T('falha', 'failed')); }
+  } catch (e) { err(e.message || T('falha', 'failed', 'fallido')); }
   finally { busy = false; }
 }
 
@@ -78,22 +78,24 @@ function windowBox() {
     cd.textContent = fmtLeft(deadline - now);
   }
   if (w.state === 'open') {
-    box.append(el('b', {}, T('Inscrições abertas', 'Registration open')));
-    if (deadline > now) box.append(el('span', {}, T(' — fecham em ', ' — closes in ')), cd,
+    box.append(el('b', {}, T('Inscrições abertas', 'Registration open', 'Inscripciones abiertas')));
+    if (deadline > now) box.append(el('span', {}, T(' — fecham em ', ' — closes in ', ' — cierran en ')), cd,
       el('span', {}, ' (' + fmtDate(w.closes_at)
-        + (w.official_start && w.official_start === w.closes_at ? T(', início da prova', ', contest start') : '') + ')'));
+        + (w.official_start && w.official_start === w.closes_at ? T(', início da prova', ', contest start', ', inicio de la competencia') : '') + ')'));
     else box.append(el('span', {}, T(' — sem prazo definido ainda (a prova oficial não está marcada)',
-                                     ' — no deadline yet (the official contest is not scheduled)')));
+                                     ' — no deadline yet (the official contest is not scheduled)',
+                                     ' — sin plazo definido todavía (la competencia oficial no está programada)')));
   } else if (w.state === 'late') {
-    box.append(el('b', {}, T('⏰ Inscrição atrasada', '⏰ Late registration')),
-      el('span', {}, T(' — a prova já começou. Dá para entrar por mais ', ' — the contest already started. You can still join for ')), cd,
+    box.append(el('b', {}, T('⏰ Inscrição atrasada', '⏰ Late registration', '⏰ Inscripción atrasada')),
+      el('span', {}, T(' — a prova já começou. Dá para entrar por mais ', ' — the contest already started. You can still join for ', ' — la competencia ya empezó. Todavía puedes entrar por ')), cd,
       el('span', {}, T(', mas fora da disputa oficial (aparece no placar sem ocupar posição).',
-            ', but out of the official ranking (you show up on the scoreboard without taking a position).')));
+            ', but out of the official ranking (you show up on the scoreboard without taking a position).',
+            ', pero fuera de la disputa oficial (apareces en el marcador sin ocupar posición).')));
   } else if (w.state === 'soon') {
-    box.append(el('b', {}, T('Inscrições ainda não abriram', 'Registration has not opened yet')),
-      el('span', {}, w.opens_at ? T(' — abrem em ', ' — opens in ') + fmtLeft(w.opens_at - now) : ''));
+    box.append(el('b', {}, T('Inscrições ainda não abriram', 'Registration has not opened yet', 'Las inscripciones todavía no abrieron')),
+      el('span', {}, w.opens_at ? T(' — abrem em ', ' — opens in ', ' — abren en ') + fmtLeft(w.opens_at - now) : ''));
   } else {
-    box.append(el('b', {}, T('Inscrições encerradas', 'Registration closed')));
+    box.append(el('b', {}, T('Inscrições encerradas', 'Registration closed', 'Inscripciones cerradas')));
   }
   return box;
 }
@@ -108,16 +110,18 @@ function warmupBox() {
   const w = st.window || {};
   if (st.gate_active === false) {
     return el('div', { class: 'notice', style: 'margin:.6rem 0' },
-      el('b', {}, T('🔥 Aquecimento no ar — entrada livre', '🔥 Warm-up running — open door')),
+      el('b', {}, T('🔥 Aquecimento no ar — entrada livre', '🔥 Warm-up running — open door', '🔥 Calentamiento en vivo — entrada libre')),
       el('span', {}, T(' Qualquer conta do Treino Livre entra e treina agora, sem inscrição. Para a PROVA você precisa estar inscrito',
-                       ' Anyone with a Free Training account can come in and practice now, no registration needed. For the CONTEST you must be registered')),
-      w.official_start ? el('span', {}, T(' — ela começa em ', ' — it starts on ') + fmtDate(w.official_start) + '.') : el('span', {}, '.'));
+                       ' Anyone with a Free Training account can come in and practice now, no registration needed. For the CONTEST you must be registered',
+                       ' Cualquier cuenta de Entrenamiento libre puede entrar y practicar ahora, sin inscripción. Para la COMPETENCIA necesitas estar inscrito')),
+      w.official_start ? el('span', {}, T(' — ela começa em ', ' — it starts on ', ' — empieza el ') + fmtDate(w.official_start) + '.') : el('span', {}, '.'));
   }
   return el('div', { class: 'notice', style: 'margin:.6rem 0' },
-    el('b', {}, T('🔥 Aquecimento no ar — só para inscritos', '🔥 Warm-up running — registered only')),
+    el('b', {}, T('🔥 Aquecimento no ar — só para inscritos', '🔥 Warm-up running — registered only', '🔥 Calentamiento en vivo — solo para inscritos')),
     el('span', {}, T(' Inscreva-se para participar do aquecimento E da prova: é no aquecimento que você testa login, submissão e placar — resolver isso agora evita atraso no dia',
-                     ' Register to join the warm-up AND the contest: the warm-up is where you test login, submissions and the scoreboard — sorting it out now avoids delays on the day')),
-    w.official_start ? el('span', {}, T('. A prova começa em ', '. The contest starts on ') + fmtDate(w.official_start) + '.') : el('span', {}, '.'));
+                     ' Register to join the warm-up AND the contest: the warm-up is where you test login, submissions and the scoreboard — sorting it out now avoids delays on the day',
+                     ' Inscríbete para participar del calentamiento Y de la competencia: es en el calentamiento donde pruebas el inicio de sesión, los envíos y el marcador — resolver esto ahora evita atrasos el día de la prueba')),
+    w.official_start ? el('span', {}, T('. A prova começa em ', '. The contest starts on ', '. La competencia empieza el ') + fmtDate(w.official_start) + '.') : el('span', {}, '.'));
 }
 
 function meBox() {
@@ -126,169 +130,179 @@ function meBox() {
   const s = el('div', { class: 'section' });
 
   if (kind === 'none') {
-    s.append(el('h2', {}, T('Como você quer participar?', 'How do you want to take part?')),
+    s.append(el('h2', {}, T('Como você quer participar?', 'How do you want to take part?', '¿Cómo quieres participar?')),
       el('p', { class: 'small muted' },
-        T('Escolha uma das duas: individual ou em time de até ', 'Pick one: individually or in a team of up to ')
-        + (st.team_max || 3) + T(' pessoas com conta no Treino Livre.', ' people with a Free Training account.')),
+        T('Escolha uma das duas: individual ou em time de até ', 'Pick one: individually or in a team of up to ', 'Elige una: individual o en equipo de hasta ')
+        + (st.team_max || 3) + T(' pessoas com conta no Treino Livre.', ' people with a Free Training account.', ' personas con cuenta en Entrenamiento libre.')),
       el('div', { class: 'notice', style: 'margin:.3rem 0 .6rem' },
-        el('b', {}, T('⚠️ Escolha com calma: ', '⚠️ Choose carefully: ')),
+        el('b', {}, T('⚠️ Escolha com calma: ', '⚠️ Choose carefully: ', '⚠️ Elige con calma: ')),
         T('depois de inscrito, o modo de participação (individual ou time) é definitivo — para qualquer mudança, fale com a organização.',
-          'once registered, your participation mode (individual or team) is final — for any change, talk to the organizers.')));
+          'once registered, your participation mode (individual or team) is final — for any change, talk to the organizers.',
+          'una vez inscrito, el modo de participación (individual o equipo) es definitivo — para cualquier cambio, habla con la organización.')));
     const row = el('div', { class: 'row', style: 'gap:.6rem; flex-wrap:wrap' });
     // individual também declara universidade/IA/bandeira (paridade com o time)
-    const iUniv = el('input', { placeholder: T('sigla da universidade (opcional)', 'university acronym (optional)'), style: 'width:16rem', maxlength: '20' });
+    const iUniv = el('input', { placeholder: T('sigla da universidade (opcional)', 'university acronym (optional)', 'sigla de la universidad (opcional)'), style: 'width:16rem', maxlength: '20' });
     const iAi = el('select', {},
-      el('option', { value: '' }, T('uso de IA: prefiro não declarar', 'AI use: prefer not to say')),
-      el('option', { value: 'yes' }, T('🤖 vou usar IA', '🤖 I will use AI')),
-      el('option', { value: 'no' }, T('sem IA, na raça', 'no AI, old school')));
+      el('option', { value: '' }, T('uso de IA: prefiro não declarar', 'AI use: prefer not to say', 'uso de IA: prefiero no declarar')),
+      el('option', { value: 'yes' }, T('🤖 vou usar IA', '🤖 I will use AI', '🤖 usaré IA')),
+      el('option', { value: 'no' }, T('sem IA, na raça', 'no AI, old school', 'sin IA, a la antigua')));
     const ifp = flagPicker('');
     row.append(el('span', { class: 'row', style: 'gap:.4rem; flex-wrap:wrap' }, iUniv, iAi, ifp.box,
       el('button', { class: 'btn', disabled: !canAct(),
         onclick: () => act({ action: 'register', univ: iUniv.value.trim(), ai: iAi.value, flag: ifp.sel.value },
-                           T('Inscrição feita!', 'You are registered!')) },
-        T('Participar individualmente', 'Take part individually'))));
+                           T('Inscrição feita!', 'You are registered!', '¡Estás inscrito!')) },
+        T('Participar individualmente', 'Take part individually', 'Participar individualmente'))));
     if (st.teams_allowed !== false) {
-      const name = el('input', { placeholder: T('nome do time', 'team name'), style: 'min-width:15rem' });
-      const univ = el('input', { placeholder: T('sigla da universidade (opcional)', 'university acronym (optional)'), style: 'width:16rem', maxlength: '20' });
+      const name = el('input', { placeholder: T('nome do time', 'team name', 'nombre del equipo'), style: 'min-width:15rem' });
+      const univ = el('input', { placeholder: T('sigla da universidade (opcional)', 'university acronym (optional)', 'sigla de la universidad (opcional)'), style: 'width:16rem', maxlength: '20' });
       const aiSel = el('select', {},
-        el('option', { value: '' }, T('uso de IA: prefiro não declarar', 'AI use: prefer not to say')),
-        el('option', { value: 'yes' }, T('🤖 vamos usar IA', '🤖 we will use AI')),
-        el('option', { value: 'no' }, T('sem IA, na raça', 'no AI, old school')));
+        el('option', { value: '' }, T('uso de IA: prefiro não declarar', 'AI use: prefer not to say', 'uso de IA: prefiero no declarar')),
+        el('option', { value: 'yes' }, T('🤖 vamos usar IA', '🤖 we will use AI', '🤖 usaremos IA')),
+        el('option', { value: 'no' }, T('sem IA, na raça', 'no AI, old school', 'sin IA, a la antigua')));
       const fp = flagPicker('');
       row.append(el('span', { class: 'row', style: 'gap:.4rem; flex-wrap:wrap' }, name, univ, aiSel, fp.box,
         el('button', { class: 'btn ghost', disabled: !canAct(),
           onclick: () => act({ action: 'team-create', name: name.value.trim(),
                                univ: univ.value.trim(), ai: aiSel.value, flag: fp.sel.value },
-                             T('Time criado — agora convide o resto.', 'Team created — now invite the others.')) },
-          T('Criar um time', 'Create a team'))));
+                             T('Time criado — agora convide o resto.', 'Team created — now invite the others.', 'Equipo creado — ahora invita a los demás.')) },
+          T('Criar um time', 'Create a team', 'Crear un equipo'))));
       row.append(el('div', { class: 'small muted', style: 'flex-basis:100%' },
         T('A universidade vira o prefixo do nome no placar — “[SIGLA] Seu Time” — e a declaração de IA aparece como 🤖 ao lado do nome (transparência, sem julgamento).',
-          'The university becomes the team-name prefix on the scoreboard — “[ACRONYM] Your Team” — and the AI declaration shows as 🤖 next to the name (transparency, not judgement).')));
+          'The university becomes the team-name prefix on the scoreboard — “[ACRONYM] Your Team” — and the AI declaration shows as 🤖 next to the name (transparency, not judgement).',
+          'La universidad se convierte en el prefijo del nombre del equipo en el marcador — “[SIGLA] Tu Equipo” — y la declaración de IA aparece como 🤖 junto al nombre (transparencia, sin juicio).')));
     }
     s.append(row);
     return s;
   }
 
   if (kind === 'individual') {
-    s.append(el('h2', {}, T('✅ Você está inscrito (individual)', '✅ You are registered (individual)')),
+    s.append(el('h2', {}, T('✅ Você está inscrito (individual)', '✅ You are registered (individual)', '✅ Estás inscrito (individual)')),
       el('p', { class: 'small muted' },
-        T('Entre no contest com o SEU login e senha do Treino Livre.', 'Log into the contest with YOUR Free Training username and password.')),
+        T('Entre no contest com o SEU login e senha do Treino Livre.', 'Log into the contest with YOUR Free Training username and password.', 'Entra a la competencia con TU usuario y contraseña del Entrenamiento libre.')),
       late ? el('p', { class: 'small' }, T('⏰ Inscrição atrasada: você aparece no placar sem ocupar posição oficial.',
-                                           '⏰ Late registration: you appear on the scoreboard without taking an official position.')) : '');
+                                           '⏰ Late registration: you appear on the scoreboard without taking an official position.',
+                                           '⏰ Inscripción tardía: apareces en el marcador sin ocupar una posición oficial.')) : '');
     // universidade + IA + bandeira (edita enquanto a janela estiver aberta — como o capitão)
     if (canAct()) {
       const me = st.me || {};
       const univ = el('input', { value: me.univ || '', maxlength: '20',
-        placeholder: T('sigla da universidade', 'university acronym'), style: 'width:14rem' });
+        placeholder: T('sigla da universidade', 'university acronym', 'sigla de la universidad'), style: 'width:14rem' });
       const aiSel = el('select', {},
-        el('option', { value: '' }, T('uso de IA: não declarado', 'AI use: not declared')),
-        el('option', { value: 'yes' }, T('🤖 vou usar IA', '🤖 I will use AI')),
-        el('option', { value: 'no' }, T('sem IA, na raça', 'no AI, old school')));
+        el('option', { value: '' }, T('uso de IA: não declarado', 'AI use: not declared', 'uso de IA: no declarado')),
+        el('option', { value: 'yes' }, T('🤖 vou usar IA', '🤖 I will use AI', '🤖 usaré IA')),
+        el('option', { value: 'no' }, T('sem IA, na raça', 'no AI, old school', 'sin IA, a la antigua')));
       aiSel.value = me.ai === true ? 'yes' : me.ai === false ? 'no' : '';
       const fp = flagPicker(me.flag || '');
       s.append(el('div', { class: 'row', style: 'gap:.4rem; margin:.4rem 0; flex-wrap:wrap' }, univ, aiSel, fp.box,
         el('button', { class: 'btn ghost',
           onclick: () => act({ action: 'individual-meta', univ: univ.value.trim(), ai: aiSel.value, flag: fp.sel.value },
-                             T('Dados salvos.', 'Info saved.')) },
-          T('Salvar universidade/IA/bandeira', 'Save university/AI/flag'))));
+                             T('Dados salvos.', 'Info saved.', 'Datos guardados.')) },
+          T('Salvar universidade/IA/bandeira', 'Save university/AI/flag', 'Guardar universidad/IA/bandera'))));
       s.append(el('p', { class: 'small muted', style: 'margin:.1rem 0 .4rem' },
         T('No placar, a universidade aparece como prefixo do nome — “[SIGLA] Seu Nome” — e a bandeira na primeira coluna.',
-          'On the scoreboard the university shows as the name prefix — “[ACRONYM] Your Name” — and the flag in the first column.')));
+          'On the scoreboard the university shows as the name prefix — “[ACRONYM] Your Name” — and the flag in the first column.',
+          'En el marcador la universidad aparece como prefijo del nombre — “[SIGLA] Tu Nombre” — y la bandera en la primera columna.')));
     }
     s.append(el('div', { class: 'row', style: 'gap:.6rem' },
-        el('a', { class: 'btn', href: contestUrl() }, T('Ir para o contest →', 'Go to the contest →'))),
+        el('a', { class: 'btn', href: contestUrl() }, T('Ir para o contest →', 'Go to the contest →', 'Ir a la competencia →'))),
       el('p', { class: 'small muted', style: 'margin-top:.4rem' },
         T('Sua participação individual está confirmada e é definitiva — precisa mudar algo? Fale com a organização.',
-          'Your individual participation is confirmed and final — need a change? Talk to the organizers.')));
+          'Your individual participation is confirmed and final — need a change? Talk to the organizers.',
+          'Tu participación individual está confirmada y es definitiva — ¿necesitas un cambio? Habla con la organización.')));
     return s;
   }
 
   // --- time
   const t = st.team || {}, me = window.__MOJ_LOGIN || '';
   const isCap = t.captain && t.captain === me;
-  s.append(el('h2', {}, T('👥 Time: ', '👥 Team: ') + (t.name || '')),
+  s.append(el('h2', {}, T('👥 Time: ', '👥 Team: ', '👥 Equipo: ') + (t.name || '')),
     el('p', { class: 'small muted' },
       T('Na prova, cada um entra com o PRÓPRIO login e senha do Treino Livre — as submissões contam para o time.',
-        'During the contest each of you logs in with THEIR OWN Free Training credentials — submissions count for the team.')),
+        'During the contest each of you logs in with THEIR OWN Free Training credentials — submissions count for the team.',
+        'Durante la competencia cada uno entra con SUS PROPIAS credenciales del Entrenamiento libre — los envíos cuentan para el equipo.')),
     late ? el('p', { class: 'small' }, T('⏰ Time inscrito atrasado: aparece no placar sem ocupar posição oficial.',
-                                         '⏰ Late team: it appears on the scoreboard without taking an official position.')) : '');
+                                         '⏰ Late team: it appears on the scoreboard without taking an official position.',
+                                         '⏰ Equipo tardío: aparece en el marcador sin ocupar una posición oficial.')) : '');
 
   const list = el('ul', { style: 'margin:.4rem 0 .4rem 1.1rem' });
-  (t.members || []).forEach((m) => list.append(el('li', {}, m + (m === t.captain ? T(' — capitão', ' — captain') : ''))));
-  (t.invited || []).forEach((m) => list.append(el('li', { class: 'muted' }, m + T(' — convite pendente', ' — invite pending'))));
+  (t.members || []).forEach((m) => list.append(el('li', {}, m + (m === t.captain ? T(' — capitão', ' — captain', ' — capitán') : ''))));
+  (t.invited || []).forEach((m) => list.append(el('li', { class: 'muted' }, m + T(' — convite pendente', ' — invite pending', ' — invitación pendiente'))));
   s.append(list);
 
   if (isCap && canAct()) {
     const room = (st.team_max || 3) - ((t.members || []).length + (t.invited || []).length);
     if (room > 0) {
-      const who = el('input', { placeholder: T('login no Treino Livre', 'Free Training username'), style: 'min-width:14rem' });
+      const who = el('input', { placeholder: T('login no Treino Livre', 'Free Training username', 'usuario del Entrenamiento libre'), style: 'min-width:14rem' });
       s.append(el('div', { class: 'row', style: 'gap:.4rem; margin:.4rem 0' }, who,
         el('button', { class: 'btn ghost',
           onclick: () => act({ action: 'team-invite', login: who.value.trim() },
-                             T('Convite enviado.', 'Invite sent.')) }, T('Convidar', 'Invite')),
-        el('span', { class: 'small muted' }, T('cabem mais ', 'room for ') + room)));
+                             T('Convite enviado.', 'Invite sent.', 'Invitación enviada.')) }, T('Convidar', 'Invite', 'Invitar')),
+        el('span', { class: 'small muted' }, T('cabem mais ', 'room for ', 'lugar para ') + room)));
     }
     const nm = el('input', { value: t.name || '', style: 'min-width:14rem' });
     s.append(el('div', { class: 'row', style: 'gap:.4rem; margin:.4rem 0' }, nm,
       el('button', { class: 'btn ghost',
-        onclick: () => act({ action: 'team-rename', name: nm.value.trim() }, T('Nome trocado.', 'Name changed.')) },
-        T('Renomear', 'Rename'))));
+        onclick: () => act({ action: 'team-rename', name: nm.value.trim() }, T('Nome trocado.', 'Name changed.', 'Nombre cambiado.')) },
+        T('Renomear', 'Rename', 'Renombrar'))));
 
     // universidade + declaração de IA (capitão edita enquanto a janela estiver aberta)
     const univ = el('input', { value: t.univ || '', maxlength: '20',
-      placeholder: T('sigla da universidade', 'university acronym'), style: 'width:14rem' });
+      placeholder: T('sigla da universidade', 'university acronym', 'sigla de la universidad'), style: 'width:14rem' });
     const aiSel = el('select', {},
-      el('option', { value: '' }, T('uso de IA: não declarado', 'AI use: not declared')),
-      el('option', { value: 'yes' }, T('🤖 vamos usar IA', '🤖 we will use AI')),
-      el('option', { value: 'no' }, T('sem IA, na raça', 'no AI, old school')));
+      el('option', { value: '' }, T('uso de IA: não declarado', 'AI use: not declared', 'uso de IA: no declarado')),
+      el('option', { value: 'yes' }, T('🤖 vamos usar IA', '🤖 we will use AI', '🤖 usaremos IA')),
+      el('option', { value: 'no' }, T('sem IA, na raça', 'no AI, old school', 'sin IA, a la antigua')));
     aiSel.value = t.ai === true ? 'yes' : t.ai === false ? 'no' : '';
     const fp = flagPicker(t.flag || '');
     s.append(el('div', { class: 'row', style: 'gap:.4rem; margin:.4rem 0; flex-wrap:wrap' }, univ, aiSel, fp.box,
       el('button', { class: 'btn ghost',
         onclick: () => act({ action: 'team-meta', univ: univ.value.trim(), ai: aiSel.value, flag: fp.sel.value },
-                           T('Dados do time salvos.', 'Team info saved.')) },
-        T('Salvar universidade/IA/bandeira', 'Save university/AI/flag'))));
+                           T('Dados do time salvos.', 'Team info saved.', 'Datos del equipo guardados.')) },
+        T('Salvar universidade/IA/bandeira', 'Save university/AI/flag', 'Guardar universidad/IA/bandera'))));
     s.append(el('p', { class: 'small muted', style: 'margin:.1rem 0 .4rem' },
       T('No placar, a universidade aparece como prefixo do nome — “[SIGLA] Seu Time”.',
-        'On the scoreboard the university shows as the name prefix — “[ACRONYM] Your Team”.')));
+        'On the scoreboard the university shows as the name prefix — “[ACRONYM] Your Team”.',
+        'En el marcador la universidad aparece como prefijo del nombre — “[SIGLA] Tu Equipo”.')));
 
     // foto do time — pública no placar; pedido de bom senso escrito com carinho
     const file = el('input', { type: 'file', accept: 'image/*' });
     s.append(el('div', { class: 'section', style: 'margin:.5rem 0' },
-      el('h3', { style: 'margin:.2rem 0' }, T('📷 Foto do time', '📷 Team photo')
+      el('h3', { style: 'margin:.2rem 0' }, T('📷 Foto do time', '📷 Team photo', '📷 Foto del equipo')
         + (t.has_photo ? ' ✓' : '')),
       el('p', { class: 'small muted' },
         T('Uma foto deixa o placar com cara de gente. Escolham uma imagem em que o time apareça bem e da qual vocês se orgulhem — ela fica pública no placar durante toda a prova (e nas lembranças depois dela). Capricha: é assim que a comunidade vai conhecer vocês. 😊',
-          'A photo gives the scoreboard a human face. Pick an image the team looks good in and is proud of — it stays public on the scoreboard for the whole contest (and in the memories afterwards). Make it count: this is how the community will meet you. 😊')),
+          'A photo gives the scoreboard a human face. Pick an image the team looks good in and is proud of — it stays public on the scoreboard for the whole contest (and in the memories afterwards). Make it count: this is how the community will meet you. 😊',
+          'Una foto le da al marcador una cara humana. Elijan una imagen en la que el equipo se vea bien y de la que se sientan orgullosos — se queda pública en el marcador durante toda la competencia (y en los recuerdos después de ella). Esmérense: así es como la comunidad los va a conocer. 😊')),
       t.has_photo ? el('img', { src: '/api/v1/contest/team-photo?contest=' + encodeURIComponent(TARGET) + '&user=' + encodeURIComponent(t.login) + '&t=' + Date.now(),
         style: 'max-width:220px; border-radius:10px; display:block; margin:.3rem 0' }) : '',
       el('div', { class: 'row', style: 'gap:.4rem' }, file,
         el('button', { class: 'btn ghost', onclick: async () => {
           const f = file.files && file.files[0];
-          if (!f) { err(T('Escolha uma imagem primeiro.', 'Pick an image first.')); return; }
-          if (f.size > 4 * 1024 * 1024) { err(T('Imagem muito grande (máx 4MB).', 'Image too large (max 4MB).')); return; }
+          if (!f) { err(T('Escolha uma imagem primeiro.', 'Pick an image first.', 'Elige una imagen primero.')); return; }
+          if (f.size > 4 * 1024 * 1024) { err(T('Imagem muito grande (máx 4MB).', 'Image too large (max 4MB).', 'Imagen muy grande (máx. 4MB).')); return; }
           const b64 = await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result)); r.onerror = rej; r.readAsDataURL(f); });
-          act({ action: 'team-photo', image_b64: b64 }, T('Foto enviada! Ela já aparece no placar.', 'Photo uploaded! It already shows on the scoreboard.'));
-        } }, T('Enviar foto', 'Upload photo')))));
+          act({ action: 'team-photo', image_b64: b64 }, T('Foto enviada! Ela já aparece no placar.', 'Photo uploaded! It already shows on the scoreboard.', '¡Foto enviada! Ya aparece en el marcador.'));
+        } }, T('Enviar foto', 'Upload photo', 'Enviar foto')))));
   }
 
   s.append(el('div', { class: 'row', style: 'gap:.6rem; margin-top:.5rem' },
-    el('a', { class: 'btn', href: contestUrl() }, T('Ir para o contest →', 'Go to the contest →'))),
+    el('a', { class: 'btn', href: contestUrl() }, T('Ir para o contest →', 'Go to the contest →', 'Ir a la competencia →'))),
     el('p', { class: 'small muted', style: 'margin-top:.4rem' },
       T('A formação em time é definitiva (dá para completar o time com convites até fechar a janela). Para sair ou desfazer, fale com a organização.',
-        'The team setup is final (you can still fill the team via invites while the window is open). To leave or dissolve, talk to the organizers.')));
+        'The team setup is final (you can still fill the team via invites while the window is open). To leave or dissolve, talk to the organizers.',
+        'La formación del equipo es definitiva (todavía pueden completar el equipo con invitaciones mientras la ventana esté abierta). Para salir o disolverlo, hablen con la organización.')));
   return s;
 }
 
 function invitesBox() {
   const inv = st.invites || [];
   if (!inv.length) return '';
-  const s = el('div', { class: 'section' }, el('h2', {}, T('✉️ Convites para você', '✉️ Invites for you')));
+  const s = el('div', { class: 'section' }, el('h2', {}, T('✉️ Convites para você', '✉️ Invites for you', '✉️ Invitaciones para ti')));
   inv.forEach((i) => s.append(el('div', { class: 'row', style: 'gap:.6rem; align-items:center; margin:.3rem 0' },
-    el('b', {}, i.name), el('span', { class: 'small muted' }, T('de ', 'from ') + i.captain + ' · ' + (i.members || []).join(', ')),
+    el('b', {}, i.name), el('span', { class: 'small muted' }, T('de ', 'from ', 'de ') + i.captain + ' · ' + (i.members || []).join(', ')),
     el('div', { class: 'spacer' }),
-    el('button', { class: 'btn', disabled: !canAct(), onclick: () => act({ action: 'team-accept', team: i.login }, T('Você entrou no time!', 'You joined the team!')) }, T('Aceitar', 'Accept')),
-    el('button', { class: 'btn ghost', onclick: () => act({ action: 'team-decline', team: i.login }, T('Convite recusado.', 'Invite declined.')) }, T('Recusar', 'Decline')))));
+    el('button', { class: 'btn', disabled: !canAct(), onclick: () => act({ action: 'team-accept', team: i.login }, T('Você entrou no time!', 'You joined the team!', '¡Te uniste al equipo!')) }, T('Aceitar', 'Accept', 'Aceptar')),
+    el('button', { class: 'btn ghost', onclick: () => act({ action: 'team-decline', team: i.login }, T('Convite recusado.', 'Invite declined.', 'Invitación rechazada.')) }, T('Recusar', 'Decline', 'Rechazar')))));
   return s;
 }
 
@@ -298,33 +312,35 @@ function render() {
   clearInterval(tick);
   c.append(el('div', { class: 'row', style: 'align-items:baseline; gap:.6rem; flex-wrap:wrap' },
     el('h1', { style: 'margin:.2rem 0' }, st.contest_name || TARGET),
-    el('span', { class: 'small muted' }, T('início ', 'start ') + fmtDate(st.start_time) + T(' · fim ', ' · end ') + fmtDate(st.end_time)),
+    el('span', { class: 'small muted' }, T('início ', 'start ', 'inicio ') + fmtDate(st.start_time) + T(' · fim ', ' · end ', ' · fin ') + fmtDate(st.end_time)),
     el('div', { class: 'spacer' }),
-    el('a', { class: 'btn ghost', href: '/#contests', style: 'padding:.32rem .7rem; font-size:.82rem' }, T('← contests', '← contests'))));
+    el('a', { class: 'btn ghost', href: '/#contests', style: 'padding:.32rem .7rem; font-size:.82rem' }, T('← contests', '← contests', '← competencias'))));
 
   if (st.enabled === false) {
     c.append(el('div', { class: 'notice', style: 'margin:.8rem 0' },
       T('Este contest não pede inscrição — é só entrar com a sua conta do Treino Livre.',
-        'This contest does not require registration — just log in with your Free Training account.')),
-      el('a', { class: 'btn', href: contestUrl() }, T('Ir para o contest →', 'Go to the contest →')));
+        'This contest does not require registration — just log in with your Free Training account.',
+        'Esta competencia no pide inscripción — solo entra con tu cuenta del Entrenamiento libre.')),
+      el('a', { class: 'btn', href: contestUrl() }, T('Ir para o contest →', 'Go to the contest →', 'Ir a la competencia →')));
     return;
   }
   c.append(warmupBox(), windowBox(), msg, invitesBox(), meBox());
   const tot = st.totals || {};
   c.append(el('p', { class: 'small muted', style: 'margin-top:1rem' },
-    T('Inscritos: ', 'Registered: ') + (tot.people || 0) + T(' pessoas · ', ' people · ') + (tot.teams || 0)
-    + T(' times · ', ' teams · ') + (tot.individuals || 0) + T(' individuais.', ' individuals.')));
+    T('Inscritos: ', 'Registered: ', 'Inscritos: ') + (tot.people || 0) + T(' pessoas · ', ' people · ', ' personas · ') + (tot.teams || 0)
+    + T(' times · ', ' teams · ', ' equipos · ') + (tot.individuals || 0) + T(' individuais.', ' individuals.', ' individuales.')));
 }
 
 async function load(quiet) {
   const c = document.getElementById('content');
-  if (!TARGET) { c.innerHTML = '<div class="error-box">' + T('Falta o contest (?c=…).', 'Missing contest (?c=…).') + '</div>'; return; }
+  if (!TARGET) { c.innerHTML = '<div class="error-box">' + T('Falta o contest (?c=…).', 'Missing contest (?c=…).', 'Falta la competencia (?c=…).') + '</div>'; return; }
   const s = await status(CONTEST);
   if (!s.logged_in) {
     clearInterval(tick);
     c.innerHTML = '<div class="notice" style="margin-top:1rem">'
       + T('Entre com a sua conta do Treino Livre (no topo da página) para se inscrever neste contest.',
-          'Log in with your Free Training account (top of the page) to register for this contest.') + '</div>';
+          'Log in with your Free Training account (top of the page) to register for this contest.',
+          'Entra con tu cuenta del Entrenamiento libre (arriba de la página) para inscribirte en esta competencia.') + '</div>';
     return;
   }
   window.__MOJ_LOGIN = s.login;
@@ -334,7 +350,7 @@ async function load(quiet) {
   } catch (e) {
     if (quiet) return;
     clearInterval(tick);
-    c.innerHTML = '<div class="error-box" style="margin-top:1rem">' + (e.message || T('falha ao carregar', 'failed to load')) + '</div>';
+    c.innerHTML = '<div class="error-box" style="margin-top:1rem">' + (e.message || T('falha ao carregar', 'failed to load', 'falló al cargar')) + '</div>';
   }
 }
 

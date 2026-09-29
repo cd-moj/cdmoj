@@ -16,7 +16,7 @@ export const EDITORS = [
   { id: 'visualstudio', label: 'Visual Studio' }, { id: 'eclipse', label: 'Eclipse' },
   { id: 'xcode', label: 'Xcode' }, { id: 'codeblocks', label: 'Code::Blocks' },
   { id: 'geany', label: 'Geany' }, { id: 'kate', label: 'Kate' }, { id: 'gedit', label: 'gedit' },
-  { id: 'other', label: T('Outro', 'Other') },
+  { id: 'other', label: T('Outro', 'Other', 'Otro') },
 ];
 export const editorLabel = (id) =>
-  id === 'web' ? T('Editor web (MOJ)', 'MOJ web editor') : ((EDITORS.find((e) => e.id === id) || {}).label || id || '—');
+  id === 'web' ? T('Editor web (MOJ)', 'MOJ web editor', 'Editor web (MOJ)') : ((EDITORS.find((e) => e.id === id) || {}).label || id || '—');

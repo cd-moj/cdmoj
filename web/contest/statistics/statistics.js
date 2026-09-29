@@ -57,43 +57,44 @@ function filterBar() {
   const bar = el('div', { class: 'fbar' });
   let selR = null; let selC = null;
   if (regs.length) {
-    selR = el('select', { id: 'fRegion' }, el('option', { value: '' }, T('todas', 'all')),
+    selR = el('select', { id: 'fRegion' }, el('option', { value: '' }, T('todas', 'all', 'todas')),
       ...regs.map((r) => el('option', { value: r.name }, '  '.repeat(r.depth) + r.name)));
     selR.value = dim.kind === 'r' ? dim.key : '';
     selR.addEventListener('change', () => {
       dim = selR.value ? { kind: 'r', key: selR.value } : { kind: '', key: '' };
       render();
     });
-    bar.append(el('label', {}, T('Sede:', 'Site:'), selR));
+    bar.append(el('label', {}, T('Sede:', 'Site:', 'Sede:'), selR));
   }
   if (ctys.length) {
-    selC = el('select', { id: 'fFlag' }, el('option', { value: '' }, T('todos', 'all')),
+    selC = el('select', { id: 'fFlag' }, el('option', { value: '' }, T('todos', 'all', 'todos')),
       ...ctys.map((c) => el('option', { value: c }, flagLabel(c))));
     selC.value = dim.kind === 'c' ? dim.key : '';
     selC.addEventListener('change', () => {
       dim = selC.value ? { kind: 'c', key: selC.value } : { kind: '', key: '' };
       render();
     });
-    bar.append(el('label', {}, T('País:', 'Country:'), selC));
+    bar.append(el('label', {}, T('País:', 'Country:', 'País:'), selC));
   }
   const note = el('span', { class: 'fcount', id: 'fCount' });
   if (dim.kind) {
     const s = currentStats();
     const nm = dim.kind === 'c' ? flagLabel(dim.key) : dim.key;
     note.textContent = T(`Recorte: ${nm} — ${s.totals.users} de ${statsAll.totals.users} participantes`,
-      `Selection: ${nm} — ${s.totals.users} of ${statsAll.totals.users} participants`);
+      `Selection: ${nm} — ${s.totals.users} of ${statsAll.totals.users} participants`,
+      `Selección: ${nm} — ${s.totals.users} de ${statsAll.totals.users} participantes`);
     bar.append(el('button', { type: 'button', onclick: () => { dim = { kind: '', key: '' }; render(); } },
-      T('limpar', 'clear')));
+      T('limpar', 'clear', 'limpiar')));
   } else {
-    note.textContent = T(`${statsAll.totals.users} participantes`, `${statsAll.totals.users} participants`);
+    note.textContent = T(`${statsAll.totals.users} participantes`, `${statsAll.totals.users} participants`, `${statsAll.totals.users} participantes`);
   }
   bar.append(note);
   return bar;
 }
 
 // analytics da SELEÇÃO (01/09): corrida/comparação/desempenho computam dos ac_events
-// GLOBAIS filtrados pelo recorte — nó da árvore casa por regex no login OU por
-// idx[login].r == nome; país casa por idx[login].c (paridade com o stats-gen).
+// GLOBAIS filtrados pelo recorte — nó da árvore pela pertença idx[login].rs (regra única de sedes);
+// país casa por idx[login].c (paridade com o stats-gen).
 function nodeRegex(list, name) {
   for (const r of list || []) {
     if ((r.name || '') === name && r.regex) return r.regex;
@@ -108,9 +109,16 @@ function analyticsFor() {
   let unr = null; try { unr = statsAll.unranked_regex ? new RegExp(statsAll.unranked_regex) : null; } catch { unr = null; }
   let filter = null;
   if (dim.kind === 'r') {
-    let re = null; try { const rx = nodeRegex(regionsTree, dim.key); re = rx ? new RegExp(rx) : null; } catch { re = null; }
     const key = dim.key.toLowerCase();
-    filter = (lg) => (re && re.test(lg)) || (((idx[lg] && idx[lg].r) || '').toLowerCase() === key);
+    // idx[login].rs = os nós em que o login ESTÁ pela regra única de sedes (server/api/v1/lib/regions.sh,
+    // calculado pelo stats-gen) — a mesma pertença das fatias by_region, sem regex no navegador. Estatística
+    // gerada antes de 28/09/2026 não traz `rs`: aí vale o casamento antigo (regex OU sede gravada).
+    const hasRs = Object.values(idx).some((v) => v && Array.isArray(v.rs));
+    if (hasRs) filter = (lg) => ((idx[lg] && idx[lg].rs) || []).some((n) => String(n).toLowerCase() === key);
+    else {
+      let re = null; try { const rx = nodeRegex(regionsTree, dim.key); re = rx ? new RegExp(rx) : null; } catch { re = null; }
+      filter = (lg) => (re && re.test(lg)) || (((idx[lg] && idx[lg].r) || '').toLowerCase() === key);
+    }
   } else if (dim.kind === 'c') {
     filter = (lg) => ((idx[lg] && idx[lg].c) || '') === dim.key;
   }
@@ -124,7 +132,7 @@ function render() {
 }
 
 async function boot() {
-  if (!CONTEST) { app.innerHTML = '<div class="error-box">' + T('Contest não informado.', 'Contest not specified.') + '</div>'; return; }
+  if (!CONTEST) { app.innerHTML = '<div class="error-box">' + T('Contest não informado.', 'Contest not specified.', 'Competencia no especificada.') + '</div>'; return; }
   let basic = null;
   try { basic = await apiGet('/contest/basic?contest=' + enc(CONTEST), {}); } catch { /* segue */ }
   try { await mountChrome(CONTEST, basic); } catch { /* nav opcional */ }
@@ -132,8 +140,8 @@ async function boot() {
   try { s = await apiGet('/contest/statistics?contest=' + enc(CONTEST), { contest: CONTEST, auth: true }); }
   catch (e) {
     app.innerHTML = '';
-    app.append(el('div', { class: 'section' }, el('h2', {}, T('🔒 Restrito', '🔒 Restricted')),
-      el('p', { class: 'muted' }, T('Estatísticas são visíveis a admin, juiz ou monitor do contest. (', 'Statistics are visible to the contest admin, judge or monitor. (') + (e.message || T('erro', 'error')) + ')')));
+    app.append(el('div', { class: 'section' }, el('h2', {}, T('🔒 Restrito', '🔒 Restricted', '🔒 Restringido')),
+      el('p', { class: 'muted' }, T('Estatísticas são visíveis a admin, juiz ou monitor do contest. (', 'Statistics are visible to the contest admin, judge or monitor. (', 'Las estadísticas son visibles para el admin, juez o monitor de la competencia. (') + (e.message || T('erro', 'error', 'error')) + ')')));
     return;
   }
   try { const pr = await apiGet('/contest/problems?contest=' + enc(CONTEST), { contest: CONTEST, auth: true }); (pr.problems || []).forEach((p) => { probMap[p.problem_id] = p.short_name; }); } catch { /* sem map */ }

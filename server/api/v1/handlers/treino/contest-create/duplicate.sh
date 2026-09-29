@@ -59,6 +59,10 @@ spec="$(jq -c --argjson probs "$probs" --argjson o "$body" --argjson now "$EPOCH
   | (if (.modules.sedes|type) == "object" then del(.modules.sedes.time_overrides) else . end)
   | (if $o.id then .id = $o.id else . end)
   | (if $o.admin then .admin = $o.admin else . end)
+  # usuários: NUNCA herdados do origem (o cabeçalho sempre disse isso, mas o export traz `users_from` e ele
+  # passava calado — duplicar um contest compartilhado criava outro compartilhado sem aviso; 28/09/2026).
+  # Compartilhar de novo = pedir explicitamente (`users_from` no body — o assistente passa pela confirmação).
+  | del(.users, .users_from)
   | (if $o.users then .users = $o.users else . end)
   | (if $o.users_from then .users_from = $o.users_from else . end)
   | (if ((.problems // [])|length) == 0 then .allow_empty = true else . end)' <<<"$base")"

@@ -13,11 +13,11 @@ import { T } from '/shared/i18n.js';
 
 export const DIFF_KEYS = ['veasy', 'easy', 'med', 'hard', 'new'];
 export const DIFF_META = {
-  veasy: { pt: 'muito fácil', en: 'very easy', cls: 'diff-easy', color: '#15803d' },
-  easy:  { pt: 'fácil',       en: 'easy',      cls: 'diff-easy', color: '#4ca464' },
-  med:   { pt: 'médio',       en: 'medium',    cls: 'diff-med',  color: '#9a6700' },
-  hard:  { pt: 'difícil',     en: 'hard',      cls: 'diff-hard', color: '#be1241' },
-  new:   { pt: 'novo',        en: 'new',       cls: '',          color: '#64748b' },
+  veasy: { pt: 'muito fácil', en: 'very easy', es: 'muy fácil', cls: 'diff-easy', color: '#15803d' },
+  easy:  { pt: 'fácil',       en: 'easy',      es: 'fácil',     cls: 'diff-easy', color: '#4ca464' },
+  med:   { pt: 'médio',       en: 'medium',    es: 'medio',     cls: 'diff-med',  color: '#9a6700' },
+  hard:  { pt: 'difícil',     en: 'hard',      es: 'difícil',   cls: 'diff-hard', color: '#be1241' },
+  new:   { pt: 'novo',        en: 'new',       es: 'nuevo',     cls: '',          color: '#64748b' },
 };
 export const DIFF_VEASY = 0.9, DIFF_EASY = 0.7, DIFF_MED = 0.5;
 
@@ -34,7 +34,7 @@ export function diffKeyOf(p) {
   if (!a) return 'new';
   return diffKeyFromRate((p.solved_count || p.distinct_solved || 0) / a);
 }
-export function diffLabel(key) { const m = DIFF_META[key] || DIFF_META.new; return T(m.pt, m.en); }
+export function diffLabel(key) { const m = DIFF_META[key] || DIFF_META.new; return T(m.pt, m.en, m.es); }
 export function diffClass(key) { return (DIFF_META[key] || DIFF_META.new).cls; }
 export function diffColor(key) { return (DIFF_META[key] || DIFF_META.new).color; }
 // {key,label,cls,color} de um problema — o pacote que as telas pintam
@@ -51,6 +51,8 @@ export function userRateOf(p) {
 export function dirtTone(d) { if (d == null) return ''; return d <= 0.2 ? 'dirt-low' : d <= 0.5 ? 'dirt-mid' : 'dirt-high'; }
 export function dirtText(d) { return d == null ? '—' : Math.round(d * 100) + '%'; }
 export const dirtHelp = () => T('dirt: parte das submissões de quem RESOLVEU que estava errada (métrica do resolver do ICPC). Alto = o problema pune erros.',
-  'dirt: the part of the SOLVERS’ submissions that was wrong (ICPC resolver metric). High = the problem punishes mistakes.');
+  'dirt: the part of the SOLVERS’ submissions that was wrong (ICPC resolver metric). High = the problem punishes mistakes.',
+  'dirt: la parte de los envíos de quienes RESOLVIERON que estaba mal (métrica del resolver de ICPC). Alto = el problema castiga los errores.');
 export const difficultyHelp = () => T('dificuldade: quem tenta consegue? Taxa por usuário (resolveram ÷ tentaram): ≥90% muito fácil · ≥70% fácil · ≥50% médio · <50% difícil.',
-  'difficulty: do those who try succeed? Per-user rate (solved ÷ attempted): ≥90% very easy · ≥70% easy · ≥50% medium · <50% hard.');
+  'difficulty: do those who try succeed? Per-user rate (solved ÷ attempted): ≥90% very easy · ≥70% easy · ≥50% medium · <50% hard.',
+  'dificultad: ¿quienes lo intentan lo logran? Tasa por usuario (resolvieron ÷ intentaron): ≥90% muy fácil · ≥70% fácil · ≥50% medio · <50% difícil.');

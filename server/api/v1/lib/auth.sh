@@ -25,13 +25,39 @@ SESSION_IP=""; SESSION_UA_B64=""; SESSION_MKEY=""
 # compartilhado tem dir local SEM account.json de propósito (a identidade vem da fonte — ver
 # sc_users em score/score-common.sh), e um user_exists cru barraria submissão legítima.
 # A fonte só é consultada quando o account.json local falta: custo zero no caminho comum.
+# E, pela fonte, conta de PAPEL só vive se _shared_role_ok (28/09/2026): a sessão já aberta do `.admin`
+# de outro professor, ou de um `.judge` do treino, morre na próxima requisição.
 _session_account_alive() {
   local c="$1" u="$2" src
   [[ -n "$c" && -n "$u" ]] || return 1
   valid_id "$c" && valid_id "$u" || return 1
   [[ -f "$CONTESTSDIR/$c/users/$u/account.json" ]] && return 0
   src="$(_users_source "$c")"
-  [[ "$src" != "$c" && -f "$CONTESTSDIR/$src/users/$u/account.json" ]]
+  [[ "$src" != "$c" && -f "$CONTESTSDIR/$src/users/$u/account.json" ]] || return 1
+  _shared_role_ok "$c" "$u"
+}
+
+# CONTEST COMPARTILHADO × PAPÉIS (28/09/2026). Num contest com USERS_FROM a senha pode ser conferida na
+# FONTE (o treino) — e o papel vem só do SUFIXO do login. Sem este corte, qualquer `.admin`/`.judge`/
+# `.staff` do treino entrava com esse papel em TODO contest compartilhado: na produção, 9 `.admin` de
+# autores × 14 contests — o admin de um professor administrava a prova de outro. Agora, pela fonte, conta
+# de papel só entra se for o admin DONO do contest (SHARED_ADMIN, ou o derivado do `owner` em contest
+# antigo) ou um SUPERADMIN. Juiz/staff/co-organizador de contest compartilhado = conta LOCAL (Pessoas ›
+# Contas). Competidores seguem entrando pela conta do treino.
+# shared_admin_login <c> — o `.admin` do treino que administra o contest compartilhado.
+shared_admin_login() {
+  local a o=""; a="$(conf_value "$1" SHARED_ADMIN)"
+  if [[ -z "$a" ]]; then
+    [[ -r "$CONTESTSDIR/$1/owner" ]] && IFS= read -r o < "$CONTESTSDIR/$1/owner"
+    [[ -n "$o" ]] && a="${o%.admin}.admin"
+  fi
+  printf '%s' "$a"
+}
+# _shared_role_ok <c> <login> — esse login pode entrar pela conta da FONTE? (não-papel: sempre)
+_shared_role_ok() {
+  is_reserved_role_login "$2" || return 0
+  [[ "$2" == "$(shared_admin_login "$1")" ]] && return 0
+  superadmin_login "$2"
 }
 
 # load_session -> 0 se autenticado (popula SESSION_*), 1 caso contrário.
@@ -97,9 +123,8 @@ require_chief(){ require_auth; is_chief || fail 403 "Chief judge only" "chief_re
 # _users_source <contest> — fonte dos usuários: USERS_FROM do conf (ex.: treino) se válido,
 # senão o próprio contest. Lido com grep (NÃO faz source do conf no caminho de auth).
 _users_source() {
-  local c="$1" line src
-  line="$(grep -m1 '^USERS_FROM=' "$CONTESTSDIR/$c/conf" 2>/dev/null)"
-  src="${line#USERS_FROM=}"; src="${src%\'}"; src="${src#\'}"; src="${src%\"}"; src="${src#\"}"
+  local c="$1" src
+  src="$(conf_value "$c" USERS_FROM)"       # builtin (sem grep): roda no caminho de auth
   if [[ -n "$src" ]] && valid_id "$src" && [[ "$src" != "$c" ]] && [[ -d "$CONTESTSDIR/$src/users" ]]; then
     printf '%s' "$src"
   else printf '%s' "$c"; fi
@@ -109,13 +134,17 @@ _users_source() {
 # contest (O(1)) e, se houver USERS_FROM, cai para a fonte compartilhada (ex.: treino).
 # valid_id no login ANTES de montar caminho (input do usuário — sem traversal). Senha com
 # prefixo '!' = conta desativada (o literal nunca casa com o que o usuário digita).
+# Senha LOCAL não-vazia é AUTORITATIVA (28/09/2026): não há fallback p/ a fonte. É o que faz o bloqueio de
+# um participante compartilhado funcionar (a desabilitação grava `!…` no overlay local) e o que faz uma
+# conta local criada pelo admin valer só com a senha dela. Pela fonte, conta de papel só com _shared_role_ok.
 verify_password() {
   valid_id "$2" || return 1
   local p
   p="$(jq -r '.password // empty' "$CONTESTSDIR/$1/users/$2/account.json" 2>/dev/null)"
-  [[ -n "$p" && "$p" == "$3" ]] && return 0
+  if [[ -n "$p" ]]; then [[ "$p" == "$3" ]]; return; fi
   local src; src="$(_users_source "$1")"
   [[ "$src" != "$1" ]] || return 1
+  _shared_role_ok "$1" "$2" || return 1
   p="$(jq -r '.password // empty' "$CONTESTSDIR/$src/users/$2/account.json" 2>/dev/null)"
   [[ -n "$p" && "$p" == "$3" ]]
 }

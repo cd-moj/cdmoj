@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="pt-br" data-en-doctitle="Edit Problem — MOJ">
+<html lang="pt-br" data-en-doctitle="Edit Problem — MOJ" data-es-doctitle="Editar problema — MOJ">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -161,8 +161,8 @@
         <span class="slogan">Melhor Online Judge</span> <span class="badge-beta">BETA</span></a>
       <div class="spacer"></div>
       <nav class="navlinks">
-        <a href="/problemas/" data-en="‹ Problem Management">‹ Gestão de Problemas</a>
-        <a href="/docs/" target="_blank" data-en="Documentation">Documentação</a>
+        <a href="/problemas/" data-en="‹ Problem Management" data-es="‹ Gestión de problemas">‹ Gestão de Problemas</a>
+        <a href="/docs/" target="_blank" data-en="Documentation" data-es="Documentación">Documentação</a>
         <span id="authArea" class="row"></span>
       </nav>
     </div>
@@ -170,12 +170,12 @@
 
   <main class="container">
     <div id="needauth" class="section" style="display:none">
-      <div class="error-box" data-en="Sign in with your MOJ login to create/edit problems.">Entre com seu login do MOJ para criar/editar problemas.</div>
+      <div class="error-box" data-en="Sign in with your MOJ login to create/edit problems." data-es="Inicia sesión con tu usuario de MOJ para crear o editar problemas.">Entre com seu login do MOJ para criar/editar problemas.</div>
     </div>
 
     <div id="app" style="display:none">
       <div class="row" style="justify-content:space-between;align-items:baseline">
-        <h2 id="title" style="margin:.2rem 0" data-en="New Problem">Novo Problema</h2>
+        <h2 id="title" style="margin:.2rem 0" data-en="New Problem" data-es="Nuevo problema">Novo Problema</h2>
         <span id="note" class="small" style="display:none"></span>
       </div>
 
@@ -184,69 +184,69 @@
 
       <!-- navegação por abas -->
       <div id="tabnav" class="tabs">
-        <button class="tab on" type="button" data-tab="enun" data-en="Statement">Enunciado</button>
-        <button class="tab" type="button" data-tab="tests"><span data-en="Tests &amp; Scoring">Testes &amp; Pontuação</span> <span class="mini" id="tabTestsMini"></span></button>
-        <button class="tab" type="button" data-tab="sols"><span data-en="Solutions &amp; Grading">Soluções &amp; Correção</span> <span class="mini" id="tabSolsMini"></span></button>
-        <button class="tab" type="button" data-tab="resol" data-en="Editorial">Resolução</button>
-        <button class="tab" type="button" data-tab="limits" data-en="Limits">Limites</button>
-        <button class="tab" type="button" data-tab="pub" data-en="Publishing &amp; Package">Publicação &amp; Pacote</button>
-        <button class="tab" type="button" data-tab="issues"><span data-en="🐞 Issues">🐞 Issues</span> <span class="mini" id="tabIssuesMini"></span></button>
-        <button class="tab" type="button" data-tab="hist" data-en="🕘 History">🕘 Histórico</button>
+        <button class="tab on" type="button" data-tab="enun" data-en="Statement" data-es="Enunciado">Enunciado</button>
+        <button class="tab" type="button" data-tab="tests"><span data-en="Tests &amp; Scoring" data-es="Pruebas y puntuación">Testes &amp; Pontuação</span> <span class="mini" id="tabTestsMini"></span></button>
+        <button class="tab" type="button" data-tab="sols"><span data-en="Solutions &amp; Grading" data-es="Soluciones y corrección">Soluções &amp; Correção</span> <span class="mini" id="tabSolsMini"></span></button>
+        <button class="tab" type="button" data-tab="resol" data-en="Editorial" data-es="Editorial">Resolução</button>
+        <button class="tab" type="button" data-tab="limits" data-en="Limits" data-es="Límites">Limites</button>
+        <button class="tab" type="button" data-tab="pub" data-en="Publishing &amp; Package" data-es="Publicación y paquete">Publicação &amp; Pacote</button>
+        <button class="tab" type="button" data-tab="issues"><span data-en="🐞 Issues" data-es="🐞 Incidencias">🐞 Issues</span> <span class="mini" id="tabIssuesMini"></span></button>
+        <button class="tab" type="button" data-tab="hist" data-en="🕘 History" data-es="🕘 Historial">🕘 Histórico</button>
       </div>
 
       <!-- ================= ABA: ENUNCIADO ================= -->
       <section class="tabpane" data-pane="enun">
         <div class="section">
-          <h3 style="margin:0 0 .5rem" data-en="Identification">Identificação</h3>
+          <h3 style="margin:0 0 .5rem" data-en="Identification" data-es="Identificación">Identificação</h3>
           <div class="grid2">
             <div class="field">
-              <label data-en="Org — where the problem is saved">Org — onde o problema fica salvo</label>
+              <label data-en="Org — where the problem is saved" data-es="Org — dónde se guarda el problema">Org — onde o problema fica salvo</label>
               <div class="row">
                 <select id="repo" style="flex:1"></select>
-                <button id="newdir" class="btn ghost" type="button" data-en="+ new org">+ nova org</button>
-                <button id="moveorg" class="btn ghost" type="button" style="display:none" title="Mover este rascunho para outra org de que você faz parte (muda o id)" data-en-title="Move this draft to another org you belong to (changes the id)" data-en="Move…">Mover…</button>
+                <button id="newdir" class="btn ghost" type="button" data-en="+ new org" data-es="+ nueva org">+ nova org</button>
+                <button id="moveorg" class="btn ghost" type="button" style="display:none" title="Mover este rascunho para outra org de que você faz parte (muda o id)" data-en-title="Move this draft to another org you belong to (changes the id)" data-es-title="Mueve este borrador a otra org a la que perteneces (cambia el id)" data-en="Move…" data-es="Mover…">Mover…</button>
               </div>
               <div id="repoHint" class="small" style="display:none;margin-top:.3rem;color:#ffd98a"></div>
             </div>
             <div class="field">
-              <label data-en="Problem name (slug — lowercase, no spaces)">Nome do problema (slug — minúsculas, sem espaço)</label>
-              <input id="prob" type="text" placeholder="ex: soma-a-b" data-en-ph="e.g. soma-a-b">
+              <label data-en="Problem name (slug — lowercase, no spaces)" data-es="Nombre del problema (slug — minúsculas, sin espacios)">Nome do problema (slug — minúsculas, sem espaço)</label>
+              <input id="prob" type="text" placeholder="ex: soma-a-b" data-en-ph="e.g. soma-a-b" data-es-ph="ej. soma-a-b">
             </div>
           </div>
           <div class="grid2">
-            <div class="field"><label data-en="Title">Título</label><input id="ptitle" type="text"></div>
-            <div class="field"><label data-en="Author(s)">Autor(es)</label><input id="pauthor" type="text"></div>
+            <div class="field"><label data-en="Title" data-es="Título">Título</label><input id="ptitle" type="text"></div>
+            <div class="field"><label data-en="Author(s)" data-es="Autor(es)">Autor(es)</label><input id="pauthor" type="text"></div>
           </div>
-          <div class="field"><label data-en="Tags (comma)">Tags (vírgula)</label><input id="ptags" type="text" placeholder="grafos, dp" data-en-ph="graphs, dp"></div>
+          <div class="field"><label data-en="Tags (comma)" data-es="Etiquetas (coma)">Tags (vírgula)</label><input id="ptags" type="text" placeholder="grafos, dp" data-en-ph="graphs, dp" data-es-ph="grafos, dp"></div>
         </div>
 
         <div class="section">
           <div class="row" style="justify-content:space-between;align-items:center">
-            <h3 style="margin:0" data-en="Statement (Markdown)">Enunciado (Markdown)</h3>
+            <h3 style="margin:0" data-en="Statement (Markdown)" data-es="Enunciado (Markdown)">Enunciado (Markdown)</h3>
             <div class="row" style="gap:.4rem;align-items:center">
               <!-- idiomas do enunciado: PT é o texto principal (docs/enunciado.md); EN/ES viram docs/enunciado.<lang>.md -->
-              <div id="stmtLangBar" class="stmt-chips" title="Idioma do enunciado" data-en-title="Statement language"></div>
-              <button id="stmtToggle" class="btn ghost" type="button" title="Editar Descrição/Entrada/Saída/Observações em campos separados (ou voltar a um só) — vale para o idioma ativo" data-en-title="Edit Description/Input/Output/Notes in separate fields (or back to one) — applies to the active language">✂ Separar em seções</button>
-              <button id="preview" class="btn ghost" type="button" data-en="👁 Preview">👁 Pré-visualizar</button>
+              <div id="stmtLangBar" class="stmt-chips" title="Idioma do enunciado" data-en-title="Statement language" data-es-title="Idioma del enunciado"></div>
+              <button id="stmtToggle" class="btn ghost" type="button" title="Editar Descrição/Entrada/Saída/Observações em campos separados (ou voltar a um só) — vale para o idioma ativo" data-en-title="Edit Description/Input/Output/Notes in separate fields (or back to one) — applies to the active language" data-es-title="Edita Descripción/Entrada/Salida/Notas en campos separados (o vuelve a uno solo) — aplica al idioma activo">✂ Separar em seções</button>
+              <button id="preview" class="btn ghost" type="button" data-en="👁 Preview" data-es="👁 Vista previa">👁 Pré-visualizar</button>
             </div>
           </div>
-          <p id="transHint" class="small muted" style="display:none"><span data-en="Translation of the statement. Portuguese is the main text and is required. The translated title goes in the field below. The explanation of each sample has a field per language in the Tests tab. A sample without a translated explanation shows the Portuguese one. The examples come from the tests, in every language. The ✂ button splits this language into Description/Input/Output/Notes; when merged, the headings come out in the language (## Input / ## Output, ## Entrada / ## Salida).">Tradução do enunciado. O português é o texto principal e é obrigatório. O título traduzido vai no campo abaixo. A explicação de cada exemplo tem um campo por idioma na aba Testes. Exemplo sem explicação traduzida mostra a explicação em português. Os exemplos vêm dos testes, em todos os idiomas. O botão ✂ separa este idioma em Descrição/Entrada/Saída/Observações; ao juntar, os cabeçalhos saem no idioma (## Input / ## Output, ## Entrada / ## Salida).</span></p>
-          <p class="small muted"><span data-en="Problem description +">Descrição do problema +</span> <code>## Entrada</code>, <code>## Saída</code>,
-            <code>## Observações</code><span data-en=". The">. O</span> <b data-en="title">título</b> <span data-en="comes from the field above (do not write it in the text). The">vem do campo lá em cima (não escreva no texto). Os</span>
-            <b data-en="examples">exemplos</b> <span data-en="come from the list below (do not write them here).">vêm da lista abaixo (não os escreva aqui).</span> <b data-en="Images">Imagens</b><span data-en=": paste or drag into the editor.">: cole ou arraste no editor.</span></p>
+          <p id="transHint" class="small muted" style="display:none"><span data-en="Translation of the statement. Portuguese is the main text and is required. The translated title goes in the field below. The explanation of each sample has a field per language in the Tests tab. A sample without a translated explanation shows the Portuguese one. The examples come from the tests, in every language. The ✂ button splits this language into Description/Input/Output/Notes; when merged, the headings come out in the language (## Input / ## Output, ## Entrada / ## Salida)." data-es="Traducción del enunciado. El portugués es el texto principal y es obligatorio. El título traducido va en el campo de abajo. La explicación de cada ejemplo tiene un campo por idioma en la pestaña Pruebas. Un ejemplo sin explicación traducida muestra la del portugués. Los ejemplos salen de las pruebas, en todos los idiomas. El botón ✂ separa este idioma en Descripción/Entrada/Salida/Notas; al fusionar, los encabezados salen en el idioma (## Input / ## Output, ## Entrada / ## Salida).">Tradução do enunciado. O português é o texto principal e é obrigatório. O título traduzido vai no campo abaixo. A explicação de cada exemplo tem um campo por idioma na aba Testes. Exemplo sem explicação traduzida mostra a explicação em português. Os exemplos vêm dos testes, em todos os idiomas. O botão ✂ separa este idioma em Descrição/Entrada/Saída/Observações; ao juntar, os cabeçalhos saem no idioma (## Input / ## Output, ## Entrada / ## Salida).</span></p>
+          <p class="small muted"><span data-en="Problem description +" data-es="Descripción del problema +">Descrição do problema +</span> <code>## Entrada</code>, <code>## Saída</code>,
+            <code>## Observações</code><span data-en=". The" data-es=". El">. O</span> <b data-en="title" data-es="título">título</b> <span data-en="comes from the field above (do not write it in the text). The" data-es="viene del campo de arriba (no lo escribas en el texto). Los">vem do campo lá em cima (não escreva no texto). Os</span>
+            <b data-en="examples" data-es="ejemplos">exemplos</b> <span data-en="come from the list below (do not write them here)." data-es="vienen de la lista de abajo (no los escribas aquí).">vêm da lista abaixo (não os escreva aqui).</span> <b data-en="Images" data-es="Imágenes">Imagens</b><span data-en=": paste or drag into the editor." data-es=": pega o arrastra dentro del editor.">: cole ou arraste no editor.</span></p>
           <div id="enunMount" class="editor-mount"></div>
           <div id="enunModular" style="display:none">
-            <div class="field"><label data-en="Description">Descrição</label><div id="descMount" class="editor-mount"></div></div>
-            <div class="field"><label><span data-en="Input (becomes">Entrada (vira</span> <code>## Entrada</code>)</label><div id="entMount" class="editor-mount sec"></div></div>
-            <div class="field"><label><span data-en="Output (becomes">Saída (vira</span> <code>## Saída</code>)</label><div id="saiMount" class="editor-mount sec"></div></div>
-            <div class="field"><label><span data-en="Notes (becomes">Observações (vira</span> <code>## Observações</code><span data-en=") — optional">) — opcional</span></label><div id="obsMount" class="editor-mount sec"></div></div>
+            <div class="field"><label data-en="Description" data-es="Descripción">Descrição</label><div id="descMount" class="editor-mount"></div></div>
+            <div class="field"><label><span data-en="Input (becomes" data-es="Entrada (se vuelve">Entrada (vira</span> <code>## Entrada</code>)</label><div id="entMount" class="editor-mount sec"></div></div>
+            <div class="field"><label><span data-en="Output (becomes" data-es="Salida (se vuelve">Saída (vira</span> <code>## Saída</code>)</label><div id="saiMount" class="editor-mount sec"></div></div>
+            <div class="field"><label><span data-en="Notes (becomes" data-es="Notas (se vuelve">Observações (vira</span> <code>## Observações</code><span data-en=") — optional" data-es=") — opcional">) — opcional</span></label><div id="obsMount" class="editor-mount sec"></div></div>
           </div>
           <!-- enunciado TRADUZIDO (um editor por idioma, criado ao abrir o chip) -->
           <div id="transMount" style="display:none">
-            <div class="field"><label><span data-en="Title in this language">Título neste idioma</span></label><input id="transTitle" type="text" placeholder="Hello World"></div>
+            <div class="field"><label><span data-en="Title in this language" data-es="Título en este idioma">Título neste idioma</span></label><input id="transTitle" type="text" placeholder="Hello World"></div>
             <div id="transEdMounts"></div>
             <div class="row" style="justify-content:flex-end;margin-top:.4rem">
-              <button id="transRemove" class="btn ghost danger" type="button" data-en="✕ remove this language">✕ remover este idioma</button>
+              <button id="transRemove" class="btn ghost danger" type="button" data-en="✕ remove this language" data-es="✕ quitar este idioma">✕ remover este idioma</button>
             </div>
           </div>
         </div>
@@ -255,27 +255,27 @@
       <!-- ================= ABA: TESTES & PONTUAÇÃO ================= -->
       <section class="tabpane" data-pane="tests" hidden>
         <div class="section">
-          <h3 data-en="Samples (input / output) — visible in the statement">Exemplos (entrada / saída) — visíveis no enunciado</h3>
-          <div id="sampleOffNote" class="notice" style="margin:.4rem 0" hidden><span data-en="This problem is marked as having no samples (">Este problema está marcado como sem exemplos (</span><code>SAMPLE=no</code><span data-en=", Limits tab). The statement shows no sample box and there is nothing to download, even with the samples below — they still grade, like any test. Put the example in the statement text (section ## Example).">, aba Limites). O enunciado não mostra a caixa de exemplos e não há exemplo para baixar, mesmo com os exemplos abaixo — eles continuam corrigindo, como qualquer teste. Ponha o exemplo no texto do enunciado (seção ## Exemplo).</span></div>
+          <h3 data-en="Samples (input / output) — visible in the statement" data-es="Ejemplos (entrada / salida) — visibles en el enunciado">Exemplos (entrada / saída) — visíveis no enunciado</h3>
+          <div id="sampleOffNote" class="notice" style="margin:.4rem 0" hidden><span data-en="This problem is marked as having no samples (" data-es="Este problema está marcado como sin ejemplos (">Este problema está marcado como sem exemplos (</span><code>SAMPLE=no</code><span data-en=", Limits tab). The statement shows no sample box and there is nothing to download, even with the samples below — they still grade, like any test. Put the example in the statement text (section ## Example)." data-es=", pestaña Límites). El enunciado no muestra caja de ejemplo y no hay nada que descargar, aunque haya ejemplos abajo — igual se evalúan, como cualquier prueba. Pon el ejemplo en el texto del enunciado (sección ## Example).">, aba Limites). O enunciado não mostra a caixa de exemplos e não há exemplo para baixar, mesmo com os exemplos abaixo — eles continuam corrigindo, como qualquer teste. Ponha o exemplo no texto do enunciado (seção ## Exemplo).</span></div>
           <div id="examples"></div>
-          <button id="addex" class="btn ghost" type="button" data-en="+ add sample">+ adicionar exemplo</button>
+          <button id="addex" class="btn ghost" type="button" data-en="+ add sample" data-es="+ agregar ejemplo">+ adicionar exemplo</button>
         </div>
 
         <div class="section">
           <label class="row" style="gap:.4rem;align-items:center">
-            <input type="checkbox" id="scoreEnabled"> <b data-en="Group scoring (subtasks)">Pontuação por grupos (subtasks)</b>
-            <span class="small muted" data-en="each test group has a weight; all-or-nothing per group (OBI style)">cada grupo de testes vale um peso; tudo-ou-nada por grupo (estilo OBI)</span>
+            <input type="checkbox" id="scoreEnabled"> <b data-en="Group scoring (subtasks)" data-es="Puntuación por grupos (subtareas)">Pontuação por grupos (subtasks)</b>
+            <span class="small muted" data-en="each test group has a weight; all-or-nothing per group (OBI style)" data-es="cada grupo de pruebas tiene un peso; todo o nada por grupo (estilo OBI)">cada grupo de testes vale um peso; tudo-ou-nada por grupo (estilo OBI)</span>
           </label>
           <div id="scoreBox" style="display:none;margin-top:.5rem">
-            <p class="small muted"><span data-en="Define the">Defina os</span> <b data-en="groups">grupos</b> <span data-en="and their">e seus</span> <b data-en="weights">pesos</b><span data-en=". The sum is the">. A soma é o</span> <b data-en="problem's total value">valor total do problema</b>
-              <span data-en="(can be 100, more or less — you choose). Each hidden test below picks its group:">(pode ser 100, mais ou menos — você escolhe). Cada teste oculto abaixo escolhe seu grupo:</span>
-              <i>auto</i> <span data-en="matches by the">casa pelo</span> <b data-en="pattern">padrão</b> <span data-en="of the name (e.g.">do nome (ex.:</span> <code>g2_*</code><span data-en="), or pin a group and the UI handles the file name.">), ou fixe um grupo e a UI cuida do nome do arquivo.</span></p>
+            <p class="small muted"><span data-en="Define the" data-es="Define los">Defina os</span> <b data-en="groups" data-es="grupos">grupos</b> <span data-en="and their" data-es="y sus">e seus</span> <b data-en="weights" data-es="pesos">pesos</b><span data-en=". The sum is the" data-es=". La suma es el">. A soma é o</span> <b data-en="problem's total value" data-es="valor total del problema">valor total do problema</b>
+              <span data-en="(can be 100, more or less — you choose). Each hidden test below picks its group:" data-es="(puede ser 100, más o menos — tú eliges). Cada prueba oculta de abajo elige su grupo:">(pode ser 100, mais ou menos — você escolhe). Cada teste oculto abaixo escolhe seu grupo:</span>
+              <i>auto</i> <span data-en="matches by the" data-es="coincide por el">casa pelo</span> <b data-en="pattern" data-es="patrón">padrão</b> <span data-en="of the name (e.g." data-es="del nombre (ej.">do nome (ex.:</span> <code>g2_*</code><span data-en="), or pin a group and the UI handles the file name." data-es="), o fija un grupo y la interfaz se encarga del nombre del archivo.">), ou fixe um grupo e a UI cuida do nome do arquivo.</span></p>
             <table class="scoregroups">
-              <thead><tr><th data-en="Group">Grupo</th><th data-en="Weight (points)">Peso (pontos)</th><th data-en="Name pattern (glob)">Padrão de nome (glob)</th><th></th></tr></thead>
+              <thead><tr><th data-en="Group" data-es="Grupo">Grupo</th><th data-en="Weight (points)" data-es="Peso (puntos)">Peso (pontos)</th><th data-en="Name pattern (glob)" data-es="Patrón de nombre (glob)">Padrão de nome (glob)</th><th></th></tr></thead>
               <tbody id="scoreGroups"></tbody>
             </table>
             <div class="row" style="gap:.6rem;align-items:center">
-              <button id="addGroup" class="btn ghost" type="button" data-en="+ group">+ grupo</button>
+              <button id="addGroup" class="btn ghost" type="button" data-en="+ group" data-es="+ grupo">+ grupo</button>
               <span id="scoreTotal" class="small"></span>
             </div>
           </div>
@@ -283,15 +283,15 @@
 
         <div class="section">
           <div class="row" style="justify-content:space-between;align-items:center">
-            <h3 style="margin:0" data-en="Hidden tests (used in grading)">Testes ocultos (usados na correção)</h3>
-            <span class="small muted" data-en="not shown in the statement">não aparecem no enunciado</span>
+            <h3 style="margin:0" data-en="Hidden tests (used in grading)" data-es="Pruebas ocultas (usadas en la corrección)">Testes ocultos (usados na correção)</h3>
+            <span class="small muted" data-en="not shown in the statement" data-es="no se muestran en el enunciado">não aparecem no enunciado</span>
           </div>
           <div id="tests"></div>
           <div class="row" style="gap:.5rem;margin-top:.4rem">
-            <button id="addtest" class="btn ghost" type="button" data-en="+ add test">+ adicionar teste</button>
-            <label class="btn ghost" style="cursor:pointer"><span data-en="⬆ upload pairs (input/output)">⬆ enviar pares (entrada/saída)</span>
+            <button id="addtest" class="btn ghost" type="button" data-en="+ add test" data-es="+ agregar prueba">+ adicionar teste</button>
+            <label class="btn ghost" style="cursor:pointer"><span data-en="⬆ upload pairs (input/output)" data-es="⬆ subir pares (entrada/salida)">⬆ enviar pares (entrada/saída)</span>
               <input id="testpair" type="file" multiple hidden></label>
-            <span class="small muted"><span data-en="files">arquivos</span> <code>*.in</code>/<code>*.out</code> <span data-en="(or">(ou</span> <code>.txt</code><span data-en=") pair up by name">) emparelham pelo nome</span></span>
+            <span class="small muted"><span data-en="files" data-es="archivos">arquivos</span> <code>*.in</code>/<code>*.out</code> <span data-en="(or" data-es="(o">(ou</span> <code>.txt</code><span data-en=") pair up by name" data-es=") se emparejan por nombre">) emparelham pelo nome</span></span>
           </div>
         </div>
       </section>
@@ -299,31 +299,31 @@
       <!-- ================= ABA: SOLUÇÕES & CORREÇÃO ================= -->
       <section class="tabpane" data-pane="sols" hidden>
         <div class="section">
-          <h3 data-en="Solutions &amp; Grading">Soluções &amp; Correção</h3>
-          <p class="small muted"><span data-en="Each category defines the">Cada categoria define o</span> <b data-en="result the solution must obtain">resultado que a solução deve obter</b> <span data-en="on the judge. The calibration (the Calibrate button) runs these solutions on a judge and checks that each one does what its category requires — the result per solution appears in “Validation &amp; calibration” (Publishing tab). This is how you know your tests are strong. Edit in the editor (with a language selector) or upload files. In the sub-tab">no juiz.
+          <h3 data-en="Solutions &amp; Grading" data-es="Soluciones y corrección">Soluções &amp; Correção</h3>
+          <p class="small muted"><span data-en="Each category defines the" data-es="Cada categoría define el">Cada categoria define o</span> <b data-en="result the solution must obtain" data-es="resultado que la solución debe obtener">resultado que a solução deve obter</b> <span data-en="on the judge. The calibration (the Calibrate button) runs these solutions on a judge and checks that each one does what its category requires — the result per solution appears in “Validation &amp; calibration” (Publishing tab). This is how you know your tests are strong. Edit in the editor (with a language selector) or upload files. In the sub-tab" data-es="en el juez. La calibración (el botón Calibrar) corre estas soluciones en un juez y verifica que cada una haga lo que su categoría exige — el resultado por solución aparece en “Validación y calibración” (pestaña Publicación). Así sabes que tus pruebas son sólidas. Edita en el editor (con un selector de idioma) o sube archivos. En la subpestaña">no juiz.
             A calibração (botão Calibrar) roda essas soluções num juiz e confere se cada uma faz o que a categoria
             pede — o resultado por solução aparece em “Validação &amp; calibração” (aba Publicação). É assim que você
             sabe que os testes estão fortes. Edite no editor (com seletor de linguagem) ou envie arquivos.
-            Na sub-aba</span> <b data-en="⚙ grading">⚙ correção</b> <span data-en="you change the">você muda o</span> <b data-en="grading mode">modo de correção</b> <span data-en="(checker, comparator, interactive…).">(checker, comparador, interativo…).</span></p>
+            Na sub-aba</span> <b data-en="⚙ grading" data-es="⚙ corrección">⚙ correção</b> <span data-en="you change the" data-es="cambias el">você muda o</span> <b data-en="grading mode" data-es="modo de corrección">modo de correção</b> <span data-en="(checker, comparator, interactive…)." data-es="(checker, comparador, interactivo…).">(checker, comparador, interativo…).</span></p>
           <div id="solsWrap"></div>
           <!-- painel da CORREÇÃO ESPECIAL: vive FORA do #solsWrap (o renderSols o reconstrói e
                destruiria os editores); é um .solpanel data-cat="scr" — a subtab ⚙ e o flash da
                árvore do pacote o abrem pelo mesmo mecanismo das categorias de solução. -->
           <div id="scrPanel" class="solpanel" data-cat="scr" hidden>
             <p class="small muted" style="margin:.2rem 0 .4rem">
-              <b data-en="Special grading">Correção especial</b> (<code>scripts/</code> <span data-en="from the package) — overrides the default grading:">do pacote) — sobrepõe a correção padrão:</span>
-              <code>compare.sh</code> <span data-en="(comparator),">(comparador),</span> <code>&lt;lang&gt;/compile.sh</code> <span data-en="and">e</span>
-              <code>&lt;lang&gt;/run.sh</code> <span data-en="per language, testlib checker, interactive problem… Start from a">por linguagem, checker testlib, problema interativo…
-              Comece por um</span> <b>template</b> <span data-en="and adjust. Changing this alters the package checksum ⇒ the judge">e ajuste. Mexer aqui muda o checksum do pacote ⇒ o juiz</span> <b data-en="recalibrates">recalibra</b>.
+              <b data-en="Special grading" data-es="Corrección especial">Correção especial</b> (<code>scripts/</code> <span data-en="from the package) — overrides the default grading:" data-es="del paquete) — sobrescribe la corrección por defecto:">do pacote) — sobrepõe a correção padrão:</span>
+              <code>compare.sh</code> <span data-en="(comparator)," data-es="(comparador),">(comparador),</span> <code>&lt;lang&gt;/compile.sh</code> <span data-en="and" data-es="y">e</span>
+              <code>&lt;lang&gt;/run.sh</code> <span data-en="per language, testlib checker, interactive problem… Start from a" data-es="por lenguaje, checker de testlib, problema interactivo… Empieza desde una">por linguagem, checker testlib, problema interativo…
+              Comece por um</span> <b>template</b> <span data-en="and adjust. Changing this alters the package checksum ⇒ the judge" data-es="y ajusta. Cambiar esto altera el checksum del paquete ⇒ el juez">e ajuste. Mexer aqui muda o checksum do pacote ⇒ o juiz</span> <b data-en="recalibrates" data-es="recalibra">recalibra</b>.
             </p>
             <div class="row" style="gap:.4rem;flex-wrap:wrap;align-items:center;margin-bottom:.4rem">
-              <span class="small muted" data-en="Template (ADDITIVE — fills its slot, keeps the rest):">Template (ADITIVO — preenche o slot dele, preserva o resto):</span>
-              <select id="scrTplSel" class="small"><option value="" data-en="(choose…)">(escolha…)</option></select>
-              <button class="btn ghost" type="button" id="scrTplApply" data-en="+ Add template">+ Adicionar template</button>
-              <button class="btn ghost" type="button" id="scrClear" title="remover todos os scripts (todos os slots)" data-en-title="remove all scripts (every slot)" data-en="🧹 clear">🧹 limpar</button>
+              <span class="small muted" data-en="Template (ADDITIVE — fills its slot, keeps the rest):" data-es="Plantilla (ADITIVA — llena su slot, conserva el resto):">Template (ADITIVO — preenche o slot dele, preserva o resto):</span>
+              <select id="scrTplSel" class="small"><option value="" data-en="(choose…)" data-es="(elige…)">(escolha…)</option></select>
+              <button class="btn ghost" type="button" id="scrTplApply" data-en="+ Add template" data-es="+ Agregar plantilla">+ Adicionar template</button>
+              <button class="btn ghost" type="button" id="scrClear" title="remover todos os scripts (todos os slots)" data-en-title="remove all scripts (every slot)" data-es-title="quitar todos los scripts (todos los slots)" data-en="🧹 clear" data-es="🧹 limpiar">🧹 limpar</button>
               <span style="flex:1"></span>
-              <button class="btn ghost" type="button" id="scrAdd" data-en="+ file">+ arquivo</button>
-              <button class="btn ghost" type="button" id="scrUpload" data-en="⬆ upload file">⬆ enviar arquivo</button>
+              <button class="btn ghost" type="button" id="scrAdd" data-en="+ file" data-es="+ archivo">+ arquivo</button>
+              <button class="btn ghost" type="button" id="scrUpload" data-en="⬆ upload file" data-es="⬆ subir archivo">⬆ enviar arquivo</button>
             </div>
             <div id="scrTplHint" class="small" style="display:none;margin:.2rem 0 .4rem;padding:.4rem .6rem;background:#fff7ec;border:1px solid #f3c08e;border-radius:6px"></div>
             <div id="scrRows"></div>
@@ -335,16 +335,16 @@
       <section class="tabpane" data-pane="resol" hidden>
         <div class="section">
           <div class="row" style="justify-content:space-between;align-items:center">
-            <h3 style="margin:0" data-en="Editorial">Resolução (editorial)</h3>
+            <h3 style="margin:0" data-en="Editorial" data-es="Editorial">Resolução (editorial)</h3>
             <div class="row" style="gap:.4rem;align-items:center">
               <!-- os mesmos idiomas do enunciado: docs/solucao.md (PT) e docs/solucao.<lang>.md -->
-              <div id="edLangBar" class="stmt-chips" title="Idioma do editorial" data-en-title="Editorial language"></div>
-              <button id="edPreview" class="btn ghost" type="button" data-en="👁 Preview">👁 Pré-visualizar</button>
+              <div id="edLangBar" class="stmt-chips" title="Idioma do editorial" data-en-title="Editorial language" data-es-title="Idioma del editorial"></div>
+              <button id="edPreview" class="btn ghost" type="button" data-en="👁 Preview" data-es="👁 Vista previa">👁 Pré-visualizar</button>
               <button id="edRemove" class="btn ghost danger" type="button" hidden style="display:none"></button>
             </div>
           </div>
-          <p class="small muted"><span data-en="Explanation of the problem's solution, in Markdown.">Explicação da resolução do problema, em Markdown.</span> <b data-en="Setters only">Só para setters</b> <span data-en="— does not appear in the student's statement.">— não
-            aparece no enunciado do aluno.</span> <b data-en="Optional">Opcional</b><span data-en=": not required to release the problem.">: não é exigida para liberar o problema.</span> <span data-en="The contest editorial document uses the language of the document; a language without an editorial falls back to Portuguese.">O documento de editorial do contest usa o idioma do documento; idioma sem editorial cai no português.</span> <span data-en="To write the editorial in another language, click + EN or + ES. The statement does not need to be translated.">Para escrever o editorial em outro idioma, clique em + EN ou + ES. O enunciado não precisa estar traduzido.</span></p>
+          <p class="small muted"><span data-en="Explanation of the problem's solution, in Markdown." data-es="Explicación de la solución del problema, en Markdown.">Explicação da resolução do problema, em Markdown.</span> <b data-en="Setters only" data-es="Solo autores">Só para setters</b> <span data-en="— does not appear in the student's statement." data-es="— no aparece en el enunciado del estudiante.">— não
+            aparece no enunciado do aluno.</span> <b data-en="Optional" data-es="Opcional">Opcional</b><span data-en=": not required to release the problem." data-es=": no es obligatorio para publicar el problema.">: não é exigida para liberar o problema.</span> <span data-en="The contest editorial document uses the language of the document; a language without an editorial falls back to Portuguese." data-es="El documento de editorial de la competencia usa el idioma del documento; un idioma sin editorial cae al portugués.">O documento de editorial do contest usa o idioma do documento; idioma sem editorial cai no português.</span> <span data-en="To write the editorial in another language, click + EN or + ES. The statement does not need to be translated." data-es="Para escribir el editorial en otro idioma, haz clic en + EN o + ES. El enunciado no necesita estar traducido.">Para escrever o editorial em outro idioma, clique em + EN ou + ES. O enunciado não precisa estar traduzido.</span></p>
           <div id="editMount" class="editor-mount"></div>
           <div id="transEdEdMounts"></div>
         </div>
@@ -353,87 +353,87 @@
       <!-- ================= ABA: LIMITES ================= -->
       <section class="tabpane" data-pane="limits" hidden>
         <div class="section">
-          <h3 data-en="Limits (conf)">Limites (conf)</h3>
-          <p class="small muted" style="margin:.2rem 0 .6rem"><span data-en="The">O</span> <b data-en="time limit">tempo-limite</b> <span data-en="is calibrated by the judge from the">é calibrado pelo juiz a partir
-            das soluções</span> <b>good</b> <span data-en="— here you adjust calibration, memory/stack, and execution behavior.">— aqui você ajusta a calibração, memória/stack e o comportamento da execução.</span>
-            <span data-en="If you would rather decide the limit yourself, put TLOVERRIDE[&lt;lang&gt;] or TLOVERRIDE[default] in the raw conf below: it beats the calibrated value in the judge and in everything the student reads (the calibration keeps running and measuring, as a reference).">Se preferir decidir o limite você mesmo, ponha <code>TLOVERRIDE[&lt;lang&gt;]</code> ou <code>TLOVERRIDE[default]</code> no conf bruto lá embaixo: ele vence o calibrado no juiz e em tudo que o estudante lê (a calibração continua rodando e medindo, como referência).</span></p>
+          <h3 data-en="Limits (conf)" data-es="Límites (conf)">Limites (conf)</h3>
+          <p class="small muted" style="margin:.2rem 0 .6rem"><span data-en="The" data-es="El">O</span> <b data-en="time limit" data-es="tiempo límite">tempo-limite</b> <span data-en="is calibrated by the judge from the" data-es="lo calibra el juez a partir de las">é calibrado pelo juiz a partir
+            das soluções</span> <b>good</b> <span data-en="— here you adjust calibration, memory/stack, and execution behavior." data-es="— aquí ajustas la calibración, memoria/pila y el comportamiento de ejecución.">— aqui você ajusta a calibração, memória/stack e o comportamento da execução.</span>
+            <span data-en="If you would rather decide the limit yourself, put TLOVERRIDE[&lt;lang&gt;] or TLOVERRIDE[default] in the raw conf below: it beats the calibrated value in the judge and in everything the student reads (the calibration keeps running and measuring, as a reference)." data-es="Si prefieres decidir tú el límite, pon TLOVERRIDE[&lt;lang&gt;] o TLOVERRIDE[default] en el conf crudo de abajo: vence al valor calibrado en el juez y en todo lo que lee el estudiante (la calibración sigue corriendo y midiendo, como referencia).">Se preferir decidir o limite você mesmo, ponha <code>TLOVERRIDE[&lt;lang&gt;]</code> ou <code>TLOVERRIDE[default]</code> no conf bruto lá embaixo: ele vence o calibrado no juiz e em tudo que o estudante lê (a calibração continua rodando e medindo, como referência).</span></p>
 
           <div class="lcard">
-            <h4 data-en="⏱ Time">⏱ Tempo</h4>
+            <h4 data-en="⏱ Time" data-es="⏱ Tiempo">⏱ Tempo</h4>
             <div class="limits-grid">
-              <div class="lfield"><label><span data-en="Calibration factor">Fator de calibração</span> <code>TLMOD[calibrafactor]</code></label>
+              <div class="lfield"><label><span data-en="Calibration factor" data-es="Factor de calibración">Fator de calibração</span> <code>TLMOD[calibrafactor]</code></label>
                 <span class="lrow"><input id="cf_calibrafactor" type="text" placeholder="1.35"><span class="unit">×</span></span>
-                <span class="small muted" data-en="TL = factor × worst time of the good solutions">TL = fator × pior tempo das soluções good</span></div>
-              <div class="lfield"><label><span data-en="good ceiling in calibration">Teto da good na calibração</span> <code>CALIBRATIONTL</code></label>
+                <span class="small muted" data-en="TL = factor × worst time of the good solutions" data-es="TL = factor × peor tiempo de las soluciones buenas">TL = fator × pior tempo das soluções good</span></div>
+              <div class="lfield"><label><span data-en="good ceiling in calibration" data-es="techo de las buenas en la calibración">Teto da good na calibração</span> <code>CALIBRATIONTL</code></label>
                 <span class="lrow"><input id="cf_calibrationtl" type="text" placeholder="5"><span class="unit">s</span></span>
-                <span class="small muted" data-en="good above this fails calibration">good acima disso reprova a calibração</span></div>
+                <span class="small muted" data-en="good above this fails calibration" data-es="una buena por encima de esto reprueba la calibración">good acima disso reprova a calibração</span></div>
             </div>
           </div>
 
           <div class="lcard">
-            <h4 data-en="🧠 Memory &amp; stack">🧠 Memória &amp; stack</h4>
+            <h4 data-en="🧠 Memory &amp; stack" data-es="🧠 Memoria y pila">🧠 Memória &amp; stack</h4>
             <div class="limits-grid">
-              <div class="lfield"><label><span data-en="Memory">Memória</span> <code>MEMLIMITMB</code></label>
-                <span class="lrow"><input id="cf_memlimit" type="text" placeholder="sem limite" data-en-ph="no limit"><span class="unit">MB</span></span>
-                <span class="small muted"><span data-en="measured RSS; exceeding →">RSS medido; estourar →</span> <b>MLE</b><span data-en=". The JVM sizes the heap (">. A JVM dimensiona o heap (</span><code>-Xmx</code><span data-en=") by this value">) por este valor</span></span></div>
+              <div class="lfield"><label><span data-en="Memory" data-es="Memoria">Memória</span> <code>MEMLIMITMB</code></label>
+                <span class="lrow"><input id="cf_memlimit" type="text" placeholder="sem limite" data-en-ph="no limit" data-es-ph="sin límite"><span class="unit">MB</span></span>
+                <span class="small muted"><span data-en="measured RSS; exceeding →" data-es="RSS medido; exceder →">RSS medido; estourar →</span> <b>MLE</b><span data-en=". The JVM sizes the heap (" data-es=". La JVM dimensiona el heap (">. A JVM dimensiona o heap (</span><code>-Xmx</code><span data-en=") by this value" data-es=") con este valor">) por este valor</span></span></div>
               <div class="lfield"><label>Stack <code>STACKLIMITMB</code></label>
-                <span class="lrow"><input id="cf_stack" type="text" placeholder="128 (padrão)" data-en-ph="128 (default)"><span class="unit">MB</span></span>
-                <span class="small muted"><span data-en="applies to all languages (the JVM mirrors it in">vale p/ todas as linguagens (a JVM espelha em</span> <code>-Xss</code>)</span></div>
-              <div class="lfield"><label><span data-en="File size">Tamanho de arquivo</span> <code>ULIMITS[-f]</code></label>
-                <span class="lrow"><input id="cf_ulimit_f" type="text" placeholder="(opcional)" data-en-ph="(optional)"><span class="unit">KB</span></span>
-                <span class="small muted" data-en="solution write ceiling (huge output = cut)">teto de escrita da solução (saída gigante = corte)</span></div>
+                <span class="lrow"><input id="cf_stack" type="text" placeholder="128 (padrão)" data-en-ph="128 (default)" data-es-ph="128 (por defecto)"><span class="unit">MB</span></span>
+                <span class="small muted"><span data-en="applies to all languages (the JVM mirrors it in" data-es="aplica a todos los lenguajes (la JVM lo refleja en">vale p/ todas as linguagens (a JVM espelha em</span> <code>-Xss</code>)</span></div>
+              <div class="lfield"><label><span data-en="File size" data-es="Tamaño de archivo">Tamanho de arquivo</span> <code>ULIMITS[-f]</code></label>
+                <span class="lrow"><input id="cf_ulimit_f" type="text" placeholder="(opcional)" data-en-ph="(optional)" data-es-ph="(opcional)"><span class="unit">KB</span></span>
+                <span class="small muted" data-en="solution write ceiling (huge output = cut)" data-es="techo de escritura de la solución (salida enorme = se corta)">teto de escrita da solução (saída gigante = corte)</span></div>
             </div>
           </div>
 
           <div class="lcard">
-            <h4 data-en="⚙ Execution">⚙ Execução</h4>
+            <h4 data-en="⚙ Execution" data-es="⚙ Ejecución">⚙ Execução</h4>
             <div class="limits-grid">
-              <div class="lfield"><label><span data-en="Processes">Processos</span> <code>ULIMITS[-u]</code></label>
+              <div class="lfield"><label><span data-en="Processes" data-es="Procesos">Processos</span> <code>ULIMITS[-u]</code></label>
                 <span class="lrow"><input id="cf_ulimit_u" type="text" placeholder="10000"><span class="unit">proc</span></span>
-                <span class="small muted" data-en="raise for interactive problems (referee + player) and MPI (mpirun spawns helpers)">suba p/ problemas interativos (árbitro + jogador) e MPI (o mpirun cria auxiliares)</span></div>
-              <div class="lfield"><label><span data-en="Tests at the same time, at most">Testes ao mesmo tempo, no máximo</span> <code>MAXPARALLELTESTS</code></label>
-                <span class="lrow"><input id="cf_maxparallel" type="text" inputmode="numeric" placeholder="(teto do juiz: 4)" data-en-ph="(judge ceiling: 4)"><span class="unit" data-en="tests">testes</span></span>
-                <span class="small muted" data-en="ceiling for this problem; empty = the judge's ceiling (4). Never changes the time limit">teto deste problema; vazio = o teto do juiz (4). Nunca muda o tempo-limite</span></div>
+                <span class="small muted" data-en="raise for interactive problems (referee + player) and MPI (mpirun spawns helpers)" data-es="sube esto para problemas interactivos (árbitro + jugador) y MPI (mpirun genera ayudantes)">suba p/ problemas interativos (árbitro + jogador) e MPI (o mpirun cria auxiliares)</span></div>
+              <div class="lfield"><label><span data-en="Tests at the same time, at most" data-es="Pruebas al mismo tiempo, como máximo">Testes ao mesmo tempo, no máximo</span> <code>MAXPARALLELTESTS</code></label>
+                <span class="lrow"><input id="cf_maxparallel" type="text" inputmode="numeric" placeholder="(teto do juiz: 4)" data-en-ph="(judge ceiling: 4)" data-es-ph="(techo del juez: 4)"><span class="unit" data-en="tests" data-es="pruebas">testes</span></span>
+                <span class="small muted" data-en="ceiling for this problem; empty = the judge's ceiling (4). Never changes the time limit" data-es="techo para este problema; vacío = el techo del juez (4). Nunca cambia el tiempo límite">teto deste problema; vazio = o teto do juiz (4). Nunca muda o tempo-limite</span></div>
             </div>
             <div class="ltoggles">
-              <label><input type="checkbox" id="cf_allowparallel"> <span data-en="tests in parallel">testes em paralelo</span> <code>ALLOWPARALLELTEST</code> <span class="small muted" data-en="— when the judge has idle CPUs it runs several tests of this submission at once, each in its own CPUs; it never takes CPU from another submission. Unchecked = one test at a time">— quando o juiz tem CPU ociosa, roda vários testes desta submissão ao mesmo tempo, cada um nas suas CPUs; nunca tira CPU de outra submissão. Desmarcado = um teste por vez</span></label>
-              <label><input type="checkbox" id="cf_tlererun"> <span data-en="re-run isolated TLE">reexecutar TLE isolado</span> <code>TLERERUN</code></label>
-              <label><input type="checkbox" id="cf_allowtle"> <span data-en="accept good's TLE during calibration">aceitar TLE da good na calibração</span> <code>ALLOWTLEDURINGCALIBRATION</code></label>
+              <label><input type="checkbox" id="cf_allowparallel"> <span data-en="tests in parallel" data-es="pruebas en paralelo">testes em paralelo</span> <code>ALLOWPARALLELTEST</code> <span class="small muted" data-en="— when the judge has idle CPUs it runs several tests of this submission at once, each in its own CPUs; it never takes CPU from another submission. Unchecked = one test at a time" data-es="— cuando el juez tiene CPUs libres, corre varias pruebas de este envío a la vez, cada una en sus propias CPUs; nunca le quita CPU a otro envío. Sin marcar = una prueba a la vez">— quando o juiz tem CPU ociosa, roda vários testes desta submissão ao mesmo tempo, cada um nas suas CPUs; nunca tira CPU de outra submissão. Desmarcado = um teste por vez</span></label>
+              <label><input type="checkbox" id="cf_tlererun"> <span data-en="re-run isolated TLE" data-es="reintentar TLE aislado">reexecutar TLE isolado</span> <code>TLERERUN</code></label>
+              <label><input type="checkbox" id="cf_allowtle"> <span data-en="accept good's TLE during calibration" data-es="aceptar TLE de una buena durante la calibración">aceitar TLE da good na calibração</span> <code>ALLOWTLEDURINGCALIBRATION</code></label>
             </div>
           </div>
 
           <div class="lcard">
-            <h4 data-en="🧩 Parallel problems (OpenMP / MPI / threads)">🧩 Problemas paralelos (OpenMP / MPI / threads)</h4>
+            <h4 data-en="🧩 Parallel problems (OpenMP / MPI / threads)" data-es="🧩 Problemas paralelos (OpenMP / MPI / threads)">🧩 Problemas paralelos (OpenMP / MPI / threads)</h4>
             <div class="limits-grid">
-              <div class="lfield"><label><span data-en="CPUs per test">CPUs por teste</span> <code>CPUNEEDED</code></label>
+              <div class="lfield"><label><span data-en="CPUs per test" data-es="CPUs por prueba">CPUs por teste</span> <code>CPUNEEDED</code></label>
                 <span class="lrow"><input id="cf_cpuneeded" type="text" inputmode="numeric" placeholder="1"><span class="unit">CPUs</span></span>
-                <span class="small muted" data-en="1..64. Each test runs alone in this many CPUs; changing it recalibrates">1..64. Cada teste roda sozinho nesse nº de CPUs; mudar recalibra</span></div>
+                <span class="small muted" data-en="1..64. Each test runs alone in this many CPUs; changing it recalibrates" data-es="1..64. Cada prueba corre sola en esta cantidad de CPUs; cambiar esto recalibra">1..64. Cada teste roda sozinho nesse nº de CPUs; mudar recalibra</span></div>
             </div>
             <div class="ltoggles">
-              <label><input type="checkbox" id="cf_samenuma"> <span data-en="the CPUs of each test in the same NUMA node">as CPUs de cada teste no mesmo nó NUMA</span> <code>SAMENUMA</code></label>
+              <label><input type="checkbox" id="cf_samenuma"> <span data-en="the CPUs of each test in the same NUMA node" data-es="las CPUs de cada prueba en el mismo nodo NUMA">as CPUs de cada teste no mesmo nó NUMA</span> <code>SAMENUMA</code></label>
             </div>
-            <span class="small muted"><span data-en="The judge joins CPUs per test, measures the time limit that way (one test at a time, with this many CPUs) and hands the count to the jail:">O juiz junta CPUs por teste, mede o tempo-limite assim (um teste por vez, com esse nº de CPUs) e entrega o número à jaula:</span> <code>MOJ_TEST_CPUS</code>/<code>OMP_NUM_THREADS</code>. <span data-en="OpenMP sizes itself; an MPI run.sh does">OpenMP se dimensiona sozinho; um <code>run.sh</code> de MPI faz</span> <code>mpirun -np "$MOJ_TEST_CPUS"</code> <span data-en="(never a fixed -np). Templates">(nunca um <code>-np</code> fixo). Templates</span> <b>paralelo-openmp</b>/<b>paralelo-mpi</b> <span data-en="in the grading sub-tab; restrict">na sub-aba correção; restrinja</span> <code>languages</code> <span data-en="to c/cpp. Guide:">a c/cpp. Guia:</span> <code>mojtools/docs/problema-paralelo.md</code>.</span>
+            <span class="small muted"><span data-en="The judge joins CPUs per test, measures the time limit that way (one test at a time, with this many CPUs) and hands the count to the jail:" data-es="El juez junta las CPUs por prueba, mide el tiempo límite así (una prueba a la vez, con esta cantidad de CPUs) y le pasa la cuenta a la jaula:">O juiz junta CPUs por teste, mede o tempo-limite assim (um teste por vez, com esse nº de CPUs) e entrega o número à jaula:</span> <code>MOJ_TEST_CPUS</code>/<code>OMP_NUM_THREADS</code>. <span data-en="OpenMP sizes itself; an MPI run.sh does" data-es="OpenMP se dimensiona solo; un run.sh de MPI hace">OpenMP se dimensiona sozinho; um <code>run.sh</code> de MPI faz</span> <code>mpirun -np "$MOJ_TEST_CPUS"</code> <span data-en="(never a fixed -np). Templates" data-es="(nunca un -np fijo). Las plantillas">(nunca um <code>-np</code> fixo). Templates</span> <b>paralelo-openmp</b>/<b>paralelo-mpi</b> <span data-en="in the grading sub-tab; restrict" data-es="en la subpestaña de corrección; restringe">na sub-aba correção; restrinja</span> <code>languages</code> <span data-en="to c/cpp. Guide:" data-es="a c/cpp. Guía:">a c/cpp. Guia:</span> <code>mojtools/docs/problema-paralelo.md</code>.</span>
           </div>
 
           <div class="lcard">
-            <h4 data-en="📄 Samples in the statement">📄 Exemplos no enunciado</h4>
+            <h4 data-en="📄 Samples in the statement" data-es="📄 Ejemplos en el enunciado">📄 Exemplos no enunciado</h4>
             <div class="ltoggles">
-              <label><input type="checkbox" id="cf_nosample"> <span data-en="this problem has no samples">este problema não tem exemplos</span> <code>SAMPLE=no</code></label>
+              <label><input type="checkbox" id="cf_nosample"> <span data-en="this problem has no samples" data-es="este problema no tiene ejemplos">este problema não tem exemplos</span> <code>SAMPLE=no</code></label>
             </div>
-            <span class="small muted" data-en="For function submission, interactive problems, custom languages, or any problem where a sample input/output makes no sense to the student. The statement shows no sample box and no sample can be downloaded. Explain the example in the statement text (section ## Example). A hidden test is never shown as a sample. Changing this does not require recalibration.">Para submissão de função, problema interativo, linguagem própria, ou qualquer problema em que entrada e saída de exemplo não fazem sentido para o aluno. O enunciado não mostra a caixa de exemplos e nenhum exemplo pode ser baixado. Explique o exemplo no texto do enunciado (seção ## Exemplo). Teste oculto nunca aparece como exemplo. Mudar esta opção não pede recalibração.</span>
+            <span class="small muted" data-en="For function submission, interactive problems, custom languages, or any problem where a sample input/output makes no sense to the student. The statement shows no sample box and no sample can be downloaded. Explain the example in the statement text (section ## Example). A hidden test is never shown as a sample. Changing this does not require recalibration." data-es="Para envío de función, problemas interactivos, lenguajes personalizados, o cualquier problema donde un ejemplo de entrada/salida no tenga sentido para el estudiante. El enunciado no muestra caja de ejemplo y no se puede descargar ningún ejemplo. Explica el ejemplo en el texto del enunciado (sección ## Example). Una prueba oculta nunca se muestra como ejemplo. Cambiar esto no requiere recalibración.">Para submissão de função, problema interativo, linguagem própria, ou qualquer problema em que entrada e saída de exemplo não fazem sentido para o aluno. O enunciado não mostra a caixa de exemplos e nenhum exemplo pode ser baixado. Explique o exemplo no texto do enunciado (seção ## Exemplo). Teste oculto nunca aparece como exemplo. Mudar esta opção não pede recalibração.</span>
           </div>
 
           <div class="lcard">
-            <h4><span data-en="🛑 Stop at first error">🛑 Parar no primeiro erro</span> <span class="small muted" style="font-weight:normal" data-en="(STOPWHEN — following tests don't run)">(STOPWHEN — testes seguintes não rodam)</span></h4>
+            <h4><span data-en="🛑 Stop at first error" data-es="🛑 Detener en el primer error">🛑 Parar no primeiro erro</span> <span class="small muted" style="font-weight:normal" data-en="(STOPWHEN — following tests don't run)" data-es="(STOPWHEN — las siguientes pruebas no corren)">(STOPWHEN — testes seguintes não rodam)</span></h4>
             <div class="ltoggles">
-              <label><input type="checkbox" id="cf_stopwa"> <span data-en="stop at first">parar no primeiro</span> <b>WA</b></label>
-              <label><input type="checkbox" id="cf_stoptle"> <span data-en="stop at first">parar no primeiro</span> <b>TLE</b></label>
-              <label><input type="checkbox" id="cf_stopre"> <span data-en="stop at first">parar no primeiro</span> <b>RE</b></label>
+              <label><input type="checkbox" id="cf_stopwa"> <span data-en="stop at first" data-es="detener en el primer">parar no primeiro</span> <b>WA</b></label>
+              <label><input type="checkbox" id="cf_stoptle"> <span data-en="stop at first" data-es="detener en el primer">parar no primeiro</span> <b>TLE</b></label>
+              <label><input type="checkbox" id="cf_stopre"> <span data-en="stop at first" data-es="detener en el primer">parar no primeiro</span> <b>RE</b></label>
             </div>
           </div>
 
           <details class="lcard" style="margin-top:.6rem">
-            <summary class="small"><span data-en="🔧 Advanced — raw conf (multipliers/drift per language:">🔧 Avançado — conf bruto (multiplicadores/drift por linguagem:</span> <code>TLMOD[cpp.drift]</code>, <code>TLMOD[java.mult]</code>, <code>TLMOD[py.sum]</code>…<span data-en=" — and "> — e </span><code>TLOVERRIDE[java]</code>/<code>TLOVERRIDE[default]</code><span data-en=", which decide the time limit outright, over the calibrated one">, com que você decide o tempo-limite na marra, por cima do calibrado</span>)</summary>
+            <summary class="small"><span data-en="🔧 Advanced — raw conf (multipliers/drift per language:" data-es="🔧 Avanzado — conf crudo (multiplicadores/drift por lenguaje:">🔧 Avançado — conf bruto (multiplicadores/drift por linguagem:</span> <code>TLMOD[cpp.drift]</code>, <code>TLMOD[java.mult]</code>, <code>TLMOD[py.sum]</code>…<span data-en=" — and " data-es=" — y "> — e </span><code>TLOVERRIDE[java]</code>/<code>TLOVERRIDE[default]</code><span data-en=", which decide the time limit outright, over the calibrated one" data-es=", que deciden el tiempo límite directamente, por encima del calibrado">, com que você decide o tempo-limite na marra, por cima do calibrado</span>)</summary>
             <textarea id="confRaw" class="big" style="min-height:9rem;margin-top:.4rem"></textarea>
           </details>
         </div>
@@ -443,11 +443,11 @@
       <section class="tabpane" data-pane="pub" hidden>
         <!-- 1) Publicação (ciclo de vida: validar/calibrar → tornar público) -->
         <div class="section">
-          <h3 data-en="Publishing">Publicação</h3>
+          <h3 data-en="Publishing" data-es="Publicación">Publicação</h3>
           <div class="row" style="gap:.6rem;align-items:center;flex-wrap:wrap">
-            <span class="small" data-en="Visibility:">Visibilidade:</span><span id="pubState" class="pill mut">—</span>
+            <span class="small" data-en="Visibility:" data-es="Visibilidad:">Visibilidade:</span><span id="pubState" class="pill mut">—</span>
             <button id="pubToggle" class="btn ghost" type="button">tornar público</button>
-            <span class="small muted"><span data-en="public = enters the">público = entra no</span> <b data-en="free practice">treino livre</b> <span data-en="(visible to all). Exams: keep it">(visível a todos). Provas: deixe</span> <b data-en="private">privado</b> <span data-en="until the exam is over.">até a prova passar.</span></span>
+            <span class="small muted"><span data-en="public = enters the" data-es="público = entra al">público = entra no</span> <b data-en="free practice" data-es="entrenamiento libre">treino livre</b> <span data-en="(visible to all). Exams: keep it" data-es="(visible para todos). Exámenes: mantenlo">(visível a todos). Provas: deixe</span> <b data-en="private" data-es="privado">privado</b> <span data-en="until the exam is over." data-es="hasta que termine el examen.">até a prova passar.</span></span>
           </div>
           <div id="pubOrgHint" class="small" style="display:none;margin-top:.4rem;color:#ffd98a"></div>
         </div>
@@ -456,66 +456,66 @@
 
         <!-- 2) Coleções (agrupamento — rótulos m:n; NÃO dão acesso) -->
         <div class="section">
-          <h3 data-en="Collections (grouping)">Coleções (agrupamento)</h3>
-          <p class="small muted"><span data-en="Grouping labels — a problem can be in">Rótulos de agrupamento — um problema pode estar em</span> <b data-en="several">várias</b>; <b data-en="do not">não</b> <span data-en="grant access (access comes from the">dão
-            acesso (acesso é da</span> <b>ORG</b><span data-en="). Students browse by collection in free practice.">). O aluno navega por coleção no treino livre.</span></p>
+          <h3 data-en="Collections (grouping)" data-es="Colecciones (agrupación)">Coleções (agrupamento)</h3>
+          <p class="small muted"><span data-en="Grouping labels — a problem can be in" data-es="Etiquetas de agrupación — un problema puede estar en">Rótulos de agrupamento — um problema pode estar em</span> <b data-en="several" data-es="varias">várias</b>; <b data-en="do not" data-es="no">não</b> <span data-en="grant access (access comes from the" data-es="otorgan acceso (el acceso viene de la">dão
+            acesso (acesso é da</span> <b>ORG</b><span data-en="). Students browse by collection in free practice." data-es="). Los estudiantes navegan por colección en el entrenamiento libre.">). O aluno navega por coleção no treino livre.</span></p>
           <div class="field">
-            <label data-en="This problem's collections (comma)">Coleções deste problema (vírgula)</label>
-            <input id="pcolls" type="text" placeholder="ex: OBI 2024, maratona-2026" data-en-ph="e.g. OBI 2024, maratona-2026">
+            <label data-en="This problem's collections (comma)" data-es="Colecciones de este problema (coma)">Coleções deste problema (vírgula)</label>
+            <input id="pcolls" type="text" placeholder="ex: OBI 2024, maratona-2026" data-en-ph="e.g. OBI 2024, maratona-2026" data-es-ph="ej. OBI 2024, maratona-2026">
           </div>
           <div class="row" style="gap:.4rem;align-items:center;flex-wrap:wrap;margin:.2rem 0 .4rem">
-            <input id="collFilter" type="text" placeholder="🔎 filtrar coleção (nome, título, dono)…" data-en-ph="🔎 filter collection (name, title, owner)…" style="max-width:18rem">
-            <button id="collFilterMine"   class="filttog" type="button" title="Só coleções que você criou" data-en-title="Only collections you created" data-en="mine">minhas</button>
-            <button id="collFilterManage" class="filttog" type="button" title="Só as que você gerencia" data-en-title="Only those you manage" data-en="I manage">gerencio</button>
-            <button id="collFilterCourse" class="filttog" type="button" title="Só cursos/diretórios (repos)" data-en-title="Only courses/directories (repos)" data-en="courses">cursos</button>
+            <input id="collFilter" type="text" placeholder="🔎 filtrar coleção (nome, título, dono)…" data-en-ph="🔎 filter collection (name, title, owner)…" data-es-ph="🔎 filtrar colección (nombre, título, dueño)…" style="max-width:18rem">
+            <button id="collFilterMine"   class="filttog" type="button" title="Só coleções que você criou" data-en-title="Only collections you created" data-es-title="Solo las colecciones que creaste" data-en="mine" data-es="mías">minhas</button>
+            <button id="collFilterManage" class="filttog" type="button" title="Só as que você gerencia" data-en-title="Only those you manage" data-es-title="Solo las que administras" data-en="I manage" data-es="Administro">gerencio</button>
+            <button id="collFilterCourse" class="filttog" type="button" title="Só cursos/diretórios (repos)" data-en-title="Only courses/directories (repos)" data-es-title="Solo cursos/directorios (repos)" data-en="courses" data-es="cursos">cursos</button>
           </div>
           <div id="myColls" class="row" style="flex-wrap:wrap;gap:.4rem"></div>
           <div class="row" style="gap:.5rem;margin-top:.5rem;flex-wrap:wrap">
-            <input id="newCollName" type="text" placeholder="nova coleção (pode ter espaços, ex: OBI 2024)" data-en-ph="new collection (can have spaces, e.g. OBI 2024)" style="flex:1;min-width:16rem">
-            <button id="newCollBtn" class="btn ghost" type="button" data-en="create collection">criar coleção</button>
+            <input id="newCollName" type="text" placeholder="nova coleção (pode ter espaços, ex: OBI 2024)" data-en-ph="new collection (can have spaces, e.g. OBI 2024)" data-es-ph="nueva colección (puede tener espacios, ej. OBI 2024)" style="flex:1;min-width:16rem">
+            <button id="newCollBtn" class="btn ghost" type="button" data-en="create collection" data-es="crear colección">criar coleção</button>
           </div>
           <div id="collManage" style="margin-top:.5rem"></div>
         </div>
 
         <!-- 2b) Linguagens de submissão (restrição por-problema; nenhuma marcada = todas) -->
         <div class="section">
-          <h3 data-en="Submission languages">Linguagens de submissão</h3>
-          <p class="small muted"><span data-en="Check the languages the student may use in this problem.">Marque as linguagens que o aluno pode usar neste problema.</span>
-            <b data-en="None checked = all">Nenhuma marcada = todas</b> <span data-en="allowed languages (default behavior). Use this for problems that only accept one specific language (e.g.">as linguagens permitidas (comportamento padrão). Use isto
+          <h3 data-en="Submission languages" data-es="Lenguajes de envío">Linguagens de submissão</h3>
+          <p class="small muted"><span data-en="Check the languages the student may use in this problem." data-es="Marca los lenguajes que el estudiante puede usar en este problema.">Marque as linguagens que o aluno pode usar neste problema.</span>
+            <b data-en="None checked = all" data-es="Ninguno marcado = todos los">Nenhuma marcada = todas</b> <span data-en="allowed languages (default behavior). Use this for problems that only accept one specific language (e.g." data-es="lenguajes permitidos (comportamiento por defecto). Usa esto para problemas que solo aceptan un lenguaje específico (ej.">as linguagens permitidas (comportamento padrão). Use isto
             p/ problemas que só aceitam uma linguagem específica (ex.:</span> <b>PDDL</b>).</p>
           <div id="plangs"></div>
         </div>
 
         <!-- 3) Membros da org (acesso de edição — quem faz parte da org edita todos os seus problemas) -->
         <div class="section" id="shareBox">
-          <h3 data-en="Org members">Membros da org</h3>
-          <label class="small muted"><span data-en="Add member (MOJ login) — will edit">Adicionar membro (login do MOJ) — passa a editar</span> <b data-en="all">todos</b> <span data-en="of the org's problems">os problemas da org</span></label>
+          <h3 data-en="Org members" data-es="Miembros de la org">Membros da org</h3>
+          <label class="small muted"><span data-en="Add member (MOJ login) — will edit" data-es="Agregar miembro (usuario de MOJ) — podrá editar">Adicionar membro (login do MOJ) — passa a editar</span> <b data-en="all" data-es="todos">todos</b> <span data-en="of the org's problems" data-es="los problemas de la org">os problemas da org</span></label>
           <div class="row" style="margin-top:.3rem"><input id="shareLogin" type="text" placeholder="login" style="max-width:18rem">
-            <button id="shareAdd" class="btn ghost" type="button" data-en="add">adicionar</button></div>
+            <button id="shareAdd" class="btn ghost" type="button" data-en="add" data-es="agregar">adicionar</button></div>
           <div id="shareList" class="small muted" style="margin-top:.3rem"></div>
         </div>
 
         <!-- 4) Avançado: calibração direcionada + pacote bruto -->
         <div class="section">
-          <h3 data-en="Advanced">Avançado</h3>
+          <h3 data-en="Advanced" data-es="Avanzado">Avançado</h3>
 
-          <h4 style="margin:.6rem 0 .2rem" data-en="Targeted calibration">Calibração direcionada</h4>
-          <p class="small muted"><span data-en="Force calibration on a set of judges to see the behavior (time limit and reports) on">Force a calibração num conjunto de juízes para ver o comportamento (tempo-limite e
-            reports) em</span> <b data-en="different processors">processadores diferentes</b><span data-en=". The checked (online) ones recalibrate in parallel; the result appears in">. Os marcados (online) recalibram em paralelo; o resultado
-            aparece em</span> <b data-en="Validation &amp; calibration">Validação &amp; calibração</b><span data-en=", per judge.">, por juiz.</span></p>
+          <h4 style="margin:.6rem 0 .2rem" data-en="Targeted calibration" data-es="Calibración dirigida">Calibração direcionada</h4>
+          <p class="small muted"><span data-en="Force calibration on a set of judges to see the behavior (time limit and reports) on" data-es="Fuerza la calibración en un conjunto de jueces para ver el comportamiento (tiempo límite e informes) en">Force a calibração num conjunto de juízes para ver o comportamento (tempo-limite e
+            reports) em</span> <b data-en="different processors" data-es="distintos procesadores">processadores diferentes</b><span data-en=". The checked (online) ones recalibrate in parallel; the result appears in" data-es=". Los marcados (en línea) recalibran en paralelo; el resultado aparece en">. Os marcados (online) recalibram em paralelo; o resultado
+            aparece em</span> <b data-en="Validation &amp; calibration" data-es="Validación &amp; calibración">Validação &amp; calibração</b><span data-en=", per judge." data-es=", por juez.">, por juiz.</span></p>
           <div id="judgePick"></div>
           <div class="row" style="gap:.5rem;flex-wrap:wrap;margin-top:.5rem">
-            <button id="calibSel" class="btn ghost" type="button" title="Calibrar nos juízes marcados" data-en-title="Calibrate on the checked judges" data-en="Calibrate selected">Calibrar selecionados</button>
-            <button id="calibPerCpu" class="btn ghost" type="button" title="Um juiz de cada modelo de processador" data-en-title="One judge of each processor model" data-en="1 per processor">1 por processador</button>
-            <button id="calibAll" class="btn ghost" type="button" title="Todos os juízes online" data-en-title="All online judges" data-en="Calibrate on all">Calibrar em todos</button>
+            <button id="calibSel" class="btn ghost" type="button" title="Calibrar nos juízes marcados" data-en-title="Calibrate on the checked judges" data-es-title="Calibrar en los jueces marcados" data-en="Calibrate selected" data-es="Calibrar seleccionados">Calibrar selecionados</button>
+            <button id="calibPerCpu" class="btn ghost" type="button" title="Um juiz de cada modelo de processador" data-en-title="One judge of each processor model" data-es-title="Un juez de cada modelo de procesador" data-en="1 per processor" data-es="1 por procesador">1 por processador</button>
+            <button id="calibAll" class="btn ghost" type="button" title="Todos os juízes online" data-en-title="All online judges" data-es-title="Todos los jueces en línea" data-en="Calibrate on all" data-es="Calibrar en todos">Calibrar em todos</button>
           </div>
 
-          <h4 style="margin:1rem 0 .2rem" data-en="Problem package">Pacote do problema</h4>
+          <h4 style="margin:1rem 0 .2rem" data-en="Problem package" data-es="Paquete del problema">Pacote do problema</h4>
           <div id="pkgInfo" class="small muted">—</div>
           <div id="pkgTree" class="pkgtree"></div>
           <div class="row" style="gap:.5rem;margin-top:.4rem">
-            <button id="download" class="btn ghost" type="button" data-en="⬇ Download .tar.gz">⬇ Baixar .tar.gz</button>
-            <label class="btn ghost" style="cursor:pointer"><span data-en="⬆ Upload package (replaces everything)">⬆ Enviar pacote (substitui tudo)</span>
+            <button id="download" class="btn ghost" type="button" data-en="⬇ Download .tar.gz" data-es="⬇ Descargar .tar.gz">⬇ Baixar .tar.gz</button>
+            <label class="btn ghost" style="cursor:pointer"><span data-en="⬆ Upload package (replaces everything)" data-es="⬆ Subir paquete (reemplaza todo)">⬆ Enviar pacote (substitui tudo)</span>
               <input id="uploadTar" type="file" accept=".tar,.gz,.tgz,.tar.gz,.bz2,.tbz2,.tar.bz2,.zst,.tar.zst,.zip,application/gzip,application/x-tar,application/zip" hidden></label>
             <span class="small muted">.tar · .tar.gz · .tar.bz2 · .tar.zst · .zip</span>
           </div>
@@ -527,18 +527,18 @@
       <section class="tabpane" data-pane="issues" id="issuesPane" hidden></section>
 
       <section class="tabpane" data-pane="hist" hidden>
-        <div class="section-head" data-en="Version history (git)">Histórico de versões (git)</div>
-        <p class="small muted" data-en="Every save/upload is a commit. Restoring creates a NEW commit on top (history is never rewritten); public flag and collections are preserved.">Todo salvar/enviar é um commit. Restaurar cria um commit NOVO por cima (a história nunca é reescrita); o flag de público e as coleções são preservados.</p>
-        <div id="histList"><span class="muted" data-en="Loading…">Carregando…</span></div>
+        <div class="section-head" data-en="Version history (git)" data-es="Historial de versiones (git)">Histórico de versões (git)</div>
+        <p class="small muted" data-en="Every save/upload is a commit. Restoring creates a NEW commit on top (history is never rewritten); public flag and collections are preserved." data-es="Cada guardado/envío es un commit. Restaurar crea un commit NUEVO encima (el historial nunca se reescribe); la marca de público y las colecciones se conservan.">Todo salvar/enviar é um commit. Restaurar cria um commit NOVO por cima (a história nunca é reescrita); o flag de público e as coleções são preservados.</p>
+        <div id="histList"><span class="muted" data-en="Loading…" data-es="Cargando…">Carregando…</span></div>
       </section>
 
       <!-- barra de ações (fixa, visível em todas as abas) -->
       <div class="bar2">
-        <button id="save" class="btn" title="Grava o problema na org escolhida. Marque “tornar público” na aba Publicação para entrar no treino livre." data-en-title="Saves the problem to the chosen org. Check “make public” in the Publishing tab to enter free practice." data-en="Save">Salvar</button>
-        <button id="calibrate" class="btn ghost" title="Um juiz roda TODAS as soluções: as good medem o tempo-limite por linguagem; pass, slow e wrong conferem se cada uma faz o que a categoria pede; o validador de entrada (se houver) confere os testes. O resultado aparece em “Validação & calibração”." data-en-title="A judge runs ALL solutions: the good ones measure the time limit per language; pass, slow and wrong check that each does what its category requires; the input validator (if any) checks the tests. The result appears in “Validation & calibration”." data-en="Calibrate">Calibrar</button>
-        <button id="publish" class="btn ghost" title="Confere o PACOTE (o enunciado compila? há exemplos? os testes têm entrada e saída? há solução good?), gera o enunciado e o índice e pede uma calibração. Esta conferência não roda solução: quem roda é a calibração, e o resultado dela aparece nas linhas Soluções e Entradas." data-en-title="Checks the PACKAGE (does the statement compile? are there samples? do the tests have input and output? is there a good solution?), generates the statement and the index and requests a calibration. This check runs no solution: calibration does, and its result appears in the Solutions and Inputs items." data-en="Validate">Validar</button>
+        <button id="save" class="btn" title="Grava o problema na org escolhida. Marque “tornar público” na aba Publicação para entrar no treino livre." data-en-title="Saves the problem to the chosen org. Check “make public” in the Publishing tab to enter free practice." data-es-title="Guarda el problema en la org elegida. Marca “volver público” en la pestaña Publicación para entrar en el entrenamiento libre." data-en="Save" data-es="Guardar">Salvar</button>
+        <button id="calibrate" class="btn ghost" title="Um juiz roda TODAS as soluções: as good medem o tempo-limite por linguagem; pass, slow e wrong conferem se cada uma faz o que a categoria pede; o validador de entrada (se houver) confere os testes. O resultado aparece em “Validação & calibração”." data-en-title="A judge runs ALL solutions: the good ones measure the time limit per language; pass, slow and wrong check that each does what its category requires; the input validator (if any) checks the tests. The result appears in “Validation & calibration”." data-es-title="Un juez ejecuta TODAS las soluciones: las good miden el tiempo límite por lenguaje; pass, slow y wrong comprueban que cada una hace lo que pide su categoría; el validador de entrada (si existe) revisa los tests. El resultado aparece en “Validación y calibración”." data-en="Calibrate" data-es="Calibrar">Calibrar</button>
+        <button id="publish" class="btn ghost" title="Confere o PACOTE (o enunciado compila? há exemplos? os testes têm entrada e saída? há solução good?), gera o enunciado e o índice e pede uma calibração. Esta conferência não roda solução: quem roda é a calibração, e o resultado dela aparece nas linhas Soluções e Entradas." data-en-title="Checks the PACKAGE (does the statement compile? are there samples? do the tests have input and output? is there a good solution?), generates the statement and the index and requests a calibration. This check runs no solution: calibration does, and its result appears in the Solutions and Inputs items." data-es-title="Revisa el PAQUETE (¿el enunciado compila? ¿hay ejemplos? ¿los tests tienen entrada y salida? ¿hay una solución good?), genera el enunciado y el índice y solicita una calibración. Esta revisión no ejecuta ninguna solución: eso lo hace la calibración, y su resultado aparece en los ítems Soluciones y Entradas." data-en="Validate" data-es="Validar">Validar</button>
         <span class="spacer"></span>
-        <button id="delprob" class="btn ghost" type="button" style="display:none;color:#e66;border-color:#a44" title="Remove o problema do treino e do repositório do problema (irreversível; pede o id para confirmar)." data-en-title="Removes the problem from practice and from the problem repository (irreversible; asks for the id to confirm)." data-en="🗑 Remove problem">🗑 Remover problema</button>
+        <button id="delprob" class="btn ghost" type="button" style="display:none;color:#e66;border-color:#a44" title="Remove o problema do treino e do repositório do problema (irreversível; pede o id para confirmar)." data-en-title="Removes the problem from practice and from the problem repository (irreversible; asks for the id to confirm)." data-es-title="Elimina el problema del entrenamiento y del repositorio de problemas (irreversible; pide el id para confirmar)." data-en="🗑 Remove problem" data-es="🗑 Eliminar problema">🗑 Remover problema</button>
         <span id="msg" class="small"></span>
       </div>
     </div>
@@ -546,7 +546,7 @@
 
   <div id="previewModal" class="modal" style="display:none">
     <div class="box">
-      <header><b data-en="Statement preview">Pré-visualização do enunciado</b><button id="previewClose" class="btn ghost" type="button" data-en="close ✕">fechar ✕</button></header>
+      <header><b data-en="Statement preview" data-es="Vista previa del enunciado">Pré-visualização do enunciado</b><button id="previewClose" class="btn ghost" type="button" data-en="close ✕" data-es="cerrar ✕">fechar ✕</button></header>
       <div id="previewBody" class="statement-content" style="overflow:auto;max-height:72vh;padding:.4rem .2rem"></div>
     </div>
   </div>

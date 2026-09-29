@@ -38,7 +38,7 @@ async function downloadAuthed(path, filename) {
     if (!r.ok) throw 0;
     const a = el('a', { href: URL.createObjectURL(await r.blob()), download: filename });
     document.body.append(a); a.click(); a.remove();
-  } catch { alert(T('Falha ao baixar.', 'Download failed.')); }
+  } catch { alert(T('Falha ao baixar.', 'Download failed.', 'Error al descargar.')); }
 }
 async function openLogAuthed(path) {
   try {
@@ -46,7 +46,7 @@ async function openLogAuthed(path) {
     const w = window.open(); const pre = w.document.createElement('pre');
     pre.style.cssText = 'font-family:monospace;white-space:pre-wrap;padding:1rem'; pre.textContent = await r.text();
     w.document.body.append(pre); w.document.close();
-  } catch { alert(T('Falha ao abrir o log.', 'Failed to open the log.')); }
+  } catch { alert(T('Falha ao abrir o log.', 'Failed to open the log.', 'Error al abrir el registro.')); }
 }
 // abre o report.html do julgamento numa aba nova (openHtmlReport: blob, nunca srcdoc — é o que
 // faz as âncoras dos casos de teste rolarem em vez de navegar; ver shared/submission-links.js).
@@ -54,7 +54,7 @@ async function openReportAuthed(path) {
   try {
     const r = await fetch('/api/v1' + path, { headers: { 'Authorization': 'Bearer ' + getToken(CONTEST) } });
     openHtmlReport(await r.text());
-  } catch { alert(T('Falha ao abrir o report.', 'Failed to open the report.')); }
+  } catch { alert(T('Falha ao abrir o report.', 'Failed to open the report.', 'No se pudo abrir el informe.')); }
 }
 
 function filteredSubs() {
@@ -92,7 +92,7 @@ function fillFilters() {
   if (ps) {
     const keep = ps.value;
     ps.innerHTML = '';
-    ps.append(el('option', { value: '' }, T('todos os problemas', 'all problems')));
+    ps.append(el('option', { value: '' }, T('todos os problemas', 'all problems', 'todos los problemas')));
     problems.forEach(p => ps.append(el('option', { value: p.problem_id },
       (p.short_name || p.problem_id) + (p.full_name ? ' · ' + p.full_name : ''))));
     ps.value = keep;
@@ -101,7 +101,7 @@ function fillFilters() {
     const keep = vs.value;
     const vs_ = [...new Set(subs.map(s => vHead(s.verdict)).filter(Boolean))].sort();
     vs.innerHTML = '';
-    vs.append(el('option', { value: '' }, T('todos os veredictos', 'all verdicts')));
+    vs.append(el('option', { value: '' }, T('todos os veredictos', 'all verdicts', 'todos los veredictos')));
     vs_.forEach(v => vs.append(el('option', { value: v }, v)));
     vs.value = keep;
   }
@@ -111,7 +111,7 @@ function fillFilters() {
     const keep = ls.value;
     const ls_ = [...new Set(subs.map(s => langLabel(s.lang)).filter(Boolean))].sort();
     ls.innerHTML = '';
-    ls.append(el('option', { value: '' }, T('todas as linguagens', 'all languages')));
+    ls.append(el('option', { value: '' }, T('todas as linguagens', 'all languages', 'todos los lenguajes')));
     ls_.forEach(l => ls.append(el('option', { value: l }, l)));
     ls.value = keep;
   }
@@ -120,10 +120,10 @@ function fillFilters() {
 function rowTable(items) {
   const head = el('thead', {}, el('tr', {},
     ...(FULL ? [el('th', { style: 'width:1.5rem' }, '')] : []),
-    el('th', {}, T('Tempo', 'Time')), el('th', {}, T('Quando', 'When')),
-    ...(FULL ? [el('th', {}, T('Usuário', 'User')), el('th', {}, T('Equipe', 'Team'))] : []),
-    el('th', {}, T('Problema', 'Problem')), el('th', {}, T('Linguagem', 'Language')), el('th', {}, T('Veredicto', 'Verdict')),
-    el('th', {}, T('Arquivo', 'File')), el('th', {}, 'Log')));
+    el('th', {}, T('Tempo', 'Time', 'Tiempo')), el('th', {}, T('Quando', 'When', 'Cuándo')),
+    ...(FULL ? [el('th', {}, T('Usuário', 'User', 'Usuario')), el('th', {}, T('Equipe', 'Team', 'Equipo'))] : []),
+    el('th', {}, T('Problema', 'Problem', 'Problema')), el('th', {}, T('Linguagem', 'Language', 'Lenguaje')), el('th', {}, T('Veredicto', 'Verdict', 'Veredicto')),
+    el('th', {}, T('Arquivo', 'File', 'Archivo')), el('th', {}, 'Log')));
   const tb = el('tbody');
   items.forEach(s => {
     const cb = el('input', { type: 'checkbox' });
@@ -142,9 +142,9 @@ function rowTable(items) {
       el('td', { class: 'small' }, langLabel(s.lang)),
       el('td', {}, el('span', { class: 'verdict ' + verdictClass(s.verdict) }, pending ? el('span', {}, el('span', { class: 'spin' }), ' ' + s.verdict) : vShow(s.verdict))),
       el('td', {},
-        el('a', { href: '#', title: T('ver código', 'view code'), onclick: (e) => { e.preventDefault(); openLogAuthed(`/submission/source?contest=${encodeURIComponent(CONTEST)}&id=${encodeURIComponent(s.submission_id)}&time=${encodeURIComponent(s.epoch)}`); } }, T('ver', 'view')),
+        el('a', { href: '#', title: T('ver código', 'view code', 'ver código'), onclick: (e) => { e.preventDefault(); openLogAuthed(`/submission/source?contest=${encodeURIComponent(CONTEST)}&id=${encodeURIComponent(s.submission_id)}&time=${encodeURIComponent(s.epoch)}`); } }, T('ver', 'view', 'ver')),
         ' ',
-        el('a', { href: '#', title: T('baixar', 'download'), class: 'small muted', onclick: (e) => { e.preventDefault(); downloadAuthed(`/submission/source?contest=${encodeURIComponent(CONTEST)}&id=${encodeURIComponent(s.submission_id)}&time=${encodeURIComponent(s.epoch)}`, s.submission_id + '.' + (s.lang || 'txt').toLowerCase()); } }, '⬇')),
+        el('a', { href: '#', title: T('baixar', 'download', 'descargar'), class: 'small muted', onclick: (e) => { e.preventDefault(); downloadAuthed(`/submission/source?contest=${encodeURIComponent(CONTEST)}&id=${encodeURIComponent(s.submission_id)}&time=${encodeURIComponent(s.epoch)}`, s.submission_id + '.' + (s.lang || 'txt').toLowerCase()); } }, '⬇')),
       el('td', {}, el('a', { href: '#', onclick: (e) => { e.preventDefault(); openReportAuthed(`/submission/log?contest=${encodeURIComponent(CONTEST)}&id=${encodeURIComponent(s.submission_id)}&time=${encodeURIComponent(s.epoch)}`); } }, s.submission_id.slice(0, 8)))));
   });
   return el('div', { class: 'chart-wrap' }, el('table', { class: 'moj' }, head, tb));
@@ -154,7 +154,7 @@ function render() {
   const box = document.getElementById('adminContainer');
   box.innerHTML = '';
   const list = filteredSubs();
-  if (!list.length) { box.innerHTML = `<span class="muted">${T('Nenhuma submissão.', 'No submissions.')}</span>`; return; }
+  if (!list.length) { box.innerHTML = `<span class="muted">${T('Nenhuma submissão.', 'No submissions.', 'Ningún envío.')}</span>`; return; }
 
   if (groupBy === 'all') { box.append(rowTable(list)); return; }
   const groups = {};
@@ -163,9 +163,9 @@ function render() {
     (groups[key] = groups[key] || []).push(s);
   });
   Object.keys(groups).sort((a, b) => a.localeCompare(b, undefined, { numeric: true })).forEach(k => {
-    const label = groupBy === 'user' ? `${T('Usuário: ', 'User: ')}${k}` : groupBy === 'lang' ? `${T('Linguagem: ', 'Language: ')}${k}` : `${T('Problema: ', 'Problem: ')}${k} ${fullOf(groups[k][0].problem_id)}`;
+    const label = groupBy === 'user' ? `${T('Usuário: ', 'User: ', 'Usuario: ')}${k}` : groupBy === 'lang' ? `${T('Linguagem: ', 'Language: ', 'Lenguaje: ')}${k}` : `${T('Problema: ', 'Problem: ', 'Problema: ')}${k} ${fullOf(groups[k][0].problem_id)}`;
     const gitems = groups[k];
-    const markG = el('a', { href: '#', class: 'small', style: 'margin-left:.7rem', onclick: (e) => { e.preventDefault(); gitems.forEach(s => selected.add(s.submission_id)); render(); } }, T('☑ marcar grupo', '☑ select group'));
+    const markG = el('a', { href: '#', class: 'small', style: 'margin-left:.7rem', onclick: (e) => { e.preventDefault(); gitems.forEach(s => selected.add(s.submission_id)); render(); } }, T('☑ marcar grupo', '☑ select group', '☑ marcar grupo'));
     box.append(el('div', { class: 'group-head' }, label, markG));
     box.append(rowTable(gitems));
   });
@@ -174,18 +174,18 @@ function render() {
 async function doRejudge() {
   const ids = Array.from(selected);
   const msg = document.getElementById('rejudgeMsg');
-  if (!ids.length) { msg.innerHTML = `<span class="error-box">${T('Selecione ao menos uma submissão.', 'Select at least one submission.')}</span>`; return; }
+  if (!ids.length) { msg.innerHTML = `<span class="error-box">${T('Selecione ao menos uma submissão.', 'Select at least one submission.', 'Selecciona al menos un envío.')}</span>`; return; }
   const btn = document.getElementById('rejudgeBtn');
-  btn.disabled = true; msg.textContent = T('Enviando…', 'Sending…');
+  btn.disabled = true; msg.textContent = T('Enviando…', 'Sending…', 'Enviando…');
   try {
     const r = await apiPost('/contest/rejudge?contest=' + encodeURIComponent(CONTEST), { ids }, { contest: CONTEST, auth: true });
     const n = (r && r.count) != null ? r.count : ids.length;
     const sk = (r && r.skipped_count) || 0;
-    msg.innerHTML = `✓ ${n}${T(' enviada(s) para rejulgamento', ' sent for rejudge')}`
-      + (sk ? ` <span class="error-box">— ${sk}${T(' pulada(s) (sem fonte arquivada): ', ' skipped (no archived source): ')}${(r.skipped || []).join(', ')}</span>` : '.');
+    msg.innerHTML = `✓ ${n}${T(' enviada(s) para rejulgamento', ' sent for rejudge', ' enviada(s) para rejuzgar')}`
+      + (sk ? ` <span class="error-box">— ${sk}${T(' pulada(s) (sem fonte arquivada): ', ' skipped (no archived source): ', ' omitida(s) (sin fuente archivada): ')}${(r.skipped || []).join(', ')}</span>` : '.');
     selected.clear(); render();
   } catch (e) {
-    msg.innerHTML = '<span class="error-box">' + T('Erro: ', 'Error: ') + (e && e.message ? e.message : T('falha ao rejulgar', 'failed to rejudge')) + '</span>';
+    msg.innerHTML = '<span class="error-box">' + T('Erro: ', 'Error: ', 'Error: ') + (e && e.message ? e.message : T('falha ao rejulgar', 'failed to rejudge', 'falló al rejuzgar')) + '</span>';
   } finally { btn.disabled = false; }
 }
 
@@ -193,7 +193,7 @@ async function loadSubs() {
   let txt;
   try { txt = await apiGetText('/contest/allsubmissions?contest=' + encodeURIComponent(CONTEST), { contest: CONTEST, auth: true }); }
   catch (e) {
-    document.getElementById('adminContainer').innerHTML = `<span class="error-box">${T('Falha ao carregar (precisa ser admin, juiz-chefe, juiz ou monitor).', 'Failed to load (must be admin, chief judge, judge, or monitor).')}</span>`;
+    document.getElementById('adminContainer').innerHTML = `<span class="error-box">${T('Falha ao carregar (precisa ser admin, juiz-chefe, juiz ou monitor).', 'Failed to load (must be admin, chief judge, judge, or monitor).', 'No se pudo cargar (debes ser admin, juez principal, juez o monitor).')}</span>`;
     return;
   }
   subs = txt.split('\n').map(s => s.trim()).filter(Boolean).map(parseLine).filter(Boolean)
@@ -203,16 +203,16 @@ async function loadSubs() {
 }
 
 async function boot() {
-  if (!CONTEST) { document.body.innerHTML = `<div class="container"><div class="error-box">${T('Contest não informado (?c=).', 'Contest not specified (?c=).')}</div></div>`; return; }
+  if (!CONTEST) { document.body.innerHTML = `<div class="container"><div class="error-box">${T('Contest não informado (?c=).', 'Contest not specified (?c=).', 'Competencia no especificada (?c=).')}</div></div>`; return; }
   let basic;
   try { basic = await apiGet('/contest/basic?contest=' + encodeURIComponent(CONTEST), {}); }
-  catch { document.body.innerHTML = `<div class="container"><div class="error-box">${T('Contest não encontrado.', 'Contest not found.')}</div></div>`; return; }
+  catch { document.body.innerHTML = `<div class="container"><div class="error-box">${T('Contest não encontrado.', 'Contest not found.', 'Competencia no encontrada.')}</div></div>`; return; }
 
   const st = await status(CONTEST);
   if (!st.logged_in) { location.href = '/contest/?c=' + encodeURIComponent(CONTEST); return; }
   // .mon não vem no /auth/status — mesmo sufixo que o servidor usa; o gate REAL é a API
   const isMon = /\.mon$/.test(st.login || '');
-  if (!st.is_admin && !st.is_chief && !st.is_judge && !isMon) { document.body.innerHTML = `<div class="container"><div class="notice">${T('Acesso restrito a administradores, juízes e monitores.', 'Restricted to administrators, judges and monitors.')}</div></div>`; return; }
+  if (!st.is_admin && !st.is_chief && !st.is_judge && !isMon) { document.body.innerHTML = `<div class="container"><div class="notice">${T('Acesso restrito a administradores, juízes e monitores.', 'Restricted to administrators, judges and monitors.', 'Restringido a administradores, jueces y monitores.')}</div></div>`; return; }
   FULL = !!(st.is_admin || st.is_chief);
 
   await mountChrome(CONTEST, basic, { auth: true });
@@ -233,7 +233,7 @@ async function boot() {
   ['fProblem', 'fVerdict', 'fLang'].forEach(id => { const e = document.getElementById(id); if (e) e.addEventListener('change', render); });
   if (FULL) {
     document.getElementById('markAll').addEventListener('click', () => { filteredSubs().forEach(s => selected.add(s.submission_id)); render(); });
-    const clearBtn = el('button', { class: 'btn ghost', onclick: () => { selected.clear(); render(); } }, T('Desmarcar todos', 'Clear selection'));
+    const clearBtn = el('button', { class: 'btn ghost', onclick: () => { selected.clear(); render(); } }, T('Desmarcar todos', 'Clear selection', 'Quitar selección'));
     document.getElementById('markAll').after(clearBtn);
     document.getElementById('rejudgeBtn').addEventListener('click', doRejudge);
   }

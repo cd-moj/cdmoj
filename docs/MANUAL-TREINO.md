@@ -44,7 +44,7 @@ No topo fica a **barra de menu** com os itens:
 | **Status** | Situação dos juízes e do sistema |
 | **Docs** | Manuais e documentação |
 
-Ao lado do menu há o **seletor de idioma PT/EN** — o site inteiro é bilíngue. À
+Ao lado do menu há o **seletor de idioma PT · EN · ES** — o site inteiro existe nos três idiomas. À
 **direita** fica a área de login: antes de entrar, os campos de usuário e senha; depois,
 o seu **avatar**, que abre um menu com atalhos (Minhas estatísticas, Perfil, Sair…).
 
@@ -57,8 +57,8 @@ Descendo a página, você encontra:
 - O card **🏋️ Treino Livre**, com o botão **Procurar problemas →**.
 - O **🏆 Top 10** de quem mais resolve — **clique num nome** para abrir o **perfil
   público** daquela pessoa (seção 8).
-- Os **🔥 mais resolvidos na semana passada** e os **⌨ editores da semana**.
-- O **✅ resolvido recentemente** — que também linka os perfis de quem resolveu.
+- Os **🔥 Mais resolvidos · semana passada** e os **⌨ Editores · semana passada**.
+- O **✅ Resolvidos recentemente** — que também linka os perfis de quem resolveu.
 - A **lista de contests**, separada em **Abertos agora**, **Por vir** e **Encerrados**,
   com um **filtro por nome**.
 - As **📰 notícias**.
@@ -154,7 +154,7 @@ avançada automaticamente.
 - **Atalhos:** 🎲 **problema aleatório** (prioriza um que você ainda não resolveu),
   🌱 **fáceis para começar**, 🚀 **ainda não resolvidos** e 🔬 **busca avançada**.
 - **Para você** (aparece logado): **Continue de onde parou** (sua última tentativa ainda
-  sem AC) e uma **Sugestão** de próximo problema.
+  sem AC) e uma **🎯 Sugestão para você** de próximo problema.
 - **Coleções em destaque:** um carrossel de cards — cada card mostra o tamanho da coleção
   e a **barra do seu progresso**; clicar filtra a lista por aquela coleção. Role com as
   setas ‹ › (ou o dedo, no celular). O link **todas (N) →** abre a busca avançada.
@@ -274,14 +274,14 @@ Os detalhes de cada linguagem e de como funciona a entrada e a saída dos dados 
 ## 7. Perfil
 
 O seu perfil fica em `/treino/perfil/`. Ele é dividido em seções, e **cada seção tem o
-seu próprio botão Salvar**. Ajuste o que quiser e salve seção por seção.
+seu próprio botão de salvar**. Ajuste o que quiser e salve seção por seção.
 
 | Seção | O que você ajusta |
 |---|---|
 | **Dados** | Nome, universidade e o **editor/IDE favorito** (ele aparece no ranking de editores) |
 | **Senha** | Senha atual, nova senha e confirmação da nova |
 | **Privacidade** | A opção **Perfil público**. Se você **desmarcar**, suas estatísticas ficam **só para você** |
-| **Foto** | Enviar uma imagem, que é recortada para **100x100** |
+| **🖼️ Foto de perfil** | Enviar uma imagem, que é recortada para **100x100** |
 | **Nome de usuário** | Trocar o seu handle |
 
 Um cuidado com a troca de **Nome de usuário**:

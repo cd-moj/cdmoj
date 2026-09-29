@@ -3,7 +3,7 @@
 # Leitura: admin OU juiz-chefe. Escrita/promoção: só admin (a promoção arquiva e zera o placar).
 #
 # GET  -> {active, rounds:[{slug,name,kind,start,end,freeze,state,published,problems,stats?}],
-#          next, promote_ready:{ok, blockers:[{code,detail}]}}
+#          next, promote_ready:{ok, blockers:[{code,detail,detail_en,detail_es}]}}
 # POST {action}:
 #   add      {slug,name?,kind?,start,end,freeze?}   — cria rodada PLANEJADA
 #   set      {slug,new_slug?,name?,start?,end?,freeze?,kind?,colors?} — edita/renomeia (a ATIVA

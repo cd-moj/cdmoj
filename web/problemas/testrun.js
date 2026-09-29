@@ -30,13 +30,14 @@ export function testsTable(tests) {
     el('td', { class: OK_CODES.has(t.code) ? '' : 'bad' }, t.code || '—'),
     el('td', overTol(t)
       ? { class: 'num drift', title: T('Acima do tempo-limite, mas aceito pela tolerância do conf (TLMOD[<linguagem>.drift] ou TLMOD[default.drift]).',
-                                         'Above the time limit, but accepted by the conf tolerance (TLMOD[<language>.drift] or TLMOD[default.drift]).') }
+                                         'Above the time limit, but accepted by the conf tolerance (TLMOD[<language>.drift] or TLMOD[default.drift]).',
+                                         'Por encima del tiempo límite, pero aceptado por la tolerancia del conf (TLMOD[<language>.drift] o TLMOD[default.drift]).') }
       : { class: 'num' }, t.time == null ? '—' : (+t.time).toFixed(2) + 's'),
     el('td', { class: 'num' }, t.tl == null ? '—' : secs(t.tl)))));
   return el('table', { class: 'soltests' },
     el('thead', {}, el('tr', {},
-      el('th', {}, T('teste', 'test')), el('th', {}, T('resultado', 'result')),
-      el('th', {}, T('tempo', 'time')), el('th', {}, 'TL'))),
+      el('th', {}, T('teste', 'test', 'prueba')), el('th', {}, T('resultado', 'result', 'resultado')),
+      el('th', {}, T('tempo', 'time', 'tiempo')), el('th', {}, 'TL'))),
     tb);
 }
 
@@ -70,19 +71,20 @@ export function makeTestRun(ctx) {
   const fnInput = el('input', { type: 'text', placeholder: 'sol.cpp', style: 'max-width:14rem' });
   const mount = el('div', { class: 'editor-mount sec' });   // o tamanho menor do editor (13rem, redimensionável)
   const fi = ctx.hiddenFile(false);
-  const pickBtn = el('button', { class: 'btn ghost', type: 'button', onclick: () => fi.click() }, T('📁 escolher arquivo', '📁 choose file'));
-  const runBtn = el('button', { class: 'btn', type: 'button', onclick: () => submit() }, T('▶ Rodar no juiz', '▶ Run on the judge'));
-  const unsaved = el('div', { class: 'small muted', hidden: true }, T('Salve o problema primeiro: o teste roda contra o pacote do servidor.', 'Save the problem first: the test runs against the package on the server.'));
+  const pickBtn = el('button', { class: 'btn ghost', type: 'button', onclick: () => fi.click() }, T('📁 escolher arquivo', '📁 choose file', '📁 elegir archivo'));
+  const runBtn = el('button', { class: 'btn', type: 'button', onclick: () => submit() }, T('▶ Rodar no juiz', '▶ Run on the judge', '▶ Ejecutar en el juez'));
+  const unsaved = el('div', { class: 'small muted', hidden: true }, T('Salve o problema primeiro: o teste roda contra o pacote do servidor.', 'Save the problem first: the test runs against the package on the server.', 'Guarda el problema primero: la prueba corre contra el paquete del servidor.'));
   const list = el('div', {});
   const panel = el('div', { id: 'trunPanel', class: 'solpanel', 'data-cat': 'trun', hidden: true },
     el('p', { class: 'small muted', style: 'margin:.2rem 0 .5rem' },
       T('Roda UMA solução no juiz de verdade, com a mesma jaula e o mesmo tempo-limite de uma submissão. Ela roda contra os testes SALVOS no servidor. Ela não entra no pacote, no histórico nem no placar. Use para testar a solução de um aluno ou uma ideia sem mexer no pacote. A linguagem vem da extensão do arquivo.',
-        'Runs ONE solution on the real judge, with the same sandbox and the same time limit as a submission. It runs against the tests SAVED on the server. It does not enter the package, the history or the scoreboard. Use it to test a student solution or an idea without changing the package. The language comes from the file extension.')),
+        'Runs ONE solution on the real judge, with the same sandbox and the same time limit as a submission. It runs against the tests SAVED on the server. It does not enter the package, the history or the scoreboard. Use it to test a student solution or an idea without changing the package. The language comes from the file extension.',
+        'Ejecuta UNA solución en el juez real, con la misma jaula y el mismo tiempo límite que un envío. Corre contra las pruebas GUARDADAS en el servidor. No entra en el paquete, en el historial ni en el marcador. Úsalo para probar la solución de un estudiante o una idea sin tocar el paquete. El lenguaje viene de la extensión del archivo.')),
     el('div', { class: 'row', style: 'gap:.5rem;align-items:center;flex-wrap:wrap;margin-bottom:.3rem' },
-      pickBtn, fi, el('span', { class: 'small muted' }, T('ou cole o código — arquivo', 'or paste the code — file')), fnInput,
+      pickBtn, fi, el('span', { class: 'small muted' }, T('ou cole o código — arquivo', 'or paste the code — file', 'o pega el código — archivo')), fnInput,
       el('span', { style: 'flex:1' }), runBtn),
     mount, unsaved, msg,
-    el('h4', { style: 'margin:.8rem 0 .2rem' }, T('Execuções', 'Runs')),
+    el('h4', { style: 'margin:.8rem 0 .2rem' }, T('Execuções', 'Runs', 'Ejecuciones')),
     list);
 
   // SERIALIZADO: abrir a sub-aba (cria vazio) e o 🧪 de uma solução (preenche) chegam juntos — sem a
@@ -100,7 +102,7 @@ export function makeTestRun(ctx) {
     const f = fi.files && fi.files[0]; if (!f) return;
     picked = f; pickedText = await f.text();
     fnInput.value = f.name; await ensureEditor(pickedText); fi.value = '';
-    setMsg(T('Arquivo carregado. Rode como está ou edite antes.', 'File loaded. Run it as it is or edit it first.'));
+    setMsg(T('Arquivo carregado. Rode como está ou edite antes.', 'File loaded. Run it as it is or edit it first.', 'Archivo cargado. Ejecútalo tal cual o edítalo antes.'));
   });
 
   // preenche com uma solução do editor (o texto ATUAL, sem salvar) — o 🧪 de cada linha de solução
@@ -113,20 +115,20 @@ export function makeTestRun(ctx) {
     const id = ctx.id(); if (!id) { unsaved.hidden = false; return; }
     const filename = fnInput.value.trim();
     const code = ed ? ed.getValue() : '';
-    if (!filename) { setMsg(T('Dê um nome ao arquivo, com a extensão (ex.: sol.cpp).', 'Name the file, with the extension (e.g. sol.cpp).'), true); return; }
-    if (!code.trim()) { setMsg(T('Cole o código ou escolha um arquivo.', 'Paste the code or choose a file.'), true); return; }
-    runBtn.disabled = true; setMsg(T('Enviando…', 'Sending…'));
+    if (!filename) { setMsg(T('Dê um nome ao arquivo, com a extensão (ex.: sol.cpp).', 'Name the file, with the extension (e.g. sol.cpp).', 'Dale un nombre al archivo, con la extensión (ej.: sol.cpp).'), true); return; }
+    if (!code.trim()) { setMsg(T('Cole o código ou escolha um arquivo.', 'Paste the code or choose a file.', 'Pega el código o elige un archivo.'), true); return; }
+    runBtn.disabled = true; setMsg(T('Enviando…', 'Sending…', 'Enviando…'));
     try {
       // arquivo escolhido e NÃO editado: vão os BYTES dele (um .cpp em Latin-1 não passa pelo UTF-8)
       const b64 = (picked && code === pickedText && filename === picked.name) ? await ctx.fileToBase64(picked) : ctx.textToBase64(code);
       const j = await ctx.post('/problems/test-run', { id, filename, code_b64: b64 });
-      if (!j || !RUN_RE.test(j.run || '')) throw new Error(T('resposta inesperada do servidor', 'unexpected server response'));
+      if (!j || !RUN_RE.test(j.run || '')) throw new Error(T('resposta inesperada do servidor', 'unexpected server response', 'respuesta inesperada del servidor'));
       runs = [{ run: j.run, filename, at: now() }, ...runs.filter(r => r.run !== j.run)].slice(0, MAX_RUNS);
       saveRuns(id, runs); recs.set(j.run, { run: j.run, filename, status: 'queued', requested_at: Math.floor(now() / 1000) });
-      setMsg(T('Na fila do juiz. O resultado aparece abaixo.', 'Queued on the judge. The result shows up below.'));
+      setMsg(T('Na fila do juiz. O resultado aparece abaixo.', 'Queued on the judge. The result shows up below.', 'En cola en el juez. El resultado aparece abajo.'));
       render(); poll();
     } catch (e) {
-      setMsg((e && e.message) || T('Falha ao enviar.', 'Failed to send.'), true);
+      setMsg((e && e.message) || T('Falha ao enviar.', 'Failed to send.', 'Error al enviar.'), true);
     } finally { runBtn.disabled = false; }
   }
 
@@ -141,20 +143,20 @@ export function makeTestRun(ctx) {
   }
   function waitingText(r) {
     const since = r && r.requested_at ? Math.max(0, Math.floor((now() / 1000 - r.requested_at) / 60)) : 0;
-    return T(`⏳ na fila / julgando (há ${since} min)`, `⏳ queued / judging (${since} min ago)`);
+    return T(`⏳ na fila / julgando (há ${since} min)`, `⏳ queued / judging (${since} min ago)`, `⏳ en cola / juzgando (hace ${since} min)`);
   }
   function bodyOf(it, r) {
-    if (!r) return [el('span', { class: 'muted' }, T('consultando…', 'checking…'))];
-    if (r.status === 'expired') return [el('span', { class: 'muted' }, T('expirou (o servidor guarda 7 dias)', 'expired (the server keeps it 7 days)'))];
+    if (!r) return [el('span', { class: 'muted' }, T('consultando…', 'checking…', 'consultando…'))];
+    if (r.status === 'expired') return [el('span', { class: 'muted' }, T('expirou (o servidor guarda 7 dias)', 'expired (the server keeps it 7 days)', 'expiró (el servidor lo guarda 7 días)'))];
     if (r.status !== 'done') return [el('span', { class: 'trun-wait' }, waitingText(r))];
     const acc = String(r.verdict_canon || r.verdict || '').startsWith('Accepted');
     const out = [el('div', { class: 'row', style: 'gap:.5rem;align-items:center;flex-wrap:wrap' },
       el('span', { class: 'pill ' + (acc ? 'ok' : 'no') }, r.verdict || r.verdict_canon || '?'),
       el('span', { class: 'small muted' },
-        `${r.correct != null ? r.correct : '?'}/${r.total_tests != null ? r.total_tests : '?'} ` + T('testes', 'tests')
+        `${r.correct != null ? r.correct : '?'}/${r.total_tests != null ? r.total_tests : '?'} ` + T('testes', 'tests', 'pruebas')
         + (r.duration_s != null ? ` · ${secs(r.duration_s)}` : '') + (r.tl_used != null ? ` · TL ${secs(r.tl_used)}` : '')),
       r.report ? el('a', { href: '#', onclick: (e) => { e.preventDefault(); openReport(it.run); } }, '📄 report') : null)];
-    if ((r.tests || []).length) out.push(el('details', {}, el('summary', { class: 'small' }, T('testes', 'tests') + ` (${r.tests.length})`), testsTable(r.tests)));
+    if ((r.tests || []).length) out.push(el('details', {}, el('summary', { class: 'small' }, T('testes', 'tests', 'pruebas') + ` (${r.tests.length})`), testsTable(r.tests)));
     return out;
   }
   function render() {
@@ -166,7 +168,7 @@ export function makeTestRun(ctx) {
       if (!c) {
         const head = el('div', { class: 'row', style: 'gap:.4rem;align-items:center;flex-wrap:wrap' });
         const body = el('div', { style: 'margin-top:.2rem' });
-        const drop = el('button', { class: 'btn ghost small', type: 'button', title: T('tirar da lista', 'remove from the list'),
+        const drop = el('button', { class: 'btn ghost small', type: 'button', title: T('tirar da lista', 'remove from the list', 'quitar de la lista'),
           onclick: () => { runs = runs.filter(x => x.run !== it.run); saveRuns(curId, runs); recs.delete(it.run); render(); } }, '✕');
         const root = el('div', { class: 'solrow trun-card', style: 'display:block' }, el('div', { class: 'row', style: 'gap:.4rem;align-items:center' }, head, el('span', { style: 'flex:1' }), drop), body);
         c = { root, head, body, sig: null }; cards.set(it.run, c);
@@ -180,13 +182,13 @@ export function makeTestRun(ctx) {
       // ordem: a lista manda (mais nova em cima); só move se estiver fora do lugar
       if (list.children[i] !== c.root) list.insertBefore ? list.insertBefore(c.root, list.children[i] || null) : list.append(c.root);
     });
-    if (!runs.length && !list.children.length) list.append(el('p', { class: 'small muted trun-empty' }, T('Nenhuma execução ainda.', 'No runs yet.')));
+    if (!runs.length && !list.children.length) list.append(el('p', { class: 'small muted trun-empty' }, T('Nenhuma execução ainda.', 'No runs yet.', 'Ninguna ejecución todavía.')));
     if (runs.length) [...list.children].filter(n => n.classList && n.classList.contains('trun-empty')).forEach(n => n.remove());
   }
 
   async function openReport(run) {
     try { ctx.openHtmlReport(await ctx.report(run)); }
-    catch (e) { setMsg(T('Falha ao abrir o report: ', 'Failed to open the report: ') + ((e && e.message) || ''), true); }
+    catch (e) { setMsg(T('Falha ao abrir o report: ', 'Failed to open the report: ', 'Error al abrir el report: ') + ((e && e.message) || ''), true); }
   }
 
   // ---- poll serializado ----

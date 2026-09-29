@@ -14,7 +14,7 @@ import { diffLabel } from '/shared/difficulty.js';
 
 // buckets do sorteio = a dificuldade CANÔNICA (taxa POR USUÁRIO, shared/difficulty.js, #30):
 // fáceis = muito fácil + fácil (≥70% de quem tenta resolve) · médios = 50–70% · difíceis <50%
-const DIFF_LABEL = () => ({ any: T('qualquer', 'any'), easy: T('fáceis (≥70% resolvem)', 'easy (≥70% solve)'), medium: T('médios (50–70%)', 'medium (50–70%)'), hard: T('difíceis (<50% resolvem)', 'hard (<50% solve)'), known: T('com histórico', 'with history') });
+const DIFF_LABEL = () => ({ any: T('qualquer', 'any', 'cualquiera'), easy: T('fáceis (≥70% resolvem)', 'easy (≥70% solve)', 'fáciles (≥70% resuelven)'), medium: T('médios (50–70%)', 'medium (50–70%)', 'medios (50–70%)'), hard: T('difíceis (<50% resolvem)', 'hard (<50% solve)', 'difíciles (<50% resuelven)'), known: T('com histórico', 'with history', 'con historial') });
 const debounce = (fn, ms) => { let h; return (...a) => { clearTimeout(h); h = setTimeout(() => fn(...a), ms); }; };
 let uid = 0;
 
@@ -40,60 +40,60 @@ export function makeBankPanel({ api, onAdd, searchLabel, searchPlaceholder, noQu
     return { input, dl, chips, selected, setOptions };
   }
   const colC = chipsInput({
-    dlId: 'bpColsDL' + idsuf, placeholder: T('coleção (ex.: problemas-apc)…', 'collection (e.g. problemas-apc)…'),
+    dlId: 'bpColsDL' + idsuf, placeholder: T('coleção (ex.: problemas-apc)…', 'collection (e.g. problemas-apc)…', 'colección (ej. problemas-apc)…'),
     options: () => allCollections.map((c) => ({ value: c.collection, count: c.count })),
     optionLabel: (o) => o.value + ' (' + o.count + ')',
   });
   const tagC = chipsInput({
-    dlId: 'bpTagsDL' + idsuf, placeholder: T('tag (ex.: #lista-encadeada)…', 'tag (e.g. #lista-encadeada)…'),
+    dlId: 'bpTagsDL' + idsuf, placeholder: T('tag (ex.: #lista-encadeada)…', 'tag (e.g. #lista-encadeada)…', 'etiqueta (ej. #lista-encadeada)…'),
     options: () => allTags.map((t) => ({ value: t.tag, count: t.count })),
     optionLabel: (o) => o.value + ' (' + o.count + ')',
   });
 
   const count = el('input', { type: 'number', min: '1', max: '100', value: '6', style: 'width:70px' });
-  const match = el('select', {}, el('option', { value: 'any' }, T('qualquer tag', 'any tag')), el('option', { value: 'all' }, T('todas as tags', 'all tags')));
+  const match = el('select', {}, el('option', { value: 'any' }, T('qualquer tag', 'any tag', 'cualquier etiqueta')), el('option', { value: 'all' }, T('todas as tags', 'all tags', 'todas las etiquetas')));
   const DL = DIFF_LABEL();
   const diff = el('select', {}, ...Object.keys(DL).map((k) => el('option', { value: k }, DL[k])));
   const out = el('div', {});
-  const drawBtn = el('button', { class: 'btn' }, T('🎲 Sortear', '🎲 Draw'));
+  const drawBtn = el('button', { class: 'btn' }, T('🎲 Sortear', '🎲 Draw', '🎲 Sortear'));
   let lastSeed = null;
 
   const itemRow = (p, extraInfo) => el('div', { class: 'bank-item' },
     el('div', {}, el('div', { class: 't' }, (p.title || p.id), accBadge(p)), el('div', { class: 'i' }, extraInfo || p.id)),
-    el('button', { class: 'btn ghost', onclick: () => onAdd(p) }, T('+ adicionar', '+ add')));
+    el('button', { class: 'btn ghost', onclick: () => onAdd(p) }, T('+ adicionar', '+ add', '+ agregar')));
   const accBadge = (it) => it.private
-    ? el('span', { class: 'tag', style: 'margin-left:.4rem;background:#3d3417;color:#ffe08a' }, it.access === 'shared' ? T('compartilhado', 'shared') : T('privado', 'private'))
+    ? el('span', { class: 'tag', style: 'margin-left:.4rem;background:#3d3417;color:#ffe08a' }, it.access === 'shared' ? T('compartilhado', 'shared', 'compartido') : T('privado', 'private', 'privado'))
     : '';
 
   async function doDraw(reshuffle) {
     const p = { tags: tagC.selected.join(','), count: count.value || '6', match: match.value, difficulty: diff.value };
     if (colC.selected.length) p.collections = JSON.stringify(colC.selected);
     if (!reshuffle && lastSeed != null) p.seed = lastSeed;
-    out.innerHTML = T('sorteando…', 'drawing…');
+    out.innerHTML = T('sorteando…', 'drawing…', 'sorteando…');
     try {
       const r = await api.draw(p);
       lastSeed = r.seed;
       out.innerHTML = '';
       if (!r.problems || !r.problems.length) {
-        out.append(el('p', { class: 'muted small' }, T('Nenhum problema encontrado (', 'No problem found (') + r.candidates + T(' candidatos). Ajuste coleções/tags/dificuldade.', ' candidates). Adjust collections/tags/difficulty.')));
+        out.append(el('p', { class: 'muted small' }, T('Nenhum problema encontrado (', 'No problem found (', 'Ningún problema encontrado (') + r.candidates + T(' candidatos). Ajuste coleções/tags/dificuldade.', ' candidates). Adjust collections/tags/difficulty.', ' candidatos). Ajusta colecciones/etiquetas/dificultad.')));
         return;
       }
       out.append(el('div', { class: 'small muted', style: 'margin:.3rem 0' },
-        T('Sorteados ', 'Drawn ') + r.drawn + T(' de ', ' of ') + r.candidates + T(' candidatos (seed ', ' candidates (seed ') + r.seed + '). ',
-        el('a', { href: '#', onclick: (e) => { e.preventDefault(); doDraw(true); } }, T('↻ sortear de novo', '↻ draw again')), ' · ',
-        el('a', { href: '#', onclick: (e) => { e.preventDefault(); r.problems.forEach((p2) => onAdd(p2)); } }, T('+ adicionar todos', '+ add all'))));
+        T('Sorteados ', 'Drawn ', 'Sorteados ') + r.drawn + T(' de ', ' of ', ' de ') + r.candidates + T(' candidatos (seed ', ' candidates (seed ', ' candidatos (semilla ') + r.seed + '). ',
+        el('a', { href: '#', onclick: (e) => { e.preventDefault(); doDraw(true); } }, T('↻ sortear de novo', '↻ draw again', '↻ sortear de nuevo')), ' · ',
+        el('a', { href: '#', onclick: (e) => { e.preventDefault(); r.problems.forEach((p2) => onAdd(p2)); } }, T('+ adicionar todos', '+ add all', '+ agregar todos'))));
       r.problems.forEach((p2) => {
         const info = p2.id + ' · ' + (p2.difficulty ? diffLabel(p2.difficulty) : p2.bucket)
-          + (p2.total ? (' · ' + (p2.user_rate != null ? Math.round(p2.user_rate * 100) + T('% resolvem · ', '% solve · ') : '') + p2.solvers + T(' resolveram', ' solved')) : T(' · sem histórico', ' · no history'))
+          + (p2.total ? (' · ' + (p2.user_rate != null ? Math.round(p2.user_rate * 100) + T('% resolvem · ', '% solve · ', '% resuelven · ') : '') + p2.solvers + T(' resolveram', ' solved', ' resolvieron')) : T(' · sem histórico', ' · no history', ' · sin historial'))
           + ((p2.collections || []).length ? (' · 📁 ' + p2.collections.join(', ')) : '');
         out.append(itemRow(p2, info));
       });
-    } catch (e) { out.innerHTML = ''; out.append(el('div', { class: 'small error-box' }, e.message || T('erro', 'error'))); }
+    } catch (e) { out.innerHTML = ''; out.append(el('div', { class: 'small error-box' }, e.message || T('erro', 'error', 'error'))); }
   }
   drawBtn.addEventListener('click', () => { lastSeed = null; doDraw(true); });
 
   // --- busca ---
-  const search = el('input', { placeholder: searchPlaceholder || T('🔎 Buscar problemas — título ou id…', '🔎 Search problems — title or id…') });
+  const search = el('input', { placeholder: searchPlaceholder || T('🔎 Buscar problemas — título ou id…', '🔎 Search problems — title or id…', '🔎 Buscar problemas — título o id…') });
   const results = el('div', { class: 'bank-results', style: 'display:none' });
   const doSearch = debounce(async () => {
     const q = search.value.trim();
@@ -104,13 +104,13 @@ export function makeBankPanel({ api, onAdd, searchLabel, searchPlaceholder, noQu
       results.innerHTML = ''; results.style.display = 'block';
       if (!items.length) {
         results.append(el('div', { class: 'bank-item' }, el('span', { class: 'muted small' },
-          q ? T('nada encontrado', 'nothing found') : (emptyHint || T('digite para buscar no banco', 'type to search the bank')))));
+          q ? T('nada encontrado', 'nothing found', 'nada encontrado') : (emptyHint || T('digite para buscar no banco', 'type to search the bank', 'escribe para buscar en el banco')))));
         return;
       }
       items.forEach((it) => results.append(itemRow(it)));
     } catch (e) {
       results.style.display = 'block'; results.innerHTML = '';
-      results.append(el('div', { class: 'bank-item' }, el('span', { class: 'small error-box' }, e.message || T('erro', 'error'))));
+      results.append(el('div', { class: 'bank-item' }, el('span', { class: 'small error-box' }, e.message || T('erro', 'error', 'error'))));
     }
   }, 250);
   search.addEventListener('input', doSearch);
@@ -128,12 +128,12 @@ export function makeBankPanel({ api, onAdd, searchLabel, searchPlaceholder, noQu
 
   const root = el('div', {},
     el('div', { class: 'section', style: 'background:#fbfdff' },
-      el('h3', { style: 'margin:.1rem 0 .4rem' }, T('🎲 Sortear por coleção / tag / dificuldade', '🎲 Draw by collection / tag / difficulty')),
-      el('div', { class: 'field' }, el('label', {}, T('Coleções', 'Collections')), colC.input, colC.dl, colC.chips),
+      el('h3', { style: 'margin:.1rem 0 .4rem' }, T('🎲 Sortear por coleção / tag / dificuldade', '🎲 Draw by collection / tag / difficulty', '🎲 Sortear por colección / etiqueta / dificultad')),
+      el('div', { class: 'field' }, el('label', {}, T('Coleções', 'Collections', 'Colecciones')), colC.input, colC.dl, colC.chips),
       el('div', { class: 'field' }, el('label', {}, 'Tags'), tagC.input, tagC.dl, tagC.chips),
-      el('div', { class: 'row' }, el('span', { class: 'small' }, T('quantos:', 'how many:')), count,
-        el('span', { class: 'small' }, T('casar:', 'match:')), match, el('span', { class: 'small' }, T('dificuldade:', 'difficulty:')), diff, drawBtn),
+      el('div', { class: 'row' }, el('span', { class: 'small' }, T('quantos:', 'how many:', 'cuántos:')), count,
+        el('span', { class: 'small' }, T('casar:', 'match:', 'coincidir:')), match, el('span', { class: 'small' }, T('dificuldade:', 'difficulty:', 'dificultad:')), diff, drawBtn),
       out),
-    el('div', { class: 'field' }, el('label', {}, searchLabel || T('Buscar problemas', 'Search problems')), search, results));
+    el('div', { class: 'field' }, el('label', {}, searchLabel || T('Buscar problemas', 'Search problems', 'Buscar problemas')), search, results));
   return { el: root };
 }

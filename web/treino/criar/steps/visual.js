@@ -10,24 +10,24 @@ export function makeStepVisual(ctx) {
   if (!ctx.editors.colors) ctx.editors.colors = makeColorsEditor({ letters: currentLetters(), initial: d.visual.colors || {} });
   if (!ctx.editors.regions) ctx.editors.regions = makeRegionsEditor({ initial: d.visual.regions || [] });
 
-  const teamsMount = el('div', {}, el('p', { class: 'muted small' }, T('carregando seletor de bandeiras…', 'loading flag selector…')));
+  const teamsMount = el('div', {}, el('p', { class: 'muted small' }, T('carregando seletor de bandeiras…', 'loading flag selector…', 'cargando selector de banderas…')));
   if (ctx.editors.teams) { teamsMount.innerHTML = ''; teamsMount.append(ctx.editors.teams.el); }
   else {
     // preview de matches contra os usuários já preenchidos no passo 3 (compartilhado: sem lista)
     const logins = d.userMode === 'own' ? (d.users || []).map((u) => u.login).filter(Boolean) : [];
     makeTeamsEditor({ initial: d.visual.teams_meta || [], logins })
       .then((edt) => { ctx.editors.teams = edt; teamsMount.innerHTML = ''; teamsMount.append(edt.el); })
-      .catch(() => { teamsMount.innerHTML = ''; teamsMount.append(el('p', { class: 'small error-box' }, T('falha ao carregar bandeiras', 'failed to load flags'))); });
+      .catch(() => { teamsMount.innerHTML = ''; teamsMount.append(el('p', { class: 'small error-box' }, T('falha ao carregar bandeiras', 'failed to load flags', 'no se pudieron cargar las banderas'))); });
   }
 
   const hh = (t) => el('h3', { style: 'margin:1rem 0 .3rem' }, t);
   const root = el('div', { class: 'section' },
-    el('h2', {}, T('6 · Visual e placar ', '6 · Appearance and scoreboard '), el('span', { class: 'small muted' }, T('(opcional)', '(optional)'))),
-    hh(T('🎈 Cores dos balões', '🎈 Balloon colors')),
-    el('div', {}, el('button', { class: 'btn ghost', style: 'margin-bottom:.3rem', onclick: () => ctx.editors.colors.setLetters(currentLetters()) }, T('↻ sincronizar com os problemas', '↻ sync with the problems'))),
+    el('h2', {}, T('6 · Visual e placar ', '6 · Appearance and scoreboard ', '6 · Aspecto visual y marcador '), el('span', { class: 'small muted' }, T('(opcional)', '(optional)', '(opcional)'))),
+    hh(T('🎈 Cores dos balões', '🎈 Balloon colors', '🎈 Colores de los globos')),
+    el('div', {}, el('button', { class: 'btn ghost', style: 'margin-bottom:.3rem', onclick: () => ctx.editors.colors.setLetters(currentLetters()) }, T('↻ sincronizar com os problemas', '↻ sync with the problems', '↻ sincronizar con los problemas'))),
     ctx.editors.colors.el,
-    hh(T('🏳️ Países e escolas (bandeira/sigla por regex no login)', '🏳️ Countries and schools (flag/abbreviation by login regex)')), teamsMount,
-    hh(T('🔎 Filtros de região do placar', '🔎 Scoreboard region filters')), ctx.editors.regions.el);
+    hh(T('🏳️ Países e escolas (bandeira/sigla por regex no login)', '🏳️ Countries and schools (flag/abbreviation by login regex)', '🏳️ Países y escuelas (bandera/sigla por regex en el usuario)')), teamsMount,
+    hh(T('🔎 Filtros de região do placar', '🔎 Scoreboard region filters', '🔎 Filtros de región del marcador')), ctx.editors.regions.el);
   return { el: root };
 }
 

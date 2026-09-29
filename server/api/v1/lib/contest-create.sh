@@ -48,7 +48,7 @@ cc_solved_count(){ metrics_solved_count treino "$1"; }
 
 # cc_genpass — senha legível: uma palavra de palavras-para-senha + 4 dígitos (ex.: tartaruga7823).
 cc_genpass(){
-  local wl="${PASSWORD_WORDLIST:-/home/ribas/moj/cdmoj/mojinho-bot/palavras-para-senha}" w=""
+  local wl="${PASSWORD_WORDLIST:-}" w=""
   [[ -f "$wl" ]] && w="$(shuf -n1 "$wl" 2>/dev/null | tr -cd 'a-z0-9')"
   [[ -n "$w" ]] || w="$(head -c 8 /dev/urandom | base64 | tr -dc 'a-z0-9' | head -c 6)"
   printf '%s%04d' "$w" "$(( RANDOM % 10000 ))"
@@ -90,7 +90,6 @@ cc_settings_conf_lines(){
   v="$(jq -r '.allow_print' <<<"$spec")";    [[ "$v" == false ]] && printf 'PRINT=%q\n' 0
   v="$(jq -r '.score_anon' <<<"$spec")";     [[ "$v" == true ]] && printf 'SCORE_ANON=%q\n' 1
   v="$(jq -r '.manual_verdict' <<<"$spec")"; [[ "$v" == true ]] && printf 'MANUAL_VERDICT=%q\n' 1
-  v="$(jq -r '.allow_late' <<<"$spec")";     [[ "$v" == true ]] && printf 'ALLOWLATEUSER=%q\n' y
   v="$(jq -r '.secret' <<<"$spec")";         [[ "$v" == true ]] && printf 'SECRET=%q\n' 1
   # DEMO=1 é TRAVA, não modo: nada no sistema muda de comportamento por causa dele. Ele existe
   # para o `/contest/admin/seed` (dados sintéticos) poder recusar QUALQUER contest que não seja
@@ -184,6 +183,8 @@ cc_create(){
   [[ -z "$langs" || "$langs" =~ ^[A-Za-z0-9\ +._-]+$ ]] || fail 422 "Lista de linguagens inválida" "langs_invalid"
   local ua_sub; ua_sub="$(jq -r '.login_ua_substring // ""' <<<"$spec")"; ua_sub="${ua_sub//$'\n'/}"
   (( ${#ua_sub} <= 200 )) || fail 422 "login_ua_substring muito longa" "ua_long"
+  local loc_in; loc_in="$(jq -r '.locale // empty' <<<"$spec")"
+  [[ -z "$loc_in" ]] || contest_locale_ok "$loc_in" || fail 422 "locale inválido (pt, en ou es)" "locale_invalid"
   # penalidade do placar ICPC (opcional; só válida em conjunto — a gravação fica no conf_lines)
   local pmin; pmin="$(jq -r '.penalty_minutes // empty' <<<"$spec")"
   if [[ -n "$pmin" ]]; then
@@ -310,7 +311,13 @@ cc_create(){
   if [[ -n "$sa_pass" ]]; then
     adminpass="$sa_pass"                         # [a] senha digitada -> autoritativa
   elif [[ "$shared_has_admin" == true ]]; then
-    admin_reused=true; admin_local=false; adminpass=""   # [b][c] reusa, não grava local
+    # [b][c] reusa — mas SÓ o `.admin` do PRÓPRIO criador (28/09/2026). Antes qualquer `.admin` do treino
+    # servia: indicar o de outro professor, sem senha, dava a ele a administração do contest. O admin
+    # reusado fica gravado em SHARED_ADMIN: é o único papel do treino que a auth deixa entrar num contest
+    # compartilhado (além dos SUPERADMINS) — ver _shared_role_ok em lib/auth.sh.
+    [[ "$adminlogin" == "${creator%.admin}.admin" ]] \
+      || { rm -rf "$stg"; fail 422 "Esse login .admin é de outra conta do treino — informe uma senha (cria uma conta local do contest)" "admin_login_foreign"; }
+    admin_reused=true; admin_local=false; adminpass=""
   else
     adminpass="$(cc_genpass)"                     # padrão: gera
   fi
@@ -328,7 +335,7 @@ cc_create(){
       '{login:$l,password:$p,fullname:$n,email:$e,created_at:$t,updated_at:$t,status:"active",uname_changes:[]}
        + (if ($tm|length) > 0 then {team:$tm} else {} end)' \
       > "$d/account.json" || return 1
-    : > "$d/history"
+    [[ -f "$d/history" ]] || : > "$d/history"
   }
   declare -a CREDS
   if [[ "$admin_local" == true ]]; then
@@ -375,13 +382,12 @@ cc_create(){
     printf '%s\n' "$probs"
     [[ -n "$langs" ]] && printf 'LANGUAGES=%q\n' "$langs"
     [[ -n "$shared" ]] && printf 'USERS_FROM=%q\n' "$shared"
-    [[ "$b_locale" =~ ^(pt|en)$ ]] && printf 'LOCALE=%q\n' "$b_locale"
+    [[ -n "$shared" && "$admin_reused" == true ]] && printf 'SHARED_ADMIN=%q\n' "$adminlogin"
+    [[ -n "$b_locale" ]] && contest_locale_ok "$b_locale" && printf 'LOCALE=%q\n' "$b_locale"
     [[ "$b_lstart" =~ ^[0-9]+$ ]] && printf 'LOGIN_START_TIME=%q\n' "$b_lstart"
     [[ "$b_lenabled" == n ]] && printf 'LOGIN_ENABLED=%q\n' "n"
     [[ "$b_freeze" =~ ^[0-9]+$ ]] && printf 'FREEZE_TIME=%q\n' "$b_freeze"
     cc_settings_conf_lines "$spec"
-    # allow_late explícito no spec vence o automático de mode=treino (false => sem a var)
-    [[ "$mode" == treino && "$(jq -r '.allow_late' <<<"$spec")" == null ]] && printf 'ALLOWLATEUSER=y\n'
   } > "$stg/conf"
   printf '%s\n' "$creator" > "$stg/owner"
   printf '%s\t%s\t%s\n' "$creator" "$EPOCHSECONDS" "$mode" > "$stg/created-by"
@@ -394,7 +400,10 @@ cc_create(){
   regions_j="$(jq -c '.modules.sedes.regions // .regions // empty' <<<"$spec" 2>/dev/null)"
   teams_j="$(jq -c '.modules.sedes.teams_meta // .teams_meta // empty' <<<"$spec" 2>/dev/null)"
   [[ -n "$colors_j"  && "$colors_j"  != null ]] && printf '%s' "$colors_j"  > "$stg/balloons.json"
-  [[ -n "$regions_j" && "$regions_j" != null ]] && printf '%s' "$regions_j" > "$stg/regions.json"
+  if [[ -n "$regions_j" && "$regions_j" != null ]]; then
+    cc_regions_ok "$regions_j" || { rm -rf "$stg"; cc_regions_fail; }
+    printf '%s' "$regions_j" > "$stg/regions.json"
+  fi
   [[ -n "$teams_j"   && "$teams_j"   != null ]] && jq -cn --argjson r "$teams_j" '{rules:$r}' > "$stg/teams-meta.json"
   cc_apply_modules_spec "$spec" "$stg" "$creator" || { rm -rf "$stg"; fail 422 "Seção de módulo inválida no spec (${CC_MOD_ERR:-modules})" "modules_spec_invalid"; }
 
@@ -683,6 +692,39 @@ cc_del_conf_var(){
   cat "$tmp" > "$cf" && rm -f "$tmp"
 }
 
+# cc_regions_ok <json> — o regions.json tem a FORMA certa? Lista de nós {name, regex?, subregions?, view?}:
+# name texto não-vazio, regex texto, subregions lista (recursivo). É o portão de config.sh e da criação —
+# antes nada conferia, e um objeto/texto gravado ali quebrava em silêncio os ~13 leitores (placar, escopo
+# do staff, etiquetas, gate, telão…). E a REGEX de cada nó tem de estar no subconjunto seguro (rg_norm de
+# lib/regions.sh: casa igual em JS, jq e gawk). Falhou por regex: CC_REGIONS_ERRORS = [{i,path,name,regex,err}]
+# (≤ 50, regex cortada em 200 — cabe no FAIL_EXTRA) e cc_regions_fail monta o 422.
+cc_regions_ok(){
+  CC_REGIONS_ERRORS='[]'
+  jq -e 'def ok: type == "object"
+            and ((.name | type) == "string") and ((.name | gsub("^\\s+|\\s+$"; "") | length) > 0)
+            and (((.regex // "") | type) == "string")
+            and (((.subregions // []) | type) == "array")
+            and all((.subregions // [])[]; ok);
+         type == "array" and all(.[]; ok)' >/dev/null 2>&1 <<<"$1" || return 1
+  declare -F rg_tree_errors >/dev/null || source "${_LIBDIR:-${BASH_SOURCE[0]%/*}}/regions.sh"
+  local f; f="$(mktemp)" || return 1
+  printf '%s' "$1" > "$f"
+  CC_REGIONS_ERRORS="$(rg_tree_errors "$f" | jq -c '.[0:50] | map(.regex |= .[0:200])' 2>/dev/null)"
+  rm -f "$f"
+  [[ -n "$CC_REGIONS_ERRORS" ]] || CC_REGIONS_ERRORS='[]'
+  [[ "$CC_REGIONS_ERRORS" == '[]' ]]
+}
+# cc_regions_fail — o 422 depois de um cc_regions_ok que falhou (forma OU regex). `error.nodes` = os nós
+# com regex recusada e o código (a web traduz: regions.js; a CLI mostra o caminho)
+cc_regions_fail(){
+  if [[ "${CC_REGIONS_ERRORS:-[]}" != '[]' ]]; then
+    local m; m="$(jq -r '.[0] | "a regex de \"\(.path)\" está fora do subconjunto seguro (\(.err))"' <<<"$CC_REGIONS_ERRORS")"
+    FAIL_EXTRA="$(jq -cn --argjson e "$CC_REGIONS_ERRORS" '{nodes:$e}')" \
+      fail 422 "Sedes (regions): $m" "regions_invalid"
+  fi
+  fail 422 "Sedes (regions) inválidas: lista de {name, regex?, subregions?}" "regions_invalid"
+}
+
 # cc_build_probs <target_dir> <problems_json_array> [enun_src_dir] -> ecoa "PROBS=(...)"
 # e grava os enunciados em <target_dir>/enunciados/. Letra: usa .letter se válida, senão A,B,...
 # Retorna 1 em validação inválida.
@@ -800,7 +842,7 @@ cc_tpl_relativize(){
     (.start|tonumber? // 0) as $st | (.end|tonumber? // 0) as $en
     | (.login_start|tonumber? // 0) as $ls | (.freeze|tonumber? // 0) as $fz
     | pick(["mode","priority","languages","show_log","show_editor","show_tl",
-            "allow_backup","allow_print","score_anon","manual_verdict","allow_late","secret",
+            "allow_backup","allow_print","score_anon","manual_verdict","secret",
             "login_ua_substring","score_full_users","locale","login_enabled",
             "penalty_minutes","penalty_verdicts",
             "colors","regions","teams_meta","modules"])
@@ -825,7 +867,7 @@ cc_export_spec(){
   confjson="$(
     CONTEST_NAME=""; CONTEST_TYPE=""; CONTEST_PRIORITY=""; CONTEST_START=""; CONTEST_END=""
     LANGUAGES=""; USERS_FROM=""; LOCALE=""; LOGIN_START_TIME=""; LOGIN_ENABLED=""
-    FREEZE_TIME=""; ALLOWLATEUSER=""; SHOWLOG=""; SHOWEDITOR=""; SHOWTL=""; SCORE_ANON=""
+    FREEZE_TIME=""; SHOWLOG=""; SHOWEDITOR=""; SHOWTL=""; SCORE_ANON=""
     BACKUP=""; PRINT=""; MANUAL_VERDICT=""; LOGIN_UA_SUBSTRING=""; SCORE_FULL_USERS=""; SECRET=""
     PENALTY_MINUTES=""; PENALTY_VERDICTS="__unset"; CONTEST_JUDGES=""; CONTEST_MODULES=""
     . "$cdir/conf" 2>/dev/null
@@ -834,7 +876,7 @@ cc_export_spec(){
       --arg start "$CONTEST_START" --arg end "$CONTEST_END" --arg langs "$LANGUAGES" \
       --arg users_from "$USERS_FROM" --arg locale "$LOCALE" \
       --arg lstart "$LOGIN_START_TIME" --arg lenabled "$LOGIN_ENABLED" --arg freeze "$FREEZE_TIME" \
-      --arg late "$ALLOWLATEUSER" --arg showlog "$SHOWLOG" --arg showeditor "$SHOWEDITOR" \
+      --arg showlog "$SHOWLOG" --arg showeditor "$SHOWEDITOR" \
       --arg showtl "$SHOWTL" --arg anon "$SCORE_ANON" --arg backup "$BACKUP" --arg prnt "$PRINT" \
       --arg manual "$MANUAL_VERDICT" --arg ua "$LOGIN_UA_SUBSTRING" --arg sfu "$SCORE_FULL_USERS" \
       --arg secret "$SECRET" --arg pmin "$PENALTY_MINUTES" --arg pvd "$PENALTY_VERDICTS" \
@@ -849,7 +891,6 @@ cc_export_spec(){
       + (if (($lstart|tonumber?) // 0) > 0 then {login_start:($lstart|tonumber)} else {} end)
       + (if $lenabled == "n" then {login_enabled:false} else {} end)
       + (if (($freeze|tonumber?) // 0) > 0 then {freeze:($freeze|tonumber)} else {} end)
-      + (if $late == "y" then {allow_late:true} else {} end)
       + (if $showlog == "0" then {show_log:false} else {} end)
       + (if $showeditor == "0" then {show_editor:false} else {} end)
       + (if $showtl == "0" then {show_tl:false} else {} end)

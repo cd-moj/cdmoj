@@ -3,7 +3,7 @@
 Este é o manual de quem **opera o telão** de uma competição no MOJ: o placar no projetor, as
 fotos e músicas que animam a virada, e a cerimônia de revelação.
 
-> **Tutorial web com screenshots** (PT/EN): `/contest/ajuda/animeitor.html` — abre pelo botão
+> **Tutorial web com screenshots** (PT/EN/ES): `/contest/ajuda/animeitor.html` — abre pelo botão
 > **📖 Como funciona este papel** na própria tela do telão.
 > **Documento técnico**: a integração pela API do Animeitor em [ANIMEITOR.md](ANIMEITOR.md); o pacote
 > legado (formato BOCA) em [WEBCAST.md](WEBCAST.md).
@@ -19,7 +19,7 @@ API — seção 📡 abaixo), as **fotos** dos times e as **músicas** dos times
 das estatísticas, dos balões e das etiquetas — não é um competidor.
 
 O **administrador entra na mesma tela com os mesmos poderes**, pelo cartão *🎥 Telão* da Central
-do painel ou pelo link em *Pessoas › Times*. Em contest com usuários compartilhados (`USERS_FROM`),
+do painel ou pelo link em *Evento › Times*. Em contest com usuários compartilhados (`USERS_FROM`),
 essa é a **única** porta para subir foto/música.
 
 ## Abas que você vê
@@ -30,7 +30,7 @@ essa é a **única** porta para subir foto/música.
 | **Animeitor** | A sua mesa: 📡 o envio ao Animeitor (placares, sedes, alimentador, conferência, reveleitor), fotos e músicas dos times e, dobradas, as chaves de streaming legadas. |
 | **Estatísticas** | Números da prova (submissões por problema, linguagens, linha do tempo) — bom material de intervalo. |
 | **Revelação** | A cerimônia **experimental do MOJ** (ver o aviso abaixo). Disponível a **qualquer** momento para você, para ensaiar antes da plateia chegar. |
-| **Sair** | Encerra a sessão. |
+| **Logout** | Encerra a sessão. |
 
 ## ⚠ A cerimônia oficial é o Animeitor, não a página do MOJ
 

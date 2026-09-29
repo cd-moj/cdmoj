@@ -166,6 +166,12 @@ printf 'LOCALE=en\n' >> "$C/conf"
 adm '{"action":"invite-remind","team":"time-os-tres-ponteiros","login":"west"}'
 ck "contest en: DM em EN e PT"   '[[ "$(jq -r .text "$(dmfor 4242)")" == *"Accept or decline"* && "$(jq -r .text "$(dmfor 4242)")" == *"Aceite ou recuse"* ]]'
 sed -i '/^LOCALE=en$/d' "$C/conf"
+# LOCALE=es: mesma regra do en — ES + PT no mesmo texto, data com o mês por tabela
+printf 'LOCALE=es\n' >> "$C/conf"
+adm '{"action":"invite-remind","team":"time-os-tres-ponteiros","login":"west"}'
+ck "contest es: DM em ES e PT"   '[[ "$(jq -r .text "$(dmfor 4242)")" == *"Acepta o rechaza"* && "$(jq -r .text "$(dmfor 4242)")" == *"Aceite ou recuse"* && "$(jq -r .text "$(dmfor 4242)")" != *"Accept or decline"* ]]'
+ck "contest es: data em espanhol" '[[ "$(source "$ROOT/api/v1/lib/common.sh" 2>/dev/null; source "$ROOT/api/v1/lib/invite-notify.sh" 2>/dev/null; _inv_when 1790000000 es esq)" =~ ^[0-9]{1,2}\ de\ (ene|feb|mar|abr|may|jun|jul|ago|sep|oct|nov|dic)\ a\ las\ [0-9]{2}:[0-9]{2}$ ]]'
+sed -i '/^LOCALE=es$/d' "$C/conf"
 adm '{"action":"invite-remind","team":"time-os-tres-ponteiros","login":"west"}'
 ck "contest pt: DM só em PT"     '[[ "$(jq -r .text "$(dmfor 4242)")" != *"Accept or decline"* ]]'
 # limpa o 2º time (o resto do smoke conta 1 time) e o convite pendente dele

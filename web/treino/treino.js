@@ -77,10 +77,10 @@ const filtered = () => ALL.filter((p) => matchColl(p) && matchTags(p) && matchDi
 
 // ---- ordenação ----------------------------------------------------------------------------
 const SORTS = [
-  { key: 'solved', pt: 'Mais resolvidos', en: 'Most solved' },
-  { key: 'az', pt: 'A–Z', en: 'A–Z' },
-  { key: 'diff', pt: 'Dificuldade', en: 'Difficulty' },
-  { key: 'new', pt: 'Novidades', en: 'Newest' },       // exige public_at na lista (fase 2)
+  { key: 'solved', pt: 'Mais resolvidos', en: 'Most solved', es: 'Más resueltos' },
+  { key: 'az', pt: 'A–Z', en: 'A–Z', es: 'A–Z' },
+  { key: 'diff', pt: 'Dificuldade', en: 'Difficulty', es: 'Dificultad' },
+  { key: 'new', pt: 'Novidades', en: 'Newest', es: 'Novedades' },       // exige public_at na lista (fase 2)
 ];
 const byTitle = (a, b) => (a.title || a.id).localeCompare(b.title || b.id, 'pt', { numeric: true, sensitivity: 'base' });
 function sortRows(rows) {
@@ -198,7 +198,7 @@ function renderTree() {
     const link = el('a', {
       class: 'collection' + (isOn(n) ? ' on' : ''),
       href: '?searchcol=' + encodeURIComponent(n.leaf ? n.label : 'grp:' + n.label),
-      title: n.leaf ? n.label : T(`${n.colls.size} coleções`, `${n.colls.size} collections`),
+      title: n.leaf ? n.label : T(`${n.colls.size} coleções`, `${n.colls.size} collections`, `${n.colls.size} colecciones`),
       onclick: (e) => { e.preventDefault(); toggleNode(n); },
     }, `${n.label} (${n.count})`);
     const me = LOGGED ? (() => {
@@ -216,7 +216,7 @@ function renderTree() {
   }
   let any = false;
   TREE.forEach((n) => { const r = row(n, ''); if (r) { box.append(r); any = true; } });
-  if (!any) box.append(el('span', { class: 'muted' }, T('nenhuma coleção casa com o filtro.', 'no collection matches the filter.')));
+  if (!any) box.append(el('span', { class: 'muted' }, T('nenhuma coleção casa com o filtro.', 'no collection matches the filter.', 'ninguna colección coincide con el filtro.')));
 }
 
 // ---- navegador de tags --------------------------------------------------------------------
@@ -257,12 +257,12 @@ function renderTags() {
   if (hasMore) box.append(el('a', {
     class: 'tag', style: 'background:#fff;border:1px dashed var(--line);color:var(--muted)',
     onclick: () => { tagShowAll = true; renderTags(); },
-  }, T(`mostrar todas (${entries.length}) ▾`, `show all (${entries.length}) ▾`)));
+  }, T(`mostrar todas (${entries.length}) ▾`, `show all (${entries.length}) ▾`, `mostrar todas (${entries.length}) ▾`)));
   else if (tagShowAll && entries.length > TOPTAGS) box.append(el('a', {
     class: 'tag', style: 'background:#fff;border:1px dashed var(--line);color:var(--muted)',
     onclick: () => { tagShowAll = false; renderTags(); },
-  }, T('mostrar menos ▴', 'show fewer ▴')));
-  if (!entries.length) box.append(el('span', { class: 'muted small' }, T('nenhuma tag casa com o filtro.', 'no tag matches the filter.')));
+  }, T('mostrar menos ▴', 'show fewer ▴', 'mostrar menos ▴')));
+  if (!entries.length) box.append(el('span', { class: 'muted small' }, T('nenhuma tag casa com o filtro.', 'no tag matches the filter.', 'ninguna etiqueta coincide con el filtro.')));
 }
 function toggleTag(k) {
   selTags.has(k) ? selTags.delete(k) : selTags.add(k);
@@ -282,17 +282,17 @@ function renderRail() {
       attempted: base.filter((p) => attempted.has(p.id) && !solved.has(p.id)).length,
     };
     const OPTS = [
-      { key: 'all', pt: 'Todos', en: 'All' },
-      { key: 'unsolved', pt: 'A resolver', en: 'To solve' },
-      { key: 'solved', pt: '✓ Resolvidos', en: '✓ Solved' },
-      { key: 'attempted', pt: '… Tentados', en: '… Attempted' },
+      { key: 'all', pt: 'Todos', en: 'All', es: 'Todos' },
+      { key: 'unsolved', pt: 'A resolver', en: 'To solve', es: 'Por resolver' },
+      { key: 'solved', pt: '✓ Resolvidos', en: '✓ Solved', es: '✓ Resueltos' },
+      { key: 'attempted', pt: '… Tentados', en: '… Attempted', es: '… Intentados' },
     ];
     const box = $('fStatus'); box.innerHTML = '';
     OPTS.forEach((o) => {
       const inp = el('input', { type: 'radio', name: 'fstatus',
         onchange: () => { FSTATUS = o.key; page = 0; syncURL(); renderAll(); } });
       inp.checked = FSTATUS === o.key;
-      box.append(el('label', { class: 'fitem' }, inp, T(o.pt, o.en),
+      box.append(el('label', { class: 'fitem' }, inp, T(o.pt, o.en, o.es),
         el('span', { class: 'cnt2' }, String(counts[o.key]))));
     });
   }
@@ -308,7 +308,7 @@ function renderRail() {
     } });
     inp.checked = selDiffs.has(d.key);
     box.append(el('label', { class: 'fitem' }, inp,
-      el('span', { class: 'diff ' + d.cls }, T(d.pt, d.en)),
+      el('span', { class: 'diff ' + d.cls }, T(d.pt, d.en, d.es)),
       el('span', { class: 'cnt2' }, String(counts.get(d.key) || 0))));
   });
 }
@@ -329,17 +329,17 @@ function renderActive() {
     (TAGS.get(k) || { label: '#' + k }).label, el('span', { class: 'chip-x' }, '×'))));
   selDiffs.forEach((k) => { const d = diffByKey(k); if (d) box.append(el('span', { class: 'fchip on',
     style: 'font-size:.75rem', onclick: () => { selDiffs.delete(k); page = 0; syncURL(); renderAll(); } },
-    T(d.pt, d.en), el('span', { class: 'chip-x' }, '×'))); });
+    T(d.pt, d.en, d.es), el('span', { class: 'chip-x' }, '×'))); });
   if (FSTATUS !== 'all') box.append(el('span', { class: 'fchip on', style: 'font-size:.75rem',
     onclick: () => { FSTATUS = 'all'; page = 0; syncURL(); renderAll(); } },
-    FSTATUS === 'solved' ? T('resolvidos', 'solved') : FSTATUS === 'attempted' ? T('tentados', 'attempted') : T('a resolver', 'to solve'),
+    FSTATUS === 'solved' ? T('resolvidos', 'solved', 'resueltos') : FSTATUS === 'attempted' ? T('tentados', 'attempted', 'intentados') : T('a resolver', 'to solve', 'por resolver'),
     el('span', { class: 'chip-x' }, '×')));
   if ($('q').value.trim()) box.append(el('span', { class: 'tag',
     onclick: () => { $('q').value = ''; $('mq').value = ''; page = 0; syncURL(); renderAll(); } },
     `“${$('q').value.trim()}”`, el('span', { class: 'chip-x' }, '×')));
   box.append(el('a', { class: 'small', style: 'cursor:pointer;margin-left:.2rem', onclick: () => {
     clearFilters(); syncURL(); renderAll();
-  } }, T('limpar', 'clear')));
+  } }, T('limpar', 'clear', 'limpiar')));
 }
 function syncURL() {
   const sp = new URLSearchParams();
@@ -407,22 +407,24 @@ function banner(label) {
 }
 function fmtAgo(epoch) {
   const d = Math.floor((Date.now() / 1000 - epoch) / 86400);
-  if (d <= 0) return T('hoje', 'today');
-  if (d === 1) return T('ontem', 'yesterday');
-  if (d < 30) return T(`há ${d} dias`, `${d} days ago`);
-  return T(`há ${Math.floor(d / 30)} mês(es)`, `${Math.floor(d / 30)} month(s) ago`);
+  if (d <= 0) return T('hoje', 'today', 'hoy');
+  if (d === 1) return T('ontem', 'yesterday', 'ayer');
+  if (d < 30) return T(`há ${d} dias`, `${d} days ago`, `hace ${d} días`);
+  return T(`há ${Math.floor(d / 30)} mês(es)`, `${Math.floor(d / 30)} month(s) ago`, `hace ${Math.floor(d / 30)} mes(es)`);
 }
 const probURL = (id) => '/treino/problema/?id=' + encodeURIComponent(id);
 
 function renderHub() {
   const byId = new Map(ALL.map((p) => [p.id, p]));
   $('heroSub').textContent = LOGGED
-    ? T(`${ALL.length} problemas · você resolveu ${solved.size}`, `${ALL.length} problems · you solved ${solved.size}`)
+    ? T(`${ALL.length} problemas · você resolveu ${solved.size}`, `${ALL.length} problems · you solved ${solved.size}`, `${ALL.length} problemas · resolviste ${solved.size}`)
     : T(`${ALL.length} problemas para treinar — entre para acompanhar seu progresso`,
-        `${ALL.length} problems to practice — sign in to track your progress`);
-  $('allColls').textContent = T(`todas (${COLLN}) →`, `all (${COLLN}) →`);
+        `${ALL.length} problems to practice — sign in to track your progress`,
+        `${ALL.length} problemas para practicar — inicia sesión para seguir tu progreso`);
+  $('allColls').textContent = T(`todas (${COLLN}) →`, `all (${COLLN}) →`, `todas (${COLLN}) →`);
   $('ctaSub').textContent = T(`${COLLN} coleções · ${TAGS.size} tags · filtros por dificuldade e status`,
-    `${COLLN} collections · ${TAGS.size} tags · difficulty and status filters`);
+    `${COLLN} collections · ${TAGS.size} tags · difficulty and status filters`,
+    `${COLLN} colecciones · ${TAGS.size} etiquetas · filtros de dificultad y estado`);
 
   // ---- "Para você": continue de onde parou + sugestão (só logado, com history) ----
   const strip = $('contStrip'); strip.innerHTML = '';
@@ -432,11 +434,11 @@ function renderHub() {
     if (contRow) {
       const p = byId.get(contRow.probid);
       strip.append(el('a', { class: 'cont-card', href: probURL(p.id) },
-        el('span', { class: 'k' }, T('▶ Continue de onde parou', '▶ Pick up where you left off')),
+        el('span', { class: 'k' }, T('▶ Continue de onde parou', '▶ Pick up where you left off', '▶ Continúa donde lo dejaste')),
         el('span', { class: 't' }, p.title || p.id),
         el('span', { class: 'small muted' },
           (p.collections || []).slice(0, 1).map((c) => el('span', { class: 'collection' }, c)),
-          ` · ${T('última tentativa', 'last attempt')} ${fmtAgo(contRow.epoch)} · ${contRow.verdict}`)));
+          ` · ${T('última tentativa', 'last attempt', 'último intento')} ${fmtAgo(contRow.epoch)} · ${contRow.verdict}`)));
       anyCard = true;
     }
     const lastAC = [...HIST].reverse().find((h) => /^Accepted/.test(h.verdict) && byId.has(h.probid));
@@ -449,13 +451,13 @@ function renderHub() {
     if (lastAC) {
       const coll = (byId.get(lastAC.probid).collections || [])[0];
       if (coll) sug = cands(ALL.filter((p) => (p.collections || []).includes(coll)),
-        T(`próximo passo em ${coll}`, `next step in ${coll}`));
+        T(`próximo passo em ${coll}`, `next step in ${coll}`, `siguiente paso en ${coll}`));
     }
-    if (!sug) sug = cands(ALL, T('um clássico para destravar', 'a classic to get you going'));
+    if (!sug) sug = cands(ALL, T('um clássico para destravar', 'a classic to get you going', 'un clásico para arrancar'));
     if (sug && (!contRow || sug.p.id !== contRow.probid)) {
       const d = difficulty(sug.p);
       strip.append(el('a', { class: 'cont-card', href: probURL(sug.p.id), style: 'border-left-color:var(--ok)' },
-        el('span', { class: 'k' }, T('🎯 Sugestão para você', '🎯 Suggested for you')),
+        el('span', { class: 'k' }, T('🎯 Sugestão para você', '🎯 Suggested for you', '🎯 Sugerencia para ti')),
         el('span', { class: 't' }, sug.p.title || sug.p.id),
         el('span', { class: 'small muted' },
           (sug.p.collections || []).slice(0, 1).map((c) => el('span', { class: 'collection' }, c)),
@@ -498,30 +500,31 @@ function renderHub() {
       el('div', { class: 'banner ' + cls }, glyph),
       el('div', { class: 'bd' },
         el('span', { class: 't' }, n.label),
-        el('span', { class: 'sub' }, `${n.count} ${T('problemas', 'problems')}`
-          + (n.leaf ? '' : T(` · ${n.colls.size} coleções`, ` · ${n.colls.size} collections`))),
+        el('span', { class: 'sub' }, `${n.count} ${T('problemas', 'problems', 'problemas')}`
+          + (n.leaf ? '' : T(` · ${n.colls.size} coleções`, ` · ${n.colls.size} collections`, ` · ${n.colls.size} colecciones`))),
         ...(LOGGED ? [
           el('div', { class: 'pbar' + (done ? ' done' : '') },
             el('i', { style: `width:${n.count ? Math.round(100 * mine / n.count) : 0}%` })),
-          done ? el('span', { class: 'foot', style: 'color:var(--ok);font-weight:700' }, T('✓ concluído', '✓ completed'))
-            : el('span', { class: 'foot' }, mine ? `${mine}/${n.count} ${T('resolvidos', 'solved')}` : T('começar →', 'start →')),
-        ] : [el('span', { class: 'foot' }, T('explorar →', 'explore →'))])));
+          done ? el('span', { class: 'foot', style: 'color:var(--ok);font-weight:700' }, T('✓ concluído', '✓ completed', '✓ completado'))
+            : el('span', { class: 'foot' }, mine ? `${mine}/${n.count} ${T('resolvidos', 'solved', 'resueltos')}` : T('começar →', 'start →', 'empezar →')),
+        ] : [el('span', { class: 'foot' }, T('explorar →', 'explore →', 'explorar →'))])));
     car.append(card);
   });
 
   // ---- em alta na semana ----
   const tl = $('trendList'); tl.innerHTML = '';
   if (TRENDING === null) {
-    tl.append(el('span', { class: 'muted small' }, T('carregando…', 'loading…')));
+    tl.append(el('span', { class: 'muted small' }, T('carregando…', 'loading…', 'cargando…')));
   } else if (!TRENDING.length) {
     tl.append(el('span', { class: 'muted small' },
       T('Pouca atividade esta semana — explore as coleções acima.',
-        'Little activity this week — explore the collections above.')));
+        'Little activity this week — explore the collections above.',
+        'Poca actividad esta semana — explora las colecciones de arriba.')));
   } else {
     TRENDING.forEach((p, i) => tl.append(el('a', { class: 'trend-li', href: p.url || probURL(p.id) },
       el('span', { class: 'rk' }, String(i + 1)),
       el('span', { class: 'tt' }, p.title || p.id),
-      el('span', { class: 'nn' }, `${p.count} ${T('envios', 'submissions')}`))));
+      el('span', { class: 'nn' }, `${p.count} ${T('envios', 'submissions', 'envíos')}`))));
   }
 }
 
@@ -539,9 +542,9 @@ function renderSuggest() {
   ALL.forEach((p) => (p.collections || []).forEach((c) => { if (norm(c).includes(qn)) colls.set(c, (colls.get(c) || 0) + 1); }));
   const collTop = [...colls.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3);
   if (collTop.length) {
-    box.append(el('div', { class: 'grp' }, T('Coleções', 'Collections')));
+    box.append(el('div', { class: 'grp' }, T('Coleções', 'Collections', 'Colecciones')));
     collTop.forEach(([c, n]) => add(
-      el('div', { class: 'it' }, `📚 ${c}`, el('span', { class: 'mut' }, `${n} ${T('problemas', 'problems')}`)),
+      el('div', { class: 'it' }, `📚 ${c}`, el('span', { class: 'mut' }, `${n} ${T('problemas', 'problems', 'problemas')}`)),
       () => { $('hq').value = ''; hideSuggest(); addCollByName(c); }));
   }
   const tagTop = [...TAGS.entries()].filter(([k, v]) => k.includes(qn) || norm(v.label).includes(qn))
@@ -549,12 +552,12 @@ function renderSuggest() {
   if (tagTop.length) {
     box.append(el('div', { class: 'grp' }, 'Tags'));
     tagTop.forEach(([k, v]) => add(
-      el('div', { class: 'it' }, `🏷 ${v.label}`, el('span', { class: 'mut' }, `${v.count} ${T('problemas', 'problems')}`)),
+      el('div', { class: 'it' }, `🏷 ${v.label}`, el('span', { class: 'mut' }, `${v.count} ${T('problemas', 'problems', 'problemas')}`)),
       () => { $('hq').value = ''; hideSuggest(); toggleTag(k); }));
   }
   const probs = ALL.filter((p) => norm(p.title).includes(qn));
   if (probs.length) {
-    box.append(el('div', { class: 'grp' }, T('Problemas', 'Problems')));
+    box.append(el('div', { class: 'grp' }, T('Problemas', 'Problems', 'Problemas')));
     probs.slice(0, 6).forEach((p) => {
       const d = difficulty(p);
       const st = solved.has(p.id) ? ' · ✓' : (attempted.has(p.id) ? ' · …' : '');
@@ -563,11 +566,11 @@ function renderSuggest() {
         () => { location.href = probURL(p.id); });
     });
     add(el('div', { class: 'it', style: 'color:var(--blue-dark);font-weight:700' },
-      T(`ver os ${probs.length} resultados na busca avançada →`, `see all ${probs.length} results in the advanced search →`)),
+      T(`ver os ${probs.length} resultados na busca avançada →`, `see all ${probs.length} results in the advanced search →`, `ver los ${probs.length} resultados en la búsqueda avanzada →`)),
       () => submitHeroQuery());
   }
   if (!SUGITEMS.length) {
-    box.append(el('div', { class: 'grp' }, T('nada encontrado', 'nothing found')));
+    box.append(el('div', { class: 'grp' }, T('nada encontrado', 'nothing found', 'nada encontrado')));
   }
   SUGITEMS.forEach((s, i) => { s.node.onclick = () => s.action(); s.node.onmouseenter = () => setSug(i); });
   box.classList.remove('hidden');
@@ -590,22 +593,22 @@ function renderSorts() {
   const hasPub = ALL.some((p) => p.public_at);         // servidor antigo sem o campo: sem a aba
   SORTS.filter((s) => s.key !== 'new' || hasPub)
     .forEach((s) => box.append(el('a', { class: SORT === s.key ? 'on' : '',
-      onclick: () => { SORT = s.key; page = 0; syncURL(); renderBrowse(); } }, T(s.pt, s.en))));
+      onclick: () => { SORT = s.key; page = 0; syncURL(); renderBrowse(); } }, T(s.pt, s.en, s.es))));
 }
 function renderPager(box, pages) {
   box.innerHTML = '';
   if (pages <= 1) return;
   box.append(el('button', { class: 'btn ghost', onclick: () => { if (page > 0) { page--; renderBrowse(); } } }, '‹'));
-  box.append(el('span', { class: 'small' }, ` ${T('página', 'page')} ${page + 1} / ${pages} `));
+  box.append(el('span', { class: 'small' }, ` ${T('página', 'page', 'página')} ${page + 1} / ${pages} `));
   box.append(el('button', { class: 'btn ghost', onclick: () => { if (page < pages - 1) { page++; renderBrowse(); } } }, '›'));
 }
 function renderBrowse() {
   const rows = sortRows(filtered());
-  $('count').textContent = `${rows.length} ${T('problema(s)', 'problem(s)')}`;
+  $('count').textContent = `${rows.length} ${T('problema(s)', 'problem(s)', 'problema(s)')}`;
   $('mystats').textContent = LOGGED
-    ? T(`Você resolveu ${solved.size} de ${ALL.length}`, `You solved ${solved.size} of ${ALL.length}`) : '';
+    ? T(`Você resolveu ${solved.size} de ${ALL.length}`, `You solved ${solved.size} of ${ALL.length}`, `Resolviste ${solved.size} de ${ALL.length}`) : '';
   const nf = selColls.size + selTags.size + selDiffs.size + (FSTATUS !== 'all' ? 1 : 0);
-  $('mFilters').textContent = T(`Filtros (${nf}) ▾`, `Filters (${nf}) ▾`);
+  $('mFilters').textContent = T(`Filtros (${nf}) ▾`, `Filters (${nf}) ▾`, `Filtros (${nf}) ▾`);
   $('mFilters').classList.toggle('on', nf > 0);
   renderSorts();
   const pages = Math.max(1, Math.ceil(rows.length / PAGE));
@@ -617,12 +620,12 @@ function renderBrowse() {
   const tbl = el('table', { class: 'moj' },
     el('thead', {}, el('tr', {},
       el('th', { class: 'stc' }, ''),
-      el('th', {}, T('Problema', 'Problem')),
-      el('th', { class: 'hide-m' }, T('Coleções', 'Collections')),
+      el('th', {}, T('Problema', 'Problem', 'Problema')),
+      el('th', { class: 'hide-m' }, T('Coleções', 'Collections', 'Colecciones')),
       ...(showTags ? [el('th', { class: 'hide-m' }, 'Tags')] : []),
-      el('th', { title: difficultyHelp() }, T('Dificuldade', 'Difficulty')),
+      el('th', { title: difficultyHelp() }, T('Dificuldade', 'Difficulty', 'Dificultad')),
       el('th', { class: 'hide-m n', title: dirtHelp() }, 'Dirt'),
-      el('th', { class: 'hide-m' }, T('Resolvidos', 'Solved')))));
+      el('th', { class: 'hide-m' }, T('Resolvidos', 'Solved', 'Resueltos')))));
   const tb = el('tbody');
   slice.forEach((p) => {
     const d = difficulty(p);
@@ -632,7 +635,7 @@ function renderBrowse() {
       el('td', {}, el('a', { href: probURL(p.id) }, p.title || p.id),
         // enunciado em mais de um idioma: selo discreto "EN ES" (o idioma se escolhe na página do problema)
         (Array.isArray(p.statement_langs) && p.statement_langs.length > 1)
-          ? el('span', { class: 'stmt-badge', title: T('Enunciado também em: ', 'Statement also in: ') + p.statement_langs.filter((l) => l !== 'pt').join(', ') },
+          ? el('span', { class: 'stmt-badge', title: T('Enunciado também em: ', 'Statement also in: ', 'Enunciado también en: ') + p.statement_langs.filter((l) => l !== 'pt').join(', ') },
               p.statement_langs.filter((l) => l !== 'pt').map((l) => l.toUpperCase()).join(' '))
           : null),
       el('td', { class: 'hide-m' }, (p.collections || []).map((c) => el('a', {
@@ -695,7 +698,7 @@ async function boot() {
     const j = await apiGet('/treino/problems', { contest: CONTEST });
     ALL = Array.isArray(j) ? j : (j.problems || j.data || []);
   } catch (e) {
-    $('pageLoading').innerHTML = `<span class="error-box">${T('Falha ao carregar problemas.', 'Failed to load problems.')}</span>`;
+    $('pageLoading').innerHTML = `<span class="error-box">${T('Falha ao carregar problemas.', 'Failed to load problems.', 'No se pudieron cargar los problemas.')}</span>`;
     return;
   }
   buildTags(); buildTree(); applyURL();
@@ -712,7 +715,7 @@ async function boot() {
   $('tagFilter').addEventListener('input', renderTags);
   $('toggleTags').addEventListener('click', () => {
     showTags = !showTags;
-    $('toggleTags').textContent = showTags ? T('Ocultar tags', 'Hide tags') : T('Mostrar tags', 'Show tags');
+    $('toggleTags').textContent = showTags ? T('Ocultar tags', 'Hide tags', 'Ocultar etiquetas') : T('Mostrar tags', 'Show tags', 'Mostrar etiquetas');
     renderBrowse();
   });
   $('clearAll').addEventListener('click', () => { clearFilters(); syncURL(); renderAll(); });
