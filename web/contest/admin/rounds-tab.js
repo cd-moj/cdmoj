@@ -139,7 +139,7 @@ export function makeRoundsTab(CONTEST, opts = {}) {
     }, T('✓ problemas da rodada salvos', '✓ round problems saved', '✓ problemas de la ronda guardados')) }, T('salvar problemas', 'save problems', 'guardar problemas'));
     const bank = makeBankPanel({
       api: {
-        meta: () => apiGet('/contest/admin/bank?contest=' + enc(CONTEST) + '&meta=1', G),
+        meta: (q) => apiGet('/contest/admin/bank?contest=' + enc(CONTEST) + '&meta=1&' + new URLSearchParams(q || {}).toString(), G),
         draw: (p) => apiGet('/contest/admin/draw?contest=' + enc(CONTEST) + '&' + new URLSearchParams(p).toString(), G),
         search: (q) => apiGet('/contest/admin/bank?contest=' + enc(CONTEST) + '&limit=30&q=' + enc(q), G),
       },
@@ -147,6 +147,7 @@ export function makeRoundsTab(CONTEST, opts = {}) {
       searchLabel: T('Problemas desta rodada (buscar no banco)', 'Problems for this round (search the bank)', 'Problemas de esta ronda (buscar en el banco)'),
       searchPlaceholder: T('🔎 título ou id…', '🔎 title or id…', '🔎 título o id…'),
       noQueryFilter: (items) => items.filter((x) => x.private),
+      privateLabel: T('incluir no sorteio os privados do dono do contest', 'include the contest owner\'s private problems in the draw', 'incluir en el sorteo los privados del dueño de la competencia'),
       emptyHint: T('digite para buscar no banco', 'type to search the bank', 'escribe para buscar en el banco'),
     });
     box.append(el('h4', { style: 'margin:.6rem 0 .2rem' }, T('Problemas da rodada', 'Round problems', 'Problemas de la ronda')),

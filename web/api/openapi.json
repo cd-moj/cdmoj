@@ -3901,7 +3901,20 @@
         "tags": [
           "contest-create"
         ],
-        "summary": "Tags do banco com contagem",
+        "summary": "Tags do banco com contagem; include_private=1 soma os privados de quem cria",
+        "parameters": [
+          {
+            "name": "include_private",
+            "in": "query",
+            "description": "opt-in (padrão: só públicos): soma os privados que quem cria (a sessão) pode usar — dono, colaborador ou membro da org. Índice de owners quebrado = 503 index_unavailable",
+            "schema": {
+              "type": "integer",
+              "enum": [
+                1
+              ]
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "{tags:[{tag,count}],total}"
@@ -4103,7 +4116,20 @@
         "tags": [
           "contest-create"
         ],
-        "summary": "Coleções do banco público com contagem (escopo do wizard; ≠ /problems/collections)",
+        "summary": "Coleções do banco público com contagem (escopo do wizard; ≠ /problems/collections); include_private=1 soma os privados de quem cria",
+        "parameters": [
+          {
+            "name": "include_private",
+            "in": "query",
+            "description": "opt-in (padrão: só públicos): soma os privados que quem cria (a sessão) pode usar — dono, colaborador ou membro da org. Índice de owners quebrado = 503 index_unavailable",
+            "schema": {
+              "type": "integer",
+              "enum": [
+                1
+              ]
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "{collections:[{collection,count}],total}"
@@ -4138,7 +4164,7 @@
         "tags": [
           "contest-create"
         ],
-        "summary": "Sorteia problemas por tag, coleção e dificuldade (filtros em AND; reproduzível por seed)",
+        "summary": "Sorteia problemas por tag, coleção e dificuldade (filtros em AND; reproduzível por seed); include_private=1 soma os privados de quem cria",
         "parameters": [
           {
             "name": "tags",
@@ -4193,11 +4219,22 @@
             "schema": {
               "type": "integer"
             }
+          },
+          {
+            "name": "include_private",
+            "in": "query",
+            "description": "opt-in (padrão: só públicos): soma os privados que quem cria (a sessão) pode usar — dono, colaborador ou membro da org. Índice de owners quebrado = 503 index_unavailable",
+            "schema": {
+              "type": "integer",
+              "enum": [
+                1
+              ]
+            }
           }
         ],
         "responses": {
           "200": {
-            "description": "{problems[],candidates,drawn,seed}"
+            "description": "{problems[],candidates,drawn,seed,collections,private_included}; cada item com private, access (mine|shared|public) e has_statement (false = privado sem json servível: sai marcado, não some)"
           }
         }
       }
@@ -5276,7 +5313,7 @@
         "tags": [
           "contest-admin"
         ],
-        "summary": "Busca p/ adicionar problemas: banco público + privados do DONO do contest (mesmo sujeito do gate de add; privados primeiro). ?meta=1 devolve tags+coleções do banco público",
+        "summary": "Busca p/ adicionar problemas: banco público + privados do DONO do contest (mesmo sujeito do gate de add; privados primeiro). ?meta=1 devolve tags+coleções do mesmo banco do sorteio (público; com include_private=1, também os privados do dono)",
         "parameters": [
           {
             "$ref": "#/components/parameters/contest"
@@ -5311,11 +5348,22 @@
                 1
               ]
             }
+          },
+          {
+            "name": "include_private",
+            "in": "query",
+            "description": "opt-in (padrão: só públicos): soma os privados que o DONO do contest (arquivo owner) pode usar — dono, colaborador ou membro da org. Contest sem owner = só públicos (private_included:false). Índice de owners quebrado = 503 index_unavailable (só com meta=1)",
+            "schema": {
+              "type": "integer",
+              "enum": [
+                1
+              ]
+            }
           }
         ],
         "responses": {
           "200": {
-            "description": "{problems:[{id,title,tags,collections,access,private,has_statement}],total,mine,shared} ou {tags,collections}"
+            "description": "{problems:[{id,title,tags,collections,access,private,has_statement}],total,mine,shared} ou (meta=1) {tags,collections,private_included}"
           }
         }
       }
@@ -5325,7 +5373,7 @@
         "tags": [
           "contest-admin"
         ],
-        "summary": "Sorteio no banco público (contrato do /treino/contest-create/draw: tag+coleção+dificuldade em AND, seed reproduzível)",
+        "summary": "Sorteio (contrato do /treino/contest-create/draw: tag+coleção+dificuldade em AND, seed reproduzível); padrão só públicos, include_private=1 soma os privados do DONO do contest",
         "parameters": [
           {
             "$ref": "#/components/parameters/contest"
@@ -5383,11 +5431,22 @@
             "schema": {
               "type": "integer"
             }
+          },
+          {
+            "name": "include_private",
+            "in": "query",
+            "description": "opt-in (padrão: só públicos): soma os privados que o DONO do contest (arquivo owner) pode usar — dono, colaborador ou membro da org. Contest sem owner = só públicos (private_included:false). Índice de owners quebrado = 503 index_unavailable",
+            "schema": {
+              "type": "integer",
+              "enum": [
+                1
+              ]
+            }
           }
         ],
         "responses": {
           "200": {
-            "description": "{problems[],candidates,drawn,seed,collections}"
+            "description": "{problems[],candidates,drawn,seed,collections,private_included}; cada item com private, access (mine|shared|public) e has_statement (false = privado sem json servível: sai marcado, não some)"
           }
         }
       }

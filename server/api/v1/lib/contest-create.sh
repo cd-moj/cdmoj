@@ -647,11 +647,73 @@ cc_bank_json(){
   printf '%s' "${data:-[]}"
 }
 
+# cc_bank_private_json <login> — os problemas PRIVADOS que <login> pode usar num contest (dono,
+# colaborador ou membro da org: owners_visible_for), no formato do cc_bank_json mais
+# {private:true, access:"mine"|"shared"}. Só entra com include_private=1 (opt-in) nas rotas de
+# sorteio/tags/coleções: sortear por tag ou coleção pode puxar a prova em elaboração de um colega
+# da org, então ninguém recebe privado sem pedir — e quem não pede não paga o custo.
+#   • sujeito OBRIGATÓRIO: vazio (contest legado sem owner) = [] — nunca cai no SESSION_LOGIN;
+#   • título e coleções vêm do índice (como na busca, contest/admin/bank.sh); do
+#     jsons-private/<id>.json lê SÓ as tags, um arquivo por vez (xargs, sem -s): cada um traz o
+#     enunciado em base64 e o -s punha todos na memória de uma vez;
+#   • has_statement = o jsons-private/<id>.json existe e é legível (é dele que o contest materializa
+#     o enunciado). Privado sem ele NÃO sai do sorteio — só vem marcado, como na busca, e o wizard
+#     avisa "enunciado em geração". Sem o campo, todo privado sorteado parecia sem enunciado;
+#   • arquivo CORROMPIDO não pode levar as tags dos outros: o jq do lote para no primeiro erro de
+#     parse (e o xargs devolve 123) — aí refaz um a um e avisa no error.log (molde do rv_scan);
+#   • NÃO cacheia: a lista depende do login;
+#   • rc 1 (stdout vazio) = índice de owners inutilizável: quem chama responde 503, nunca lista
+#     vazia calada (lib/problems.sh, ensure_owners_index).
+cc_bank_private_json(){
+  local login="$1" d="$CONTESTSDIR/treino/var/jsons-private" tmp out
+  [[ -n "$login" ]] || { printf '%s' '[]'; return 0; }
+  declare -F owners_visible_for >/dev/null 2>&1 || source "${BASH_SOURCE[0]%/*}/problems.sh"
+  tmp="$(mktemp -d)" || return 1
+  if ! owners_visible_for "$login" > "$tmp/vis.json" || [[ ! -s "$tmp/vis.json" ]]; then
+    rm -rf "$tmp"; return 1
+  fi
+  jq -r '.problems[] | select((.public // false) | not) | .id' "$tmp/vis.json" 2>/dev/null \
+    | while IFS= read -r id; do [[ -f "$d/$id.json" ]] && printf '%s\0' "$d/$id.json"; done > "$tmp/files"
+  # o id sai do NOME do arquivo (é a chave que o contest usa), nunca do conteúdo
+  local prog='{id:(input_filename | sub("^.*/"; "") | sub("\\.json$"; "")), tags:(.tags // [])}' f
+  if ! xargs -0 -r jq -c "$prog" < "$tmp/files" > "$tmp/tags.ndjson" 2>/dev/null; then
+    : > "$tmp/tags.ndjson"
+    while IFS= read -r -d '' f; do
+      jq -c "$prog" "$f" >> "$tmp/tags.ndjson" 2>/dev/null || echo "cc_bank_private_json: ilegível: $f" >&2
+    done < "$tmp/files"
+  fi
+  out="$(jq -cn --arg me "$login" --slurpfile v "$tmp/vis.json" --slurpfile t "$tmp/tags.ndjson" '
+    ($t | map({key:.id, value:.tags}) | from_entries) as $T
+    | [ $v[0].problems[] | select((.public // false) | not) | .id as $i
+        | {id, title:(.title // .id), tags:($T[$i] // []), collections:(.collections // []),
+           private:true, access:(if .owner == $me then "mine" else "shared" end),
+           has_statement:($T | has($i))} ]' 2>/dev/null)"
+  rm -rf "$tmp"
+  [[ -n "$out" ]] || return 1
+  printf '%s' "$out"
+}
+
+# cc_bank_json_for <login|""> <include_private:0|1> — o banco que o sorteio/tags/coleções usam.
+# Sem include (o padrão) = o cc_bank_json de sempre. Com include = privados de <login> PRIMEIRO
+# e vencendo o cache público: um recém-despublicado consta dos dois (o público sai por TTL) e o
+# índice é o fresco — a mesma regra da busca. rc 1 = índice quebrado (só com include).
+cc_bank_json_for(){
+  local login="$1" inc="$2" priv
+  [[ "$inc" == 1 ]] || { cc_bank_json; return 0; }
+  priv="$(cc_bank_private_json "$login")" || return 1
+  { printf '%s\n' "$priv"; cc_bank_json; } | jq -cs '
+    (.[0] // []) as $p | (.[1] // []) as $pub | ($p | map(.id)) as $ids
+    | $p + ($pub | map(select(.id as $i | ($ids | index($i)) | not)))' 2>/dev/null
+}
+
 # cc_bank_filter <tags_csv> <match:any|all> <diff> [collections_json_array] — filtra o banco
 # (stdin = array do cc_bank_json) por tag E coleção (grupos em AND; dentro do grupo, tags casam
 # por match, coleções por "qualquer uma") e por dificuldade (buckets de acceptance do
 # problem-metrics). Coleção casa EXATO (nome curado, texto livre — nada de normalizar).
-# Emite [{id,title,tags,collections,solvers,total,acceptance,bucket}].
+# Emite [{id,title,tags,collections,private,access,has_statement,solvers,total,acceptance,bucket}]
+# (private/access/has_statement: o que o cc_bank_json_for marcou; público sem marca = private:false,
+# access:"public", has_statement:true — o cache público só lista quem tem json servível). O objeto é
+# RECONSTRUÍDO aqui: campo novo do banco que o sorteio deva devolver entra nesta lista também.
 cc_bank_filter(){
   local tags="$1" match="$2" diff="$3" colls="${4:-[]}" MET
   jq -e 'type=="array" and all(.[]; type=="string")' >/dev/null 2>&1 <<<"$colls" || colls='[]'
@@ -675,7 +737,9 @@ cc_bank_filter(){
         | (diff_label($mm.solvers; ($mm.attempters // 0))) as $lbl
         | (diff_bucket($lbl)) as $bucket
         | select($diff=="any" or $diff==$bucket or ($diff=="known" and $bucket!="unknown"))
-        | {id, title, tags:$pt, collections:$pc, solvers:$mm.solvers, attempters:($mm.attempters // 0), total:$mm.total,
+        | {id, title, tags:$pt, collections:$pc, private:(.private // false), access:(.access // "public"),
+           has_statement:(.has_statement != false),
+           solvers:$mm.solvers, attempters:($mm.attempters // 0), total:$mm.total,
            acceptance:(($mm.acceptance*1000|floor)/1000),
            user_rate:(if ($mm.attempters // 0) > 0 then (($mm.solvers/$mm.attempters*1000|floor)/1000) else null end),
            difficulty:$lbl, bucket:$bucket}
