@@ -120,6 +120,44 @@ function confToFields(text) {
   CF_YN.forEach(([id, k, def]) => { $(id).checked = ynOf(text, k, def) === 'y'; });
   CF_FLAG.forEach(([id, k]) => { $(id).checked = (confVal(text, k) || '').toLowerCase() === 'y'; });
   $('cf_nosample').checked = sampleOff(text); applySampleMode();
+  limitsWarn();
+}
+// Aviso AO VIVO da aba Limites: MEMLIMITMB e CPUNEEDED contra os juízes de hoje (judge_capacity, a MESMA regra
+// do escalonador no servidor). Acima da máquina = nenhum juiz comporta, as submissões dariam Judge Error;
+// acima de UM slot = cada teste ocupa mais slots e espera mais na fila. Incidente de 30/09/2026: 15 problemas
+// com MEMLIMITMB=262144 (KB digitado no campo de MB) travaram uma lista, e nada avisava o autor.
+// (JCAP mora AQUI, dentro do bloco de conf que o smoke-limits-tab.gjs.sh recorta e roda no gjs.)
+let JCAP = null;    // judge_capacity do /problems/status: o que os juízes de hoje comportam
+function limitsWarn() {
+  const put = (id, list) => {
+    const box = $(id); if (!box) return;
+    box.textContent = '';
+    list.forEach(([cls, text]) => box.append(el('div', { class: 'pill ' + cls, style: 'white-space:normal;margin-top:.4rem' }, text)));
+  };
+  const cap = JCAP, mem = [], cpu = [];
+  if (cap && cap.judges > 0) {
+    const m = parseInt(($('cf_memlimit').value || '').trim(), 10), k = parseInt(($('cf_cpuneeded').value || '').trim(), 10);
+    if (m > 0 && cap.max_mem_mb > 0 && m > cap.max_mem_mb) {
+      mem.push(['no', T(`MEMLIMITMB=${m} MB: nenhum juiz comporta (o maior aceita ~${cap.max_mem_mb} MB) — as submissões dariam Judge Error. A unidade é MB: 256 MB é 256, não 262144.`,
+        `MEMLIMITMB=${m} MB: no judge can run it (the largest accepts ~${cap.max_mem_mb} MB) — submissions would get Judge Error. The unit is MB: 256 MB is 256, not 262144.`,
+        `MEMLIMITMB=${m} MB: ningún juez lo soporta (el más grande acepta ~${cap.max_mem_mb} MB) — los envíos darían Judge Error. La unidad es MB: 256 MB es 256, no 262144.`)]);
+    } else if (m > 0 && cap.slot_mem_mb > 0 && m > cap.slot_mem_mb) {
+      const n = Math.ceil(Math.max(600, m + 64) / (cap.slot_mem_mb + 64));
+      mem.push(['warn', T(`MEMLIMITMB=${m} MB passa do que um slot de juiz comporta (~${cap.slot_mem_mb} MB): cada teste vai ocupar ~${n} slots, e a submissão espera mais na fila.`,
+        `MEMLIMITMB=${m} MB is more than one judge slot holds (~${cap.slot_mem_mb} MB): each test will take ~${n} slots, and submissions wait longer in the queue.`,
+        `MEMLIMITMB=${m} MB supera lo que un slot de juez soporta (~${cap.slot_mem_mb} MB): cada prueba va a ocupar ~${n} slots, y el envío espera más en la cola.`)]);
+    }
+    if (k > 0 && cap.max_cpus > 0 && k > cap.max_cpus) {
+      cpu.push(['no', T(`CPUNEEDED=${k}: nenhum juiz tem tantas CPUs (o maior tem ${cap.max_cpus}) — as submissões dariam Judge Error.`,
+        `CPUNEEDED=${k}: no judge has that many CPUs (the largest has ${cap.max_cpus}) — submissions would get Judge Error.`,
+        `CPUNEEDED=${k}: ningún juez tiene tantas CPUs (el más grande tiene ${cap.max_cpus}) — los envíos darían Judge Error.`)]);
+    } else if (k > 0 && $('cf_samenuma') && $('cf_samenuma').checked && cap.max_node_cpus > 0 && k > cap.max_node_cpus) {
+      cpu.push(['no', T(`CPUNEEDED=${k} com SAMENUMA: o maior nó NUMA de um juiz tem ${cap.max_node_cpus} CPUs — as submissões dariam Judge Error.`,
+        `CPUNEEDED=${k} with SAMENUMA: the largest NUMA node of a judge has ${cap.max_node_cpus} CPUs — submissions would get Judge Error.`,
+        `CPUNEEDED=${k} con SAMENUMA: el nodo NUMA más grande de un juez tiene ${cap.max_node_cpus} CPUs — los envíos darían Judge Error.`)]);
+    }
+  }
+  put('cf_mem_warn', mem); put('cf_cpu_warn', cpu);
 }
 function syncConfFromFields() {
   let c = $('confRaw').value;
@@ -1005,6 +1043,7 @@ async function loadValidation() {
   ]);
   // a linha deste problema no Painel: sols/inputs/pending/ready (a MESMA regra que o Painel e a CLI usam)
   if (st && Array.isArray(st.problems)) PSTAT = st.problems.find(p => p.id === ID) || PSTAT;
+  if (st && st.judge_capacity) { JCAP = st.judge_capacity; limitsWarn(); }
   if (PSTAT && $('tabIssuesMini')) $('tabIssuesMini').textContent = PSTAT.open_issues ? `(${PSTAT.open_issues})` : '';
   // ERRO DE REDE NÃO APAGA A TELA: um 500/timeout num tick deixava LASTCALIB=null e os cartões dos
   // juízes SUMIAM até o tick seguinte (o `.catch(() => null)` acima é best-effort de propósito).
@@ -1763,6 +1802,7 @@ function bindHandlers() {
   $('repo').onchange = async () => { REPO = $('repo').value; updateRepoHint(); renderPubState(); await loadShare(); };
   $('shareAdd').onclick = async () => { const u = $('shareLogin').value.trim(); if (u) { await share([u], []); $('shareLogin').value = ''; } };
   [...CF_TEXT, ...CF_YN, ...CF_FLAG, ['cf_nosample']].forEach(([id]) => $(id).addEventListener('change', () => { syncConfFromFields(); updateReady(); }));
+  ['cf_memlimit', 'cf_cpuneeded', 'cf_samenuma'].forEach((id) => $(id) && $(id).addEventListener('input', limitsWarn));
   $('confRaw').addEventListener('change', () => { confToFields($('confRaw').value); updateReady(); });
   $('newCollBtn').onclick = newColl;
   $('pcolls').addEventListener('change', () => { renderCollChips(); renderCollManage(); });

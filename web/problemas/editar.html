@@ -383,6 +383,7 @@
                 <span class="lrow"><input id="cf_ulimit_f" type="text" placeholder="(opcional)" data-en-ph="(optional)" data-es-ph="(opcional)"><span class="unit">KB</span></span>
                 <span class="small muted" data-en="solution write ceiling (huge output = cut)" data-es="techo de escritura de la solución (salida enorme = se corta)">teto de escrita da solução (saída gigante = corte)</span></div>
             </div>
+            <div id="cf_mem_warn" class="lwarn" role="status"></div>
           </div>
 
           <div class="lcard">
@@ -409,6 +410,7 @@
                 <span class="lrow"><input id="cf_cpuneeded" type="text" inputmode="numeric" placeholder="1"><span class="unit">CPUs</span></span>
                 <span class="small muted" data-en="1..64. Each test runs alone in this many CPUs; changing it recalibrates" data-es="1..64. Cada prueba corre sola en esta cantidad de CPUs; cambiar esto recalibra">1..64. Cada teste roda sozinho nesse nº de CPUs; mudar recalibra</span></div>
             </div>
+            <div id="cf_cpu_warn" class="lwarn" role="status"></div>
             <div class="ltoggles">
               <label><input type="checkbox" id="cf_samenuma"> <span data-en="the CPUs of each test in the same NUMA node" data-es="las CPUs de cada prueba en el mismo nodo NUMA">as CPUs de cada teste no mesmo nó NUMA</span> <code>SAMENUMA</code></label>
             </div>

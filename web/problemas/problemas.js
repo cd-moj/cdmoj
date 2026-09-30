@@ -54,6 +54,7 @@ const PANEL_PREDS = {
   sols_divergent: (p) => p.sols && p.sols.state === 'bad',
   inputs_invalid: (p) => p.inputs && (p.inputs.state === 'invalid' || p.inputs.state === 'error'),
   issues_open: (p) => (p.open_issues || 0) > 0,
+  not_judgeable: (p) => !!(p.judgeable && p.judgeable.ok === false),
 };
 const scard = (n, l, hl, fkey) => {
   const a = { class: 'scard' + (hl ? ' hl' : '') + (fkey ? ' clickable' : '') + (fkey && PANEL_FILTER === fkey ? ' on' : '') };
@@ -140,6 +141,12 @@ const untitledChip = (p) => !p.untitled ? '' :
              'This problem has no title: neither in the package (display_title) nor in the statement. The list shows the identifier. Open it and give it a name.',
              'Este problema no tiene título: ni en el paquete (display_title) ni en el enunciado. La lista muestra el identificador. Ábrelo y ponle un nombre.') },
     T('sem título', 'untitled', 'sin título'));
+// 🚫 NÃO JULGÁVEL com os juízes de hoje (memória/CPU/nó/linguagem — a regra do escalonador, no servidor):
+// as submissões dariam Judge Error. O title diz o porquê e o que o juiz aceita.
+const judgeChip = (p) => !(p.judgeable && p.judgeable.ok === false) ? '' :
+  el('span', { class: 'pill no', style: 'margin-left:.35rem',
+    title: pendingLabel((p.pending || []).find((x) => String(x).startsWith('not_judgeable:')) || 'not_judgeable') },
+    T('🚫 não julgável', '🚫 not judgeable', '🚫 no juzgable'));
 // review_reasons em texto: os códigos novos são os mesmos do `pending`; os antigos têm rótulo próprio
 const pendingOrReason = (r) => r === 'validation_failed' ? pendingLabel('package_failed')
   : r === 'public_unvalidated' ? T('público e o pacote nunca foi conferido', 'public and the package was never checked', 'público y el paquete nunca fue verificado')
@@ -150,7 +157,7 @@ const pendingOrReason = (r) => r === 'validation_failed' ? pendingLabel('package
 const reviewChip = (p) => {
   if (!p.needs_review) return '';
   // soluções/entradas têm a coluna própria (solsChip): aqui só o resto, senão o mesmo alarme sai duas vezes
-  const rs = (p.review_reasons || []).filter(r => !r.startsWith('sols_') && !r.startsWith('inputs_') && !r.startsWith('issues_'));
+  const rs = (p.review_reasons || []).filter(r => !r.startsWith('sols_') && !r.startsWith('inputs_') && !r.startsWith('issues_') && !r.startsWith('not_judgeable'));
   if (!rs.length) return '';
   const label = rs.some(r => r.startsWith('good_sol_no_tl')) ? (T('good sem TL: ', 'good without TL: ', 'good sin TL: ') + (p.good_sol_missing_langs || []).join(','))
     : rs.includes('validation_failed') ? T('pacote com erro', 'package error', 'paquete con error')
@@ -747,6 +754,7 @@ function renderPanel() {
     scard(PANEL.total, T('acessíveis', 'accessible', 'accesibles')),
     scard(c.being_calibrated || 0, T('calibrando', 'calibrating', 'calibrando'), false, 'being_calibrated'),
     scard(c.ready || 0, T('prontos', 'ready', 'listos'), false, 'ready'),
+    scard(c.not_judgeable || 0, T('não julgáveis', 'not judgeable', 'no juzgables'), (c.not_judgeable || 0) > 0, 'not_judgeable'),
     scard(c.validated || 0, T('pacote ok', 'package ok', 'paquete ok'), false, 'validated'),
     scard(c.calibrated || 0, T('calibrados', 'calibrated', 'calibrados'), false, 'calibrated'),
     scard(c.sols_divergent || 0, T('soluções divergentes', 'diverging solutions', 'soluciones divergentes'), (c.sols_divergent || 0) > 0, 'sols_divergent'),
@@ -792,7 +800,7 @@ function renderPanel() {
   const tb = el('tbody');
   slice.forEach(p => tb.append(el('tr', {},
     el('td', {}, el('a', { href: '#', onclick: (e) => { e.preventDefault(); openDetail(p.id); } }, p.title || p.prob || p.id),
-      untitledChip(p), readyChip(p), issuesChip(p),
+      untitledChip(p), judgeChip(p), readyChip(p), issuesChip(p),
       el('div', { class: 'small muted2' }, p.id)),
     el('td', { class: 'small' }, p.author || '—'),
     el('td', {}, valChip(p)),

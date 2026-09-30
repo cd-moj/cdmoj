@@ -190,11 +190,17 @@ reg_live_hosts() {
 # sched_pkg_par <problem_id> : ecoa "k\x01numa\x01par\x01m\x01memmb" lidos do conf do PACOTE por
 # regex (conf de autor NUNCA é sourced no servidor). Sem pacote/MOJ_PROBLEMS_DIR ⇒ defaults.
 sched_pkg_par() {
-  local id="${1//\//#}" dir conf c k=1 numa=n par=y m="" mem=0 re v
+  _pkg_par_v "$1"
+  printf '%s\x01%s\x01%s\x01%s\x01%s' "$_PP_K" "$_PP_NUMA" "$_PP_PAR" "$_PP_M" "$_PP_MEM"
+}
+# _pkg_par_v <problem_id> : o MESMO parse, SEM fork (lê com `read -d ''`), em _PP_K _PP_NUMA _PP_PAR
+# _PP_M _PP_MEM — p/ quem percorre muitos problemas (o Painel de um .admin lista centenas)
+_pkg_par_v() {
+  local id="${1//\//#}" dir conf c="" k=1 numa=n par=y m="" mem=0 re v
   if [[ -n "${MOJ_PROBLEMS_DIR:-}" && "$id" == *#* ]]; then
     dir="$MOJ_PROBLEMS_DIR/${id%%#*}/${id#*#}"; conf="$dir/conf"
     if [[ -f "$conf" ]]; then
-      c=$'\n'"$(<"$conf")"
+      IFS= read -r -d '' c < "$conf" || true; c=$'\n'"$c"
       re=$'\n[[:space:]]*CPUNEEDED=["\x27]?([0-9]+)';        [[ "$c" =~ $re ]] && k="${BASH_REMATCH[1]}"
       re=$'\n[[:space:]]*SAMENUMA=["\x27]?([a-zA-Z]+)';      [[ "$c" =~ $re ]] && numa="${BASH_REMATCH[1]}"
       re=$'\n[[:space:]]*ALLOWPARALLELTEST=["\x27]?([a-zA-Z]+)'; [[ "$c" =~ $re ]] && par="${BASH_REMATCH[1]}"
@@ -207,10 +213,97 @@ sched_pkg_par() {
   [[ "$par" == n ]] && par=n || par=y
   [[ "$m" =~ ^[0-9]+$ && "$m" -ge 1 ]] || m=""
   [[ "$mem" =~ ^[0-9]+$ ]] || mem=0
-  printf '%s\x01%s\x01%s\x01%s\x01%s' "$k" "$numa" "$par" "$m" "$mem"
+  _PP_K=$k; _PP_NUMA=$numa; _PP_PAR=$par; _PP_M=$m; _PP_MEM=$mem
 }
 # _kslots <k> <slot_cpus> -> ceil(k/slot_cpus) (slot_cpus<1 ⇒ 1)
 _kslots() { local k="$1" sc="$2"; [[ "$sc" =~ ^[0-9]+$ && "$sc" -ge 1 ]] || sc=1; printf '%s' "$(( (k + sc - 1) / sc ))"; }
+
+# _eff_width <k> <memmb> <slot_cpus> <total_slots> <mem_kb> : a LARGURA EFETIVA do job NESTE juiz, em
+# _EK (cpus = o test_cpus que vai ao agente) e _EKS (slots). MEMÓRIA TAMBÉM É LARGURA: cada slot
+# comporta (mem−4 GB)/total_slots da máquina; o job cujo HARDMEM (max(600, MEMLIMITMB+64), a regra da
+# jaula) não cabe em ceil(k/slot_cpus) slots leva os slots que o comportam — e o test_cpus sobe junto,
+# porque é pelo test_cpus que o agente reserva (alloc_slots). _EKS=0 = nem a máquina INTEIRA comporta:
+# o claim pula e o infeasible_sweep fecha com Judge Error (antes o job ficava na fila PARA SEMPRE — 10
+# submissões de uma lista presas por MEMLIMITMB=262144, incidente de 30/09/2026). Sem mem_kb/total
+# (juiz legado ou registro incompleto) vale só a largura de CPU. Sem fork: roda no laço do claim.
+_eff_width() {
+  local k="$1" mem="$2" sc="$3" tot="$4" memkb="$5" usable hm mks
+  [[ "$k" =~ ^[0-9]+$ && "$k" -ge 1 ]] || k=1
+  [[ "$sc" =~ ^[0-9]+$ && "$sc" -ge 1 ]] || sc=1
+  _EK=$k; _EKS=$(( (k + sc - 1) / sc ))
+  [[ "$mem" =~ ^[0-9]+$ ]] && (( mem > 0 )) || return 0
+  [[ "$tot" =~ ^[0-9]+$ && "$memkb" =~ ^[0-9]+$ ]] && (( tot >= 1 )) || return 0
+  usable=$(( memkb / 1024 - 4096 )); (( usable > 0 )) || return 0
+  hm=$(( mem + 64 )); (( hm < 600 )) && hm=600
+  mks=$(( (hm * tot + usable - 1) / usable ))
+  (( mks > tot )) && { _EKS=0; return 0; }
+  (( mks > _EKS )) && { _EKS=$mks; _EK=$(( mks * sc )); }
+  return 0
+}
+
+# ---------------------------------------------------------- VIABILIDADE (gestão de problemas)
+# O problema pode ser julgado pelos juízes que a plataforma TEM? É a pergunta do Painel da gestão e do
+# "Pronto" (o incidente de 30/09/2026 só apareceu quando um aluno reclamou: 15 problemas com
+# MEMLIMITMB=262144 eram impossíveis e nada os apontava). A regra é a do claim (_eff_width), não uma cópia.
+# sched_cap_load [janela_s=604800] : carrega a capacidade dos juízes REGISTRADOS vistos na janela (7 dias:
+# juiz reiniciando não pode fazer o Painel piscar), fora os desabilitados. Arrays paralelos SCAP_TOT
+# (slots) SCAP_SC (cpus/slot) SCAP_NODE (maior nó, slots) SCAP_MEM (mem_kb); SCAP_N = quantos. 1 jq.
+sched_cap_load() {
+  local win="${1:-604800}" t sc nd mk
+  SCAP_TOT=(); SCAP_SC=(); SCAP_NODE=(); SCAP_MEM=(); SCAP_N=0
+  while IFS=$'\x01' read -r t sc nd mk; do
+    [[ "$t" =~ ^[0-9]+$ ]] || continue
+    SCAP_TOT+=("$t"); SCAP_SC+=("$sc"); SCAP_NODE+=("$nd"); SCAP_MEM+=("$mk"); SCAP_N=$(( SCAP_N + 1 ))
+  done < <(find "$REGISTRYDIR" -maxdepth 1 -name '*.json' -exec cat {} + 2>/dev/null \
+    | jq -r --argjson now "$EPOCHSECONDS" --argjson w "$win" '
+        select((.last_seen // 0) >= ($now - $w) and (.status // "") != "disabled")
+        | [ ((.total_slots // 1)|tostring), ((.slot_cpus // 1)|tostring),
+            (((.slots_by_node // {}) | [.[]] | max) // (.total_slots // 1) | tostring), ((.mem_kb // "")|tostring) ]
+        | join("\u0001")' 2>/dev/null)
+}
+# sched_judgeable <k> <numa y|n> <memmb> : contra os juízes de sched_cap_load. _NJ_CODE vazio = cabe em algum
+# (ou nenhum juiz conhecido: não se afirma nada); senão memory|numa|cpus, com _NJ_NEED (o que o problema pede:
+# MEMLIMITMB ou CPUs) e _NJ_MAX (o máximo que um juiz dá: MEMLIMITMB aceito, CPUs no maior nó ou na máquina).
+sched_judgeable() {
+  local k="$1" numa="$2" mem="$3" i t sc nd mk kc cpuok=0 maxmem=0 maxcpu=0 maxnode=0 v
+  _NJ_CODE=""; _NJ_NEED=""; _NJ_MAX=""
+  (( ${SCAP_N:-0} > 0 )) || return 0
+  [[ "$k" =~ ^[0-9]+$ && "$k" -ge 1 ]] || k=1
+  for (( i = 0; i < SCAP_N; i++ )); do
+    t="${SCAP_TOT[i]}"; sc="${SCAP_SC[i]}"; nd="${SCAP_NODE[i]}"; mk="${SCAP_MEM[i]}"
+    [[ "$sc" =~ ^[0-9]+$ && "$sc" -ge 1 ]] || sc=1
+    [[ "$nd" =~ ^[0-9]+$ ]] || nd="$t"
+    (( t * sc > maxcpu )) && maxcpu=$(( t * sc ))
+    (( nd * sc > maxnode )) && maxnode=$(( nd * sc ))
+    [[ "$mk" =~ ^[0-9]+$ ]] && { v=$(( mk / 1024 - 4096 - 64 )); (( v > maxmem )) && maxmem=$v; }
+    kc=$(( (k + sc - 1) / sc ))                       # a CPU sozinha cabe neste juiz?
+    if [[ "$numa" == y ]]; then (( kc <= nd )) || continue; else (( kc <= t )) || continue; fi
+    cpuok=1
+    _eff_width "$k" "$mem" "$sc" "$t" "$mk"            # e com a memória (a largura efetiva do claim)?
+    (( _EKS >= 1 )) || continue
+    if [[ "$numa" == y ]]; then (( _EKS <= nd )) && return 0; else (( _EKS <= t )) && return 0; fi
+  done
+  if (( cpuok )); then _NJ_CODE=memory; _NJ_NEED="$mem"; _NJ_MAX="$maxmem"
+  elif [[ "$numa" == y ]] && (( k <= maxcpu )); then _NJ_CODE=numa; _NJ_NEED="$k"; _NJ_MAX="$maxnode"
+  else _NJ_CODE=cpus; _NJ_NEED="$k"; _NJ_MAX="$maxcpu"; fi
+  return 0
+}
+# sched_cap_json -> {judges, max_mem_mb, slot_mem_mb, max_cpus, max_node_cpus} dos juízes de sched_cap_load:
+# o maior MEMLIMITMB que um juiz aceita (máquina inteira), o maior que cabe em UM slot (acima disso o
+# problema ocupa mais slots por teste), e as CPUs da maior máquina / do maior nó. Para o aviso do editor.
+sched_cap_json() {
+  local i t sc nd mk v mm=0 ms=0 mc=0 mn=0
+  for (( i = 0; i < ${SCAP_N:-0}; i++ )); do
+    t="${SCAP_TOT[i]}"; sc="${SCAP_SC[i]}"; nd="${SCAP_NODE[i]}"; mk="${SCAP_MEM[i]}"
+    [[ "$sc" =~ ^[0-9]+$ && "$sc" -ge 1 ]] || sc=1; [[ "$nd" =~ ^[0-9]+$ ]] || nd="$t"
+    (( t * sc > mc )) && mc=$(( t * sc )); (( nd * sc > mn )) && mn=$(( nd * sc ))
+    if [[ "$mk" =~ ^[0-9]+$ ]]; then
+      v=$(( mk / 1024 - 4096 )); (( v - 64 > mm )) && mm=$(( v - 64 ))
+      (( t >= 1 )) && { v=$(( v / t - 64 )); (( v > ms )) && ms=$v; }
+    fi
+  done
+  printf '{"judges":%d,"max_mem_mb":%d,"slot_mem_mb":%d,"max_cpus":%d,"max_node_cpus":%d}' "${SCAP_N:-0}" "$mm" "$ms" "$mc" "$mn"
+}
 
 # sched_policy <host> : ecoa "parallel\x01cushion\x01share_max\x01parallel_max" de judges-config.json:
 # a chave "*" guarda a política global {parallel:off|auto, cushion, share_max}; a entrada do host,
@@ -246,6 +339,23 @@ _cmeta_v2() {
   printf '%s' "$meta" > "$f.cmeta" 2>/dev/null
   printf '%s' "$meta"
 }
+# _cmeta_load <jobfile> : põe em _CMETA o sidecar v2 do job — o guardado, ou REFEITO quando falta, é de
+# versão velha ou o conf do PACOTE mudou depois dele. Sem a comparação com o conf, corrigir o
+# MEMLIMITMB/CPUNEEDED de um problema não destravava o job que já estava na fila (o sidecar guardava o
+# valor velho para sempre — incidente de 30/09/2026). É a leitura dos TRÊS leitores (q_claim,
+# _wide_jobs, q_claim_id). Custo no caminho comum: um `-nt` (stat, sem fork). rc 1 = job ilegível.
+_cmeta_load() {
+  local f="$1" rest prob conf
+  _CMETA=""; [[ -s "$f.cmeta" ]] && _CMETA="$(<"$f.cmeta")"
+  if [[ "$_CMETA" == v2$'\x01'* ]]; then
+    rest="${_CMETA#v2$'\x01'}"; prob="${rest%%$'\x01'*}"; prob="${prob//\//#}"
+    [[ -n "${MOJ_PROBLEMS_DIR:-}" && "$prob" == *#* ]] || return 0
+    conf="$MOJ_PROBLEMS_DIR/${prob%%#*}/${prob#*#}/conf"
+    [[ "$conf" -nt "$f.cmeta" ]] || return 0
+  fi
+  _CMETA="$(_cmeta_v2 "$f")" || return 1
+  return 0
+}
 
 # _hardmem <memmb> -> MB que a jaula pode pedir ao cgroup (regra do cage-run/b-a-t: max(600, MEMLIMITMB+64))
 _hardmem() { local m="$1"; [[ "$m" =~ ^[0-9]+$ ]] || m=0; local h=$(( m + 64 )); (( h < 600 )) && h=600; printf '%s' "$h"; }
@@ -271,7 +381,8 @@ q_enqueue() {
 # O(prefixo) POR CLAIM e a vazão medida caiu a 30 veredictos/min. Agora:
 #   1. a decisão ESTÁTICA de cada job (problema, capacidade, pool, linguagem, LARGURA k/numa/
 #      par/m/mem do conf do pacote, época de entrada, recusas) mora num sidecar `<job>.cmeta`
-#      v2 escrito na PRIMEIRA visita (self-heal: 1 jq por job NA VIDA; sidecar v1 é reescrito);
+#      v2 escrito na PRIMEIRA visita (self-heal: 1 jq por job NA VIDA; sidecar v1 é reescrito, e o
+#      de job cujo conf de pacote mudou depois dele também — _cmeta_load);
 #      as varreduras seguintes leem o sidecar com $(<…), ZERO processos por job pulado;
 #   2. o claim é em LOTE: UMA varredura por chamada colhe até MAX SLOTS (era MAX jobs);
 #   3. glob ordenado (epoch de 10 dígitos ⇒ ordem lexical = cronológica) no lugar de
@@ -280,7 +391,9 @@ q_enqueue() {
 # LARGURA (24/09/2026; env do chamador — o heartbeat as tira do registro/beat/judges-config):
 #   QC_SLOT_CPUS       cpus do menor slot do juiz (vazio/0 = juiz LEGADO: só k=1, sem campos novos)
 #   QC_MAX_FREE_GROUP  maior nº de slots livres num nó (job SAMENUMA só cabe se k_slots ≤ isso)
-#   QC_TOTAL_SLOTS / QC_MEM_KB   p/ a regra de memória: HARDMEM ≤ (mem−4 GB)×k_slots/total_slots
+#   QC_TOTAL_SLOTS / QC_MEM_KB   p/ a regra de memória: HARDMEM ≤ (mem−4 GB)×k_slots/total_slots — e
+#                      a MEMÓRIA É LARGURA (_eff_width): o job leva os slots que comportam o
+#                      MEMLIMITMB (test_cpus sobe junto); nem a máquina inteira ⇒ pula (infeasible_sweep)
 #   QC_POLICY (off|auto) QC_CUSHION QC_SHARE_MAX QC_PARALLEL_MAX   → par_max (expansão)
 # Um job cabe se passa nas 4 portas de sempre E k_slots ≤ slots restantes (E nó, E memória);
 # não cabe ⇒ pula (backfill: um job mais estreito passa na frente — o HOLD cuida do largo).
@@ -325,9 +438,8 @@ q_claim() {
       for f in "$QUEUEDIR/$band"/*.json; do
         [[ -f "$f" ]] || continue
         (( slots_left <= 0 )) && { queue_empty=0; break 2; }
-        # sidecar de decisão estática (v2); v1/ausente ⇒ reescrito (1 jq + conf do pacote)
-        meta=""; [[ -s "$f.cmeta" ]] && meta="$(<"$f.cmeta")"
-        [[ "$meta" == v2$'\x01'* ]] || { meta="$(_cmeta_v2 "$f")" || continue; }
+        # sidecar de decisão estática (v2); v1/ausente/conf do pacote mais novo ⇒ reescrito
+        _cmeta_load "$f" || continue; meta="$_CMETA"
         IFS=$'\x01' read -r ver prob need jl hosts k numa par m memmb enq decl <<<"$meta"
         [[ -z "$need" || "$need" == "$cap" ]] || continue
         base="${f##*/}"
@@ -362,16 +474,15 @@ q_claim() {
           v=",$decl"; v="${v##*,$host:}"; v="${v%%,*}"
           [[ "$v" =~ ^[0-9]+$ ]] && (( now - v < DECLINE_BACKOFF )) && { skipped_time=1; continue; }
         fi
-        # LARGURA: juiz legado só k=1; k_slots ≤ sobra; SAMENUMA ⇒ ≤ maior grupo livre; memória
-        [[ "$k" =~ ^[0-9]+$ && "$k" -ge 1 ]] || k=1
-        (( legacy && k > 1 )) && continue
-        ks="$(_kslots "$k" "$sc")"
+        # LARGURA EFETIVA (CPU e MEMÓRIA, _eff_width): juiz legado só 1 slot; nem a máquina inteira
+        # comporta a memória ⇒ pula (o infeasible_sweep dá o Judge Error); k_slots ≤ sobra;
+        # SAMENUMA ⇒ ≤ maior grupo livre
+        _eff_width "$k" "$memmb" "$sc" "$tot" "$memkb"
+        (( _EKS == 0 )) && { skipped_time=1; continue; }
+        k=$_EK; ks=$_EKS
+        (( legacy && ks > 1 )) && continue
         (( ks > slots_left )) && { skipped_time=1; continue; }
         [[ "$numa" == y && -n "$mfg" ]] && (( ks > mfg )) && { skipped_time=1; continue; }
-        if [[ -n "$tot" && -n "$memkb" ]] && [[ "$memmb" =~ ^[0-9]+$ ]] && (( memmb > 0 )); then
-          v=$(( (memkb / 1024 - 4096) * ks / tot ))
-          (( $(_hardmem "$memmb") > v )) && { skipped_time=1; continue; }
-        fi
         mkdir -p "$ASSIGNEDDIR/$host" 2>/dev/null
         dest="$ASSIGNEDDIR/$host/$base"
         if mv "$f" "$dest" 2>/dev/null; then
@@ -794,7 +905,7 @@ cmd_action_count() { local n
 # capacidade (total_slots×slot_cpus ≥ k; numa: maior nó ≥ k) ⇒ Judge Error pelo spool, como o
 # /judge/result faria (host "scheduler"). Sem juiz vivo nenhum: espera, como sempre.
 
-# _reg_rows : uma linha por juiz do registry, "host\x01cap\x01langs\x01total\x01free\x01slot_cpus\x01maxnode\x01mfg\x01status\x01live"
+# _reg_rows : uma linha por juiz do registry, "host\x01cap\x01langs\x01total\x01free\x01slot_cpus\x01maxnode\x01mfg\x01status\x01live\x01mem_kb"
 # (langs separadas por espaço; slot_cpus 0 = legado; maxnode = maior slots_by_node; live 1|0)
 _reg_rows() {
   local now=$EPOCHSECONDS
@@ -804,10 +915,12 @@ _reg_rows() {
           ((.total_slots // 1)|tostring), ((.free_slots // 0)|tostring), ((.slot_cpus // 0)|tostring),
           (((.slots_by_node // {}) | [.[]] | max) // (.total_slots // 1) | tostring),
           ((.max_free_group // 0)|tostring), (.status // ""),
-          (if (.last_seen // 0) >= ($now - $ttl) then "1" else "0" end) ] | join("\u0001")' 2>/dev/null
+          (if (.last_seen // 0) >= ($now - $ttl) then "1" else "0" end),
+          ((.mem_kb // "")|tostring) ] | join("\u0001")' 2>/dev/null
 }
 
-# _wide_jobs : jobs LARGOS (k>1) pendentes, "file\x01prob\x01need\x01lang\x01hosts\x01k\x01numa\x01enq" (cmeta v2)
+# _wide_jobs : jobs POSSIVELMENTE largos pendentes (k>1, ou com MEMLIMITMB — a memória também é largura e
+# depende do juiz: quem decide é o _eff_width de cada varredura), "file\x01prob\x01need\x01lang\x01hosts\x01k\x01numa\x01enq\x01memmb"
 _wide_jobs() {
   local band f meta ver prob need jl hosts k numa par m enq memmb decl
   local -A PKGPAR=()
@@ -815,11 +928,10 @@ _wide_jobs() {
   for band in "${SCHED_BANDS[@]}"; do
     for f in "$QUEUEDIR/$band"/*.json; do
       [[ -f "$f" ]] || continue
-      meta=""; [[ -s "$f.cmeta" ]] && meta="$(<"$f.cmeta")"
-      [[ "$meta" == v2$'\x01'* ]] || { meta="$(_cmeta_v2 "$f")" || continue; }
+      _cmeta_load "$f" || continue; meta="$_CMETA"
       IFS=$'\x01' read -r ver prob need jl hosts k numa par m memmb enq decl <<<"$meta"
-      [[ "$k" =~ ^[0-9]+$ && "$k" -gt 1 ]] || continue
-      printf '%s\x01%s\x01%s\x01%s\x01%s\x01%s\x01%s\x01%s\n' "$f" "$prob" "$need" "$jl" "$hosts" "$k" "$numa" "$enq"
+      { [[ "$k" =~ ^[0-9]+$ && "$k" -gt 1 ]] || [[ "$memmb" =~ ^[0-9]+$ && "$memmb" -gt 0 ]]; } || continue
+      printf '%s\x01%s\x01%s\x01%s\x01%s\x01%s\x01%s\x01%s\x01%s\n' "$f" "$prob" "$need" "$jl" "$hosts" "$k" "$numa" "$enq" "$memmb"
     done
   done
 }
@@ -849,11 +961,13 @@ q_claim_id() {
     flock 9 || exit 0
     f="$(find "$QUEUEDIR" -mindepth 2 -name "*_$id.json" -print -quit 2>/dev/null)"
     [[ -n "$f" && -f "$f" ]] || exit 0
-    meta=""; [[ -s "$f.cmeta" ]] && meta="$(<"$f.cmeta")"
-    [[ "$meta" == v2$'\x01'* ]] || meta="$(_cmeta_v2 "$f")"
+    _cmeta_load "$f"; meta="$_CMETA"
     IFS=$'\x01' read -r ver prob need jl hosts k numa par m memmb enq decl <<<"$meta"
     [[ "$k" =~ ^[0-9]+$ && "$k" -ge 1 ]] || k=1
-    ks="$(_kslots "$k" "$sc")"
+    # a mesma largura EFETIVA do q_claim (CPU e memória); o hold só nasce p/ job que cabe no juiz,
+    # mas, se ainda assim não couber, vale a largura de CPU (o job segue, o cgroup é que limita)
+    _eff_width "$k" "$memmb" "$sc" "${QC_TOTAL_SLOTS:-}" "${QC_MEM_KB:-}"
+    if (( _EKS >= 1 )); then k=$_EK; ks=$_EKS; else ks="$(_kslots "$k" "$sc")"; fi
     base="${f##*/}"; mkdir -p "$ASSIGNEDDIR/$host" 2>/dev/null; dest="$ASSIGNEDDIR/$host/$base"
     mv "$f" "$dest" 2>/dev/null || exit 0
     rm -f "$f.cmeta" 2>/dev/null
@@ -878,31 +992,34 @@ hold_sweep() {
   local nholds; nholds="$(find "$HOLDDIR" -maxdepth 1 -name '*.json' 2>/dev/null | wc -l)"
   local -A HELD=()
   local hf; for hf in $(find "$HOLDDIR" -maxdepth 1 -name '*.json' 2>/dev/null); do HELD[$(jq -r '.job // ""' "$hf" 2>/dev/null)]=1; done
-  local f prob need jl hosts k numa enq id
-  local host cap langs total free sc maxnode mfg status live
-  while IFS=$'\x01' read -r f prob need jl hosts k numa enq; do
+  local f prob need jl hosts k numa enq memmb id
+  local host cap langs total free sc maxnode mfg status live memkb
+  while IFS=$'\x01' read -r f prob need jl hosts k numa enq memmb; do
     [[ "$enq" =~ ^[0-9]+$ ]] && (( now - enq >= HOLD_AFTER )) || continue
     id="${f##*_}"; id="${id%.json}"
     [[ -n "${HELD[$id]:-}" ]] && continue
     (( prova && nholds >= 1 )) && break
     case "$jl" in py2|py3) jl=py;; esac
-    local best="" bestfree=-1 fits=0 ks
-    while IFS=$'\x01' read -r host cap langs total free sc maxnode mfg status live; do
+    local best="" bestfree=-1 bestks=0 fits=0 ks
+    while IFS=$'\x01' read -r host cap langs total free sc maxnode mfg status live memkb; do
       [[ "$live" == 1 && "$status" != draining && "$status" != disabled ]] || continue
       [[ "$sc" =~ ^[0-9]+$ && "$sc" -ge 1 ]] || continue                      # legado: nunca largo
       [[ -z "$need" || "$need" == "$cap" ]] || continue
       [[ -z "$hosts" || ",$hosts," == *",$host,"* ]] || continue
       [[ -z "$jl" || -z "$langs" || " $langs " == *" $jl "* ]] || (( now - enq > LANG_GRACE )) || continue
-      ks="$(_kslots "$k" "$sc")"
-      (( total >= ks )) || continue
+      # largura EFETIVA neste juiz (CPU e memória); nem a máquina inteira ⇒ não segura (o
+      # infeasible_sweep fecha); estreito aqui ⇒ o backfill comum resolve, sem hold
+      _eff_width "$k" "$memmb" "$sc" "$total" "$memkb"; ks=$_EKS
+      (( ks >= 1 && total >= ks )) || continue
+      (( ks == 1 )) && { fits=1; break; }
       [[ "$numa" == y ]] && (( maxnode < ks )) && continue
       if (( free >= ks )) && { [[ "$numa" != y ]] || (( mfg >= ks )); }; then fits=1; break; fi
       [[ -f "$HOLDDIR/$host.json" ]] && continue
-      (( free > bestfree )) && { best="$host"; bestfree=$free; }
+      (( free > bestfree )) && { best="$host"; bestfree=$free; bestks=$ks; }
     done <<<"$rows"
     (( fits )) && continue
     [[ -n "$best" ]] || continue
-    ks="$(_kslots "$k" "$(awk -F$'\x01' -v h="$best" '$1==h{print $6}' <<<"$rows")")"
+    ks=$bestks
     jq -cn --arg j "$id" --argjson ks "$ks" --arg nm "$numa" --argjson now "$now" \
        '{job:$j, k_slots:$ks, numa:($nm=="y"), since:$now}' > "$HOLDDIR/.$best.tmp" 2>/dev/null \
       && mv -f "$HOLDDIR/.$best.tmp" "$HOLDDIR/$best.json"
@@ -929,7 +1046,9 @@ sched_spool_judge_error() {
   rm -f "$tmp" 2>/dev/null; return 1
 }
 
-# infeasible_sweep : Judge Error p/ job largo sem juiz vivo capaz há INFEASIBLE_AFTER (throttle).
+# infeasible_sweep : Judge Error p/ job sem juiz vivo capaz há INFEASIBLE_AFTER (throttle): largo demais
+# (CPU) ou com MEMLIMITMB que nem a máquina INTEIRA de nenhum juiz comporta (a mensagem diz qual, com o
+# teto do maior juiz — o autor sabe o que corrigir no conf).
 infeasible_sweep() {
   local stamp="$QUEUEDIR/.infeasible-stamp" now=$EPOCHSECONDS last=0
   [[ -f "$stamp" ]] && last="$(<"$stamp")"; [[ "$last" =~ ^[0-9]+$ ]] || last=0
@@ -937,25 +1056,37 @@ infeasible_sweep() {
   printf '%s' "$now" > "$stamp"
   local wide; wide="$(_wide_jobs)"; [[ -n "$wide" ]] || return 0
   local rows; rows="$(_reg_rows)"; [[ -n "$rows" ]] || return 0
-  local f prob need jl hosts k numa enq host cap langs total free sc maxnode mfg status live any cap_ok
-  while IFS=$'\x01' read -r f prob need jl hosts k numa enq; do
+  local f prob need jl hosts k numa enq memmb host cap langs total free sc maxnode mfg status live memkb any cap_ok memfail maxlim v msg
+  while IFS=$'\x01' read -r f prob need jl hosts k numa enq memmb; do
     [[ "$enq" =~ ^[0-9]+$ ]] && (( now - enq >= INFEASIBLE_AFTER )) || continue
-    any=0; cap_ok=0
-    while IFS=$'\x01' read -r host cap langs total free sc maxnode mfg status live; do
+    [[ "$k" =~ ^[0-9]+$ && "$k" -ge 1 ]] || k=1
+    any=0; cap_ok=0; memfail=0; maxlim=0
+    while IFS=$'\x01' read -r host cap langs total free sc maxnode mfg status live memkb; do
       [[ "$live" == 1 ]] || continue
       any=1
-      [[ "$sc" =~ ^[0-9]+$ && "$sc" -ge 1 ]] || continue
       [[ -z "$need" || "$need" == "$cap" ]] || continue
       [[ -z "$hosts" || ",$hosts," == *",$host,"* ]] || continue
-      if [[ "$numa" == y ]]; then (( maxnode * sc >= k )) && cap_ok=1
-      else (( total * sc >= k )) && cap_ok=1; fi
+      # juiz legado (sem slot_cpus): roda job estreito, sem regra de memória
+      [[ "$sc" =~ ^[0-9]+$ && "$sc" -ge 1 ]] || { (( k == 1 )) && { cap_ok=1; break; }; continue; }
+      _eff_width "$k" "$memmb" "$sc" "$total" "$memkb"
+      if (( _EKS == 0 )); then   # sem fork: este laço vê todo job atrasado (backlog de prova)
+        memfail=1; v=0; [[ "$memkb" =~ ^[0-9]+$ ]] && v=$(( memkb / 1024 - 4096 - 64 )); (( v > maxlim )) && maxlim=$v
+        continue
+      fi
+      if [[ "$numa" == y ]]; then (( maxnode >= _EKS )) && cap_ok=1
+      else (( total >= _EKS )) && cap_ok=1; fi
       (( cap_ok )) && break
     done <<<"$rows"
     (( any && cap_ok == 0 )) || continue
+    if (( memfail )); then
+      msg="o problema pede MEMLIMITMB=$memmb MB e nenhum juiz comporta (o maior aceita até ~$maxlim MB) — corrija o limite de memória no conf do problema"
+    else
+      msg="nenhum juiz com $k CPU(s)$([[ "$numa" == y ]] && printf ' num nó NUMA') p/ este problema"
+    fi
     (
       flock 9 || exit 0
       [[ -f "$f" ]] || exit 0
-      sched_spool_judge_error "$f" "nenhum juiz com $k CPU(s)$([[ "$numa" == y ]] && printf ' num nó NUMA') p/ este problema"
+      sched_spool_judge_error "$f" "$msg"
     ) 9>"$QUEUEDIR/.lock"
   done <<<"$wide"
   return 0

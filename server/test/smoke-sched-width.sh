@@ -24,9 +24,10 @@ source "$ROOT/judge-gw/sched-lib.sh"; sched_init_dirs; mkdir -p "$UPDATESDIR/pen
 mkp(){ mkdir -p "$MOJ_PROBLEMS_DIR/o/$1"; printf '%s\n' "${2:-}" > "$MOJ_PROBLEMS_DIR/o/$1/conf"; }
 mkp plain ''; mkp wide 'CPUNEEDED=4'; mkp numa4 $'CPUNEEDED=4\nSAMENUMA=y'; mkp mem 'MEMLIMITMB=4000'
 mkp par $'ALLOWPARALLELTEST=y\nMAXPARALLELTESTS=2'; mkp nopar 'ALLOWPARALLELTEST=n'; mkp big 'CPUNEEDED=40'
-mkp wide2 'CPUNEEDED=2'; mkp bad "CPUNEEDED='abc'"
+mkp wide2 'CPUNEEDED=2'; mkp bad "CPUNEEDED='abc'"; mkp huge 'MEMLIMITMB=262144'; mkp small 'MEMLIMITMB=1024'
+mkp fixme 'MEMLIMITMB=262144'
 # o juiz do teste tem TODOS os pacotes em cache ("quente": a porta COLD_GRACE é de outro teste)
-PROBS='{"o#plain":1,"o#wide":1,"o#numa4":1,"o#mem":1,"o#par":1,"o#nopar":1,"o#big":1,"o#wide2":1,"o#bad":1}'
+PROBS='{"o#plain":1,"o#wide":1,"o#numa4":1,"o#mem":1,"o#par":1,"o#nopar":1,"o#big":1,"o#wide2":1,"o#bad":1,"o#huge":1,"o#small":1,"o#fixme":1}'
 now=$EPOCHSECONDS
 enq(){ # <id> <prob> [prio] [lang] [enq_epoch] -> enfileira
   q_enqueue "$1" "${3:-lista-publica}" "$(jq -cn --arg id "$1" --arg p "o#$2" --arg pr "${3:-lista-publica}" --arg l "${4:-c}" --argjson e "${5:-$now}" \
@@ -90,6 +91,28 @@ out="$(QC_SLOT_CPUS=1 QC_TOTAL_SLOTS=27 QC_MEM_KB=$((32*1024*1024)) QC_POLICY=of
 ck "MEMLIMITMB=4000 num slot de ~1 GB (32 GB/27): pula; plain passa" '[[ "$(jq -r .id <<<"$out")" == j2 ]]'
 out="$(QC_SLOT_CPUS=1 QC_TOTAL_SLOTS=4 QC_MEM_KB=$((32*1024*1024)) QC_POLICY=off q_claim h1 pos "$PROBS" '[]' 3)"; DBG="$out"
 ck "4 slots de 7 GB: cabe"                     '[[ "$(jq -r .id <<<"$out")" == j1 ]]'
+
+echo "== MEMÓRIA É LARGURA (30/09/2026: 10 submissões presas p/ sempre por MEMLIMITMB=262144) =="
+clearq; enq j1 mem
+out="$(QC_SLOT_CPUS=1 QC_TOTAL_SLOTS=27 QC_MEM_KB=$((32*1024*1024)) QC_POLICY=off q_claim h1 pos "$PROBS" '[]' 6)"; DBG="$out"
+ck "MEMLIMITMB=4000 em slots de ~1 GB e 6 livres: leva os 4 slots que o comportam (test_cpus=4)" '[[ "$(jq -r ".id,.test_cpus,.slots" <<<"$out" | tr "\n" " ")" == "j1 4 4 " ]]'
+clearq; enq j1 huge; enq j2 plain
+out="$(claim h1 16)"; DBG="$out"
+ck "MEMLIMITMB=262144 (256 GB) num juiz de 64 GB: pulado; o plain passa" '[[ "$(jq -r .id <<<"$out" | tr "\n" " ")" == "j2 " && -n "$(find "$QUEUEDIR" -name "*_j1.json")" ]]'
+# o conf do pacote CORRIGIDO destrava o job que JÁ está na fila (o .cmeta guardava o valor velho p/ sempre)
+clearq; enq j1 fixme
+claim h1 16 >/dev/null
+f10="$(find "$QUEUEDIR" -name '*_j1.json.cmeta' -exec cat {} \; | cut -d$'\001' -f10)"; DBG="f10=$f10"
+ck "cmeta guardou o MEMLIMITMB=262144 e o job segue na fila" '[[ "$f10" == 262144 && -n "$(find "$QUEUEDIR" -name "*_j1.json")" ]]'
+mkp fixme 'MEMLIMITMB=256'; touch -d '+2 seconds' "$MOJ_PROBLEMS_DIR/o/fixme/conf"
+out="$(claim h1 16)"; DBG="$out"
+ck "conf corrigido (256): o cmeta é refeito e o MESMO job é reivindicado" '[[ "$(jq -r ".id,.test_cpus" <<<"$out" | tr "\n" " ")" == "j1 1 " ]]'
+# hold p/ o largo POR MEMÓRIA; job de memória comum faminto não segura juiz nenhum
+clearq; rm -f "$REGISTRYDIR"/*.json; reg h1 16 1 1 16 1; enq j1 mem "" c "$((now-30))"; enq j2 small "" c "$((now-30))"
+rm -f "$HOLDDIR/.sweep-stamp"; hold_sweep; DBG="$(ls "$HOLDDIR"; cat "$HOLDDIR"/*.json 2>/dev/null)"
+ck "MEMLIMITMB=4000 em slots de 3,8 GB (64 GB/16), 1 livre: hold de 2 slots p/ ele (e não p/ o de 1 GB)" '[[ "$(jq -r ".job,.k_slots" "$HOLDDIR/h1.json" 2>/dev/null | tr "\n" " ")" == "j1 2 " ]]'
+out="$(QC_SLOT_CPUS=1 QC_TOTAL_SLOTS=16 QC_MEM_KB=67108864 q_claim_id h1 j1)"; DBG="$out"
+ck "q_claim_id do segurado: a mesma largura por memória (test_cpus=2, slots=2)" '[[ "$(jq -r ".id,.test_cpus,.slots" <<<"$out" | tr "\n" " ")" == "j1 2 2 " ]]'
 
 echo "== par_max: só política auto + fila vazia + nada pulado por tempo =="
 clearq; enq j1 par
@@ -224,6 +247,12 @@ ck "SAMENUMA=y com maior nó 3: Judge Error cita o nó" '[[ -n "$sp" && "$(jq -r
 clearq; rm -f "$SPOOLDIR"/sp:*; reg h1 8 8 "" 8 8; enq j1 wide2 "" c "$((now-200))"; rm -f "$QUEUEDIR/.infeasible-stamp"; infeasible_sweep
 sp="$(find "$SPOOLDIR" -name 'sp:*:j1:scheduler:result:*' | head -1)"; DBG="sp=$sp fila=$(find "$QUEUEDIR" -name '*.json') rows=$(_reg_rows | tr '\001' '|')"
 ck "só juiz LEGADO vivo (não serve k>1): Judge Error" '[[ -n "$sp" ]]'
+clearq; rm -f "$REGISTRYDIR"/*.json "$SPOOLDIR"/sp:* 2>/dev/null; reg h1 8 8 1 8 8
+enq j1 huge "" c "$((now-200))"; enq j2 mem "" c "$((now-200))"
+rm -f "$QUEUEDIR/.infeasible-stamp"; infeasible_sweep
+sp="$(find "$SPOOLDIR" -name 'sp:*:j1:scheduler:result:*' | head -1)"; DBG="sp=$sp $(jq -r .verdict "$sp" 2>/dev/null)"
+ck "MEMLIMITMB=262144 num juiz de 64 GB: Judge Error com a memória pedida e o teto do maior juiz" '[[ -n "$sp" && "$(jq -r .verdict "$sp")" == *"MEMLIMITMB=262144"* && "$(jq -r .verdict "$sp")" == *"~61376 MB"* && -z "$(find "$QUEUEDIR" -name "*_j1.json")" ]]'
+ck "MEMLIMITMB=4000 cabe (em mais slots): continua na fila" '[[ -n "$(find "$QUEUEDIR" -name "*_j2.json")" ]]'
 rm -f "$SPOOLDIR"/sp:* 2>/dev/null
 
 echo "== juiz LEGADO (heartbeat sem slot_cpus): só k=1, sem campos novos =="

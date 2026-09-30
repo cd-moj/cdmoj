@@ -123,6 +123,25 @@ export function pendingLabel(code) {
     case 'inputs_invalid': return T(`${plural(n, 'entrada inválida', 'entradas inválidas')} (validador)`, `${n} invalid input(s) (validator)`, `${n} entrada(s) inválida(s) (validador)`);
     case 'inputs_error': return T('o validador de entrada não rodou', 'the input validator did not run', 'el validador de entrada no se ejecutó');
     case 'issues_open': return T(`${plural(n, 'issue aberta', 'issues abertas')}`, `${n} open issue(s)`, `${n} issue(s) abierta(s)`);
+    // NÃO JULGÁVEL com os juízes de hoje (a regra do escalonador, no /problems/status): "código,pedido,teto"
+    case 'not_judgeable': {
+      const [why, need, max] = String(arg || '').split(',');
+      switch (why) {
+        case 'memory': return T(`nenhum juiz comporta: MEMLIMITMB=${need} MB e o maior juiz aceita ~${max} MB — as submissões dariam Judge Error (a unidade é MB)`,
+          `no judge can run it: MEMLIMITMB=${need} MB and the largest judge accepts ~${max} MB — submissions would get Judge Error (the unit is MB)`,
+          `ningún juez lo soporta: MEMLIMITMB=${need} MB y el juez más grande acepta ~${max} MB — los envíos darían Judge Error (la unidad es MB)`);
+        case 'cpus': return T(`nenhum juiz tem ${need} CPUs (CPUNEEDED); o maior tem ${max}`,
+          `no judge has ${need} CPUs (CPUNEEDED); the largest has ${max}`,
+          `ningún juez tiene ${need} CPUs (CPUNEEDED); el más grande tiene ${max}`);
+        case 'numa': return T(`nenhum juiz tem ${need} CPUs num mesmo nó NUMA (SAMENUMA=y); o maior nó tem ${max}`,
+          `no judge has ${need} CPUs on one NUMA node (SAMENUMA=y); the largest node has ${max}`,
+          `ningún juez tiene ${need} CPUs en un mismo nodo NUMA (SAMENUMA=y); el nodo más grande tiene ${max}`);
+        case 'langs': return T(`nenhum juiz roda as linguagens do problema (${need})`,
+          `no judge runs the problem's languages (${need})`,
+          `ningún juez ejecuta los lenguajes del problema (${need})`);
+        default: return T('não julgável com os juízes de hoje', 'not judgeable with the current judges', 'no juzgable con los jueces actuales');
+      }
+    }
     default: return code;
   }
 }

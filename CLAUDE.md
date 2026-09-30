@@ -317,7 +317,12 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   antigo (16/09: o bot de 26/08 não mandava `chat_type` e o `/relatorio aqui` respondia `not_group`). O
   Bearer `mojb_…` do bot NUNCA recebe a dica de "CLI antiga" (`cli-version.sh`). **Alertas**: `lib/alerts.sh` + `GET /ops/alerts` (a API avalia com
   histerese/cooldown e enfileira no outbox `run/alerts/`; o bot drena e entrega a `.admin` vinculados
-  + grupo). O outbox tem **TRÊS formatos**: `*.txt` = incidente (destino resolvido no claim = os
+  + grupo). Condições: sem juiz + fila, fila grande, daemon caído, bot fora do ar e **job PARADO**
+  (`queue_stuck`, 30/09/2026: job na fila há `ALERT_STUCK_AFTER`=15 min com juiz online — a mensagem diz
+  quantos, contest · problema do mais antigo, há quanto tempo e o MOTIVO provável cruzando o `.cmeta` com os
+  juízes vivos: memória, pool offline, largura, linguagem; lembrete no máx. a cada `ALERT_STUCK_COOLDOWN`=1 h.
+  A idade vem do `enq` do `.cmeta`, nunca do nome do arquivo, que a promoção de famintos renomeia. Teste
+  `smoke-alerts-stuck.sh`). Antes, 10 submissões ficaram >24 h presas e nenhuma condição as via. O outbox tem **TRÊS formatos**: `*.txt` = incidente (destino resolvido no claim = os
   `.admin`), `*-dm-*.json` = **DM dirigida** (`alert_dm`: o produtor resolve o chat; `group:false` p/ não
   copiar no grupo, `loud:true` p/ notificar) e `*-grp-*.json` = **só grupo** (`alert_group`:
   `chats:[]` + `group:true`; o claim SÓ aceita chats vazio quando `group` — DM sem destino segue
@@ -518,8 +523,15 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   completa em `judge-gw/PULL.md` ("Largura k"). Os juízes oficiais são slots de 1 CPU; um job de
   `CPUNEEDED=k` ocupa `k_slots = ceil(k/slot_cpus)` do MESMO juiz. O `conf` do pacote é lido por
   REGEX (`sched_pkg_par`; nunca sourced) e memoizado no sidecar `.cmeta` **v2** (12 campos; v1 é
-  reescrito). `q_claim` é por largura: `k_slots ≤ livres`, `SAMENUMA` ⇒ `≤ max_free_group`, memória
-  por slot; não cabe ⇒ pula (backfill). Env `QC_*` do heartbeat (slot_cpus, max_free_group,
+  reescrito; e REFEITO quando o `conf` do pacote é mais novo que ele — `_cmeta_load`, a leitura única dos
+  três leitores: sem isso corrigir o pacote não destravava o job já na fila). `q_claim` é por largura:
+  `k_slots ≤ livres`, `SAMENUMA` ⇒ `≤ max_free_group`; não cabe ⇒ pula (backfill). **MEMÓRIA É
+  LARGURA** (`_eff_width`, 30/09/2026): o job cujo `max(600, MEMLIMITMB+64)` não cabe na fatia de
+  `k_slots` slots (`(mem−4 GB)×k_slots/total_slots`) leva os slots que o comportam e o `test_cpus` sobe
+  junto (é por ele que o agente reserva — o judge não mudou); nem a máquina INTEIRA ⇒ pula, e o
+  `infeasible_sweep` fecha com Judge Error em `INFEASIBLE_AFTER` dizendo o MEMLIMITMB e o teto do maior
+  juiz. Antes o job de memória impossível ficava na fila PARA SEMPRE (10 submissões de uma lista, 15
+  problemas com `MEMLIMITMB=262144` digitado em KB, incidente de 30/09/2026). Env `QC_*` do heartbeat (slot_cpus, max_free_group,
   total/mem, política) — juiz LEGADO (beat sem `slot_cpus`) só k=1 e sem campos novos. `par_max`
   (testes em paralelo) SÓ com política `"*".parallel=auto` (judges-config; fora do `cfg_hash`),
   fila vazia e nada pulado por porta de tempo/largura: sobra além do colchão, rodízio, teto
@@ -1502,6 +1514,10 @@ mexa na outra. O índice separa as coleções por `\u001f` (nome é texto livre:
   Painel/`calib_targeted`/`moj judges show` diziam "nada" enquanto o juiz calibrava por minutos, relato
   do Ribas 20/09/2026; o marcador é DISPLAY-ONLY — não dedupa, não serializa, não volta p/ a fila e não
   é re-carimbado pelo heartbeat, e quem o apaga é o report do juiz. Teste: `smoke-calib-queue.sh`) e
+  **"🚫 não julgável"** (`judgeable`/pendência `not_judgeable:<memory|cpus|numa|langs>,<pedido>,<teto>`: a MESMA
+  regra do escalonador — `sched_judgeable`/`_eff_width` — contra os juízes vistos em 7 dias, e as linguagens
+  declaradas contra as dos juízes; o topo traz `judge_capacity` p/ o aviso AO VIVO da aba Limites do editor;
+  teste `smoke-problem-judgeable.sh`) e
   **"precisa recalibrar"** (checksum calibrado em `run/tl/<id>.json` ≠ `tl_checksum` **carimbado no
   índice** por `mojtools/gen-problem-owners.sh`). A FRONTEIRA de acesso é **`owners_visible`** (extraído
   de `owners_emit` — UMA definição do filtro público∪dono∪colaborador∪membro-da-org; o handler

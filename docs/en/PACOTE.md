@@ -1,4 +1,4 @@
-<!-- i18n-source: PACOTE.md blob:d6a1a7e40e4c7a6b1e6867a955a38e42677af7a7 -->
+<!-- i18n-source: PACOTE.md blob:64dd45cca9dc73beefa669be7cdbce5d49be18d3 -->
 # MOJ: the problem package (canonical format)
 
 > **Translation note.** This manual is a translation of the Portuguese original. The command-line tools (`moj`, `moj-contest`, `moj-comp`) print their messages in Portuguese, and the command examples below are identical to the original.
@@ -456,7 +456,7 @@ All the keys that `build-and-test.sh` understands:
 | `ULIMITS[-f]` | `256000` | maximum size of a file that the program can write | 0 |
 | `ALLOWPARALLELTEST` | on (absent = `y`) | `y` = the judge **can** run many tests of this submission at the same time, each on its k CPUs, when it has idle CPU (admin policy; off during a contest); `n` = one test at a time. **It does not change the time limit**: calibration always runs one test at a time. See "Parallel problems" below | 453 |
 | `STACKLIMITMB` | 128 | stack in MB. It wins over `ULIMITS[-s]`. The JVM mirrors it in `-Xss` | 0 |
-| `MEMLIMITMB` | no RSS limit | memory limit in MB, measured by the **peak RSS**. If you set it, the virtual memory limit is turned off (that limit is unfair to JVM and Go). The JVM uses this value in `-Xmx` | 0 |
+| `MEMLIMITMB` | no RSS limit | memory limit in MB, measured by the **peak RSS**. If you set it, the virtual memory limit is turned off (that limit is unfair to JVM and Go). The JVM uses this value in `-Xmx`. The unit is **MB**: 256 MB is `256`, not `262144`. Above what one judge slot holds (today about 9 GB), each test takes more slots and the submission waits longer; above the memory of every judge, the problem cannot be judged (Judge Error) — the Dashboard and the editor's Limits tab warn you | 0 |
 | `COMPILEMEMLIMIT` | `2048` | memory in MB available for **compilation** (`kotlinc` uses more than 600 MB) | 0 |
 | `MAXPARALLELTESTS` | judge ceiling (4) | ceiling of simultaneous tests for this problem (integer ≥ 1); it is never more than the judge ceiling (`parallel_max`, default 4) or `nproc/k` in a manual run | 0 |
 | `CPUNEEDED` | `1` | **CPUs that each test needs** (1..64; parallel problem — OpenMP/MPI/pthreads). The judge joins k slots for each test, and the cage gets `MOJ_TEST_CPUS`/`OMP_NUM_THREADS` = k. A change recalibrates. See "Parallel problems" | 0 |

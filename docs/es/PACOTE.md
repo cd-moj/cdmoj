@@ -1,4 +1,4 @@
-<!-- i18n-source: PACOTE.md blob:d6a1a7e40e4c7a6b1e6867a955a38e42677af7a7 -->
+<!-- i18n-source: PACOTE.md blob:64dd45cca9dc73beefa669be7cdbce5d49be18d3 -->
 # MOJ: el paquete de problema (formato canónico)
 
 > **Nota de traducción.** Este manual es una traducción del original en portugués. Las herramientas de línea de comandos (`moj`, `moj-contest`, `moj-comp`) muestran sus mensajes en portugués, y los ejemplos de comandos son idénticos al original.
@@ -447,7 +447,7 @@ Todas las claves que entiende `build-and-test.sh`:
 | `ULIMITS[-f]` | `256000` | tamaño máximo de archivo que el programa puede escribir | 0 |
 | `ALLOWPARALLELTEST` | activado (ausente = `y`) | `y` = el juez **puede** ejecutar varias pruebas de este envío al mismo tiempo, cada una en sus k CPUs, cuando tiene CPU ociosa (política del admin; en una competencia queda desactivada); `n` = una prueba a la vez. **No cambia el tiempo límite**: la calibración es siempre una prueba a la vez. Ver "Problemas paralelos" abajo | 453 |
 | `STACKLIMITMB` | 128 | pila en MB. Gana sobre `ULIMITS[-s]`. La JVM lo refleja en `-Xss` | 0 |
-| `MEMLIMITMB` | sin límite por RSS | límite de memoria en MB, medido por el **pico de RSS**. Activarlo desactiva el límite de memoria virtual (que penalizaría injustamente a la JVM y a Go). La JVM usa este valor en `-Xmx` | 0 |
+| `MEMLIMITMB` | sin límite por RSS | límite de memoria en MB, medido por el **pico de RSS**. Activarlo desactiva el límite de memoria virtual (que penalizaría injustamente a la JVM y a Go). La JVM usa este valor en `-Xmx`. La unidad es **MB**: 256 MB es `256`, no `262144`. Por encima de lo que soporta un slot de juez (hoy unos 9 GB), cada prueba ocupa más slots y el envío espera más; por encima de la memoria de cualquier juez, el problema no se puede juzgar (Judge Error) — el Panel y la pestaña Límites del editor avisan | 0 |
 | `COMPILEMEMLIMIT` | `2048` | memoria en MB liberada para la **compilación** (`kotlinc` pasa de 600 MB) | 0 |
 | `MAXPARALLELTESTS` | tope del juez (4) | tope de pruebas al mismo tiempo de este problema (entero ≥ 1); nunca pasa del tope del juez (`parallel_max`, default 4) ni de `nproc/k` al ejecutar a mano | 0 |
 | `CPUNEEDED` | `1` | **CPUs que necesita cada prueba** (1..64; problema paralelo — OpenMP/MPI/pthreads). El juez junta k slots para cada prueba y la jaula entra con `MOJ_TEST_CPUS`/`OMP_NUM_THREADS` = k. Cambiarlo recalibra. Ver "Problemas paralelos" | 0 |

@@ -46,6 +46,9 @@ ck('o que cada categoria pede', ['good','pass','slow','wrong'].every(c=>expectWa
 ck('pendências com número', pendingLabel('sols_divergent:2')==='2 soluções divergentes' && pendingLabel('issues_open:1')==='1 issue aberta');
 ck('pendência com lista de linguagens', pendingLabel('good_no_tl:c,py').endsWith('c,py'));
 ck('pendência desconhecida = o próprio código', pendingLabel('xyz')==='xyz');
+// NÃO JULGÁVEL (incidente de 30/09/2026): o rótulo diz o pedido, o teto do juiz e a consequência
+ck('não julgável por memória: pedido, teto e Judge Error', pendingLabel('not_judgeable:memory,262144,253768').includes('MEMLIMITMB=262144 MB') && pendingLabel('not_judgeable:memory,262144,253768').includes('~253768 MB') && pendingLabel('not_judgeable:memory,262144,253768').includes('Judge Error'));
+ck('não julgável por CPU, nó NUMA e linguagem', pendingLabel('not_judgeable:cpus,40,27').includes('40 CPUs') && pendingLabel('not_judgeable:numa,20,14').includes('nó NUMA') && pendingLabel('not_judgeable:langs,pddl,').includes('(pddl)'));
 ck('resumo: conforme + outro motivo + sem resultado', (()=>{ const t=summaryText({total:4,bad:1,note:1,missing:['slow/a.c']}); return t.startsWith('3 de 4') && t.includes('1 divergente') && t.includes('1 sem resultado'); })());
 ck('validador: inválidas', validatorText({state:'invalid',invalid:2,total:9})==='2 de 9 entradas INVÁLIDAS');
 // ---- solsBlock: pílula e "esperado/obtido" vêm do expect do servidor

@@ -166,8 +166,12 @@ Os juízes oficiais são slots de **1 CPU**. Um problema com `CPUNEEDED=k` no `c
 por teste**: o servidor lê o conf do pacote por regex (`sched_pkg_par`, memoizado no sidecar
 `.cmeta` v2 = `v2\x01prob\x01need\x01lang\x01hosts\x01k\x01numa\x01par\x01m\x01memmb\x01enq\x01decl`)
 e o **claim é por largura**: o job cabe num juiz se `k_slots = ceil(k/slot_cpus) ≤ slots livres`,
-com `SAMENUMA=y` também `≤ max_free_group` (maior nº de slots livres num nó, do beat), e a memória
-por slot comporta o `MEMLIMITMB` (`max(600, MEMLIMITMB+64) ≤ (mem−4 GB)×k_slots/total_slots`).
+com `SAMENUMA=y` também `≤ max_free_group` (maior nº de slots livres num nó, do beat). **A memória também
+é largura** (`_eff_width`, 30/09/2026): se `max(600, MEMLIMITMB+64)` não cabe em `(mem−4 GB)×k_slots/total_slots`,
+o job leva os slots que o comportam e o `test_cpus` sobe junto (é por ele que o agente reserva); se nem a
+máquina inteira comporta, o claim pula e o `infeasible_sweep` fecha com Judge Error dizendo o MEMLIMITMB e o
+teto do maior juiz (antes o job ficava na fila para sempre). O `.cmeta` é refeito quando o `conf` do pacote
+é mais novo que ele (`_cmeta_load`), então corrigir o pacote destrava o job já enfileirado.
 Não cabe ⇒ **pula** (backfill: o de 1 slot passa na frente; sem teto de varredura). O agente
 recebe `test_cpus`, `same_numa`, `slots` (= grupos × k_slots), `par_max` e `par_cap`, junta os
 slots num grupo por teste (`alloc_slots`, dentro de um nó; núcleos inteiros com SMT) e, se não

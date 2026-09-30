@@ -12,6 +12,10 @@ command -v gjs >/dev/null 2>&1 || { echo "limits-tab: gjs ausente — pulando"; 
 { cat <<'JS'
 const FIELDS = {};
 function $(id) { return FIELDS[id] || (FIELDS[id] = { value: '', checked: false, hidden: false }); }
+function T(pt) { return pt; }
+function el(tag, attrs, text) { return { tag, cls: (attrs || {}).class || '', text: String(text || '') }; }
+// as caixas do aviso de memória/CPU (limitsWarn) guardam o que foi posto nelas
+['cf_mem_warn', 'cf_cpu_warn'].forEach((id) => { FIELDS[id] = { kids: [], set textContent(v) { this.kids = []; }, append(x) { this.kids.push(x); } }; });
 JS
   # o bloco de conf: de `const confVal` até antes de `const hiddenFile`
   awk 'index($0,"const confVal = ")==1{f=1} f&&index($0,"const hiddenFile = ")==1{exit} f' "$WEB/problemas/editar.js"
@@ -61,6 +65,23 @@ $('cf_cpuneeded').value = ''; out = save();
 ck('limpar CPUNEEDED remove a linha', !has(out, 'CPUNEEDED'));
 $('cf_maxparallel').value = '2'; out = save();
 ck('MAXPARALLELTESTS=2 gravado', confVal(out, 'MAXPARALLELTESTS') === '2');
+
+// ---- AVISO da aba Limites contra os juízes de hoje (judge_capacity; incidente de 30/09/2026: MEMLIMITMB=262144)
+const kids = (id) => $(id).kids.map((k) => k.cls + '|' + k.text);
+load('MEMLIMITMB=262144');
+ck('sem judge_capacity (antes de o status chegar) não avisa nada', kids('cf_mem_warn').length === 0);
+JCAP = { judges: 1, max_mem_mb: 253768, slot_mem_mb: 9337, max_cpus: 27, max_node_cpus: 14 };
+load('MEMLIMITMB=262144');
+ck('MEMLIMITMB=262144: vermelho, nenhum juiz comporta, a unidade é MB', kids('cf_mem_warn').length === 1 && kids('cf_mem_warn')[0].startsWith('pill no|') && kids('cf_mem_warn')[0].includes('~253768 MB') && kids('cf_mem_warn')[0].includes('não 262144'));
+load('MEMLIMITMB=20000');
+ck('MEMLIMITMB=20000: amarelo, ~3 slots por teste', kids('cf_mem_warn').length === 1 && kids('cf_mem_warn')[0].startsWith('pill warn|') && kids('cf_mem_warn')[0].includes('~3 slots'));
+load('MEMLIMITMB=1024');
+ck('MEMLIMITMB=1024: nada', kids('cf_mem_warn').length === 0);
+load('CPUNEEDED=40');
+ck('CPUNEEDED=40 num juiz de 27: vermelho', kids('cf_cpu_warn').length === 1 && kids('cf_cpu_warn')[0].includes('o maior tem 27'));
+load('CPUNEEDED=20\nSAMENUMA=y');
+ck('CPUNEEDED=20 + SAMENUMA com nó de 14: vermelho', kids('cf_cpu_warn').length === 1 && kids('cf_cpu_warn')[0].includes('14 CPUs'));
+JCAP = null;
 print(`RESULT: ${PASS} passed, ${FAIL} failed`);
 JS
 } > "$W/t.js"

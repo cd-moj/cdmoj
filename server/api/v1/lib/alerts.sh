@@ -18,6 +18,8 @@
 : "${ALERT_QUEUE_LO:=20}"         # sai do backlog abaixo disso
 : "${ALERT_DAEMON_AFTER:=60}"     # s de daemon caído antes de disparar
 : "${ALERT_BOT_GONE_AFTER:=300}"  # s sem poll do bot p/ considerá-lo fora (bot.alive)
+: "${ALERT_STUCK_AFTER:=900}"     # s de job PARADO na fila (com juiz online) p/ contar como preso
+: "${ALERT_STUCK_COOLDOWN:=3600}" # s entre lembretes enquanto a fila segue parada (dias parados ≠ spam)
 
 _alert_dir(){ printf '%s/alerts' "$RUNDIR"; }
 
@@ -38,6 +40,70 @@ _alert_work_pending(){   # submissões esperando: spool bruto + bandas da fila p
   echo $(( sp + bq ))
 }
 _alert_daemon_up(){ daemon_judged_alive && echo 1 || echo 0; }   # lib/common.sh (pgrep OU heartbeat)
+
+# _alert_stuck_jobs -> "n\x01idade_do_mais_velho\x01arquivo_do_mais_velho" dos jobs PARADOS na fila pull
+# (há ALERT_STUCK_AFTER ou mais desde o enqueued_at), ou nada. Incidente de 30/09/2026: 10 submissões de
+# uma lista paradas por mais de 24 h com os três juízes online, e nenhuma condição antiga (sem juiz / fila
+# grande / daemon) as via. A idade vem do sidecar .cmeta (campo enq): o NOME do arquivo não serve, a
+# promoção de famintos e o decline o renomeiam com epoch novo. Job sem sidecar ainda não passou por
+# nenhum claim e cai no enqueued_at do JSON. Leitura por `read` (sem fork por job: roda a cada avaliação).
+_alert_stuck_jobs(){
+  [[ -d "$QUEUEDIR" ]] || return 0
+  ( set +o noglob; shopt -s nullglob
+    local now="$EPOCHSECONDS" n=0 oldest=0 of="" f m enq
+    for f in "$QUEUEDIR"/*/*.json; do
+      m=""; enq=""
+      [[ -s "$f.cmeta" ]] && { IFS= read -r m < "$f.cmeta" || true; }
+      [[ "$m" == v2$'\x01'* ]] && IFS=$'\x01' read -r _ _ _ _ _ _ _ _ _ _ enq _ <<<"$m"
+      [[ "$enq" =~ ^[0-9]+$ ]] || enq="$(jq -r '.enqueued_at // empty' "$f" 2>/dev/null)"
+      [[ "$enq" =~ ^[0-9]+$ ]] || continue
+      (( now - enq >= ALERT_STUCK_AFTER )) || continue
+      n=$((n+1))
+      (( oldest == 0 || enq < oldest )) && { oldest=$enq; of="$f"; }
+    done
+    (( n > 0 )) && printf '%s\x01%s\x01%s' "$n" "$(( now - oldest ))" "$of"
+  )
+}
+# _alert_stuck_why <jobfile> -> "contest\x01problema\x01motivo provável" (p/ a mensagem): cruza o sidecar
+# do job (memória, largura, pool, linguagem) com a capacidade dos juízes VIVOS (uma varredura do registro)
+_alert_stuck_why(){
+  local f="$1" m="" ver prob need jl hosts k numa par mm memmb enq decl contest why h mk cpus lg
+  local rows maxmem=0 maxcpu=0 live=" " langs=" " anyl=0 hh
+  contest="$(jq -r '.contest // "?"' "$f" 2>/dev/null)"
+  [[ -s "$f.cmeta" ]] && { IFS= read -r m < "$f.cmeta" || true; }
+  IFS=$'\x01' read -r ver prob need jl hosts k numa par mm memmb enq decl <<<"$m"
+  [[ -n "$prob" ]] || prob="$(jq -r '.problem_id // "?"' "$f" 2>/dev/null)"
+  rows="$(find "$REGISTRYDIR" -maxdepth 1 -name '*.json' -exec cat {} + 2>/dev/null \
+    | jq -r --argjson now "$EPOCHSECONDS" --argjson ttl "$REG_TTL" '
+        select((.last_seen // 0) >= ($now - $ttl))
+        | [ .host, ((.mem_kb // 0)|tostring), (((.total_slots // 1) * (.slot_cpus // 1))|tostring),
+            ((.langs // []) | map(if . == "py2" or . == "py3" then "py" else . end) | join(" ")) ]
+        | join("\u0001")' 2>/dev/null)"
+  while IFS=$'\x01' read -r h mk cpus lg; do
+    [[ -n "$h" ]] || continue
+    live+="$h "; langs+="$lg "
+    [[ "$mk" =~ ^[0-9]+$ ]] && (( mk / 1024 - 4096 - 64 > maxmem )) && maxmem=$(( mk / 1024 - 4096 - 64 ))
+    [[ "$cpus" =~ ^[0-9]+$ ]] && (( cpus > maxcpu )) && maxcpu=$cpus
+  done <<<"$rows"
+  case "$jl" in py2|py3) jl=py;; esac
+  if [[ -n "$hosts" ]]; then for hh in ${hosts//,/ }; do [[ "$live" == *" $hh "* ]] && anyl=1; done; fi
+  if [[ "$memmb" =~ ^[0-9]+$ ]] && (( memmb > 0 && maxmem > 0 && memmb > maxmem )); then
+    why="o problema pede MEMLIMITMB=$memmb MB e o maior juiz aceita ~$maxmem MB — corrigir o conf do problema"
+  elif [[ -n "$hosts" ]] && (( anyl == 0 )); then
+    why="o pool de juízes (${hosts//,/, }) está offline"
+  elif [[ "$k" =~ ^[0-9]+$ ]] && (( k > 1 && maxcpu > 0 && k > maxcpu )); then
+    why="o problema pede $k CPUs (CPUNEEDED) e o maior juiz tem $maxcpu"
+  elif [[ "$k" =~ ^[0-9]+$ ]] && (( k > 1 )); then
+    why="largura: o problema pede $k CPUs (CPUNEEDED) e nenhum juiz libera tantos slots juntos"
+  elif [[ -n "$jl" && "$langs" != *" $jl "* ]]; then
+    why="nenhum juiz online tem a linguagem $jl"
+  else
+    why="não identificado — ver a Fila no painel do treino"
+  fi
+  printf '%s\x01%s\x01%s' "$contest" "$prob" "$why"
+}
+_alert_html(){ local s="$1"; s="${s//&/&amp;}"; s="${s//</&lt;}"; s="${s//>/&gt;}"; printf '%s' "$s"; }
+_alert_dur(){ local s="$1"; (( s >= 3600 )) && printf '%dh%02dm' $(( s / 3600 )) $(( s % 3600 / 60 )) || printf '%d min' $(( s / 60 )); }
 
 # --- destinos: .admin do treino com Telegram vinculado --------------------
 # alerts_admin_chats -> ecoa chat_ids (um por linha) dos .admin com by-login/<login>.
@@ -153,6 +219,19 @@ alerts_evaluate(){
   alert_step queue_backlog "$qbad" 600 \
     "⚠️ <b>MOJ</b>: fila grande — <b>$pending</b> submissões pendentes (limiar $ALERT_QUEUE_HI)." \
     "✅ <b>MOJ</b>: fila normalizou (<b>$pending</b> pendentes)."
+
+  # queue_stuck: job PARADO na fila há ALERT_STUCK_AFTER+ com juiz online (sem juiz é o no_judges).
+  # Dispara na hora (a espera já está no limiar do job) e relembra no máx. a cada ALERT_STUCK_COOLDOWN.
+  local st sn sage sf scontest sprob swhy stxt=""
+  st="$(_alert_stuck_jobs)"
+  bad=0; [[ -n "$st" ]] && (( online > 0 )) && bad=1
+  if (( bad )); then
+    IFS=$'\x01' read -r sn sage sf <<<"$st"
+    IFS=$'\x01' read -r scontest sprob swhy <<<"$(_alert_stuck_why "$sf")"
+    stxt="⏳ <b>MOJ</b>: <b>$sn</b> submissão(ões) parada(s) na fila há mais de $(( ALERT_STUCK_AFTER / 60 )) min com juiz(es) online — a mais antiga: <code>$(_alert_html "$scontest")</code> · <code>$(_alert_html "$sprob")</code>, há $(_alert_dur "$sage"). Motivo provável: $(_alert_html "$swhy")."
+  fi
+  ALERT_COOLDOWN="$ALERT_STUCK_COOLDOWN" alert_step queue_stuck "$bad" 0 "$stxt" \
+    "✅ <b>MOJ</b>: a fila voltou a andar — nenhuma submissão parada."
 
   # daemon_judged: caído
   bad=0; (( daemonup == 0 )) && bad=1

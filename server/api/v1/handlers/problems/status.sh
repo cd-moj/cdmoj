@@ -3,7 +3,9 @@
 # (run/tl x tl_checksum do índice) e "sendo calibrado AGORA" (filas de calibração). A FRONTEIRA de
 # acesso é owners_visible — problema PRIVADO de terceiro NUNCA aparece (a API garante, não a UI).
 # Custo: sem hash de pacote por request — stale sai da comparação de dois checksums já materializados
-# (o do pacote atual vem carimbado no índice por gen-problem-owners.sh; o calibrado, de run/tl).
+# (o do pacote atual vem carimbado no índice por gen-problem-owners.sh; o calibrado, de run/tl). A
+# VIABILIDADE (judgeable/not_judgeable, 2b) lê o `conf` de cada problema sem fork — é a gestão de
+# problemas, do lado de dentro da fronteira do pacote — e o topo traz `judge_capacity` p/ o editor.
 require_method GET
 require_auth
 source "$_DIR/lib/problems.sh"
@@ -41,6 +43,25 @@ calib="$(calibrating_set)"; [[ -n "$calib" ]] || calib='[]'
 sup="$(find "${REGISTRYDIR:-$RUNDIR/registry}" -maxdepth 1 -name '*.json' -exec cat {} + 2>/dev/null | jq -sc '[.[]|.langs//[]|.[]]|unique' 2>/dev/null)"
 [[ -n "$sup" ]] || sup='[]'
 
+# 2b) VIABILIDADE: o problema cabe em ALGUM dos juízes da plataforma? A MESMA regra do escalonador
+#     (sched_judgeable → _eff_width: CPUNEEDED, SAMENUMA e MEMLIMITMB como largura) contra os juízes vistos
+#     nos últimos 7 dias. Incidente de 30/09/2026: 15 problemas com MEMLIMITMB=262144 (256 GB) eram
+#     impossíveis desde o escalonador por largura, e só apareceram quando uma lista travou. O conf é lido
+#     sem fork (_pkg_par_v); só os NÃO julgáveis viram linha. Sem juiz conhecido, não se afirma nada.
+REGISTRYDIR="${REGISTRYDIR:-$RUNDIR/registry}" sched_cap_load
+capj="$(sched_cap_json)"
+njmap="$(mktemp)"; trap 'rm -f "$njmap"' EXIT
+{ if (( SCAP_N > 0 )); then
+    while IFS= read -r pid; do
+      [[ -n "$pid" ]] || continue
+      _pkg_par_v "$pid"; sched_judgeable "$_PP_K" "$_PP_NUMA" "$_PP_MEM"
+      [[ -n "$_NJ_CODE" ]] && printf '%s\t%s\t%s\t%s\n' "$pid" "$_NJ_CODE" "$_NJ_NEED" "$_NJ_MAX"
+    done < <(jq -r '.problems[].id // empty' <<<"$vis" 2>/dev/null)
+  fi; } | jq -Rn '[ inputs | split("\t") | select(length >= 4)
+                   | {key:.[0], value:{code:.[1], need:(.[2]|tonumber? // .[2]), max:(.[3]|tonumber? // .[3])}} ]
+                 | from_entries' > "$njmap" 2>/dev/null
+[[ -s "$njmap" ]] || echo '{}' > "$njmap"
+
 # 3+4) SUMÁRIOS agregados de TL e validação (run/{tl,validation}-summary.json) — mantidos
 # POR EVENTO pelos escritores (tl_store_record / judge/update-report); rebuild só a frio.
 # Antes eram ~2·N forks de `cat` POR REQUEST (4s p/ ~900 visíveis). Os sumários têm TODOS os
@@ -57,8 +78,10 @@ pi_summary_ensure; issmap="$PI_SUMMARY"; [[ -s "$issmap" ]] || issmap=/dev/null
 # quebrado era um board VAZIO (o antigo `|| jq -cn '{total:0,…}'`) — silencioso e indistinguível de
 # "você não tem problema nenhum". Agora falha vira 500 COM a mensagem do jq.
 out="$(jq -c --slurpfile TL "$tlmap" --slurpfile VAL "$valmap" --slurpfile CX "$calmap" --slurpfile ISS "$issmap" \
-          --argjson CAL "$calib" --argjson SUP "$sup" '
+          --slurpfile NJ "$njmap" --argjson CAL "$calib" --argjson SUP "$sup" --argjson CAPJ "$capj" '
   ($TL[0] // {}) as $tl | ($VAL[0] // {}) as $val | ($CX[0] // {}) as $cx | ($ISS[0] // {}) as $iss
+  | ($NJ[0] // {}) as $njm
+  | ($SUP | map(if . == "py2" or . == "py3" then "py" else . end)) as $supn
   | ($CAL | map({(.):true}) | add // {}) as $calset
   | (.generated_at // 0) as $idx_at
   | [ .problems[]
@@ -96,7 +119,15 @@ out="$(jq -c --slurpfile TL "$tlmap" --slurpfile VAL "$valmap" --slurpfile CX "$
       | ($istate == "invalid" or $istate == "error") as $inbad
       # ISSUES abertas (lib/problem-issues.sh): a revisão da banca — aberta = o problema não está pronto
       | (($iss[$id] // 0) | tonumber? // 0) as $nis
-      | ($err or $gsnotl or $pubuncal or $pubunval or $solbad or $inbad or ($nis > 0)) as $review
+      # NÃO JULGÁVEL com os juízes de hoje: a largura/memória (2b, a regra do escalonador) ou NENHUMA das
+      # linguagens declaradas roda em juiz algum (o problema "só-X" com X fora dos juízes)
+      | ((.languages // []) | map(if . == "py2" or . == "py3" then "py" else . end)) as $pl
+      | (($pl | length) > 0 and ($supn | length) > 0 and ($pl | all(. as $l | ($supn | index($l)) == null))) as $langbad
+      | (if $njm[$id] != null then $njm[$id]
+         elif $langbad then {code:"langs", need:($pl | join(" ")), max:""} else null end) as $nj
+      | (if $nj != null then ("not_judgeable:" + ([$nj.code, ($nj.need | tostring), (($nj.max // "") | tostring)] | join(",")))
+         else null end) as $njcode
+      | ($err or $gsnotl or $pubuncal or $pubunval or $solbad or $inbad or ($nis > 0) or ($nj != null)) as $review
       # `untitled` = não há título em lugar nenhum (nem no pacote, nem no enunciado — o índice então
       # carimba o slug). O Painel marca esses p/ o dono nomear; não é erro, é um "por nomear".
       | ((((.title // "") == "") or ((.title // "") == (.prob // ""))) ) as $untitled
@@ -108,6 +139,7 @@ out="$(jq -c --slurpfile TL "$tlmap" --slurpfile VAL "$valmap" --slurpfile CX "$
                 total:($cs.total // 0), at:($cs.at // null)},
           inputs:{state:$istate, invalid:($cv.invalid // 0), total:($cv.total // 0)},
           open_issues:$nis,
+          judgeable:(if $nj != null then ($nj + {ok:false}) else {ok:true} end),
           being_calibrated:(($calset[$id]) // false),
           stale:$stale,
           needs_recalibration:($cal and $stale),
@@ -125,11 +157,13 @@ out="$(jq -c --slurpfile TL "$tlmap" --slurpfile VAL "$valmap" --slurpfile CX "$
                             (if $inbad then (if $istate == "error" then "inputs_error"
                                              else ("inputs_invalid:" + (($cv.invalid // 0)|tostring)) end)
                              else empty end),
-                            (if $nis > 0 then ("issues_open:" + ($nis|tostring)) else empty end) ]),
+                            (if $nis > 0 then ("issues_open:" + ($nis|tostring)) else empty end),
+                            (if $njcode != null then $njcode else empty end) ]),
           # PENDÊNCIAS p/ o problema estar PRONTO (o selo do editor, o card "prontos" do Painel e a
           # confirmação de publicar). Diferente de review_reasons, entra também o que NÃO foi conferido
           # (pacote/soluções sem resultado): pronto é afirmação, não ausência de alarme.
-          pending:([ (if $vstate=="error" then "package_failed" elif $vstate=="none" then "package_unchecked" else empty end),
+          pending:([ (if $njcode != null then $njcode else empty end),
+                     (if $vstate=="error" then "package_failed" elif $vstate=="none" then "package_unchecked" else empty end),
                      (if ($cal|not) then "uncalibrated" elif $stale then "needs_recalibration" else empty end),
                      (if $gsnotl then ("good_no_tl:" + ($miss|join(","))) else empty end),
                      (if $solbad then ("sols_divergent:" + (($cs.bad // 0)|tostring))
@@ -177,9 +211,11 @@ out="$(jq -c --slurpfile TL "$tlmap" --slurpfile VAL "$valmap" --slurpfile CX "$
         sols_unchecked:     ([$rows[]|select(.pending|index("sols_unchecked"))]|length),
         inputs_invalid:     ([$rows[]|select(.inputs.state=="invalid" or .inputs.state=="error")]|length),
         issues_open:        ([$rows[]|select(.open_issues > 0)]|length),
+        not_judgeable:      ([$rows[]|select(.judgeable.ok|not)]|length),
         errors:             ([$rows[]|select(.error)]|length) },
       calibrating_ids:[$rows[]|select(.being_calibrated)|.id],
       attention_ids:  [$rows[]|select(.needs_review or .needs_recalibration)|.id],
+      judge_capacity: $CAPJ,
       problems:$rows }' <<<"$vis" 2>&1)" \
   || fail 500 "Falha ao montar o painel: $(printf '%s' "$out" | head -c 200)" "status_failed"
 [[ -n "$out" ]] || fail 500 "Painel vazio (o jq não produziu saída)" "status_failed"

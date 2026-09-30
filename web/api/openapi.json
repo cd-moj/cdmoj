@@ -6839,7 +6839,7 @@
         "tags": [
           "problems"
         ],
-        "summary": "Painel de status dos problemas do login (dono + colaborador + membro da org): pacote, calibração, soluções, entradas, pronto",
+        "summary": "Painel de status dos problemas do login (dono + colaborador + membro da org): pacote, calibração, soluções, entradas, pronto judgeable/not_judgeable (30/09/2026): o problema cabe em algum juiz visto em 7 dias, pela regra do escalonador (CPUNEEDED, SAMENUMA e MEMLIMITMB como largura) e com alguma linguagem declarada disponível; senão pendência not_judgeable:<memory|cpus|numa|langs>,<pedido>,<teto> e counts.not_judgeable. judge_capacity (topo) = teto de memória da máquina e de um slot, CPUs da maior máquina e do maior nó (aviso da aba Limites).",
         "description": "validated é o estado do PACOTE (conferência estática do validate-problem.sh — não roda solução). sols = as soluções × o que a categoria delas pede (sumário run/calib-summary.json, regra em lib/calib-expect.sh): state none|stale|bad|partial|note|ok. inputs = o validador de entrada: state unknown|none|ok|invalid|error. pending = o que falta p/ o problema estar PRONTO (package_failed, package_unchecked, uncalibrated, needs_recalibration, good_no_tl:<langs>, sols_divergent:<n>, sols_unchecked, inputs_invalid:<n>, inputs_error, issues_open:<n>); ready = pending vazio. open_issues = issues abertas (/problems/issues). review_reasons ganha sols_divergent:<n>, inputs_invalid:<n>, inputs_error e issues_open:<n>. ?id= estreita a um problema (vazio se o login não o opera). Agrega validação, calibração, time_limits e 'precisa recalibrar' dos problemas de que o login é dono OU colaborador. FRONTEIRA de acesso: problema privado de terceiro NÃO aparece (owners_visible). Sem hash de pacote por request — stale vem do checksum carimbado no índice (≤30 min de atraso); use /problems/tl p/ o valor exato ao vivo. time_limits é o EFETIVO (o TLOVERRIDE vem carimbado no índice de donos, então o Painel não abre pacote); time_limits_calibrated e tl_override vêm ao lado. untitled = o problema não tem título em lugar nenhum (nem display_title no pacote, nem linha de título no enunciado) e o title devolvido é o identificador — o Painel marca 'sem título'.",
         "security": [
           {
@@ -8828,7 +8828,7 @@
         "tags": [
           "ops"
         ],
-        "summary": "Bot: avalia incidentes + drena outbox de alertas (bot-token); sweeps de convite e do relatório de quartil",
+        "summary": "Bot: avalia incidentes (inclusive job PARADO na fila com juiz online — queue_stuck, com o motivo provável) + drena outbox de alertas (bot-token); sweeps de convite e do relatório de quartil",
         "responses": {
           "200": {
             "description": "{items:[{id,text,chats:[chat_id],loud,group}]} — chats vazio + group:true = mensagem só para o grupo"
