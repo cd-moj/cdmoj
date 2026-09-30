@@ -85,7 +85,12 @@ owners_merged(){
     | (($base.problems // []) | map({key:.id, value:.}) | from_entries) as $bmap
     | ($ovl | map(.id)) as $ids
     # título do overlay que é vazio OU o próprio slug NÃO vence um título de verdade do índice
-    | { problems: ( (($base.problems // []) | map(select((.id as $i | $ids|index($i)) | not)))
+    # generated_at SEGUE junto: o /problems/status usa-o p/ decidir "precisa recalibrar" (calibração
+    # mais nova que o índice = tl_checksum do índice sabidamente velho). Sem ele o $idx_at vira 0,
+    # TODA calibração parece mais nova e o card "precisa recalibrar" (e o botão "Recalibrar todos")
+    # ficam zerados PARA SEMPRE — mesmo com o pacote editado e o checksum divergente.
+    | { generated_at: ($base0.generated_at // 0),
+        problems: ( (($base.problems // []) | map(select((.id as $i | $ids|index($i)) | not)))
                     + ($ovl | map(. as $o | ($bmap[$o.id] // {}) as $b
                                   | ($b.title // "") as $bt
                                   | (if (($o.title // "") == "" or ($o.title // "") == ($o.prob // ""))
