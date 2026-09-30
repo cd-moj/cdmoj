@@ -11,6 +11,22 @@ import { makeConvertCard } from './users-convert.js';
 
 const enc = encodeURIComponent;
 
+// Collator numérico: "aluno2" antes de "aluno10"; sensitivity base ignora caixa e acento
+// ("Álvaro" junto de "alvaro").
+const COLL = new Intl.Collator('pt', { numeric: true, sensitivity: 'base' });
+
+// Ordena as contas (no lugar) por login/fullname/email. Vazio vai SEMPRE para o fim, nas duas
+// direções: muita conta não tem email, e elas não podem tomar o topo quando se inverte a ordem.
+// Teste: server/test/smoke-users-sort.gjs.sh.
+export function sortUsers(items, key, dir) {
+  return items.sort((a, b) => {
+    const va = a[key] || '', vb = b[key] || '';
+    if (!va && vb) return 1;
+    if (va && !vb) return -1;
+    return COLL.compare(va, vb) * dir;
+  });
+}
+
 export function makeUsersTab(CONTEST) {
   const G = { contest: CONTEST, auth: true };
   const panel = el('div', { class: 'section' });
@@ -25,6 +41,10 @@ export function makeUsersTab(CONTEST) {
     el('option', { value: 'active' }, T('ativos', 'active', 'activos')), el('option', { value: 'disabled' }, T('desabilitados', 'disabled', 'deshabilitados')),
     el('option', { value: 'priv' }, T('privilegiados', 'privileged', 'privilegiados')));
   let showAll = false;
+  // Ordenação por coluna: clique no cabeçalho alterna ▲/▼ (mesmo padrão da Gestão de Problemas).
+  // key null = ordem do servidor, o comportamento de antes: nada muda para quem não clica.
+  let SORT = { key: null, dir: 1 };
+  function setSort(key) { if (SORT.key === key) SORT.dir *= -1; else SORT = { key, dir: 1 }; renderList(); }
   fQ.addEventListener('input', () => { showAll = false; renderList(); });
   fSel.addEventListener('change', () => { showAll = false; renderList(); });
 
@@ -60,12 +80,17 @@ export function makeUsersTab(CONTEST) {
       if (sel === 'priv' && !(u.admin || PRIV.test(u.login || ''))) return false;
       return !q || [u.login, u.fullname, u.email].some((x) => (x || '').toLowerCase().includes(q));
     });
+    // ordena ANTES do corte de CAP: senão "ordenar por nome" num contest com 1000+ contas ordenaria
+    // só os 300 da tela, e o primeiro da ordem real ficaria escondido
+    if (SORT.key) sortUsers(items, SORT.key, SORT.dir);
     list.append(el('div', { class: 'small muted', style: 'margin:.3rem 0' }, items.length + T(' de ', ' of ', ' de ') + USERS.length + T(' usuário(s).', ' user(s).', ' usuario(s).')));
     if (!items.length) { list.append(el('div', { class: 'muted' }, T('Nenhum com esses filtros.', 'None with these filters.', 'Ninguno con estos filtros.'))); return; }
     const CAP = 300, shown = showAll ? items : items.slice(0, CAP);
     const tb = el('tbody'); shown.forEach((u) => tb.append(userRow(u)));
+    const arrow = (k) => SORT.key === k ? (SORT.dir > 0 ? ' ▲' : ' ▼') : '';
+    const th = (label, k) => el('th', { class: 'sortable', title: T('ordenar', 'sort', 'ordenar'), onclick: () => setSort(k) }, label + arrow(k));
     list.append(el('div', { class: 'chart-wrap' }, el('table', { class: 'moj' },
-      el('thead', {}, el('tr', {}, el('th', {}, 'Login'), el('th', {}, T('Nome', 'Name', 'Nombre')), el('th', {}, 'Email'), el('th', {}, T('Ações', 'Actions', 'Acciones')))), tb)));
+      el('thead', {}, el('tr', {}, th('Login', 'login'), th(T('Nome', 'Name', 'Nombre'), 'fullname'), th('Email', 'email'), el('th', {}, T('Ações', 'Actions', 'Acciones')))), tb)));
     if (!showAll && items.length > CAP) list.append(el('div', { style: 'margin:.4rem 0' },
       el('button', { class: 'btn ghost', onclick: () => { showAll = true; renderList(); } }, T('mostrar todos (', 'show all (', 'mostrar todos (') + items.length + ')'),
       el('span', { class: 'small muted' }, T(' — exibindo os ' + CAP + ' primeiros', ' — showing the first ' + CAP, ' — mostrando los primeros ' + CAP))));

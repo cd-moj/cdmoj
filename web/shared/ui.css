@@ -652,3 +652,8 @@ details.fgroup[open] > summary::before { content:'▾ '; }
   .groupbar button, .subnav button { white-space:nowrap; }
   .groupbar button { font-size:.9rem; padding:.35rem .6rem; }
 }
+
+/* cabeçalho de tabela ordenável (clique alterna ▲/▼). Vivia só inline na Gestão de
+   Problemas; agora vale para toda tabela com class="sortable". */
+th.sortable { cursor:pointer; user-select:none; }
+th.sortable:hover { color:var(--accent,#5b8cff); }
