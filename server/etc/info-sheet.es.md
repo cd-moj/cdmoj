@@ -86,12 +86,16 @@ no aplican los límites de memoria y de tiempo del juez, pero reproducen el ento
   ejemplo `BufferedReader` y `PrintWriter`.
 - Compile soluciones en Java con:
 
-      javac {archivo_enviado}
+      javac -encoding UTF-8 {archivo_enviado}
 
 - Ejecute soluciones en Java con:
 
-      java -Xms10m -Xmx{{MEMLIMIT_MB}}m -Xss{{STACK_KB}}k {nombre_de_la_clase}
+      java -Duser.language=en -Duser.country=US \
+           -Dstdout.encoding=UTF-8 -Dstderr.encoding=UTF-8 \
+           -Xms10m -Xmx{{MEMLIMIT_MB}}m -Xss{{STACK_KB}}k {nombre_de_la_clase}
 
+- El juez fija el *locale* en `en_US` y la salida en UTF-8: `Scanner.nextDouble()` lee `5.5` y
+  `printf("%.2f")` escribe con punto.
 - El juez define los tamaños de *heap* y de pila anteriores a partir de los límites de memoria
   de la sección 1.3.
 {{/LANG}}
@@ -108,8 +112,11 @@ no aplican los límites de memoria y de tiempo del juez, pero reproducen el ento
 
 - Ejecute soluciones en Kotlin con:
 
-      java -Xms10m -Xmx{{MEMLIMIT_MB}}m -Xss{{STACK_KB}}k -jar prog.jar
+      java -Duser.language=en -Duser.country=US \
+           -Dstdout.encoding=UTF-8 -Dstderr.encoding=UTF-8 \
+           -Xms10m -Xmx{{MEMLIMIT_MB}}m -Xss{{STACK_KB}}k -jar prog.jar
 
+- El juez fija el *locale* en `en_US` y la salida en UTF-8, como en Java.
 - El juez define los tamaños de *heap* y de pila anteriores a partir de los límites de memoria
   de la sección 1.3.
 {{/LANG}}

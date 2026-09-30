@@ -85,12 +85,16 @@ apply the memory and time limits of the judge, but they match the environment of
   `BufferedReader` and `PrintWriter`.
 - Compile Java solutions with:
 
-      javac {submitted_file}
+      javac -encoding UTF-8 {submitted_file}
 
 - Run Java solutions with:
 
-      java -Xms10m -Xmx{{MEMLIMIT_MB}}m -Xss{{STACK_KB}}k {class_name}
+      java -Duser.language=en -Duser.country=US \
+           -Dstdout.encoding=UTF-8 -Dstderr.encoding=UTF-8 \
+           -Xms10m -Xmx{{MEMLIMIT_MB}}m -Xss{{STACK_KB}}k {class_name}
 
+- The judge sets the *locale* to `en_US` and the output to UTF-8: `Scanner.nextDouble()` reads
+  `5.5` and `printf("%.2f")` writes a dot.
 - The judge sets the heap and stack sizes above from the memory limits of section 1.3.
 {{/LANG}}
 {{#LANG kt}}
@@ -106,8 +110,11 @@ apply the memory and time limits of the judge, but they match the environment of
 
 - Run Kotlin solutions with:
 
-      java -Xms10m -Xmx{{MEMLIMIT_MB}}m -Xss{{STACK_KB}}k -jar prog.jar
+      java -Duser.language=en -Duser.country=US \
+           -Dstdout.encoding=UTF-8 -Dstderr.encoding=UTF-8 \
+           -Xms10m -Xmx{{MEMLIMIT_MB}}m -Xss{{STACK_KB}}k -jar prog.jar
 
+- The judge sets the *locale* to `en_US` and the output to UTF-8, as in Java.
 - The judge sets the heap and stack sizes above from the memory limits of section 1.3.
 {{/LANG}}
 {{#LANG py}}

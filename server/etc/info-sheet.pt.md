@@ -86,12 +86,16 @@ aplicam os limites de memória e de tempo do juiz, mas reproduzem o ambiente do 
   exemplo `BufferedReader` e `PrintWriter`.
 - Compile soluções em Java com:
 
-      javac {arquivo_enviado}
+      javac -encoding UTF-8 {arquivo_enviado}
 
 - Execute soluções em Java com:
 
-      java -Xms10m -Xmx{{MEMLIMIT_MB}}m -Xss{{STACK_KB}}k {nome_da_classe}
+      java -Duser.language=en -Duser.country=US \
+           -Dstdout.encoding=UTF-8 -Dstderr.encoding=UTF-8 \
+           -Xms10m -Xmx{{MEMLIMIT_MB}}m -Xss{{STACK_KB}}k {nome_da_classe}
 
+- O juiz fixa o *locale* em `en_US` e a saída em UTF-8: `Scanner.nextDouble()` lê `5.5` e
+  `printf("%.2f")` escreve com ponto.
 - O juiz define os tamanhos de *heap* e de pilha acima a partir dos limites de memória da
   seção 1.3.
 {{/LANG}}
@@ -108,8 +112,11 @@ aplicam os limites de memória e de tempo do juiz, mas reproduzem o ambiente do 
 
 - Execute soluções em Kotlin com:
 
-      java -Xms10m -Xmx{{MEMLIMIT_MB}}m -Xss{{STACK_KB}}k -jar prog.jar
+      java -Duser.language=en -Duser.country=US \
+           -Dstdout.encoding=UTF-8 -Dstderr.encoding=UTF-8 \
+           -Xms10m -Xmx{{MEMLIMIT_MB}}m -Xss{{STACK_KB}}k -jar prog.jar
 
+- O juiz fixa o *locale* em `en_US` e a saída em UTF-8, como no Java.
 - O juiz define os tamanhos de *heap* e de pilha acima a partir dos limites de memória da
   seção 1.3.
 {{/LANG}}
