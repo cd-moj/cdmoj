@@ -807,8 +807,15 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   = só públicos. A regra é `owners_visible_for <login>` (o `owners_visible` virou atalho dela; login
   vazio = só públicos) — **não copie o predicado no jq**. `cc_bank_private_json` lê do
   `jsons-private/<id>.json` só as tags, um por vez (`xargs`, sem `-s`: o arquivo traz o enunciado em
-  base64); título/coleções vêm do índice. Índice quebrado + opt-in = 503. Cada sorteado leva
-  `private`/`access` (selo 🔒); o painel confirma o "+ adicionar todos" com privado no meio. Testes:
+  base64); título/coleções vêm do índice. Arquivo CORROMPIDO: o jq do lote para no 1º erro de parse e
+  as tags de todos os seguintes sumiam (com o 1º quebrado, `#priv` dava 0 candidatos) — hoje refaz um a
+  um e avisa no error.log (`cc_bank_private_json: ilegível:`). Índice quebrado + opt-in = 503. Cada
+  sorteado leva `private`/`access` (selo 🔒) e `has_statement` (json servível existe e é legível;
+  privado sem ele sai MARCADO, não some — sem o campo o wizard dizia "enunciado em geração" p/ todo
+  privado sorteado). O `cc_bank_filter` RECONSTRÓI o objeto: campo novo do banco entra lá também. O
+  painel confirma o "+ adicionar todos" com privado no meio e avisa quando a meta dos privados falha.
+  Limitação conhecida (anterior, fora do PR): despublicado recém segue "público" p/ os outros até o
+  cache público (`var/problems.json`, TTL) se refazer. Testes:
   `smoke-draw-private.sh`, `smoke-bank-panel-private.gjs.sh`. Futuro possível: flag por org
   (`drawable`, no molde do `public_allowed`) p/ separar banco de aula de prova em elaboração.
 - **ENUNCIADO EM VÁRIOS IDIOMAS (2026-09-15)** — é OUTRO eixo que o `i18n.js` (interface pt|en|es):

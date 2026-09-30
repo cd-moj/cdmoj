@@ -139,7 +139,16 @@ export function makeBankPanel({ api, onAdd, searchLabel, searchPlaceholder, noQu
       allTags = m.tags || []; allCollections = m.collections || [];
       tagC.setOptions(allTags.map((t) => ({ value: t.tag, count: t.count })));
       colC.setOptions(allCollections.map((c) => ({ value: c.collection, count: c.count })));
-    } catch { /* datalists ficam vazios; busca/sorteio seguem funcionando */ }
+    } catch (e) {
+      // sem o opt-in, datalists vazios não atrapalham (busca e sorteio seguem). COM ele, o vazio
+      // pareceria "meus privados não têm tag" — é o índice de problemas indisponível (503): diga.
+      if (incPriv.checked) {
+        out.innerHTML = '';
+        out.append(el('div', { class: 'small error-box' },
+          T('Não foi possível carregar as tags e coleções dos privados: ', 'Could not load the tags and collections of the private problems: ', 'No se pudieron cargar las etiquetas y colecciones de los privados: ')
+          + (e && e.message ? e.message : T('erro', 'error', 'error'))));
+      }
+    }
   }
   loadMeta();
   incPriv.addEventListener('change', () => { lastSeed = null; out.innerHTML = ''; loadMeta(); });

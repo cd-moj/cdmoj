@@ -130,9 +130,12 @@ async function boot() {
     bankApi: {
       meta: async (q) => {
         const qs = '?' + new URLSearchParams(q || {}).toString();
+        // com o opt-in dos privados a falha (índice indisponível, 503) sobe p/ o painel avisar;
+        // sem ele, lista vazia basta
+        const orEmpty = (k) => (e) => { if (q && q.include_private) throw e; return { [k]: [] }; };
         const [t, c] = await Promise.all([
-          apiGet('/treino/contest-create/tags' + qs, { contest: 'treino', auth: true }).catch(() => ({ tags: [] })),
-          apiGet('/treino/contest-create/collections' + qs, { contest: 'treino', auth: true }).catch(() => ({ collections: [] })),
+          apiGet('/treino/contest-create/tags' + qs, { contest: 'treino', auth: true }).catch(orEmpty('tags')),
+          apiGet('/treino/contest-create/collections' + qs, { contest: 'treino', auth: true }).catch(orEmpty('collections')),
         ]);
         return { tags: t.tags || [], collections: c.collections || [] };
       },

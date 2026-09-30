@@ -4234,7 +4234,7 @@
         ],
         "responses": {
           "200": {
-            "description": "{problems[],candidates,drawn,seed,collections,private_included}; cada item com private e access (mine|shared|public)"
+            "description": "{problems[],candidates,drawn,seed,collections,private_included}; cada item com private, access (mine|shared|public) e has_statement (false = privado sem json servível: sai marcado, não some)"
           }
         }
       }
@@ -5446,7 +5446,7 @@
         ],
         "responses": {
           "200": {
-            "description": "{problems[],candidates,drawn,seed,collections,private_included}; cada item com private e access (mine|shared|public)"
+            "description": "{problems[],candidates,drawn,seed,collections,private_included}; cada item com private, access (mine|shared|public) e has_statement (false = privado sem json servível: sai marcado, não some)"
           }
         }
       }

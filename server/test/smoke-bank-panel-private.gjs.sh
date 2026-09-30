@@ -6,7 +6,8 @@
 #   • marcar "incluir privados" recarrega tags/coleções com include_private=1 e o sorteio o manda;
 #   • privado sorteado leva o selo 🔒 (privado / compartilhado);
 #   • "+ adicionar todos" com privado no meio pede confirmação (cancelar não adiciona nada);
-#   • contest sem dono (private_included:false com o opt-in marcado) avisa "Só públicos".
+#   • contest sem dono (private_included:false com o opt-in marcado) avisa "Só públicos";
+#   • a meta dos privados que FALHA (índice indisponível) avisa, em vez de datalists vazios calados.
 set -u
 command -v gjs >/dev/null 2>&1 || { echo "bank-panel-private: gjs ausente — pulando"; exit 0; }
 WEB="$(cd "$(dirname "$(readlink -f "$0")")/../../web" && pwd)"
@@ -33,9 +34,9 @@ EOF
 let pass=0, fail=0; const ck=(m,ok,d)=>{ if (ok) { print('  ok: '+m); pass++; } else { print('  FAIL: '+m+' :: '+(d||'')); fail++; } };
 const J=(x)=>JSON.stringify(x);
 const tick=()=>new Promise(r=>Promise.resolve().then(()=>Promise.resolve().then(r)));
-let META=[], DRAW=[], DRAWRES=null, ADDED=[];
+let META=[], DRAW=[], DRAWRES=null, ADDED=[], METAFAIL=false;
 const api={
-  meta: async (q)=>{ META.push(q||{}); return { tags:[{tag:'#x',count:1}], collections:[] }; },
+  meta: async (q)=>{ META.push(q||{}); if (METAFAIL) throw new Error('Índice de problemas indisponível'); return { tags:[{tag:'#x',count:1}], collections:[] }; },
   draw: async (p)=>{ DRAW.push(p); return DRAWRES; },
   search: async ()=>({ problems:[] }),
 };
@@ -71,6 +72,10 @@ const PUB={id:'pub1',title:'Público',private:false,access:'public',bucket:'unkn
   ck('opt-in marcado mas contest sem dono: avisa "Só públicos"', b.el.textContent.includes('Só públicos'));
   box.checked=false; await box.fire('change'); await tick();
   ck('desmarcar recarrega a meta sem include', META.length===3 && J(META[2])==='{}', J(META));
+  METAFAIL=true; await box.fire('change'); await tick();
+  ck('meta sem o opt-in que falha: calada, como antes', !b.el.textContent.includes('Não foi possível carregar'));
+  box.checked=true; await box.fire('change'); await tick();
+  ck('meta dos privados que falha: avisa com a mensagem do servidor', b.el.textContent.includes('Não foi possível carregar as tags e coleções dos privados: Índice de problemas indisponível'));
   print(''); print('RESULT: '+pass+' passed, '+fail+' failed');
   imports.system.exit(fail>0?1:0);
 })().catch(e=>{ print('ERRO: '+e+'\n'+e.stack); imports.system.exit(2); });

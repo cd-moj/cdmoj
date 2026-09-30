@@ -100,8 +100,11 @@ ck "wizard sem include: só públicos"                '[[ "$(IDS)" == "$PUB" && 
 call /treino/contest-create/draw GET '' reg 'count=100&seed=1&include_private=1'
 ck "wizard com include (regular)"                   '[[ "$(IDS)" == "$REG" && "$(J .private_included)" == true ]]'
 call /treino/contest-create/draw GET '' eve 'count=100&seed=1&include_private=1'
-ck "wizard com include (eve): os dela, não o do regular" '[[ "$(IDS)" == "[\"bankprob\",\"myorg#p\",\"priv#collab\",\"priv#dup\",\"priv#other\"]" ]]'
-ck "…e o priv#dup do regular volta a ser público p/ ela" '[[ "$(J "[.problems[]|select(.id==\"priv#dup\")][0].access")" == public ]]'
+ck "wizard com include (eve): os privados dela, não os do regular" '[[ "$(J "[.problems[]|select(.private)|.id]|sort|join(\",\")")" == "myorg#p,priv#collab,priv#other" ]]'
+# LIMITAÇÃO CONHECIDA, fora deste PR e NÃO contrato: o priv#dup (privado do regular, despublicado há
+# pouco) ainda sai p/ a eve como PÚBLICO enquanto o cache público (var/problems.json, TTL) não se
+# refaz — é o mesmo que a busca e o sorteio sem include sempre fizeram. Não se afirma aqui: um
+# conserto do cache não pode quebrar este teste.
 call /treino/contest-create/tags GET '' reg ''
 ck "wizard tags sem include: sem #priv"             '[[ "$(J "[.tags[].tag]|index(\"#priv\")")" == null ]]'
 call /treino/contest-create/tags GET '' reg 'include_private=1'
@@ -110,6 +113,28 @@ call /treino/contest-create/collections GET '' reg 'include_private=1'
 ck "wizard coleções com include: Aula = 2"          '[[ "$(J "[.collections[]|select(.collection==\"Aula\")][0].count")" == 2 ]]'
 call /treino/contest-create/collections GET '' reg ''
 ck "wizard coleções sem include: Aula = 1"          '[[ "$(J "[.collections[]|select(.collection==\"Aula\")][0].count")" == 1 ]]'
+
+echo "== has_statement: privado sem json servível sai MARCADO, não some =="
+call /contest/admin/draw GET '' adm-dp-c 'contest=dp-c&count=100&seed=1&include_private=1'
+ck "privado com json: has_statement true"           '[[ "$(J "[.problems[]|select(.id==\"priv#mine\")][0].has_statement")" == true ]]'
+ck "público: has_statement true"                    '[[ "$(J "[.problems[]|select(.id==\"bankprob\")][0].has_statement")" == true ]]'
+mv "$T/var/jsons-private/priv#collab.json" "$T/var/sem.json"
+call /contest/admin/draw GET '' adm-dp-c 'contest=dp-c&count=100&seed=1&include_private=1'
+ck "sem json: continua no sorteio"                  '[[ "$(IDS)" == "$REG" ]]'
+ck "…com has_statement false"                       '[[ "$(J "[.problems[]|select(.id==\"priv#collab\")][0].has_statement")" == false ]]'
+call /treino/contest-create/draw GET '' reg 'count=100&seed=1&include_private=1'
+ck "wizard: o mesmo campo"                          '[[ "$(J "[.problems[]|select(.id==\"priv#collab\")][0].has_statement")" == false ]]'
+mv "$T/var/sem.json" "$T/var/jsons-private/priv#collab.json"
+
+echo "== json privado CORROMPIDO não leva as tags dos outros =="
+# o priv#mine é o 1º do lote: o jq parava nele e as tags dos seguintes sumiam (rc 123 do xargs)
+cp "$T/var/jsons-private/priv#mine.json" "$T/var/mine.bak"; printf '{"id":"priv#mine","tags":[' > "$T/var/jsons-private/priv#mine.json"
+call /contest/admin/draw GET '' adm-dp-c 'contest=dp-c&count=100&include_private=1&tags=%23priv'
+ck "os outros 3 privados seguem com a tag #priv"    '[[ "$(IDS)" == "[\"myorg#p\",\"priv#collab\",\"priv#dup\"]" ]]'
+call /contest/admin/draw GET '' adm-dp-c 'contest=dp-c&count=100&seed=1&include_private=1'
+ck "o corrompido segue no sorteio, sem enunciado"   '[[ "$(J "[.problems[]|select(.id==\"priv#mine\")][0].has_statement")" == false ]]'
+ck "…e o error.log diz qual arquivo"                '[[ "$OUT" == *"ilegível: "*"priv#mine.json"* ]]'
+mv "$T/var/mine.bak" "$T/var/jsons-private/priv#mine.json"
 
 echo "== índice de owners quebrado =="
 printf '{"problems":[' > "$T/var/problem-owners.json"
