@@ -530,7 +530,11 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   `k_slots` slots (`(mem−4 GB)×k_slots/total_slots`) leva os slots que o comportam e o `test_cpus` sobe
   junto (é por ele que o agente reserva — o judge não mudou); nem a máquina INTEIRA ⇒ pula, e o
   `infeasible_sweep` fecha com Judge Error em `INFEASIBLE_AFTER` dizendo o MEMLIMITMB e o teto do maior
-  juiz. Antes o job de memória impossível ficava na fila PARA SEMPRE (10 submissões de uma lista, 15
+  juiz. O job reivindicado leva também `cpu_needed` (o CPUNEEDED; só p/ as TELAS). O painel Máquinas e o
+  `moj judges show` escrevem a largura por extenso — `N slots = P testes por vez × K slots por teste (C
+  CPUs…)` (JQ_JOB_WIDTH no moj-cli) — e o `show` diz a POLÍTICA GERAL de testes em paralelo: "[4 slots, 4
+  cpu/teste]" parecia 4 testes em paralelo e era 1 teste com 4 CPUs juntas, com a política `"*"` OFF
+  (relato de 30/09/2026). Antes o job de memória impossível ficava na fila PARA SEMPRE (10 submissões de uma lista, 15
   problemas com `MEMLIMITMB=262144` digitado em KB, incidente de 30/09/2026). Env `QC_*` do heartbeat (slot_cpus, max_free_group,
   total/mem, política) — juiz LEGADO (beat sem `slot_cpus`) só k=1 e sem campos novos. `par_max`
   (testes em paralelo) SÓ com política `"*".parallel=auto` (judges-config; fora do `cfg_hash`),

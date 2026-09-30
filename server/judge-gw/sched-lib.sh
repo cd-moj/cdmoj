@@ -413,7 +413,7 @@ q_claim() {
     flock 9 || exit 0
     set +o noglob   # subshell: o noglob da API não vaza; glob = listagem ordenada s/ fork
     local band f dest base ts meta ver prob need jl hosts probhot k numa par m enq memmb decl
-    local pk v ks now=$EPOCHSECONDS
+    local pk v ks korig now=$EPOCHSECONDS
     local slots_left="$max" skipped_time=0 queue_empty=1 legacy=0 sc="${QC_SLOT_CPUS:-0}"
     local mfg="${QC_MAX_FREE_GROUP:-}" tot="${QC_TOTAL_SLOTS:-}" memkb="${QC_MEM_KB:-}"
     [[ "$sc" =~ ^[0-9]+$ && "$sc" -ge 1 ]] || { legacy=1; sc=1; }
@@ -422,7 +422,7 @@ q_claim() {
     [[ "$memkb" =~ ^[0-9]+$ ]] || memkb=""
     local -A PKGPAR=()
     # lote reivindicado (p/ o par_max no fim): dest, k_slots, k, numa, par, m
-    local -a C_DEST=() C_KS=() C_K=() C_NUMA=() C_PAR=() C_M=() C_GROUPS=()
+    local -a C_DEST=() C_KS=() C_K=() C_KORIG=() C_NUMA=() C_PAR=() C_M=() C_GROUPS=()
     # conjuntos do JUIZ, calculados UMA vez por chamada (2 jq no total)
     local -A PH=()
     while IFS= read -r pk; do [[ -n "$pk" ]] && PH["$pk"]=1; done \
@@ -477,6 +477,8 @@ q_claim() {
         # LARGURA EFETIVA (CPU e MEMÓRIA, _eff_width): juiz legado só 1 slot; nem a máquina inteira
         # comporta a memória ⇒ pula (o infeasible_sweep dá o Judge Error); k_slots ≤ sobra;
         # SAMENUMA ⇒ ≤ maior grupo livre
+        [[ "$k" =~ ^[0-9]+$ && "$k" -ge 1 ]] || k=1
+        korig=$k                                          # o CPUNEEDED; o resto da largura é da memória
         _eff_width "$k" "$memmb" "$sc" "$tot" "$memkb"
         (( _EKS == 0 )) && { skipped_time=1; continue; }
         k=$_EK; ks=$_EKS
@@ -487,7 +489,7 @@ q_claim() {
         dest="$ASSIGNEDDIR/$host/$base"
         if mv "$f" "$dest" 2>/dev/null; then
           rm -f "$f.cmeta" 2>/dev/null
-          C_DEST+=("$dest"); C_KS+=("$ks"); C_K+=("$k"); C_NUMA+=("$numa"); C_PAR+=("$par"); C_M+=("$m"); C_GROUPS+=(1)
+          C_DEST+=("$dest"); C_KS+=("$ks"); C_K+=("$k"); C_KORIG+=("$korig"); C_NUMA+=("$numa"); C_PAR+=("$par"); C_M+=("$m"); C_GROUPS+=(1)
           slots_left=$(( slots_left - ks ))
           [[ "$numa" == y && -n "$mfg" ]] && mfg=$(( mfg - ks ))
         fi
@@ -524,9 +526,10 @@ q_claim() {
       if (( legacy )); then
         jq -c --arg h "$host" --argjson now "$now" '. + {assigned_to:$h, assigned_at:$now}' "$dest" > "$tmp" 2>/dev/null && mv -f "$tmp" "$dest"
       else
+        # cpu_needed (o CPUNEEDED) só p/ as TELAS: test_cpus > cpu_needed = slots a mais pela memória
         jq -c --arg h "$host" --argjson now "$now" --argjson k "${C_K[i]}" --argjson nm "$([[ "${C_NUMA[i]}" == y ]] && echo true || echo false)" \
-           --argjson sl "$(( C_GROUPS[i] * C_KS[i] ))" --argjson pm "${C_GROUPS[i]}" --argjson pc "$cap_i" \
-           '. + {assigned_to:$h, assigned_at:$now, test_cpus:$k, same_numa:$nm, slots:$sl, par_max:$pm, par_cap:$pc}' "$dest" > "$tmp" 2>/dev/null && mv -f "$tmp" "$dest"
+           --argjson sl "$(( C_GROUPS[i] * C_KS[i] ))" --argjson pm "${C_GROUPS[i]}" --argjson pc "$cap_i" --argjson kn "${C_KORIG[i]}" \
+           '. + {assigned_to:$h, assigned_at:$now, test_cpus:$k, same_numa:$nm, slots:$sl, par_max:$pm, par_cap:$pc, cpu_needed:$kn}' "$dest" > "$tmp" 2>/dev/null && mv -f "$tmp" "$dest"
       fi
       cat "$dest"; printf '\n'
     done
@@ -966,6 +969,7 @@ q_claim_id() {
     [[ "$k" =~ ^[0-9]+$ && "$k" -ge 1 ]] || k=1
     # a mesma largura EFETIVA do q_claim (CPU e memória); o hold só nasce p/ job que cabe no juiz,
     # mas, se ainda assim não couber, vale a largura de CPU (o job segue, o cgroup é que limita)
+    local korig=$k
     _eff_width "$k" "$memmb" "$sc" "${QC_TOTAL_SLOTS:-}" "${QC_MEM_KB:-}"
     if (( _EKS >= 1 )); then k=$_EK; ks=$_EKS; else ks="$(_kslots "$k" "$sc")"; fi
     base="${f##*/}"; mkdir -p "$ASSIGNEDDIR/$host" 2>/dev/null; dest="$ASSIGNEDDIR/$host/$base"
@@ -973,8 +977,8 @@ q_claim_id() {
     rm -f "$f.cmeta" 2>/dev/null
     tmp="$dest.tmp"
     jq -c --arg h "$host" --argjson now "$EPOCHSECONDS" --argjson k "$k" --argjson nm "$([[ "$numa" == y ]] && echo true || echo false)" \
-       --argjson sl "$ks" --argjson pc "${m:-$PARALLEL_MAX_DEFAULT}" \
-       '. + {assigned_to:$h, assigned_at:$now, test_cpus:$k, same_numa:$nm, slots:$sl, par_max:1, par_cap:$pc}' "$dest" > "$tmp" 2>/dev/null && mv -f "$tmp" "$dest"
+       --argjson sl "$ks" --argjson pc "${m:-$PARALLEL_MAX_DEFAULT}" --argjson kn "$korig" \
+       '. + {assigned_to:$h, assigned_at:$now, test_cpus:$k, same_numa:$nm, slots:$sl, par_max:1, par_cap:$pc, cpu_needed:$kn}' "$dest" > "$tmp" 2>/dev/null && mv -f "$tmp" "$dest"
     cat "$dest"; printf '\n'
   ) 9>"$QUEUEDIR/.lock"
 }

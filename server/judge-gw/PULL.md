@@ -173,7 +173,8 @@ máquina inteira comporta, o claim pula e o `infeasible_sweep` fecha com Judge E
 teto do maior juiz (antes o job ficava na fila para sempre). O `.cmeta` é refeito quando o `conf` do pacote
 é mais novo que ele (`_cmeta_load`), então corrigir o pacote destrava o job já enfileirado.
 Não cabe ⇒ **pula** (backfill: o de 1 slot passa na frente; sem teto de varredura). O agente
-recebe `test_cpus`, `same_numa`, `slots` (= grupos × k_slots), `par_max` e `par_cap`, junta os
+recebe `test_cpus`, `same_numa`, `slots` (= grupos × k_slots), `par_max` e `par_cap` (+ `cpu_needed` = o
+`CPUNEEDED`, só p/ as telas: o agente ignora; `test_cpus` acima dele = CPUs a mais pela memória), junta os
 slots num grupo por teste (`alloc_slots`, dentro de um nó; núcleos inteiros com SMT) e, se não
 conseguir (corrida), **recusa** por `POST /judge/decline` — o job volta à fila com epoch novo e
 `declined.<host>` (o host o pula por `DECLINE_BACKOFF`); a `DECLINE_MAX`-ésima recusa vira Judge

@@ -96,6 +96,7 @@ echo "== MEMÓRIA É LARGURA (30/09/2026: 10 submissões presas p/ sempre por ME
 clearq; enq j1 mem
 out="$(QC_SLOT_CPUS=1 QC_TOTAL_SLOTS=27 QC_MEM_KB=$((32*1024*1024)) QC_POLICY=off q_claim h1 pos "$PROBS" '[]' 6)"; DBG="$out"
 ck "MEMLIMITMB=4000 em slots de ~1 GB e 6 livres: leva os 4 slots que o comportam (test_cpus=4)" '[[ "$(jq -r ".id,.test_cpus,.slots" <<<"$out" | tr "\n" " ")" == "j1 4 4 " ]]'
+ck "…e cpu_needed=1 conta às telas que 3 dos 4 slots são da memória" '[[ "$(jq -r .cpu_needed <<<"$out")" == 1 ]]'
 clearq; enq j1 huge; enq j2 plain
 out="$(claim h1 16)"; DBG="$out"
 ck "MEMLIMITMB=262144 (256 GB) num juiz de 64 GB: pulado; o plain passa" '[[ "$(jq -r .id <<<"$out" | tr "\n" " ")" == "j2 " && -n "$(find "$QUEUEDIR" -name "*_j1.json")" ]]'
@@ -112,7 +113,7 @@ clearq; rm -f "$REGISTRYDIR"/*.json; reg h1 16 1 1 16 1; enq j1 mem "" c "$((now
 rm -f "$HOLDDIR/.sweep-stamp"; hold_sweep; DBG="$(ls "$HOLDDIR"; cat "$HOLDDIR"/*.json 2>/dev/null)"
 ck "MEMLIMITMB=4000 em slots de 3,8 GB (64 GB/16), 1 livre: hold de 2 slots p/ ele (e não p/ o de 1 GB)" '[[ "$(jq -r ".job,.k_slots" "$HOLDDIR/h1.json" 2>/dev/null | tr "\n" " ")" == "j1 2 " ]]'
 out="$(QC_SLOT_CPUS=1 QC_TOTAL_SLOTS=16 QC_MEM_KB=67108864 q_claim_id h1 j1)"; DBG="$out"
-ck "q_claim_id do segurado: a mesma largura por memória (test_cpus=2, slots=2)" '[[ "$(jq -r ".id,.test_cpus,.slots" <<<"$out" | tr "\n" " ")" == "j1 2 2 " ]]'
+ck "q_claim_id do segurado: a mesma largura por memória (test_cpus=2, slots=2, cpu_needed=1)" '[[ "$(jq -r ".id,.test_cpus,.slots,.cpu_needed" <<<"$out" | tr "\n" " ")" == "j1 2 2 1 " ]]'
 
 echo "== par_max: só política auto + fila vazia + nada pulado por tempo =="
 clearq; enq j1 par
@@ -273,6 +274,17 @@ BODY="$(printf '%s' "$OUT" | awk 'f{print} /^\r?$/{f=1}')"; DBG="$BODY"
 ck "decline via API: requeued"                  '[[ "$(jq -r .result <<<"$BODY")" == requeued && -n "$(find "$QUEUEDIR" -name "*_j5.json")" ]]'
 OUT="$(PATH_INFO=/judge/decline REQUEST_METHOD=POST QUERY_STRING="host=h1" HTTP_AUTHORIZATION="Bearer mojw_smoketest" bash "$ROUTER" <<<'{"host":"h1","reason":"x"}' 2>/dev/null)"
 ck "sem id/reqid/command: 400"                  'grep -q "decline_empty" <<<"$OUT"'
+
+echo "== /treino/admin/judges: a LARGURA de cada job em execução (testes em paralelo × slots por teste) =="
+clearq; reg h1 27 19 1 14 11
+mkdir -p "$FIX/treino/users/boss.admin" "$ASSIGNEDDIR/h1"; printf '{"login":"boss.admin"}' > "$FIX/treino/users/boss.admin/account.json"
+printf 'CONTEST=treino\nLOGIN=boss.admin\nUSERFULLNAME=Boss\nLOGINAT=1\n' > "$FIX/sess/adm"
+jq -cn --argjson now "$now" '{id:"jw", contest:"treino", problem_id:"o#numa4", login:"aluno", lang:"c", assigned_to:"h1", assigned_at:$now,
+   test_cpus:4, same_numa:true, slots:8, par_max:2, par_cap:4, cpu_needed:4}' > "$ASSIGNEDDIR/h1/${now}_jw.json"
+OUT="$(PATH_INFO=/treino/admin/judges REQUEST_METHOD=GET QUERY_STRING="contest=treino" HTTP_AUTHORIZATION="Bearer adm" bash "$ROUTER" 2>/dev/null)"
+BODY="$(printf '%s' "$OUT" | awk 'f{print} /^\r?$/{f=1}')"; DBG="$BODY"
+cj="$(jq -c '.machines[] | select(.host == "h1") | .current_jobs[0] | {slots, test_cpus, par_max, same_numa, cpu_needed}' <<<"$BODY" 2>/dev/null)"; DBG="$cj $BODY"
+ck "current_jobs: 8 slots = 2 testes por vez × 4 CPUs, mesmo nó, CPUNEEDED 4" '[[ "$cj" == "{\"slots\":8,\"test_cpus\":4,\"par_max\":2,\"same_numa\":true,\"cpu_needed\":4}" ]]'
 
 echo; echo "RESULT: $pass passed, $fail failed"
 (( fail == 0 ))

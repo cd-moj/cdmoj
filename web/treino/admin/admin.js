@@ -473,12 +473,34 @@ function makeQueueTab() {
       machines.forEach(m => {
         // TODOS os segmentos/slots (current_jobs) — m.current é só o 1º (compat) e escondia o resto
         const jobs = Array.isArray(m.current_jobs) && m.current_jobs.length ? m.current_jobs : (m.current && m.current.kind ? [m.current] : []);
+        // LARGURA do job em palavras: testes ao mesmo tempo × slots por teste = slots ocupados. Só "4 slots"
+        // parecia 4 testes em paralelo; era 1 teste com as 4 CPUs juntas (CPUNEEDED=4 — relato de 30/09/2026).
+        // Vem do que o servidor CONCEDEU (par_max = testes por vez; test_cpus = CPUs de cada teste;
+        // cpu_needed = o CPUNEEDED — test_cpus acima dele = CPUs a mais pela memória, _eff_width).
+        const widthOf = (cur) => {
+          const s = +cur.slots || 1, p = +cur.par_max || 1, c = +cur.test_cpus || 1;
+          if (s <= 1 && c <= 1) return '';
+          const k = Math.max(1, Math.round(s / p));
+          const numa = cur.same_numa ? T(', mesmo nó NUMA', ', same NUMA node', ', mismo nodo NUMA') : '';
+          const cn = +cur.cpu_needed || 0;
+          const mem = (cn && c > cn) ? T(` — CPUNEEDED=${cn}; +${c - cn} CPU(s) pela memória (MEMLIMITMB)`,
+            ` — CPUNEEDED=${cn}; +${c - cn} CPU(s) for the memory (MEMLIMITMB)`,
+            ` — CPUNEEDED=${cn}; +${c - cn} CPU(s) por la memoria (MEMLIMITMB)`) : '';
+          const txt = p > 1
+            ? T(`${s} slots = ${p} testes em paralelo × ${k} slots por teste (${c} CPUs cada${numa})`,
+                `${s} slots = ${p} tests in parallel × ${k} slots per test (${c} CPUs each${numa})`,
+                `${s} slots = ${p} pruebas en paralelo × ${k} slots por prueba (${c} CPUs cada una${numa})`)
+            : T(`${s} slots = 1 teste por vez × ${k} slots (${c} CPUs juntas${numa})`,
+                `${s} slots = 1 test at a time × ${k} slots (${c} CPUs together${numa})`,
+                `${s} slots = 1 prueba a la vez × ${k} slots (${c} CPUs juntas${numa})`);
+          return el('div', { class: 'small muted' }, '↳ ' + txt + mem);
+        };
         const jobLine = (cur) => {
           if (!cur || !cur.kind) return null;
           const age = el('span', { class: 'small muted' }, fmtAge(cur.since));
-          if (cur.kind === 'submission') return el('div', {}, T('📥 submissão · ', '📥 submission · ', '📥 envío · '), el('b', {}, cur.problem_id || '?'), cur.login ? el('span', { class: 'small muted' }, ' · ' + cur.login) : '', age);
-          if (cur.kind === 'calibrate') return el('div', {}, T('⚙ calibração · ', '⚙ calibration · ', '⚙ calibración · '), el('b', {}, cur.problem_id || '?'), age);
-          if (cur.kind === 'index') return el('div', {}, T('🗂 indexação · ', '🗂 indexing · ', '🗂 indexación · '), el('b', {}, cur.problem_id || '?'), age);
+          if (cur.kind === 'submission') return el('div', {}, T('📥 submissão · ', '📥 submission · ', '📥 envío · '), el('b', {}, cur.problem_id || '?'), cur.login ? el('span', { class: 'small muted' }, ' · ' + cur.login) : '', age, widthOf(cur));
+          if (cur.kind === 'calibrate') return el('div', {}, T('⚙ calibração · ', '⚙ calibration · ', '⚙ calibración · '), el('b', {}, cur.problem_id || '?'), age, widthOf(cur));
+          if (cur.kind === 'index') return el('div', {}, T('🗂 indexação · ', '🗂 indexing · ', '🗂 indexación · '), el('b', {}, cur.problem_id || '?'), age, widthOf(cur));
           if (cur.kind === 'draining') return el('div', { class: 'muted small' }, T('⏸ drenando (config nova a aplicar)', '⏸ draining (new config pending)', '⏸ drenando (config nueva pendiente)'));
           if (cur.kind === 'disabled') return el('div', { class: 'muted small' }, T('⏸ desabilitada pelo admin', '⏸ disabled by admin', '⏸ deshabilitada por el admin'));
           if (cur.kind === 'unknown_busy') return el('div', { class: 'muted small' }, T('⚠ ocupada sem job atribuído — use `moj judges reset`', '⚠ busy with no attributed job — use `moj judges reset`', '⚠ ocupada sin job atribuido — usa `moj judges reset`'));

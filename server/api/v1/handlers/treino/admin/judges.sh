@@ -43,7 +43,7 @@ while IFS= read -r rf; do
   cur='null'; curs='[]'
   if [[ "$on" == true ]]; then
     curs="$(find "$ASSIGNEDDIR/$host" -maxdepth 1 -name '*.json' -exec cat {} + 2>/dev/null \
-      | jq -sc 'map({kind:"submission", problem_id:(.problem_id//.id//""), login:(.login//""), contest:(.contest//""), lang:(.lang//""), since:(.assigned_at//null), slots:(.slots//1), test_cpus:(.test_cpus//1), par_max:(.par_max//1)})' 2>/dev/null)"
+      | jq -sc 'map({kind:"submission", problem_id:(.problem_id//.id//""), login:(.login//""), contest:(.contest//""), lang:(.lang//""), since:(.assigned_at//null), slots:(.slots//1), test_cpus:(.test_cpus//1), par_max:(.par_max//1), same_numa:(.same_numa//false), cpu_needed:(.cpu_needed//null)})' 2>/dev/null)"
     [[ -n "$curs" ]] || curs='[]'
     upf="$(find "$UPDATESDIR/inprogress/$host" -maxdepth 1 -name '*.json' -exec cat {} + 2>/dev/null \
       | jq -sc 'map({kind:(.kind//"update"), problem_id:(.target//""), by:(.requested_by//""), since:(.claimed_at//null), slots:(.slots//1), test_cpus:(.test_cpus//1)})' 2>/dev/null)"
