@@ -1456,7 +1456,8 @@ mexa na outra. O índice separa as coleções por `\u001f` (nome é texto livre:
   donos só se refaz em background (30 min + a varredura); entre "editei + recalibrei" e o índice alcançar,
   o checksum de `run/tl` (novo) ≠ o do índice (velho) e o `/contest/problems` servia **`time_limits:{}`** —
   o TL SUMIA da prova (relato do Daniel Saad: `saad-problems#metro`; achou que era por ser rascunho, não
-  era) e o Painel seguia em "precisa recalibrar". O `/judge/tl-report` JÁ confere o checksum real do pacote,
+  era); o Painel não acusa essa janela porque a guarda de data dele (ver o Painel, abaixo) a cobre. O
+  `/judge/tl-report` JÁ confere o checksum real do pacote,
   então é ele quem carimba `treino/var/tl-checksum-fresh.json` (`{id:cks}`), ANTES do `tl_store_record` (o
   `mv` em `run/tl` invalida o cache do contest — o carimbo tem de já estar lá). O carimbo VENCE o índice em
   `tl_index_checksums` (contest) e em `owners_merged` (Painel). Morre no `problem_commit` **só se o checksum
@@ -1523,7 +1524,12 @@ mexa na outra. O índice separa as coleções por `\u001f` (nome é texto livre:
   declaradas contra as dos juízes; o topo traz `judge_capacity` p/ o aviso AO VIVO da aba Limites do editor;
   teste `smoke-problem-judgeable.sh`) e
   **"precisa recalibrar"** (checksum calibrado em `run/tl/<id>.json` ≠ `tl_checksum` **carimbado no
-  índice** por `mojtools/gen-problem-owners.sh`). A FRONTEIRA de acesso é **`owners_visible`** (extraído
+  índice** por `mojtools/gen-problem-owners.sh` — SALVO calibração MAIS NOVA que o índice, pelo
+  `generated_at` do `problem-owners.json`: o índice se refaz em background e o checksum de lá é
+  sabidamente velho. ⚠ O `owners_merged` monta um objeto NOVO e tem de repassar o `generated_at`: sem ele
+  a data vale 0, toda calibração parece mais nova e o card fica zerado, com o botão "Recalibrar todos"
+  sumido — foi assim de 28/07 a 30/09/2026, com 341 pacotes editados em produção e o card em 0 (PR #41).
+  Testes: `smoke-owners-index.sh` (a lib) e `smoke-status-recalibrar.sh` (a rota)). A FRONTEIRA de acesso é **`owners_visible`** (extraído
   de `owners_emit` — UMA definição do filtro público∪dono∪colaborador∪membro-da-org; o handler
   ainda estreita a dono/colaborador/membro-da-org). **Sem hash de pacote por request**: staleness é a comparação de dois checksums já
   materializados (o do índice regenera em background, ≤30 min de atraso — o gerador tem cache

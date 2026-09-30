@@ -73,6 +73,19 @@ chk "mescla => 2 problemas"          "$(jq -r '.problems|length' <<<"$out")" "2"
 chk "overlay vence (public)"         "$(jq -r 'first(.problems[]|select(.id=="o#p")).public' <<<"$out")" "true"
 chk "índice sobrevive (tl_checksum)" "$(jq -r 'first(.problems[]|select(.id=="o#p")).tl_checksum' <<<"$out")" "abc"
 
+# 7) generated_at do índice ATRAVESSA a mescla. O /problems/status compara a data da calibração com a
+#    do índice p/ decidir "precisa recalibrar"; sem o campo, $idx_at = 0 e o card fica zerado para
+#    sempre (pacote editado, checksum divergente e o Painel dizendo que está tudo calibrado).
+printf '{"generated_at":1790000000,"problems":[{"id":"o#p","owner":"tester","public":false,"tl_checksum":"abc"}]}\n' > "$IDX"
+rm -f "$OVL"
+out="$(owners_merged)"
+chk "generated_at atravessa (sem overlay)" "$(jq -r '.generated_at' <<<"$out")" "1790000000"
+printf '{"o#q":{"id":"o#q","owner":"tester","public":false}}\n' > "$OVL"
+out="$(owners_merged)"
+chk "generated_at atravessa (com overlay)" "$(jq -r '.generated_at' <<<"$out")" "1790000000"
+vis="$(owners_visible)"
+chk "generated_at chega ao owners_visible"  "$(jq -r '.generated_at' <<<"$vis")" "1790000000"
+
 # ---------------------------------------------------------------------------------------------
 # TÍTULO: o overlay NÃO PODE ATROPELAR O TÍTULO BOM DO ÍNDICE COM O SLUG.
 # O upsert antigo, com título vazio (o caso NORMAL de todo chamador que lê `.display_title // ""`
