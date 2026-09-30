@@ -83,10 +83,8 @@ chk "generated_at atravessa (sem overlay)" "$(jq -r '.generated_at' <<<"$out")" 
 printf '{"o#q":{"id":"o#q","owner":"tester","public":false}}\n' > "$OVL"
 out="$(owners_merged)"
 chk "generated_at atravessa (com overlay)" "$(jq -r '.generated_at' <<<"$out")" "1790000000"
-my_orgs_json(){ echo '[]'; }   # stub: o filtro de org não interessa aqui
 vis="$(owners_visible)"
 chk "generated_at chega ao owners_visible"  "$(jq -r '.generated_at' <<<"$vis")" "1790000000"
-unset -f my_orgs_json
 
 # ---------------------------------------------------------------------------------------------
 # TÍTULO: o overlay NÃO PODE ATROPELAR O TÍTULO BOM DO ÍNDICE COM O SLUG.
