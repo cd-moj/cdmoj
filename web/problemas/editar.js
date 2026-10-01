@@ -98,7 +98,9 @@ function confUpsert(text, key, value) {
   else { const v = /[\s+]/.test(value) ? `"${value}"` : value, line = key + '=' + v; if (idx >= 0) lines[idx] = line; else lines.push(line); }
   return lines.join('\n').replace(/\n{3,}/g, '\n\n');
 }
-const CF_TEXT = [['cf_memlimit', 'MEMLIMITMB'], ['cf_stack', 'STACKLIMITMB'], ['cf_calibrafactor', 'TLMOD[calibrafactor]'], ['cf_calibrationtl', 'CALIBRATIONTL'], ['cf_ulimit_u', 'ULIMITS[-u]'], ['cf_ulimit_f', 'ULIMITS[-f]'], ['cf_maxparallel', 'MAXPARALLELTESTS'], ['cf_cpuneeded', 'CPUNEEDED']];
+// FUNCTION_LANGS (docs/PACOTE.md, "Submissão de função"): as linguagens em que o aluno envia SÓ a função —
+// o editor do aluno abre VAZIO nelas. Declarada pelo autor; o template de função a preenche ao ser aplicado.
+const CF_TEXT = [['cf_memlimit', 'MEMLIMITMB'], ['cf_stack', 'STACKLIMITMB'], ['cf_calibrafactor', 'TLMOD[calibrafactor]'], ['cf_calibrationtl', 'CALIBRATIONTL'], ['cf_ulimit_u', 'ULIMITS[-u]'], ['cf_ulimit_f', 'ULIMITS[-f]'], ['cf_maxparallel', 'MAXPARALLELTESTS'], ['cf_cpuneeded', 'CPUNEEDED'], ['cf_fnlangs', 'FUNCTION_LANGS']];
 // [id, chave, DEFAULT quando a chave está AUSENTE] — TRI-ESTADO (24/09/2026): chave ausente = o default
 // do juiz (ALLOWPARALLELTEST/TLERERUN ausentes = ligados; STOPWHEN/SAMENUMA ausentes = desligados). O
 // checkbox mostra o efetivo, e salvar só ESCREVE a chave quando o valor difere do default ou quando ela
@@ -854,6 +856,15 @@ async function applyScriptTemplate() {
   }
   if (!confirm(msg)) return;
   renderScripts([...kept, ...(t.files || [])]);
+  // template de SUBMISSÃO DE FUNÇÃO: as linguagens com driver entram no FUNCTION_LANGS (aba Limites), em
+  // união com o que já estava — é ela que faz o editor do aluno abrir vazio nessas linguagens
+  if (t.function) {
+    const canon = (l) => (l === 'py3' || l === 'py2' ? 'py' : l);
+    const have = ($('cf_fnlangs').value || '').split(/[\s,]+/).filter(Boolean);
+    const add = (t.files || []).map((f) => (/^([^/]+)\/compile\.sh$/.exec(f.path) || [])[1]).filter(Boolean).map(canon);
+    $('cf_fnlangs').value = [...new Set([...have, ...add])].join(',');
+    syncConfFromFields();
+  }
   const hint = $('scrTplHint');
   hint.style.display = '';
   hint.textContent = (t.description ? t.description + ' ' : '') + (t.conf_hints ? '💡 ' + t.conf_hints : '');

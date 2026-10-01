@@ -426,6 +426,13 @@
           </div>
 
           <div class="lcard">
+            <h4 data-en="🧩 Function submission" data-es="🧩 Envío de función">🧩 Submissão de função</h4>
+            <label class="small"><span data-en="languages where the student sends ONLY the function" data-es="lenguajes donde el estudiante envía SOLO la función">linguagens em que o aluno envia SÓ a função</span> <code>FUNCTION_LANGS</code>
+              <input id="cf_fnlangs" type="text" placeholder="c,cpp,py" data-en-ph="c,cpp,py" data-es-ph="c,cpp,py" style="width:100%"></label>
+            <span class="small muted" data-en="In these languages the driver with the main is your scripts/&lt;lang&gt;/compile.sh, and the student's editor opens EMPTY: the code skeleton has a main, and the student would get a Compilation Error for a duplicate main. Use the language ids (py, not py3). The Function submission template fills this field. The validation rejects a listed language without scripts/&lt;lang&gt;/compile.sh. Changing this does not require recalibration." data-es="En estos lenguajes el driver con el main es tu scripts/&lt;lang&gt;/compile.sh, y el editor del estudiante abre VACÍO: el esqueleto de código tiene main, y el estudiante recibiría Compilation Error por main duplicado. Usa los ids de lenguaje (py, no py3). La plantilla Envío de función llena este campo. La validación rechaza un lenguaje listado sin scripts/&lt;lang&gt;/compile.sh. Cambiar esto no requiere recalibración.">Nessas linguagens o driver com o <code>main</code> é o seu <code>scripts/&lt;lang&gt;/compile.sh</code>, e o editor do aluno abre VAZIO: o esqueleto de código tem <code>main</code>, e o aluno levaria Compilation Error por main duplicado. Use os ids de linguagem (<code>py</code>, não <code>py3</code>). O template Submissão de função preenche este campo. A validação reprova linguagem listada sem <code>scripts/&lt;lang&gt;/compile.sh</code>. Mudar este campo não pede recalibração.</span>
+          </div>
+
+          <div class="lcard">
             <h4><span data-en="🛑 Stop at first error" data-es="🛑 Detener en el primer error">🛑 Parar no primeiro erro</span> <span class="small muted" style="font-weight:normal" data-en="(STOPWHEN — following tests don't run)" data-es="(STOPWHEN — las siguientes pruebas no corren)">(STOPWHEN — testes seguintes não rodam)</span></h4>
             <div class="ltoggles">
               <label><input type="checkbox" id="cf_stopwa"> <span data-en="stop at first" data-es="detener en el primer">parar no primeiro</span> <b>WA</b></label>

@@ -1,6 +1,6 @@
 # GET /contest/problems?contest=<id>   (Bearer)
 # Lista de problemas da prova a partir de PROBS (5-tuplas) + enunciados/<key>.{html,pdf}.
-# {problems:[{short_name, full_name, problem_id, has_statement_html, has_statement_pdf, statement_langs, has_samples?, time_limits, show}],
+# {problems:[{short_name, full_name, problem_id, has_statement_html, has_statement_pdf, statement_langs, has_samples?, function_langs?, time_limits, show}],
 #  statement_langs, default_statement_lang}
 # IDIOMAS (2026-09-15): `statement_langs` de cada problema = STATEMENT_LANGS do conf ∩ idiomas com
 # arquivo/tradução; conf AUSENTE = AUTOMÁTICO (todos os idiomas que existem) e aí o `statement_langs`
@@ -216,9 +216,17 @@ for (( i=0; i<${#PROBS[@]}; i+=5 )); do
   # has_samples: há exemplo p/ BAIXAR (o `samples` do json servível — vazio com SAMPLE=no ou sem
   # sample*; too_big não conta). Só quando o problema vem do banco: enunciado enviado à mão não tem
   # o dado, e aí o campo fica AUSENTE (a página mantém o link, como antes).
+  # function_langs: as linguagens de SUBMISSÃO DE FUNÇÃO (FUNCTION_LANGS do conf do pacote, que o
+  # gen-problem-json serve — docs/PACOTE.md). O editor com esqueleto (módulo `esqueletos`) abre VAZIO
+  # nelas. Vem do json servível, como o has_samples: rota de contest não abre o pacote. Um jq só p/ os
+  # dois campos; json antigo sem o campo = [].
   if [[ -n "$BJF" ]]; then
-    HAS_SMP=false; jq -e '[(.samples // [])[] | select((.too_big // false) | not)] | length > 0' "$BJF" >/dev/null 2>&1 && HAS_SMP=true
-    filt+=", has_samples:$HAS_SMP"
+    HAS_SMP=false; FNL='[]'
+    IFS=$'\t' read -r HAS_SMP FNL < <(jq -r '[([(.samples // [])[] | select((.too_big // false) | not)] | length > 0),
+        ([(.function_langs // [])[] | select(type == "string")] | tojson)] | @tsv' "$BJF" 2>/dev/null)
+    [[ "$HAS_SMP" == true ]] || HAS_SMP=false
+    [[ "$FNL" == \[* ]] || FNL='[]'
+    args+=( --argjson fnl "$FNL" ); filt+=", has_samples:$HAS_SMP, function_langs:\$fnl"
   fi
   # enunciado pode ser uma URL externa
   if [[ "$STATEMENT" == *http* ]]; then

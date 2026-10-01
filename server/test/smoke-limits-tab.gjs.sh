@@ -65,6 +65,13 @@ $('cf_cpuneeded').value = ''; out = save();
 ck('limpar CPUNEEDED remove a linha', !has(out, 'CPUNEEDED'));
 $('cf_maxparallel').value = '2'; out = save();
 ck('MAXPARALLELTESTS=2 gravado', confVal(out, 'MAXPARALLELTESTS') === '2');
+// ---- submissão de função: FUNCTION_LANGS (o editor do aluno abre vazio nessas linguagens)
+load('CALIBRATIONTL=5\nFUNCTION_LANGS=c,py');
+ck('FUNCTION_LANGS=c,py lido no campo', $('cf_fnlangs').value === 'c,py');
+out = save();
+ck('salvar sem mexer mantém a linha igual', confVal(out, 'FUNCTION_LANGS') === 'c,py');
+$('cf_fnlangs').value = ''; out = save();
+ck('limpar o campo remove a linha', !has(out, 'FUNCTION_LANGS'));
 
 // ---- AVISO da aba Limites contra os juízes de hoje (judge_capacity; incidente de 30/09/2026: MEMLIMITMB=262144)
 const kids = (id) => $(id).kids.map((k) => k.cls + '|' + k.text);

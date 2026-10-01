@@ -3,7 +3,8 @@ import { apiGet, apiGetText, apiPost, getToken } from '/shared/api.js';
 import { fileToBase64, textToBase64, status } from '/shared/auth.js';
 import { el, verdictClass, isPending, fmtDate, renderAuthArea, resumoText } from '/shared/ui.js';
 import { createEditor } from '/shared/editor.js';
-import { LANGUAGES, DEFAULT_SUBMIT_LANGUAGES, langById, extCanon } from '/shared/languages.js';
+import { skeletonFor, docOnLangChange } from '/shared/editor-skeleton.js';
+import { DEFAULT_SUBMIT_LANGUAGES, langById, extCanon } from '/shared/languages.js';
 import { openHtmlReport } from '/shared/submission-links.js';
 import { T } from '/shared/i18n.js';
 import { pickStmtLang, makeStmtLangChips, setChipsActive, rememberStmtLang, stmtHtmlLang } from '/shared/statement-langs.js';
@@ -13,8 +14,11 @@ const CONTEST = 'treino';
 const qs = new URLSearchParams(location.search);
 const ID = qs.get('id') || '';
 let pollTimer = null, editorApi = null, editorMount = null, langSel = null, curLangId = 'c', problemTL = {}, problemLangs = [];
+// linguagens de SUBMISSÃO DE FUNÇÃO (function_langs do json servível = FUNCTION_LANGS do pacote): ali o
+// editor abre VAZIO — o esqueleto com `main` dava CE por main duplicado (shared/editor-skeleton.js)
+let problemFnLangs = [];
 
-const templateFor = (id) => langById(id).template;
+const templateFor = (id) => skeletonFor(id, { functionLangs: problemFnLangs });
 
 // CSS do editor em "tela cheia" (dialog no top layer — acima do header e da própria backdrop)
 // e do modo "só editor" (janela dedicada). Injetado uma vez.
@@ -50,7 +54,6 @@ function injectEditorCss() {
 // header e histórico — o editor + Enviar preenchem a janela inteira.
 const EDITOR_ONLY = new URLSearchParams(location.search).get('editoronly') === '1';
 if (EDITOR_ONLY) { injectEditorCss(); document.body.classList.add('editor-only'); }
-const isTemplateContent = (t) => LANGUAGES.some((l) => l.template.trim() === (t || '').trim());
 
 function b64utf8(b64) {
   try {
@@ -118,6 +121,7 @@ async function loadProblem() {
   problemTL = tl;
   // linguagens permitidas deste problema ([]/ausente = todas — filtra o dropdown de submissão)
   problemLangs = Array.isArray(p.languages) ? p.languages : [];
+  problemFnLangs = Array.isArray(p.function_langs) ? p.function_langs : [];
   const ptl = document.getElementById('ptl'); ptl.innerHTML = '';
   const tEntries = Object.entries(tl)
     .sort((a, b) => (a[0] === 'default' ? -1 : b[0] === 'default' ? 1 : a[0].localeCompare(b[0])));
@@ -319,9 +323,9 @@ async function renderSubmit() {
 
   editorApi = await createEditor(editorMount, { doc: templateFor(curLangId), cm: langById(curLangId).cm, tab: 'indent' });
   langSel.addEventListener('change', async () => {
+    // preserva código digitado; só troca o esqueleto (intacto) ou o vazio
     const cur = editorApi ? editorApi.getValue() : '';
-    const keep = cur && !isTemplateContent(cur);   // preserva código digitado; só troca template
-    await swapEditor(keep ? cur : templateFor(langSel.value), langSel.value);
+    await swapEditor(docOnLangChange(cur, langSel.value, { functionLangs: problemFnLangs }), langSel.value);
   });
 
   btn.addEventListener('click', async () => {

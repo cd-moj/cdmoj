@@ -213,6 +213,18 @@ PT2="$(jq -r .statement_html_b64 "$J" | base64 -d)"
 ck "SAMPLE=no: enunciado servido sem a seção de exemplos" '! grep -q "<section class=\"moj-exemplos" <<<"$PT2" && ! grep -q "<h2>Exemplos</h2>" <<<"$PT2" && grep -q "Leia N e imprima N" <<<"$PT2"'
 sed -i '/^SAMPLE=/d' "$P/conf"; mv -f "$J.bak" "$J"; ln -f "$J" "$FIX/treino/var/jsons-private/col#pa.json"; rm -f "$C"/var/problems-cache.*; touch "$C/var/.problems-dirty"
 
+echo "== FUNCTION_LANGS: function_langs repassado do json servível (o contest não abre o pacote) =="
+call /contest/problems GET time01 "contest=sl"
+ck "sem a linha: function_langs []"        '[[ "$(jq -c ".problems[0].function_langs" <<<"$BODY")" == "[]" ]]'
+cp -p "$J" "$J.bak"; { printf 'FUNCTION_LANGS=c,py3\n'; cat "$P/conf"; } > "$P/conf.n" && mv -f "$P/conf.n" "$P/conf"
+TREINO_JSONS="$FIX/treino/var/jsons" MOJ_TL_STORE="$RUN/tl" bash "$MOJTOOLS_DIR/gen-problem-json.sh" "$P" "col#pa" >/dev/null 2>&1
+rm -f "$C"/var/problems-cache.*; touch "$C/var/.problems-dirty"
+call /contest/problems GET time01 "contest=sl"
+ck "FUNCTION_LANGS=c,py3: function_langs [c,py]" '[[ "$(jq -c ".problems[0].function_langs" <<<"$BODY")" == "[\"c\",\"py\"]" ]]'
+call /treino/problem GET time01 "id=col%23pa"
+ck "o /treino/problem repassa o mesmo campo" '[[ "$(jq -c ".function_langs // .problem.function_langs" <<<"$BODY")" == "[\"c\",\"py\"]" ]]'
+sed -i '/^FUNCTION_LANGS=/d' "$P/conf"; mv -f "$J.bak" "$J"; ln -f "$J" "$FIX/treino/var/jsons-private/col#pa.json"; rm -f "$C"/var/problems-cache.*; touch "$C/var/.problems-dirty"
+
 echo "== admin envia HTML PRÓPRIO em ES; refresh limpa todos os idiomas =="
 call /contest/admin/problems POST sl.admin "contest=sl" "{\"action\":\"statement\",\"letter\":\"A\",\"lang\":\"es\",\"html_b64\":\"$(printf '<html><body><p>Lea N. PROPIO</p></body></html>' | base64 -w0)\"}"
 ck "upload es: 200 e arquivo <skey>.es.html" '[[ "$(code)" == "200 OK" && -s "$C/enunciados/col#pa.es.html" && "$(jq -r .lang <<<"$BODY")" == es ]]'

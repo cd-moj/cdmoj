@@ -1630,6 +1630,18 @@ mexa na outra. O índice separa as coleções por `\u001f` (nome é texto livre:
   exemplos, prontidão "Sem exemplos"). A linha NÃO entra no tl-checksum (não recalibra). Pacotes antigos:
   `server/bin/sample-flag-migrate.sh [--apply]` (dry-run; põe a linha no COMEÇO do conf, tira o `samples`,
   commita como `moj` e reindexa). Teste: `smoke-sample-flag.sh` + seção SAMPLE=no do `smoke-statement-langs.sh`.
+- **SUBMISSÃO DE FUNÇÃO DECLARADA = `FUNCTION_LANGS=c,py` no `conf` do pacote** (2026-09-30, decisão do Ribas: chave
+  explícita, nada inferido). Ter `scripts/<lang>/compile.sh` NÃO é o sinal — o slot COMPILE também é ban e OpenMP/MPI,
+  em que o aluno escreve o programa inteiro. O `mojtools/gen-problem-json.sh` a serve como `function_langs` (ids
+  canônicos) e o editor do aluno abre VAZIO nessas linguagens: treino (`problema.js`) e o contest com o módulo
+  `esqueletos`, pelas funções puras de `web/shared/editor-skeleton.js` (fonte única da regra; teste
+  `smoke-esqueletos.gjs.sh`). O `/contest/problems` a repassa do json servível, como o `has_samples` (a rota não abre o
+  pacote). Quem grava: `moj fn`/`install-fn.sh`, o template "Submissão de função" do editor web (`function:true` no
+  `template.json`, repassado pelo `/problems/script-templates`) e o campo da aba Limites (`cf_fnlangs`). O validador
+  reprova linguagem sem driver (`conf_function_sane`); a heurística `mojtools/fn/driver-langs.sh` só avisa e alimenta a
+  migração `server/bin/function-langs-migrate.sh` (dry-run; 54 pacotes no dev). O tl-checksum ignora a linha. ⚠ Ordem
+  de deploy: mojtools (filtro do tl-checksum) no servidor E nos juízes ANTES da migração. Testes:
+  `smoke-function-langs.sh`, `mojtools/fn/test-function-langs.sh`.
 - **Pacote canônico**: o formato é descrito, por inteiro e num lugar só, em **`docs/PACOTE.md`**
   (arquivos do pacote, `.moj-meta.json`, `.moj-id`, ORG, COLEÇÃO, ciclo validar→calibrar→publicar).
   **Mudou o pacote? Atualize o `docs/PACOTE.md` no MESMO commit** — é a fonte única, e os outros
