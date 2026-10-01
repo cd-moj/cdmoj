@@ -143,10 +143,22 @@ _inv_when(){  # <epoch> <lang> <contest> -> data curta legível NO FUSO DA PROVA
     *) fmt_epoch "$1" '%d/%m às %H:%M' "$3" ;;
   esac
 }
-_inv_left(){  # <segundos> <lang> -> "~5 h" / "~40 min"
-  local s="$1" h=$(( $1 / 3600 ))
-  if (( h >= 1 )); then printf '~%s h' "$h"
-  else printf '~%s min' "$(( s / 60 ))"; fi
+# _inv_left <segundos> <pt|en|es> -> quanto falta, aproximado: "~40 min", "~5 h", "~1 dia e 6 h", "~6 dias".
+# O lembrete do painel (🔔) o admin dispara a QUALQUER hora — uma semana antes do fechamento a DM dizia
+# "faltam ~168 h". De 24 h para cima vêm os dias (de 3 dias para cima, arredondados e sem as horas).
+_inv_left(){
+  local s="$1" d h dw and
+  case "${2:-pt}" in en) and=and ;; es) and=y ;; *) and=e ;; esac
+  if (( s < 3600 )); then printf '~%s min' "$(( s < 120 ? 1 : s / 60 ))"; return 0; fi
+  if (( s < 86400 )); then printf '~%s h' "$(( s / 3600 ))"; return 0; fi
+  d=$(( s / 86400 )); h=$(( s % 86400 / 3600 ))
+  (( d >= 3 )) && { d=$(( (s + 43200) / 86400 )); h=0; }
+  case "${2:-pt}" in
+    en) (( d == 1 )) && dw=day || dw=days ;;
+    es) (( d == 1 )) && dw=día || dw=días ;;
+    *)  (( d == 1 )) && dw=dia || dw=dias ;;
+  esac
+  if (( h > 0 )); then printf '~%s %s %s %s h' "$d" "$dw" "$and" "$h"; else printf '~%s %s' "$d" "$dw"; fi
 }
 
 _inv_msg_pt(){  # <kind> <time> <contest> <link> <quando> <faltam>
@@ -193,18 +205,19 @@ _inv_msg_es(){
 # mistura gente de fora com brasileiros (o esquenta da maratona é `LOCALE=en` e a maioria dos
 # convidados é do Brasil): mandar só inglês deixaria a maioria sem entender.
 inv_msg(){
-  local c="$1" kind="$2" team="$3" cl="$4" lang nm link when left leften now="$EPOCHSECONDS"
+  local c="$1" kind="$2" team="$3" cl="$4" lang nm link when left leftl now="$EPOCHSECONDS"
   lang="$(inv_lang "$c")"
   nm="$(inv_html_escape "$(inv_contest_name "$c")")"
   team="$(inv_html_escape "$team")"
   link="$(inv_link "$c")"
   [[ "$cl" =~ ^[0-9]+$ ]] || cl=0
   when="$(_inv_when "$cl" pt "$c")"
-  if (( cl > now )); then left="$(_inv_left $(( cl - now )) pt)"; leften="$(_inv_left $(( cl - now )) en)"
-  else left=""; leften=""; fi
+  # o "faltam" de cada parte no idioma DELA (até 01/10/2026 a parte em espanhol recebia o do inglês)
+  if (( cl > now )); then left="$(_inv_left $(( cl - now )) pt)"; leftl="$(_inv_left $(( cl - now )) "$lang")"
+  else left=""; leftl=""; fi
   if [[ "$lang" == en || "$lang" == es ]]; then
     printf '%s\n\n———\n\n%s' \
-      "$(_inv_msg_"$lang" "$kind" "$team" "$nm" "$link" "$(_inv_when "$cl" "$lang" "$c")" "$leften")" \
+      "$(_inv_msg_"$lang" "$kind" "$team" "$nm" "$link" "$(_inv_when "$cl" "$lang" "$c")" "$leftl")" \
       "$(_inv_msg_pt "$kind" "$team" "$nm" "$link" "$when" "$left")"
   else
     _inv_msg_pt "$kind" "$team" "$nm" "$link" "$when" "$left"
