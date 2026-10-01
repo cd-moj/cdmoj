@@ -1,4 +1,4 @@
-<!-- i18n-source: MANUAL-CONTEST.md blob:2f6045baa00570d0ac79353f486f9ec1c061b516 -->
+<!-- i18n-source: MANUAL-CONTEST.md blob:de0793bac66ec94955168314c4648b09dfb944f6 -->
 # MOJ: Contestant manual (contest)
 
 > **Translation note.** This manual is a translation of the Portuguese original. The command-line tools (`moj`, `moj-contest`, `moj-comp`) print their messages in Portuguese, and the command examples below are identical to the original.
@@ -73,7 +73,7 @@ What you see next depends on the time:
 
 | Situation | What you see |
 |---|---|
-| Login is not open yet | A **countdown** with "Opens in HH:MM:SS". The page updates automatically. If the organizers move the opening later or earlier, you see the change immediately. |
+| Login is not open yet | A **countdown** with "Opens in HH:MM:SS" (from 24 h up, with the days: "2d 07:04:14"). The page updates automatically. If the organizers move the opening later or earlier, you see the change immediately. |
 | Login is open | A login card with the **Username** and **Password** fields and the **Log in** button. |
 
 The contest sets the screen language. It can be Portuguese, English or Spanish.
@@ -93,7 +93,7 @@ show automatically when the contest starts.
 At the top there is a bar with:
 
 - The contest name.
-- A countdown: "Ends in: HH:MM:SS". When the time ends, it shows "Contest ended".
+- A countdown: "Ends in: HH:MM:SS". When the time ends, it shows "Contest ended". In a contest longer than 24 h, it shows the days: "Ends in: 60d 07:04:14".
   The **end time comes from the server**, but the clock of your machine does the countdown.
   If the computer has the wrong time, the countdown is also wrong. The server decides:
   a submission that arrives after the end does not count, even if your screen shows time left.

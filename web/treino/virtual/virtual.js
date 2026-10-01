@@ -9,7 +9,7 @@
 // placar só é refeito quando uma run nova "acontece" ou o meu estado muda.
 import { apiGet, apiPost, getToken } from '/shared/api.js';
 import { status, fileToBase64 } from '/shared/auth.js';
-import { el, verdictClass, isPending } from '/shared/ui.js';
+import { el, verdictClass, isPending, fmtCountdown } from '/shared/ui.js';
 import { T, uiLocale } from '/shared/i18n.js';
 import { indexFeed, runsUpTo, boardAt, myRow, sliceVirtualPlaces, pickVirtuals } from '/shared/virtual-board.js';
 import { renderICPC } from '/contest/score/score-icpc.js';
@@ -65,8 +65,9 @@ async function setFriend(login, on) {
 function mineChanged(vs) { const m = vs.find((v) => v.you); const k = m ? JSON.stringify((m.runs || []).map((r) => [r[1], r[2]])) : ''; const ch = k !== lastMine; lastMine = k; return ch; }
 const srvNow = () => (Date.now() + skew) / 1000;
 
-const hms = (s) => { s = Math.max(0, Math.floor(s)); const h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), x = s % 60;
-  return h + ':' + String(m).padStart(2, '0') + ':' + String(x).padStart(2, '0'); };
+// o relógio da virtual é o MESMO cronômetro da prova (shared/ui.js): dias a partir de 24 h — o agendamento vai
+// até 7 dias e um contest de meses pode ser refeito; a cópia local somava as horas ("1447:04:14")
+const hms = fmtCountdown;
 const mmss = (s) => Math.floor(s / 60) + ':' + String(Math.floor(s % 60)).padStart(2, '0');
 function b64utf8(b64) { try { const bin = atob(b64 || ''); return new TextDecoder('utf-8').decode(Uint8Array.from(bin, (c) => c.charCodeAt(0))); } catch { return ''; } }
 function setMe(m) { me = m; if (m && m.now) skew = m.now * 1000 - Date.now(); }

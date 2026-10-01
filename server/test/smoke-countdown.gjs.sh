@@ -3,7 +3,8 @@
 #
 # Num contest de 2 meses o "Termina em" acumulava as horas: "1447:04:14". Agora, de 24 h para cima,
 # "60d 07:04:14"; abaixo disso segue "HH:MM:SS"/"MM:SS". Os cronômetros da prova (contest.js,
-# score.js, lib/contest-chrome.js, shared/contest-shell.js) usam todos esta função.
+# score.js, lib/contest-chrome.js, shared/contest-shell.js) e o relógio da participação virtual
+# (treino/virtual/virtual.js) usam todos esta função — e o teste confere que cada um a USA.
 # Sem gjs: pula (rc 0).
 set -u
 command -v gjs >/dev/null 2>&1 || { echo "countdown: gjs ausente — pulando"; exit 0; }
@@ -16,10 +17,12 @@ print(m.group(0).replace('export function', 'function', 1) if m else '')
 PY
 )"
 [[ "$SRC" == *"function fmtCountdown"* ]] || { echo "FAIL: fmtCountdown não encontrado em web/shared/ui.js"; exit 1; }
-# nenhum cronômetro de prova com cópia própria (a cópia era o que acumulava as horas)
+# nenhum cronômetro de prova com cópia própria (a cópia era o que acumulava as horas), e cada um USA a
+# função compartilhada (sem o import, a página quebra só em tempo de execução — o node --check não pega)
 dup=0
-for f in contest/contest.js contest/score/score.js lib/contest-chrome.js shared/contest-shell.js; do
-  grep -q -E "Math\.floor\(s(ec)? / 3600\)" "$WEB/$f" && { echo "  FAIL: $f ainda formata horas por conta própria"; dup=1; }
+for f in contest/contest.js contest/score/score.js lib/contest-chrome.js shared/contest-shell.js treino/virtual/virtual.js; do
+  grep -q -E "Math\.floor\( *s(ec)? */ *3600 *\)" "$WEB/$f" && { echo "  FAIL: $f ainda formata horas por conta própria"; dup=1; }
+  grep -q "fmtCountdown" "$WEB/$f" || { echo "  FAIL: $f não usa fmtCountdown"; dup=1; }
 done
 gjs -c "
 $SRC

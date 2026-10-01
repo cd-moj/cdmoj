@@ -13,7 +13,8 @@
     .contest-login-bg .contest-name { font-size:2.3rem; font-weight:800; color:var(--blue-dark);
       text-align:center; margin:.4rem 0 1.4rem; max-width:900px; }
     .contest-login-bg .time-block { color:var(--muted); text-align:center; margin-bottom:1.4rem; font-size:1.05rem; }
-    .contest-login-bg .countdown-big { font-size:3rem; color:var(--warn); font-weight:800;
+    /* min(3rem, 10vw) + nowrap: com os dias ("60d 07:04:14") a contagem não quebra em duas linhas no celular */
+    .contest-login-bg .countdown-big { font-size:min(3rem, 10vw); color:var(--warn); font-weight:800; white-space:nowrap;
       font-variant-numeric:tabular-nums; letter-spacing:.05em; margin:.3rem 0 1.4rem; }
     .contest-login-bg .countdown-lbl { display:block; font-size:1rem; color:var(--blue-dark); font-weight:600; margin-bottom:.2rem; }
     .login-card { background:var(--card); border:1px solid var(--line); border-radius:var(--radius);
@@ -146,7 +147,7 @@
 
       <div class="section hidden" id="prestartSection" style="text-align:center">
         <h2 id="prestartTitle" data-en="The contest hasn't started yet" data-es="La competencia todavía no ha empezado">A competição ainda não começou</h2>
-        <div id="prestartCountdown" style="font-size:3rem; font-weight:800; color:var(--warn); margin:1rem 0">—</div>
+        <div id="prestartCountdown" style="font-size:min(3rem, 10vw); white-space:nowrap; font-weight:800; color:var(--warn); margin:1rem 0">—</div>
         <p class="muted" id="prestartHint" data-en="Problems appear automatically when the contest starts." data-es="Los problemas aparecen automáticamente cuando empieza la competencia.">Os problemas aparecem automaticamente quando a competição iniciar.</p>
       </div>
 

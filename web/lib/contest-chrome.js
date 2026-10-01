@@ -2,8 +2,7 @@
 // (título, countdown até o fim, quicknav por papel, logout). Build-free.
 import { apiGet } from '/shared/api.js';
 import { logout, status } from '/shared/auth.js';
-import { fmtCountdown as fmtLeft } from '/shared/ui.js';
-import { el } from '/shared/ui.js';
+import { el, fmtCountdown as fmtLeft } from '/shared/ui.js';
 import { mountContestUserChip } from '/shared/contest-shell.js';
 import { T, setLang } from '/shared/i18n.js';
 import { navLabel } from '/shared/nav-i18n.js';
@@ -76,4 +75,4 @@ export async function mountChrome(contest, basic, { auth = true } = {}) {
   return { locale, T };
 }
 
-export { fmtLeft, navHref };
+export { navHref };
