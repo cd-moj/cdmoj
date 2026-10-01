@@ -2,18 +2,12 @@
 // (título, countdown até o fim, quicknav por papel, logout). Build-free.
 import { apiGet } from '/shared/api.js';
 import { logout, status } from '/shared/auth.js';
-import { el } from '/shared/ui.js';
+import { el, fmtCountdown as fmtLeft } from '/shared/ui.js';
 import { mountContestUserChip } from '/shared/contest-shell.js';
 import { T, setLang } from '/shared/i18n.js';
 import { navLabel } from '/shared/nav-i18n.js';
 import { mountSiteFooter } from '/shared/site-footer.js';
 
-function fmtLeft(sec) {
-  if (sec < 0) sec = 0;
-  const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60), s = sec % 60;
-  const p = (x) => String(x).padStart(2, '0');
-  return h > 0 ? `${p(h)}:${p(m)}:${p(s)}` : `${p(m)}:${p(s)}`;
-}
 
 function navHref(contest, url) {
   const c = encodeURIComponent(contest);
@@ -81,4 +75,4 @@ export async function mountChrome(contest, basic, { auth = true } = {}) {
   return { locale, T };
 }
 
-export { fmtLeft, navHref };
+export { navHref };

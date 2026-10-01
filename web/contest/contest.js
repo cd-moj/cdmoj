@@ -2,7 +2,7 @@
 // principal (logado). Lê ?c=<contestId> da URL. Reusa shared/* e a API v1 real.
 import { apiGet, apiGetText, apiGetBlob, apiPost, getToken } from '/shared/api.js';
 import { login, logout, status, fileToBase64, textToBase64 } from '/shared/auth.js';
-import { el, verdictClass, isPending, fmtDate, resumoText } from '/shared/ui.js';
+import { el, verdictClass, isPending, fmtDate, resumoText, fmtCountdown as fmtLeft } from '/shared/ui.js';
 import { createEditor } from '/shared/editor.js';
 import { skeletonFor, isSkeleton, docOnLangChange, contestSkeletonCfg } from '/shared/editor-skeleton.js';
 import { LANGUAGES, DEFAULT_SUBMIT_LANGUAGES, langById, extCanon } from '/shared/languages.js';
@@ -89,12 +89,6 @@ let loginCountdownTimer = null, loginPollTimer = null;
 let preStartTimer = null, preStartPoll = null;
 
 // ---- helpers ---------------------------------------------------------------
-function fmtLeft(sec) {
-  if (sec < 0) sec = 0;
-  const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60), s = sec % 60;
-  const p = (x) => String(x).padStart(2, '0');
-  return h > 0 ? `${p(h)}:${p(m)}:${p(s)}` : `${p(m)}:${p(s)}`;
-}
 // tempo-limite: segundos (string/num) -> "NNN ms" (<1s) ou "N.NNN s" (espelha o treino)
 function fmtTime(v) {
   const n = parseFloat(v);

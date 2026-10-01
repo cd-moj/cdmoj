@@ -65,7 +65,7 @@ O que aparece depois disso depende do momento:
 
 | Situação | O que você vê |
 |---|---|
-| O login ainda não abriu | Uma **contagem regressiva** com "Abertura em HH:MM:SS". A página se atualiza sozinha, então, se a organização adiar ou adiantar a abertura, a mudança aparece na hora. |
+| O login ainda não abriu | Uma **contagem regressiva** com "Abertura em HH:MM:SS" (de 24 h para cima, com os dias: "2d 07:04:14"). A página se atualiza sozinha, então, se a organização adiar ou adiantar a abertura, a mudança aparece na hora. |
 | O login abriu | Um cartão de login com os campos **Usuário** e **Senha** e o botão **Entrar**. |
 
 O idioma da tela é definido pelo contest e pode estar em português, inglês ou espanhol.
@@ -85,7 +85,7 @@ os problemas aparecem sozinhos quando a prova começar.
 No topo há uma barra com:
 
 - O nome do contest.
-- Uma contagem regressiva: "Termina em: HH:MM:SS" e, quando o tempo acaba, "Competição encerrada".
+- Uma contagem regressiva: "Termina em: HH:MM:SS" e, quando o tempo acaba, "Competição encerrada". Numa prova de mais de 24 h, ela mostra os dias: "Termina em: 60d 07:04:14".
   O **horário de término vem do servidor**, mas quem faz a contagem é o relógio da sua máquina:
   num computador com a hora errada, a contagem sai errada junto. Quem decide é o servidor —
   submissão que chega depois do fim não conta, diga o que disser a sua tela.

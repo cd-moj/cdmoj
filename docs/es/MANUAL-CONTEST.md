@@ -1,4 +1,4 @@
-<!-- i18n-source: MANUAL-CONTEST.md blob:2f6045baa00570d0ac79353f486f9ec1c061b516 -->
+<!-- i18n-source: MANUAL-CONTEST.md blob:de0793bac66ec94955168314c4648b09dfb944f6 -->
 # MOJ: Manual del competidor (competencia)
 
 > **Nota de traducción.** Este manual es una traducción del original en portugués. Las herramientas de línea de comandos (`moj`, `moj-contest`, `moj-comp`) muestran sus mensajes en portugués, y los ejemplos de comandos son idénticos al original.
@@ -73,7 +73,7 @@ Lo que aparece después depende del momento:
 
 | Situación | Lo que ves |
 |---|---|
-| El inicio de sesión todavía no abrió | Una **cuenta regresiva** con "Abre en HH:MM:SS". La página se actualiza sola: si la organización pospone o adelanta la apertura, el cambio aparece en el momento. |
+| El inicio de sesión todavía no abrió | Una **cuenta regresiva** con "Abre en HH:MM:SS" (de 24 h para arriba, con los días: "2d 07:04:14"). La página se actualiza sola: si la organización pospone o adelanta la apertura, el cambio aparece en el momento. |
 | El inicio de sesión abrió | Una tarjeta de inicio de sesión con los campos **Usuario** y **Contraseña** y el botón **Iniciar sesión**. |
 
 El idioma de la pantalla lo define la competencia y puede estar en portugués, inglés o español.
@@ -94,7 +94,7 @@ página: los problemas aparecen solos cuando empieza la competencia.
 En la parte superior hay una barra con:
 
 - El nombre de la competencia.
-- Una cuenta regresiva: "Termina en: HH:MM:SS" y, cuando el tiempo se acaba, "Competencia terminada".
+- Una cuenta regresiva: "Termina en: HH:MM:SS" y, cuando el tiempo se acaba, "Competencia terminada". En una competencia de más de 24 h, muestra los días: "Termina en: 60d 07:04:14".
   El **horario de fin viene del servidor**, pero quien hace la cuenta es el reloj de tu máquina:
   en una computadora con la hora equivocada, la cuenta también sale equivocada. Quien decide es el
   servidor: un envío que llega después del fin no cuenta, diga lo que diga tu pantalla.

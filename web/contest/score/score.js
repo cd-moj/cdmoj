@@ -3,7 +3,7 @@
 // refresh 30–60s, animação de mudança de posição.
 import { apiGet, apiGetText, apiGetTextMeta } from '/shared/api.js';
 import { status, logout } from '/shared/auth.js';
-import { el, fmtDate } from '/shared/ui.js';
+import { el, fmtDate, fmtCountdown as fmtLeft } from '/shared/ui.js';
 import { flagManifest, flagName } from '/shared/flags.js';
 import { mountContestUserChip } from '/shared/contest-shell.js';
 import { mountSiteFooter } from '/shared/site-footer.js';
@@ -48,12 +48,6 @@ let frozenView = false;     // ESTE espectador recebeu o placar congelado (X-MOJ
 let lastOrder = []; // usernames na ordem anterior (p/ animação)
 let refreshTimer = null;
 
-function fmtLeft(sec) {
-  if (sec < 0) sec = 0;
-  const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60), s = sec % 60;
-  const p = (x) => String(x).padStart(2, '0');
-  return h > 0 ? `${p(h)}:${p(m)}:${p(s)}` : `${p(m)}:${p(s)}`;
-}
 
 function navHref(url) {
   const c = encodeURIComponent(CONTEST);
