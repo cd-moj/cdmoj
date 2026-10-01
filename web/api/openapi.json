@@ -3511,7 +3511,7 @@
         "tags": [
           "contest-create"
         ],
-        "summary": "Cria e publica o contest (no ar na hora) SPEC UNIFICADO (2026-09-05): modules:{<id>: true | {on?, …seção…}} leva os DADOS de cada módulo — sedes{regions,teams_meta,time_overrides}, baloes{colors,during_freeze}, coortes{cohorts}, maquinas{ua_gate,site_lock{enabled,grace},nutella_url}, rodadas{active,rounds}, documentos{config}, inscricoes{enabled,window}, telao{views} (chaves NOVAS de webcast), classificacao{algorithm,config}. Seção presente = módulo ligado (salvo on:false); tipo errado = 422 modules_spec_invalid; segredo nunca entra. colors/regions/teams_meta no topo continuam aceitos (compat). Letra de problema: sem letter = a 1ª LIVRE; repetida (sem diferenciar caixa) = 422 letter_dup (numa rodada do spec, 422 modules_spec_invalid). Módulo esqueletos: {langs:{<lang>:{mode:custom,code}|{mode:off}}} grava o esqueletos.json e exige show_editor (senão 422 editor_required; vale p/ criar, duplicar e template).",
+        "summary": "Cria e publica o contest (no ar na hora) SPEC UNIFICADO (2026-09-05): modules:{<id>: true | {on?, …seção…}} leva os DADOS de cada módulo — sedes{regions,teams_meta,time_overrides}, baloes{colors,during_freeze}, coortes{cohorts}, maquinas{ua_gate,site_lock{enabled,grace},nutella_url}, rodadas{active,rounds}, documentos{config}, inscricoes{enabled,window}, telao{views} (chaves NOVAS de webcast), classificacao{algorithm,config} ou {stages:[{id?,algorithm,config,name?,venue?,when?,chip?}]} (motor pela allowlist + config pelo --check do motor). Seção presente = módulo ligado (salvo on:false); tipo errado = 422 modules_spec_invalid; segredo nunca entra. colors/regions/teams_meta no topo continuam aceitos (compat). Letra de problema: sem letter = a 1ª LIVRE; repetida (sem diferenciar caixa) = 422 letter_dup (numa rodada do spec, 422 modules_spec_invalid). Módulo esqueletos: {langs:{<lang>:{mode:custom,code}|{mode:off}}} grava o esqueletos.json e exige show_editor (senão 422 editor_required; vale p/ criar, duplicar e template).",
         "requestBody": {
           "required": true,
           "content": {
@@ -6607,9 +6607,9 @@
     "/contest/classification": {
       "get": {
         "tags": ["contest"],
-        "summary": "Classificação PUBLICADA p/ a próxima fase (chip ↑BR do placar)",
+        "summary": "Classificação PUBLICADA p/ as próximas fases (um chip por estágio no placar)",
         "parameters": [{"name": "contest", "in": "query", "required": true, "schema": {"type": "string"}}],
-        "responses": {"200": {"description": "{stages:[{id,name,venue,when,teams:{login:{via,sede}}}]} — só stages published; vazio sem publicação. Gate de contest secreto igual ao do placar."}}
+        "responses": {"200": {"description": "{stages:[{id,name,venue,when,chip,labels:{via:{pt,en,es,short}},via_order,teams:{login:{via,sede}}}]} — só estágios published (o admin logado vê também os rascunhos, com draft:true); vazio sem publicação. Nunca traz config, motivo de override nem os times de fora do placar (chave ext:). Estágio antigo sem chip/labels leva os do catálogo (score/classify-catalog.json). Gate de contest secreto igual ao do placar."}}
       }
     },
     "/contest/esqueletos": {
@@ -6737,17 +6737,18 @@
     "/contest/admin/classify": {
       "post": {
         "tags": ["contest-admin"],
-        "summary": "Motor de classificação da próxima fase (preview/apply/publish/add/remove) — motor escolhido por config.algorithm (catálogo; fora da allowlist = 422 algorithm_invalid)",
+        "summary": "Classificação p/ as próximas fases: estágios (final-br, pda, mundial…), cada um com o seu motor, e o OVERRIDE MANUAL",
+        "description": "Motor por config.algorithm, pela allowlist CL_ENGINES (lib/classify.sh) + catálogo score/classify-catalog.json (fora = 422 algorithm_invalid). stage padrão: o do motor em preview/apply, final-br nas demais. preview roda o motor COM os overrides do estágio, sem gravar → {preview, stage, overrides, relation}. apply grava o estágio (config, result = saída pura do motor, chip, labels, via_order, teams composto); estágio de OUTRO motor = 409 stage_algorithm_mismatch (force:true troca). publish/unpublish/delete (delete só rascunho: 409 stage_published); estágio inexistente = 404 no_stage. Rc do motor: 2 = 422 config_invalid (errors[]), 3 = 422 engine_refused, outro = 422 engine_failed. OVERRIDES (motivo obrigatório, 422 reason_required; interno — só o painel o mostra; sobrevivem a um novo apply; um por time, 409 override_exists): exclude {login} tira do CÁLCULO e recalcula (o próximo herda a vaga); withdraw {login|ext} tira SEM recalcular (404 not_classified se não está); add {login | ext+team, via:manual|lista|reserva} promove à mão e conta como promovido p/ o motor (409 already_classified; 422 via_invalid/team_required); override_undo {id} desfaz (404 override_notfound). Estágio antigo com times via comite: lidos como override add. Auditado classify / classify-override. Ver docs/CLASSIFICACAO.md",
         "parameters": [{"name": "contest", "in": "query", "required": true, "schema": {"type": "string"}}],
-        "requestBody": {"content": {"application/json": {"schema": {"type": "object", "required": ["action"], "properties": {"action": {"type": "string", "enum": ["preview","apply","publish","unpublish","add","remove"]}, "stage": {"type": "string"}, "config": {"type": "object"}, "name": {"type": "string"}, "venue": {"type": "string"}, "when": {"type": "string"}, "login": {"type": "string"}, "note": {"type": "string"}}}}}},
-        "responses": {"200": {"description": "preview roda o motor sem gravar; apply grava rascunho (promoções comite preservadas); publish/unpublish trocam a visibilidade; add/remove mexem nos times. Auditado. Ver docs/CLASSIFICACAO.md GET devolve {stages[], algorithms:[{id,name,desc}]} — o catálogo de motores (select do painel Evento › Classificação); config.algorithm default sbc-fase1 → score/classify-br.sh."}},
+        "requestBody": {"content": {"application/json": {"schema": {"type": "object", "required": ["action"], "properties": {"action": {"type": "string", "enum": ["preview","apply","publish","unpublish","delete","exclude","withdraw","add","override_undo"]}, "stage": {"type": "string"}, "config": {"type": "object"}, "name": {"type": "string"}, "venue": {"type": "string"}, "when": {"type": "string"}, "chip": {"type": "string"}, "force": {"type": "boolean"}, "login": {"type": "string"}, "ext": {"type": "string"}, "team": {"type": "string"}, "univ": {"type": "string"}, "via": {"type": "string", "enum": ["manual","lista","reserva"]}, "reason": {"type": "string"}, "id": {"type": "string"}}}}}},
+        "responses": {"200": {"description": "preview: {preview, stage, overrides, relation}; apply: {applied, stage, result}; overrides: {stage, override, overrides, total}; publish/unpublish: {status, stage}; delete: {deleted}"}, "404": {"description": "no_stage, not_classified, override_notfound, notfound"}, "409": {"description": "stage_algorithm_mismatch, stage_published, override_exists, already_classified, busy"}, "422": {"description": "algorithm_invalid, config_invalid (errors[]), engine_refused, engine_failed, reason_required, reason_too_long, via_invalid, team_required"}},
         "security": [{"bearer": []}]
       },
       "get": {
         "tags": ["contest-admin"],
-        "summary": "Estado da classificação (classification.json inteiro)",
+        "summary": "Estágios + catálogo de motores",
         "parameters": [{"name": "contest", "in": "query", "required": true, "schema": {"type": "string"}}],
-        "responses": {"200": {"description": "{stages:[...]} — inclui rascunhos/config/notas (admin)"}},
+        "responses": {"200": {"description": "{stages:[estágio + overrides + relation (motor − retirados marcados + manuais)], algorithms:[{id,name{pt,en,es},desc,stage,next_stage,form,defaults,vias,seed?}], vias:{via:{pt,en,es,short}}, manual_vias}"}},
         "security": [{"bearer": []}]
       }
     },

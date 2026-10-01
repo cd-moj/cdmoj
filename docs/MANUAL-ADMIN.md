@@ -97,7 +97,7 @@ painel dele) tem dois modos:
 | **Rodadas** (`rodadas`) | **Aquecimento e prova oficial no MESMO contest**: planeja cada rodada (janela + problemas), mostra o checklist e promove — arquivando tudo o que aconteceu. A seção 6 explica. |
 | **Documentos** (`documentos`) | Gera, em PDF e HTML nos três idiomas (pt/en/es), os documentos da prova: **ambiente de julgamento** (info sheet), **caderno da prova** (capa + enunciados), **folha de time limits** e o **editorial** (só publica depois do FIM da prova). A seção 5 explica. |
 | **Balões** (`baloes`) | A cor de cada letra — é o que sai desenhado na folha do balão. O default cobre A–O; com mais de 15 problemas, defina as demais (senão saem cinza). São as cores da rodada no ar. Para dar cores próprias a outra rodada, use Evento › Rodadas. |
-| **Classificação** (`classificacao`) | Quem se classifica para a próxima fase, por **algoritmo** escolhido no painel (hoje: SBC 1ª fase → Final Brasileira; a regra da PDA entra como outro algoritmo): rascunho, revisão, promoção pelo comitê e publicação (chip ↑BR no placar). `docs/CLASSIFICACAO.md` explica. |
+| **Classificação** (`classificacao`) | Quem se classifica para as próximas fases. Cada **etapa** (Final Brasileira, PDA, Mundial) tem o seu motor, escolhido no painel: prévia, rascunho, publicação (um chip 🎓 por etapa no placar) e o **override manual** — excluir do cálculo, retirar sem recalcular, promover à mão, sempre com motivo. `docs/CLASSIFICACAO.md` explica. |
 | **Times** (`sedes` ou `telao`) | Identidade de cada conta no placar: nome do time, país/bandeira, sede, universidade, brasão e foto. Carga por CSV e "materializar matches". |
 | **Coortes** (`coortes`) | Times **convidados** (extra-oficiais, "CCL") separados dos oficiais: quem aparece no placar público, quem vê quem, e o **🔓 Liberar resultados** do pós-cerimônia. A seção 8 explica. |
 | **Sedes & escolas** (`sedes`) | As sedes (nome + regex no login) — que alimentam o filtro do placar, o escopo do staff, as etiquetas, **as fotos/músicas que cada chefe de sede gere no telão** e o gate por sede —, as regras de país/escola por regex e a **⏱ prorrogação por sede/grupo** (regex → novo fim; só estende, nunca encurta). Em **três modos** (Simples, Intermediário, Avançado) com prévia — seção 7¼. |
@@ -148,7 +148,7 @@ correspondentes; **desligar esconde, sem apagar nada** — religar restaura tudo
 | `coortes` | Evento › Coortes | `cohorts.json` |
 | `inscricoes` | Pessoas › Inscrições | `registrations.json` |
 | `telao` | cartões Revelação e Telão; Evento › Times (fotos) | `animeitor.json`, `webcast.json`, fotos de time |
-| `classificacao` | Evento › Classificação (seletor de algoritmo) | `classification.json` |
+| `classificacao` | Evento › Classificação (seletor de etapa e de motor) | `classification.json` |
 | `virtual` | Evento › Virtual; botão **Virtual** no card do contest encerrado; link no placar (ver §6¾) | `virtual/runs/` |
 | `esqueletos` | Prova › Esqueletos: o editor de código do time abre com o esqueleto da linguagem (abaixo) | `esqueletos.json` |
 

@@ -386,10 +386,10 @@ Em 28/09/2026, sobre os dados de produção (LATAM, mdp-teste e esquenta): **zer
   também no topo do index; a aba infra saiu. O FREEZE sobrevive ao encerramento: o
   `finish` grava `var/freeze-final.json` + copia os `placar*.txt` congelados p/
   `var/frozen-final/`, e o relatório cai nesses fallbacks quando o conf já foi zerado.
-- **Chip ↑BR (classificação p/ a próxima fase)**: time em stage **published** do
-  `classification.json` ganha o chip ao lado do nome (tooltip: etapa · regra · sede) no
-  placar ao vivo E no relatório (que também gera `classificados.html` com a relação por
-  regra). Rascunho não aparece em lugar nenhum. Ver `docs/CLASSIFICACAO.md`.
+- **Chip 🎓 (classificação p/ as próximas fases)**: time em estágio **published** do
+  `classification.json` ganha um chip por estágio ao lado do nome (o texto é o `chip` do estágio, "Final BR",
+  "PDA"…; tooltip: etapa · via · sede) no placar ao vivo E no relatório (que também gera `classificados.html`, uma
+  seção por estágio). Rascunho só o admin vê. Ver `docs/CLASSIFICACAO.md`.
 - **Empate compartilha a posição e CONSOME (ranking de competição, 2026-08-31)**: N times
   empatados (icpc: total+penalty+lastac; obi: mesmo total; cerimônia: solved+penalty)
   mostram a MESMA posição e o próximo classificado vem N abaixo (1-2-2-4, nunca 1-2-2-3 —

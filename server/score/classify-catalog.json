@@ -1,0 +1,36 @@
+{
+  "engines": [
+    {
+      "id": "sbc-fase1",
+      "script": "classify-br.sh",
+      "stage": "final-br",
+      "next_stage": "pda",
+      "form": "br",
+      "name": {"pt": "SBC 1ª fase → Final Brasileira", "en": "SBC 1st phase → Brazilian Finals", "es": "SBC 1ª fase → Final Brasileña"},
+      "desc": {
+        "pt": "regra 1: melhores gerais (≤2 por escola) · regra 2: vagas por sede e supersede (≤1 por escola) · regra 4: participação feminina · regra 3/comitê: manual",
+        "en": "rule 1: best overall (≤2 per school) · rule 2: slots per site and supersite (≤1 per school) · rule 4: female participation · rule 3/committee: manual",
+        "es": "regla 1: mejores en general (≤2 por escuela) · regla 2: cupos por sede y supersede (≤1 por escuela) · regla 4: participación femenina · regla 3/comité: manual"
+      },
+      "defaults": {"name": "Final Brasileira", "venue": "Uberlândia", "when": "novembro/2026", "chip": "Final BR"},
+      "vias": ["regra1", "regra2", "regra4"]
+    }
+  ],
+  "manual_vias": ["manual", "lista", "reserva"],
+  "vias": {
+    "regra1": {"pt": "Regra 1 — melhores gerais", "en": "Rule 1 — best overall", "es": "Regla 1 — mejores en general",
+               "short": {"pt": "regra 1", "en": "rule 1", "es": "regla 1"}},
+    "regra2": {"pt": "Regra 2 — vagas por sede", "en": "Rule 2 — site slots", "es": "Regla 2 — cupos por sede",
+               "short": {"pt": "regra 2", "en": "rule 2", "es": "regla 2"}},
+    "regra4": {"pt": "Regra 4 — participação feminina", "en": "Rule 4 — female participation", "es": "Regla 4 — participación femenina",
+               "short": {"pt": "regra 4", "en": "rule 4", "es": "regla 4"}},
+    "manual": {"pt": "Promoção manual (comitê)", "en": "Manual promotion (committee)", "es": "Promoción manual (comité)",
+               "short": {"pt": "comitê", "en": "committee", "es": "comité"}},
+    "comite": {"pt": "Promoção manual (comitê)", "en": "Manual promotion (committee)", "es": "Promoción manual (comité)",
+               "short": {"pt": "comitê", "en": "committee", "es": "comité"}},
+    "lista":  {"pt": "Lista de espera", "en": "Waiting list", "es": "Lista de espera",
+               "short": {"pt": "lista de espera", "en": "waiting list", "es": "lista de espera"}},
+    "reserva": {"pt": "Vaga de reserva", "en": "Reserve slot", "es": "Cupo de reserva",
+               "short": {"pt": "reserva", "en": "reserve", "es": "reserva"}}
+  }
+}

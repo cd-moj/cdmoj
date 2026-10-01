@@ -1,7 +1,9 @@
-# GET /contest/classification?contest=<id> — classificação p/ próximas fases, SÓ o publicado.
-# Mesmo gate do placar (contest secreto exige sessão); competidor consome p/ o chip ↑BR.
-# resp: {stages:[{id,name,venue,when,teams:{login:{via,sede}}}]} — vazio se nada publicado;
-# nunca expõe config/notas/quem aplicou (isso é do admin/classify).
+# GET /contest/classification?contest=<id> — classificação p/ as próximas fases, SÓ o publicado.
+# Mesmo gate do placar (contest secreto exige sessão); o placar a consome p/ o chip de cada estágio.
+# resp: {stages:[{id,name,venue,when,chip,labels:{via:{pt,en,es,short}},via_order,teams:{login:{via,sede}}}]}
+# — vazio se nada publicado. Nunca expõe config, motivo de override, quem aplicou (isso é do admin/classify)
+# nem os times de FORA do placar (chave `ext:`, só no classificados.html do relatório). Estágio antigo,
+# sem chip/rótulos gravados, leva os do catálogo (score/classify-catalog.json).
 contest="$(param contest)"
 [[ -n "$contest" ]] || fail 400 "Missing contest" "contest_missing"
 require_contest "$contest"
@@ -13,10 +15,17 @@ if [[ ! -s "$CF" ]]; then ok_json '{stages:[]}'; exit 0; fi
 # Sessão OPCIONAL, molde do /contest/score — anônimo/competidor segue só com published.
 adm=false
 load_session 2>/dev/null && [[ "$SESSION_CONTEST" == "$contest" ]] && is_admin && adm=true
-out="$(jq -c --argjson adm "$adm" '{stages:[ (.stages // [])[]
+CAT="$_DIR/../../score/classify-catalog.json"
+out="$(jq -c --argjson adm "$adm" --slurpfile c "$CAT" '{stages:[ (.stages // [])[]
   | select(.status == "published" or $adm)
+  | .id as $sid
+  | ((.teams // {}) | with_entries(select(.key | startswith("ext:") | not)
+                                   | .value |= {via:(.via // ""), sede:(.sede // "")})) as $t
+  | ((.via_order // []) + [ $t[] | .via ] | reduce .[] as $v ([]; if any(.[]; . == $v) then . else . + [$v] end)) as $order
   | {id, name:(.name // ""), venue:(.venue // ""), when:(.when // ""),
-     teams:((.teams // {}) | with_entries(.value |= {via:(.via // ""), sede:(.sede // "")}))}
+     chip:(.chip // (first($c[0].engines[] | select(.stage == $sid) | .defaults.chip) // .name // .id)),
+     labels:((.labels // $c[0].vias) | with_entries(select(.key as $k | $order | any(.[]; . == $k)))),
+     via_order:$order, teams:$t}
     + (if .status != "published" then {draft:true} else {} end) ]}' \
   "$CF" 2>/dev/null)"
 [[ -n "$out" ]] || out='{"stages":[]}'

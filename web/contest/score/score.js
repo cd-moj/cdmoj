@@ -11,6 +11,7 @@ import { parseICPC, renderICPC } from './score-icpc.js';
 // a LÓGICA dos filtros (enriquecer times, casar bandeira/sede/escola) mora em score-filters.js —
 // fonte única com a Participação Virtual; aqui ficam só o ESTADO da página e a barra
 import * as F from './score-filters.js';
+import { classifiedMap } from './score-classified.js';
 import { parseOBI, renderOBI } from './score-obi.js';
 import { parseGeneric, renderGeneric } from './score-generic.js';
 import { T, setLang, getLang, uiLocale } from '/shared/i18n.js';
@@ -41,7 +42,7 @@ let noAnim = false;
 // p/ "o placar dos individuais"); o servidor valida o valor, aqui é só a preferência inicial.
 let cohortView = (qs.get('view') || '').replace(/[^a-z0-9_-]/gi, '');
 let genPlace = null;        // login -> posição no placar GERAL (só em placar de coorte)
-let classified = null;      // login -> {via, sede, stage} — classificação PUBLICADA p/ a próxima fase (chip ↑BR)
+let classified = null;      // login -> [{chip, via, sede, stage, draft}] — classificação PUBLICADA, um chip por estágio
 let frozenView = false;     // ESTE espectador recebeu o placar congelado (X-MOJ-Frozen) —
                             // gateia o 📷: foto só aparece com o placar aberto (R4, 2026-08-30)
 let lastOrder = []; // usernames na ordem anterior (p/ animação)
@@ -477,15 +478,9 @@ async function boot() {
   regions = rg ? (Array.isArray(rg) ? rg : (rg.regions || [])) : [];
   teamsMeta = tm ? (tm.rules || (Array.isArray(tm) ? tm : [])) : [];
   teamsDir = (td && td.teams) || {};
-  // classificação p/ a próxima fase (chip ↑BR): só o PUBLICADO chega aqui
-  classified = null;
-  if (cls && Array.isArray(cls.stages) && cls.stages.length) {
-    classified = {};
-    cls.stages.forEach(st2 => Object.entries(st2.teams || {}).forEach(([lg, v]) =>
-      { classified[lg] = { via: v.via || '', sede: v.sede || '', draft: !!st2.draft,
-          stage: [st2.name, st2.venue].filter(Boolean).join(', ') + (st2.when ? ' — ' + st2.when : '') }; }));
-    if (!Object.keys(classified).length) classified = null;
-  }
+  // classificação p/ as próximas fases (um chip por estágio): só o PUBLICADO chega aqui (o admin vê o
+  // rascunho marcado)
+  classified = classifiedMap(cls);
   // (nome da bandeira: flagName de shared/flags.js — fonte única; o mapa manual daqui colidia
   //  UF com país, issue #21)
 

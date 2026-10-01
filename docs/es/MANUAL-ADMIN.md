@@ -1,4 +1,4 @@
-<!-- i18n-source: MANUAL-ADMIN.md blob:1631fb0cb4a3a7dd6c09293ed8590fa47f5b119b -->
+<!-- i18n-source: MANUAL-ADMIN.md blob:8672804f448e9d790bec4e4ce45319c584530e16 -->
 # MOJ: Manual del organizador (el panel .admin de la competencia)
 
 > **Nota de traducción.** Este manual es una traducción del original en portugués. Las herramientas de línea de comandos (`moj`, `moj-contest`, `moj-comp`) muestran sus mensajes en portugués, y los ejemplos de comandos son idénticos al original.
@@ -100,7 +100,7 @@ su panel) tiene dos modos:
 | **Rondas** (`rodadas`) | **Calentamiento y competencia oficial en la MISMA competencia**: planifica cada ronda (ventana + problemas), muestra el checklist y promueve, archivando todo lo que pasó. La sección 6 lo explica. |
 | **Documentos** (`documentos`) | Genera, en PDF y HTML en los tres idiomas (pt/en/es), los documentos de la competencia: **Entorno de evaluación** (info sheet), **Cuadernillo de la competencia** (portada + enunciados), **Hoja de límites de tiempo** y el **editorial** (solo se publica después del FIN de la competencia). La sección 5 lo explica. |
 | **Globos** (`baloes`) | El color de cada letra: es lo que sale dibujado en la hoja del globo. El predeterminado cubre A–O; con más de 15 problemas, define los demás (si no, salen grises). Son los colores de la ronda en vivo. Para dar colores propios a otra ronda, usa Evento › Rondas. |
-| **Clasificación** (`classificacao`) | Quién se clasifica para la fase siguiente, por el **algoritmo** elegido en el panel (hoy: SBC 1.ª fase → Final Brasileña; la regla de la PDA entra como otro algoritmo): borrador, revisión, promoción por el comité y publicación (chip ↑BR en el marcador). `docs/CLASSIFICACAO.md` lo explica. |
+| **Clasificación** (`classificacao`) | Quién se clasifica para las próximas etapas. Cada **etapa** (Final Brasileña, PDA, Mundial) tiene su motor, elegido en el panel: vista previa, borrador, publicación (un chip 🎓 por etapa en el marcador) y el **override manual** — excluir del cálculo, retirar sin recalcular, promover a mano, siempre con motivo. `docs/CLASSIFICACAO.md` lo explica. |
 | **Equipos** (`sedes` o `telao`) | Identidad de cada cuenta en el marcador: nombre del equipo, país/bandera, sede, universidad, escudo y foto. Carga por CSV y "materializar coincidencias". |
 | **Cohortes** (`coortes`) | Equipos **invitados** (extraoficiales, "CCL") separados de los oficiales: quién aparece en el marcador público, quién ve a quién, y el **🔓 Liberar resultados** de después de la ceremonia. La sección 8 lo explica. |
 | **Sedes y escuelas** (`sedes`) | Las sedes (nombre + regex sobre el login), que alimentan el filtro del marcador, el alcance del staff, las etiquetas, **las fotos/músicas que cada jefe de sede gestiona en la pantalla** y el gate por sede; las reglas de país/escuela por regex; y la **⏱ prórroga por sede/grupo** (regex → nuevo fin; solo extiende, nunca acorta). En **tres modos** (Simple, Intermedio, Avanzado) con vista previa — sección 7¼. |
@@ -151,7 +151,7 @@ correspondientes; **desactivar oculta, sin borrar nada**: reactivar restaura tod
 | `coortes` | Evento › Cohortes | `cohorts.json` |
 | `inscricoes` | Personas › Inscripciones | `registrations.json` |
 | `telao` | tarjetas Revelación y Pantalla; Evento › Equipos (fotos) | `animeitor.json`, `webcast.json`, fotos de equipo |
-| `classificacao` | Evento › Clasificación (selector de algoritmo) | `classification.json` |
+| `classificacao` | Evento › Clasificación (selector de etapa y de motor) | `classification.json` |
 | `virtual` | Evento › Virtual; botón **Virtual** en la tarjeta de la competencia terminada; enlace en el marcador (ver §6¾) | `virtual/runs/` |
 | `esqueletos` | Competencia › Esqueletos: el editor de código del equipo abre con el esqueleto del lenguaje (abajo) | `esqueletos.json` |
 

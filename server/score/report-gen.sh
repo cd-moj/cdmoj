@@ -281,12 +281,8 @@ rep_t(){ case "$LOC:$1" in
   pt:gen_place) printf 'Geral';;                  en:gen_place) printf 'Overall';;
   pt:tab_qual) printf '🏅 Classificados';;        en:tab_qual) printf '🏅 Qualified';;
   pt:qual_title) printf '🎓 Classificados — próxima fase';; en:qual_title) printf '🎓 Qualified — next stage';;
-  pt:qual_note) printf 'Times classificados para <b>%s</b> pelas regras da 1ª fase (chip ↑BR no placar). Vagas do comitê podem ser adicionadas depois.' "$2";; en:qual_note) printf 'Teams qualified to <b>%s</b> by the first-phase rules (↑BR chip on the scoreboard). Committee slots may be added later.' "$2";;
+  pt:qual_note) printf 'Times classificados para as próximas fases, uma seção por etapa (chip 🎓 no placar). O comitê pode promover ou retirar times depois.';; en:qual_note) printf 'Teams qualified for the next stages, one section per stage (🎓 chip on the scoreboard). The committee can promote or withdraw teams later.';;
   pt:qual_chip) printf 'Classificado';;           en:qual_chip) printf 'Qualified';;
-  pt:via_regra1) printf 'Regra 1 — melhores gerais';; en:via_regra1) printf 'Rule 1 — best overall';;
-  pt:via_regra2) printf 'Regra 2 — vagas por sede';;  en:via_regra2) printf 'Rule 2 — site slots';;
-  pt:via_regra4) printf 'Regra 4 — participação feminina';; en:via_regra4) printf 'Rule 4 — female participation';;
-  pt:via_comite) printf 'Comitê (regra 3 / promoções)';;    en:via_comite) printf 'Committee (rule 3 / promotions)';;
   pt:q_place) printf 'Posição';;                  en:q_place) printf 'Place';;
   pt:q_team) printf 'Time';;                      en:q_team) printf 'Team';;
   pt:q_school) printf 'Escola';;                  en:q_school) printf 'School';;
@@ -480,12 +476,8 @@ rep_t(){ case "$LOC:$1" in
   es:gen_place) printf 'General';;
   es:tab_qual) printf '🏅 Clasificados';;
   es:qual_title) printf '🎓 Clasificados — próxima fase';;
-  es:qual_note) printf 'Equipos clasificados a <b>%s</b> por las reglas de la primera fase (chip ↑BR en el marcador). Se pueden sumar después las vacantes del comité.' "$2";;
+  es:qual_note) printf 'Equipos clasificados para las próximas etapas, una sección por etapa (chip 🎓 en el marcador). El comité puede promover o retirar equipos después.';;
   es:qual_chip) printf 'Clasificado';;
-  es:via_regra1) printf 'Regla 1 — mejores en general';;
-  es:via_regra2) printf 'Regla 2 — vacantes por sede';;
-  es:via_regra4) printf 'Regla 4 — participación femenina';;
-  es:via_comite) printf 'Comité (regla 3 / promociones)';;
   es:q_place) printf 'Posición';;
   es:q_team) printf 'Equipo';;
   es:q_school) printf 'Escuela';;
@@ -782,26 +774,32 @@ if [[ -s "$CDIR/var/regions-nodes.json" ]]; then
   RTREE_JSON="$(printf '%s' "$RTREE_JSON" | rep_js_json)"   # nome de sede/região vai dentro de <script>
 fi
 
-# --- classificação PUBLICADA p/ a próxima fase (chip ↑BR + página classificados.html) ---
-# qual.tsv: login \t via \t sede \t rótulo-do-stage \t place \t detalhe/nota \t title-pronto
+# --- classificação PUBLICADA p/ as próximas fases (chips no placar + página classificados.html) ---
+# qual.tsv: UMA linha por (estágio, time), estágios na ordem do classification.json:
+#   1 login · 2 via · 3 sede · 4 rótulo-do-estágio · 5 place · 6 detalhe · 7 title-pronto · 8 estágio ·
+#   9 chip · 10 via por extenso · 11 time · 12 escola · 13 ordem da via no estágio · 14 ordem do estágio
+# Os rótulos vêm do estágio (gravados pelo apply, pt/en/es) e, em estágio antigo, do catálogo
+# (classify-catalog.json) — no idioma do LOCALE. Via sem rótulo aparece pelo id, nunca some. Linha `ext:`
+# (time de fora do placar) não casa login nenhum no placar: só a página a mostra.
 QUALF="$W/qual.tsv"; : > "$QUALF"
-QUAL_STAGE_LABEL=""
 if [[ -s "$CDIR/classification.json" ]]; then
-  jq -r '(.stages // [])[] | select(.status=="published")
-    | (([.name // "", .venue // ""] | map(select(. != "")) | join(", "))
-       + (if (.when // "") != "" then " — " + .when else "" end)) as $lbl
+  jq -r --arg L "$LOC" --arg Q "$(rep_t qual_chip)" --slurpfile c "$HERE/classify-catalog.json" '
+    def cl: tostring | gsub("[\t\n]"; " ");
+    def lab($m; $v): ($m[$v] // $c[0].vias[$v] // null) as $x
+      | if $x == null then $v else ($x[$L] // $x.en // $x.pt // $v) end;
+    def short($m; $v): ($m[$v] // $c[0].vias[$v] // null) as $x
+      | if $x == null then $v else ((($x.short // {})[$L]) // $x.short.en // $x.short.pt // (lab($m; $v) | sub(" —.*$"; ""))) end;
+    (.stages // []) | to_entries[] | .key as $si | .value | select(.status == "published")
+    | .id as $sid | (.labels // {}) as $m
+    | (([.name // "", .venue // ""] | map(select(. != "")) | join(", ")) + (if (.when // "") != "" then " — " + .when else "" end)) as $lbl
+    | (.chip // (first($c[0].engines[] | select(.stage == $sid) | .defaults.chip) // .name // .id)) as $chip
+    | ((.via_order // []) + [ (.teams // {})[] | .via // "" ] | reduce .[] as $v ([]; if any(.[]; . == $v) then . else . + [$v] end)) as $ord
     | (.teams // {}) | to_entries[]
-    | [.key, (.value.via // ""), ((.value.sede // "")|gsub("[\t\n]";" ")), $lbl,
-       ((.value.place // "")|tostring), ((.value.detail // .value.note // "")|gsub("[\t\n]";" "))]
-    | @tsv' "$CDIR/classification.json" 2>/dev/null   | while IFS=$'\t' read -r _l _v _s _st _p _d; do
-      case "$_v" in regra1) _vl="$(rep_t via_regra1)";; regra2) _vl="$(rep_t via_regra2)";;
-                    regra4) _vl="$(rep_t via_regra4)";; comite) _vl="$(rep_t via_comite)";;
-                    *) _vl="$_v";; esac
-      printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$_l" "$_v" "$_s" "$_st" "$_p" "$_d" \
-        "$(rep_t qual_chip) — $_st (${_vl%% —*}${_s:+ · $_s})"
-    done > "$QUALF"
-  QUAL_STAGE_LABEL="$(jq -r '[(.stages // [])[] | select(.status=="published")
-    | ([.name // "", .venue // ""] | map(select(. != "")) | join(", "))] | first // ""'     "$CDIR/classification.json" 2>/dev/null)"
+    | (.value.via // "") as $v
+    | [.key, $v, (.value.sede // ""), $lbl, (.value.place // ""), (.value.detail // .value.note // ""),
+       ($Q + " — " + $lbl + " (" + short($m; $v) + (if (.value.sede // "") != "" then " · " + .value.sede else "" end) + ")"),
+       $sid, $chip, lab($m; $v), (.value.team // ""), (.value.univ // ""), (($ord | index($v)) // 99), $si]
+    | map(cl) | join("\t")' "$CDIR/classification.json" > "$QUALF" 2>/dev/null || : > "$QUALF"
 fi
 
 # --- abas do relatório: decididas UMA vez, pelos DADOS ------------------------------------
@@ -906,8 +904,7 @@ rep_score_html(){ # <placar.txt> [genplace.tsv] [photos.tsv]
       # rodadas intercepta o <a href> e abre via blob, e em file:// o relativo resolve
       if(un in pho) lbl=lbl " <a class=\"tphoto\" href=\"fotos/" un ".webp\" title=\"" esc(T_PHOTO) "\" style=\"text-decoration:none\">&#128247;</a>"
       if(g) lbl=lbl " <span class=\"pill\" title=\"" esc(T_GUESTT) "\">" esc(T_GUEST) "</span>"
-      if(un in qual) lbl=lbl " <span class=\"qual-chip\" title=\"" esc(qual[un]) "\">&#127891; " esc(qshort[un]) "</span>" \
-                            "<span class=\"qual-sub\">&#127942; " esc(qual[un]) "</span>"
+      if(un in qual) lbl=lbl qchips[un] qsubs[un]
       # o LOGIN saiu da célula (era o que mais gastava largura) e vive no title, junto da
       # universidade — a coluna do time agora divide espaço com todas as de problema.
       ttl = (uf!=""?uf:us)
@@ -927,9 +924,11 @@ rep_score_html(){ # <placar.txt> [genplace.tsv] [photos.tsv]
       # sede (.team.region) só existe na conta, não no TXT do placar: 6º campo do names.tsv.
       while ((getline l < NF_) > 0) { n=split(l,a,"\t"); if(n>=6 && a[1]!="") reg[a[1]]=a[6] }
       close(NF_)
+      # um chip POR ESTÁGIO (o time na Final BR e na PDA mostra os dois): chip = col 9, title = col 7
       while ((getline ql < QF) > 0) { nq=split(ql, qa, "\t")
-        if (nq>=7) { qual[qa[1]]=qa[7]
-          qshort[qa[1]] = (index(qa[4], "Brasileira") ? "Final BR" : substr(qa[4], 1, index(qa[4] ",", ",")-1)) } }
+        if (nq>=9) { qual[qa[1]]=1
+          qchips[qa[1]] = qchips[qa[1]] " <span class=\"qual-chip\" title=\"" esc(qa[7]) "\">&#127891; " esc(qa[9]) "</span>"
+          qsubs[qa[1]] = qsubs[qa[1]] "<span class=\"qual-sub\">&#127942; " esc(qa[7]) "</span>" } }
       close(QF)
       # posição no placar GERAL, por login (vazio = este É o placar geral)
       while ((getline l < GP) > 0) { n=split(l,a,"\t"); if(n>=2 && a[1]!=""){ gpl[a[1]]=a[2]; hasgp=1 } }
@@ -1466,39 +1465,43 @@ if (( NAV_FROZEN )); then
   FROZEN_NOTE="<p class=\"note\">$(rep_t open_note "$fmin") <a href=\"score-frozen.html\">$(rep_t frozen_title)</a>.</p>"
 fi
 
-# --- classificados.html: a relação da PRÓXIMA FASE (pedido de 31/08) --------------------
+# --- classificados.html: a relação das PRÓXIMAS FASES (pedido de 31/08) ------------------
+# Uma seção por ESTÁGIO publicado e, dentro dela, uma tabela por VIA na ordem do estágio (via_order). Via
+# fora da ordem vai ao fim, com o id — nunca some (até 30/09/2026 só regra1/2/4/comitê apareciam). Os
+# times de fora do placar (`ext:`) só aparecem aqui, com o nome gravado no override.
 if (( NAV_QUAL )); then
   {
     rep_head "$(rep_t qual_title)" qual
-    printf '<p class="note">%s</p>\n' "$(rep_t qual_note "$(esc "$QUAL_STAGE_LABEL")")"
-    # tabelas por VIA (ordem das regras), juntando nome/escola do names.tsv
+    printf '<p class="note">%s</p>\n' "$(rep_t qual_note)"
     awk -F'\t' -v NF_="$W/names.tsv" \
-        -v H1="$(rep_t via_regra1)" -v H2="$(rep_t via_regra2)" \
-        -v H4="$(rep_t via_regra4)" -v HC="$(rep_t via_comite)" \
         -v CP="$(rep_t q_place)" -v CT="$(rep_t q_team)" -v CS="$(rep_t q_school)" \
         -v CSD="$(rep_t q_sede)" -v CD="$(rep_t q_detail)" '
       function esc(x){ gsub(/&/,"\\&amp;",x); gsub(/</,"\\&lt;",x); gsub(/>/,"\\&gt;",x); return x }
       BEGIN{
         while ((getline l < NF_) > 0) { n=split(l, a, "\t"); if (n>=3) { tname[a[1]]=a[2]; tuniv[a[1]]=a[3] } }
         close(NF_)
-        order[1]="regra1"; order[2]="regra2"; order[3]="regra4"; order[4]="comite"
-        head["regra1"]=H1; head["regra2"]=H2; head["regra4"]=H4; head["comite"]=HC
       }
-      { i=++n; via[i]=$2; login[i]=$1; sede[i]=$3; place[i]=$5+0; det[i]=$6 }
+      { i=++n; login[i]=$1; via[i]=$2; sede[i]=$3; slbl[i]=$4; place[i]=$5+0; det[i]=$6; stg[i]=$8; chip[i]=$9
+        vl[i]=$10; tm[i]=$11; un[i]=$12; ord[i]=$13+0
+        if (!(stg[i] in seen)) { seen[stg[i]]=1; stages[++ns]=stg[i] } }
       END{
-        for (o=1; o<=4; o++) {
-          v=order[o]; first=1
+        for (si=1; si<=ns; si++) {
+          s=stages[si]; hdr=0; cur=""
           for (i=1; i<=n; i++) {
-            if (via[i] != v) continue
-            if (first) {
-              printf "<h3>%s</h3><div class=\"chart-wrap\"><table class=\"moj narrow\"><thead><tr><th class=\"n\">%s</th><th>%s</th><th>%s</th><th>%s</th><th>%s</th></tr></thead><tbody>\n", esc(head[v]), esc(CP), esc(CT), esc(CS), esc(CSD), esc(CD)
-              first=0
+            if (stg[i] != s) continue
+            if (!hdr) { printf "<h2>&#127891; %s</h2><p class=\"small muted\">%s</p>\n", esc(chip[i]), esc(slbl[i]); hdr=1 }
+            if (via[i] != cur) {
+              if (cur != "") printf "</tbody></table></div>\n"
+              cur=via[i]; cnt=0; for (j=1; j<=n; j++) if (stg[j]==s && via[j]==cur) cnt++
+              printf "<h3>%s — %d</h3><div class=\"chart-wrap\"><table class=\"moj narrow\"><thead><tr><th class=\"n\">%s</th><th>%s</th><th>%s</th><th>%s</th><th>%s</th></tr></thead><tbody>\n", esc(vl[i]), cnt, esc(CP), esc(CT), esc(CS), esc(CSD), esc(CD)
             }
-            printf "<tr><td class=\"n\">%s</td><td>%s</td><td>%s</td><td>%s</td><td class=\"small\">%s</td></tr>\n", (place[i]>0?place[i]:"—"), esc(tname[login[i]]!=""?tname[login[i]]:login[i]), esc(tuniv[login[i]]), esc(sede[i]), esc(det[i])
+            nm = (tname[login[i]] != "" ? tname[login[i]] : (tm[i] != "" ? tm[i] : login[i]))
+            uv = (tuniv[login[i]] != "" ? tuniv[login[i]] : un[i])
+            printf "<tr><td class=\"n\">%s</td><td>%s</td><td>%s</td><td>%s</td><td class=\"small\">%s</td></tr>\n", (place[i]>0?place[i]:"—"), esc(nm), esc(uv), esc(sede[i]), esc(det[i])
           }
-          if (!first) printf "</tbody></table></div>\n"
+          if (cur != "") printf "</tbody></table></div>\n"
         }
-      }' <(sort -t$'\t' -k5,5n "$QUALF")
+      }' <(awk -F'\t' -v OFS='\t' '{ print NR, $0 }' "$QUALF" | sort -t$'\t' -k15,15n -k14,14n -k6,6n -k1,1n | cut -f2-)
     rep_foot
   } > "$OUTD/classificados.html"
 fi

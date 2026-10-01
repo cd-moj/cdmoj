@@ -1,4 +1,4 @@
-<!-- i18n-source: MANUAL-ADMIN.md blob:1631fb0cb4a3a7dd6c09293ed8590fa47f5b119b -->
+<!-- i18n-source: MANUAL-ADMIN.md blob:8672804f448e9d790bec4e4ce45319c584530e16 -->
 # MOJ: Organizer manual (the contest .admin panel)
 
 > **Translation note.** This manual is a translation of the Portuguese original. The command-line tools (`moj`, `moj-contest`, `moj-comp`) print their messages in Portuguese, and the command examples below are identical to the original.
@@ -102,7 +102,7 @@ the **🌐 Languages** tab of the chief judge panel) has two modes:
 | **Rounds** (`rodadas`) | **Warm-up and official contest in the SAME contest**: plans each round (window + problems), shows the checklist and promotes. The promotion archives all that happened. Section 6 explains it. |
 | **Documents** (`documentos`) | Generates the contest documents, in PDF and HTML, in the three languages (pt/en/es): **Judging environment** (info sheet), **problem set** (cover + statements), **time limits sheet** and the **editorial** (it is published only after the END of the contest). Section 5 explains it. |
 | **Balloons** (`baloes`) | The color of each letter. This is the color on the balloon sheet. The default covers A–O. With more than 15 problems, set the other colors (if not, they are gray). These are the colors of the live round. To give its own colors to another round, use Event › Rounds. |
-| **Qualification** (`classificacao`) | Who qualifies for the next phase, by an **algorithm** that you select in the panel (now: SBC 1st phase → Brazilian Final; the PDA rule will be another algorithm): draft, review, promotion by the committee and publication (the ↑BR chip on the scoreboard). `docs/CLASSIFICACAO.md` explains it. |
+| **Qualification** (`classificacao`) | Who qualifies for the next stages. Each **stage** (Brazilian Final, PDA, World Finals) has its own engine, which you select in the panel: preview, draft, publication (one 🎓 chip per stage on the scoreboard) and the **manual override** — exclude from the computation, withdraw without recomputing, promote by hand, always with a reason. `docs/CLASSIFICACAO.md` explains it. |
 | **Teams** (`sedes` or `telao`) | The identity of each account on the scoreboard: team name, country/flag, site, university, crest and photo. Load from CSV and "materialize matches". |
 | **Cohorts** (`coortes`) | **Guest** teams (unofficial, "CCL") separated from the official teams: who appears on the public scoreboard, who sees whom, and the **🔓 Release results** of the post-ceremony. Section 8 explains it. |
 | **Sites & schools** (`sedes`) | The sites (name + regex on the login). The sites feed the scoreboard filter, the staff scope, the badges, **the photos/music that each site chief manages on the big screen** and the gate by site. It also has the country/school rules by regex and the **⏱ extension by site/group** (regex → new end; it only extends, it never shortens). In **three modes** (Simple, Intermediate, Advanced) with a preview — section 7¼. |
@@ -155,7 +155,7 @@ you turn it on again, all comes back.
 | `coortes` | Event › Cohorts | `cohorts.json` |
 | `inscricoes` | People › Registrations | `registrations.json` |
 | `telao` | Reveal and Big screen cards; Event › Teams (photos) | `animeitor.json`, `webcast.json`, team photos |
-| `classificacao` | Event › Qualification (algorithm selector) | `classification.json` |
+| `classificacao` | Event › Qualification (stage and engine selector) | `classification.json` |
 | `virtual` | Event › Virtual; **Virtual** button on the card of the ended contest; link on the scoreboard (see §6¾) | `virtual/runs/` |
 | `esqueletos` | Contest › Skeletons: the team code editor opens with the language skeleton (below) | `esqueletos.json` |
 

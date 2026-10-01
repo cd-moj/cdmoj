@@ -218,23 +218,19 @@ export function renderICPC(parsed, opts) {
     const label = (t.univShort ? `[${escapeHtml(t.univShort)}] ` : '') + escapeHtml(t.teamName || t.username);
     const teamTd = el('td', { class: 'team',
       title: [t.univFull || t.univShort || '', t.username].filter(Boolean).join(' · '), html: label });
-    // CLASSIFICADO p/ a próxima fase (2026-08-31, "claro E elegante"): linha tintada
-    // com barra de acento (classe na <tr>) + pill 🎓 com rótulo curto + sub-linha
-    // estilo PDA sob o nome (some no celular; tooltip completo fica na pill).
-    const cinfo = classified && classified[t.username];
-    if (cinfo) {
-      const viaT = { regra1: T('regra 1', 'rule 1', 'regla 1'), regra2: T('regra 2', 'rule 2', 'regla 2'),
-                     regra4: T('regra 4', 'rule 4', 'regla 4'), comite: T('comitê', 'committee', 'comité') }[cinfo.via] || cinfo.via;
-      const short = /Brasileira/i.test(cinfo.stage || '') ? 'Final BR'
-        : ((cinfo.stage || '').split(/[,—·]/)[0].trim().split(/\s+/).slice(0, 2).join(' ') || T('classificado', 'qualified', 'clasificado'));
-      const full = T('Classificado — ', 'Qualified — ', 'Clasificado — ') + (cinfo.stage || '') +
-        ' · ' + viaT + (cinfo.sede ? ' · ' + cinfo.sede : '');
-      tr.classList.add('qual-row'); if (cinfo.draft) tr.classList.add('draft');
-      teamTd.append(' ', el('span', { class: 'qual-chip' + (cinfo.draft ? ' draft' : ''),
-        title: (cinfo.draft ? T('(RASCUNHO — só o admin vê) ', '(DRAFT — admin only) ', '(BORRADOR — solo lo ve el admin) ') : '') + full },
-        '🎓 ' + short));
-      teamTd.append(el('span', { class: 'qual-sub' },
-        '🎖️ ' + (cinfo.draft ? T('(rascunho) ', '(draft) ', '(borrador) ') : '') + full));
+    // CLASSIFICADO p/ as próximas fases (2026-08-31, "claro E elegante"): linha tintada com barra de acento
+    // (classe na <tr>) + um pill 🎓 POR ESTÁGIO com o chip do servidor + sub-linha estilo PDA sob o nome (some
+    // no celular; o tooltip completo fica na pill). `classified[login]` = lista (score-classified.js).
+    const cl = (classified && classified[t.username]) || [];
+    if (cl.length) {
+      tr.classList.add('qual-row'); if (cl.every((c) => c.draft)) tr.classList.add('draft');
+      const full = (c) => T('Classificado — ', 'Qualified — ', 'Clasificado — ') + (c.stage || c.chip) +
+        (c.via ? ' · ' + c.via : '') + (c.sede ? ' · ' + c.sede : '');
+      cl.forEach((c) => teamTd.append(' ', el('span', { class: 'qual-chip' + (c.draft ? ' draft' : ''),
+        title: (c.draft ? T('(RASCUNHO — só o admin vê) ', '(DRAFT — admin only) ', '(BORRADOR — solo lo ve el admin) ') : '') + full(c) },
+        '🎓 ' + (c.chip || T('classificado', 'qualified', 'clasificado')))));
+      cl.forEach((c) => teamTd.append(el('span', { class: 'qual-sub' },
+        '🎖️ ' + (c.draft ? T('(rascunho) ', '(draft) ', '(borrador) ') : '') + full(c))));
     }
     if (logoImg) { teamTd.prepend(logoImg, ' '); setMediaSrc(logoImg, safeLogo, { lazy: true, onerror: () => logoImg.remove() }); }
     // 📷 = foto do time, SÓ com o placar aberto (opts.showPhotos = !frozen — R4, 2026-08-30;

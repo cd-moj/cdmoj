@@ -1072,8 +1072,14 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   chaves NOVAS a partir de `views`); template tira `rounds/active/time_overrides`; duplicate desloca
   o plano de rodadas pelo delta das datas. Compat: `colors/regions/teams_meta` no topo seguem
   aceitos. Contests antigos: `server/bin/contest-modules-detect.sh [--apply]` (uma vez).
-  **Classificação por catálogo**: `admin/classify.sh` despacha `config.algorithm` por allowlist
-  `CL_ENGINES` (`sbc-fase1` → `score/classify-br.sh`); a PDA = motor novo + 1 linha + smoke.
+  **Classificação por catálogo** (`docs/CLASSIFICACAO.md`): vários ESTÁGIOS por contest (`final-br`, `pda`,
+  `mundial`), cada um com o seu motor; `admin/classify.sh` só executa script da allowlist `CL_ENGINES`
+  (`lib/classify.sh`) e o catálogo `score/classify-catalog.json` dá estágio padrão, chip, rótulos pt/en/es e
+  semente (paridade testada no `smoke-contest-modules.sh`). Motor novo = script + 1 linha + entrada no catálogo +
+  smoke; contrato de rc 0/1/2 config/3 recusa, `--check`. **Override manual** (`exclude`/`withdraw`/`add`/
+  `override_undo`, motivo obrigatório e interno) fica SEPARADO do `result` do motor e sobrevive ao re-apply; a
+  composição (motor − retirados + manuais) é UMA regra jq, `CL_JQ`. Placar e relatório leem o ESTÁGIO (um chip
+  por estágio; `ext:` = time de fora do placar, só no `classificados.html`), nunca o motor.
   Testes: `smoke-contest-modules.sh` (57), `smoke-preflight.sh`, `smoke-contest-create.sh`.
 - **MÓDULO `esqueletos` (esqueleto de código no editor do time, issue #40 do Alex Orozco, 30/09/2026)**:
   no contest o editor abre VAZIO (o time escreve o código DELE por completo — o PR #34 foi recusado por isso);
