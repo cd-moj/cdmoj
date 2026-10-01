@@ -85,7 +85,8 @@ echo "== validações =="
 call /treino/contest-create/create POST "{\"id\":\"semnome\",\"name\":\"Sem Nome\",\"mode\":\"icpc\",\"end\":$FUT,\"problems\":[{\"bank_id\":\"apc#vet\"},{\"problem_id\":\"apc/mat\",\"title\":\"Meu Título\"},{\"problem_id\":\"x/naoexiste\"}]}" reg
 ck "create sem name: sucesso"                 '[[ "$(jq -r .success <<<"$BODY")" == true ]]'
 ck "…nome = título do banco"                  'grep -q "PROBS=.*Vetores" "$FIX/semnome/conf"'
-ck "…title do spec vale como nome"          'grep -q "Meu\\\\ Título\|Meu Título" "$FIX/semnome/conf"'
+# lido como o sistema lê (source): em locale C o `printf %q` grava $'Meu T\303\255tulo' e um grep do texto cru falhava
+ck "…title do spec vale como nome"          '( source "$FIX/semnome/conf"; [[ " ${PROBS[*]} " == *" Meu Título "* ]] )'
 ck "…fora do banco: cai no id (como antes)"   'grep -q "x#naoexiste x#naoexiste\|x#naoexiste C" "$FIX/semnome/conf" || grep -q "x\\\\#naoexiste" "$FIX/semnome/conf"'
 call /treino/contest-create/create POST "{\"id\":\"treino\",\"name\":\"X\",\"mode\":\"icpc\",\"end\":$FUT,\"problems\":[{\"problem_id\":\"a/b\",\"name\":\"AB\"}]}" reg
 ck "id reservado 409"       '[[ "$OUT" == *"Status: 409"* ]]'

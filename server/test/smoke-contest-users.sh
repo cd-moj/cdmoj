@@ -5,6 +5,7 @@ set -u
 ROOT="$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)"; ROUTER="$ROOT/api/v1/router.sh"
 FIX="$(mktemp -d)"; SESS="$(mktemp -d)"; trap 'rm -rf "$FIX" "$SESS"' EXIT
 source "$(dirname "$(readlink -f "$0")")/fixture.sh"
+fx_owners_index "$FIX"   # índice de problemas da fixture (nunca o banco real da máquina)
 T="$FIX/treino"; mkdir -p "$T/var/jsons"
 printf 'CONTEST_ID=treino\nCONTEST_TYPE=lista-publica\nUSER_STORE=v2\n' > "$T/conf"
 fx_user "$T" boss.admin p "Boss"

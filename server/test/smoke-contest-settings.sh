@@ -4,6 +4,7 @@ set -u
 ROOT="$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)"; ROUTER="$ROOT/api/v1/router.sh"
 FIX="$(mktemp -d)"; SESS="$(mktemp -d)"; trap 'rm -rf "$FIX" "$SESS"' EXIT
 source "$(dirname "$(readlink -f "$0")")/fixture.sh"
+fx_owners_index "$FIX"   # índice de problemas da fixture (nunca o banco real da máquina)
 C="$FIX/sc"; mkdir -p "$C/var" "$C/enunciados" "$FIX/treino/var/jsons"
 NOW="$(date +%s)"; FUT=$(( NOW + 100000 ))
 { printf 'CONTEST_ID=sc\nCONTEST_TYPE=icpc\nCONTEST_NAME=Antigo\nCONTEST_START=%s\nCONTEST_END=%s\n' 1 "$FUT"
