@@ -13,19 +13,26 @@ export function makeStepModulos(ctx) {
   const msg = el('div', { class: 'small muted', style: 'margin:.3rem 0' });
   const sync = () => { d.modules = Object.entries(checks).filter(([, cb]) => cb.checked).map(([id]) => id); };
 
+  // `esqueletos` EXIGE o editor embutido (a API recusa com 422 editor_required): com o editor desligado no
+  // passo 5, a caixa fica travada e desmarcada
+  const noEditor = !!(d.opts && d.opts.show_editor === false);
+  if (noEditor && d.modules.includes('esqueletos')) d.modules = d.modules.filter((x) => x !== 'esqueletos');
   const card = (m) => {
     const cb = el('input', { type: 'checkbox', onchange: sync }); cb.checked = d.modules.includes(m.id); checks[m.id] = cb;
-    return el('div', { class: 'gen-card' },
+    const blocked = m.id === 'esqueletos' && noEditor;
+    if (blocked) { cb.checked = false; cb.disabled = true; }
+    return el('div', { class: 'gen-card' + (blocked ? ' muted' : '') },
       el('label', { style: 'display:flex;gap:.5rem;align-items:flex-start;cursor:pointer' }, cb,
         el('div', { style: 'flex:1' },
           el('h4', { style: 'margin:0' }, m.icon + ' ' + m.name),
           el('div', { class: 'small muted', style: 'margin:.2rem 0' }, m.desc),
-          el('div', { class: 'small' }, T('Abre: ', 'Opens: ', 'Abre: '), m.panels.join(' · ')))));
+          el('div', { class: 'small' }, T('Abre: ', 'Opens: ', 'Abre: '), m.panels.join(' · ')),
+          blocked ? el('div', { class: 'small', style: 'color:#b8860b' }, T('Precisa do editor de código no browser: ligue-o no passo 5 · Opções.', 'It needs the in-browser code editor: turn it on in step 5 · Options.', 'Necesita el editor de código en el navegador: actívalo en el paso 5 · Opciones.')) : '')));
   };
   const presets = el('div', { class: 'row', style: 'gap:.4rem;flex-wrap:wrap;align-items:center;margin:.4rem 0' },
     el('span', { class: 'small muted' }, T('Pré-marcar:', 'Pre-select:', 'Preseleccionar:')),
     ...PRESETS().map((p) => el('button', { class: 'btn ghost small', title: p.hint, onclick: () => {
-      Object.entries(checks).forEach(([id, cb]) => { cb.checked = p.mods.includes(id); }); sync();
+      Object.entries(checks).forEach(([id, cb]) => { cb.checked = !cb.disabled && p.mods.includes(id); }); sync();
       msg.textContent = T(`preset «${p.name}»: `, `preset "${p.name}": `, `preset "${p.name}": `) + p.hint;
     } }, p.name)));
 

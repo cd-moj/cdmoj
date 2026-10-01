@@ -27,6 +27,7 @@ const TARGET = {
   modules: ['central', 'modulos'],
   problems: ['prova', 'problemas'], pool_problems: ['prova', 'problemas'], pool: ['prova', 'problemas'],
   report: ['prova', 'relatorio'],   // postflight (encerrar evento)
+  esqueletos: ['prova', 'esqueletos'],
   users: ['pessoas', 'contas'], shared_users: ['pessoas', 'contas'],
   registration: ['pessoas', 'inscricoes'], reg_invites: ['pessoas', 'inscricoes'], reg_source: ['pessoas', 'inscricoes'],
   print: ['operacao', 'staff'], staff_filters: ['operacao', 'staff'],

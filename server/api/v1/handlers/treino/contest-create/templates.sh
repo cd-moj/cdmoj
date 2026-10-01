@@ -15,8 +15,9 @@ if [[ "${REQUEST_METHOD:-GET}" == GET ]]; then
   cur="$(cc_tpl_read "$SESSION_LOGIN")"
   if [[ -n "$name" ]]; then
     jq -e --arg n "$name" '.templates|has($n)' >/dev/null 2>&1 <<<"$cur" || fail 404 "Template não encontrado" "notfound"
-    ok_json '{template:{name:$n, spec:($t.templates[$n].spec // {}), created_at:($t.templates[$n].created_at // 0), updated_at:($t.templates[$n].updated_at // 0)}}' \
-      --arg n "$name" --argjson t "$cur"
+    # o arquivo de templates do usuário vai a 20 × 64 KB: por ARQUIVO (ok_json_slurp), nunca pelo argv do jq
+    ok_json_slurp '{template:{name:$n, spec:($t[0].spec // {}), created_at:($t[0].created_at // 0), updated_at:($t[0].updated_at // 0)}}' \
+      t "$(jq -c --arg n "$name" '.templates[$n]' <<<"$cur")" --arg n "$name"
     exit 0
   fi
   ok_json '{templates:$l, total:($l|length)}' --argjson l "$(jq -c '

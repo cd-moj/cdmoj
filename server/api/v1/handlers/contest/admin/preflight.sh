@@ -780,6 +780,36 @@ else
     "Documentos de la competencia" "$ndoc generado(s), $npub publicado(s) para la sede"
 fi
 
+# --- esqueletos de código (módulo esqueletos, lib/esqueletos.sh) -------------------------
+# fail: módulo ligado com o editor embutido desligado (as portas recusam isso; aqui pega o conf editado à
+# mão). warn: modo ICPC (escolha legítima, mas o time da maratona espera o editor vazio) e Java
+# personalizado com `public class` (o editor envia solution.java: o javac recusa = CE para todos).
+if mod_on "$contest" esqueletos; then
+  if ! esq_editor_on "$contest"; then
+    add3 esqueletos fail "Esqueletos sem o editor embutido" "o módulo está ligado, mas o editor de código no browser está desligado: o time não vê esqueleto nenhum (ligue o editor nas Regras ou desligue o módulo)" \
+      "Skeletons without the built-in editor" "the module is on, but the in-browser code editor is off: teams see no skeleton (turn the editor on in Rules or turn the module off)" \
+      "Esqueletos sin el editor integrado" "el módulo está activado, pero el editor de código en el navegador está desactivado: los equipos no ven ningún esqueleto (activa el editor en Reglas o desactiva el módulo)"
+  else
+    IFS=$'\t' read -r esq_cus esq_off esq_pub < <(esq_langs_json "$contest" | jq -r '[ ([.[] | select(.mode == "custom")] | length),
+        ([.[] | select(.mode == "off")] | length),
+        ((.java // {}) | if .mode == "custom" and ((.code // "") | test("public\\s+(final\\s+)?class")) then 1 else 0 end) ] | @tsv' 2>/dev/null)
+    esq_cus="${esq_cus:-0}"; esq_off="${esq_off:-0}"
+    if [[ "${esq_pub:-0}" == 1 ]]; then
+      add3 esqueletos warn "Esqueleto Java com public class" "o editor envia o arquivo como solution.java e o javac recusa uma classe pública com outro nome: todo envio Java pelo editor daria Compilation Error (tire o public da classe em Prova › Esqueletos)" \
+        "Java skeleton with public class" "the editor sends the file as solution.java, and javac rejects a public class with another name: every Java submission from the editor would get Compilation Error (remove public from the class in Contest › Skeletons)" \
+        "Esqueleto Java con public class" "el editor envía el archivo como solution.java y javac rechaza una clase pública con otro nombre: todo envío Java desde el editor daría Compilation Error (quita el public de la clase en Competencia › Esqueletos)"
+    elif [[ "$(contest_score_mode "$contest")" == icpc ]]; then
+      add3 esqueletos warn "Esqueletos de código em contest ICPC" "o editor do time abre com o esqueleto da linguagem; na maratona o time costuma esperar o editor vazio (enviar o esqueleto intacto é recusado na tela)" \
+        "Code skeletons in an ICPC contest" "the team editor opens with the language skeleton; in a programming marathon teams usually expect an empty editor (submitting the untouched skeleton is refused on screen)" \
+        "Esqueletos de código en competencia ICPC" "el editor del equipo abre con el esqueleto del lenguaje; en una maratón los equipos suelen esperar el editor vacío (enviar el esqueleto intacto se rechaza en pantalla)"
+    else
+      add3 esqueletos ok "Esqueletos de código" "padrão do MOJ, $esq_cus personalizado(s), $esq_off sem esqueleto; problema de função abre vazio" \
+        "Code skeletons" "MOJ default, $esq_cus custom, $esq_off without skeleton; function problems open empty" \
+        "Esqueletos de código" "predeterminado del MOJ, $esq_cus personalizado(s), $esq_off sin esqueleto; los problemas de función abren vacíos"
+    fi
+  fi
+fi
+
 # --- integração nutellaboot (mlinux) -----------------------------------------------------
 # Só entra QUANDO CONFIGURADA (contest sem mlinux não ganha aviso eterno). Checa que a
 # chave abre a API (curl -m 5 — a Central é do admin e abre pouco).

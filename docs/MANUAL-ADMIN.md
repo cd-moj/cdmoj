@@ -28,7 +28,7 @@ painel de módulo **desligado** cai em **Central › Módulos** com um aviso diz
 | Grupo | Painéis | Aparece |
 |---|---|---|
 | **🏁 Central** | Central · **Módulos** · Regras | sempre |
-| **🧩 Prova** | Problemas · **Relatório** | sempre |
+| **🧩 Prova** | Problemas · Esqueletos (`esqueletos`) · **Relatório** | sempre (Esqueletos só com o módulo) |
 | **👥 Pessoas** | Contas · Inscrições (`inscricoes`) · Sessões | sempre (Inscrições só com o módulo) |
 | **🎛️ Operação** | Situação · Staff · Juízes · Auditoria | sempre |
 | **🏟️ Evento** | Rodadas (`rodadas`) · Documentos (`documentos`) · Balões (`baloes`) · Classificação (`classificacao`) · Times (`sedes` ou `telao`) · Coortes (`coortes`) · Sedes & escolas (`sedes`) | com o módulo entre parênteses |
@@ -150,6 +150,7 @@ correspondentes; **desligar esconde, sem apagar nada** — religar restaura tudo
 | `telao` | cartões Revelação e Telão; Evento › Times (fotos) | `animeitor.json`, `webcast.json`, fotos de time |
 | `classificacao` | Evento › Classificação (seletor de algoritmo) | `classification.json` |
 | `virtual` | Evento › Virtual; botão **Virtual** no card do contest encerrado; link no placar (ver §6¾) | `virtual/runs/` |
+| `esqueletos` | Prova › Esqueletos: o editor de código do time abre com o esqueleto da linguagem (abaixo) | `esqueletos.json` |
 
 Onde se liga: **Central › Módulos** (presets que só pré-marcam), o passo **7 · Módulos** do
 [criar contest](/treino/criar/), `moj-contest -c <cid> modules on|off` ou a seção `modules{}` do
@@ -160,6 +161,32 @@ Só desligar é manual. Também vale para o spec de criação — um só JSON le
 cores, coortes, gate, rodadas, documentos, janela de inscrição, telão, classificação); o `export`
 devolve a mesma seção, sem segredos. Contests criados antes dos módulos são detectados uma vez
 pelos arquivos que já têm (`server/bin/contest-modules-detect.sh`).
+
+### Esqueletos de código (módulo `esqueletos`)
+
+No contest, o editor de código do time abre **vazio**: o time escreve o código dele por completo. Com
+o módulo `esqueletos`, o editor abre com o **esqueleto** da linguagem (o `main` e as leituras de
+costume). Use em lista ou prova de disciplina, quando o esqueleto ajuda o aluno.
+
+- **Precisa do editor de código no browser ligado** (Central › Regras). Ligar o módulo com o editor
+  desligado é recusado. Desligar o editor com o módulo ligado também é recusado: desligue o módulo
+  antes.
+- Em **Prova › Esqueletos**, cada linguagem tem três escolhas:
+  - **padrão do MOJ**: o mesmo esqueleto do treino;
+  - **personalizado**: o esqueleto que você escrever para este contest;
+  - **sem esqueleto**: aquela linguagem abre vazia.
+- Ao trocar de linguagem, o texto só muda enquanto ele ainda é o esqueleto intacto. O código que o
+  time digitou fica.
+- Enviar o esqueleto sem mudar nada é recusado na tela ("Você ainda não alterou o esqueleto"). A
+  trava de editor vazio continua valendo.
+- Problema de **submissão de função** (o pacote declara `FUNCTION_LANGS`) abre vazio nas linguagens
+  do driver: o `main` do esqueleto daria Compilation Error.
+- Atenção: o editor envia o arquivo como `solution.<extensão>`. Em Java, não declare a classe como
+  `public` (o `javac` exige que uma classe pública tenha o nome do arquivo). A Central avisa.
+- O módulo fica fora do preset "Maratona / ICPC": na maratona o time espera o editor vazio. Em contest
+  ICPC a Central avisa.
+- O esqueleto personalizado vai junto no export, no template e no duplicar. Pela CLI:
+  `moj-contest -c <cid> esqueletos ls|show|set|off|reset`.
 
 ## 2. Regras (Central › Regras) — opção por opção
 

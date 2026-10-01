@@ -1057,7 +1057,7 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
 - **MÓDULOS DO CONTEST (`lib/modules.sh`, 2026-09-05)** — grupos de recursos que o admin LIGA por
   contest (`CONTEST_MODULES=a,b` no conf, `%q` escapa a vírgula ⇒ `mod_raw` tira as barras; ausente
   = nenhum). Catálogo ÚNICO `MODULES=(sedes maquinas rodadas documentos baloes coortes inscricoes
-  telao classificacao virtual)`, espelhado em `web/contest/admin/modules.js` (paridade testada em
+  telao classificacao virtual esqueletos)`, espelhado em `web/contest/admin/modules.js` (paridade testada em
   `smoke-admin-nav.sh`); `mod_on/mod_any/mod_list_json/mod_set/mod_detect`. O gate é **UX** (decide
   nav/painéis/checagens/cartões); **o acesso continua cortado em cada rota**. **Desligar nunca apaga
   dado** (o painel avisa; `detected` mostra que há arquivo). **Gravar o artefato de um módulo LIGA o
@@ -1075,6 +1075,24 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   **Classificação por catálogo**: `admin/classify.sh` despacha `config.algorithm` por allowlist
   `CL_ENGINES` (`sbc-fase1` → `score/classify-br.sh`); a PDA = motor novo + 1 linha + smoke.
   Testes: `smoke-contest-modules.sh` (57), `smoke-preflight.sh`, `smoke-contest-create.sh`.
+- **MÓDULO `esqueletos` (esqueleto de código no editor do time, issue #40 do Alex Orozco, 30/09/2026)**:
+  no contest o editor abre VAZIO (o time escreve o código DELE por completo — o PR #34 foi recusado por isso);
+  o módulo é o opt-in. `lib/esqueletos.sh` (no prelúdio): `esq_effective` = `mod_on esqueletos` E `SHOWEDITOR != 0`,
+  por `conf_value` (zero processos) e conferido na LEITURA; `contests/<c>/esqueletos.json` guarda só o que o admin
+  TROCOU (`{langs:{<lang>:{mode:"custom",code}|{mode:"off"}}}`) — o PADRÃO mora só em `web/shared/languages.js`.
+  O módulo EXIGE o editor nas DUAS direções, em toda porta: `admin/modules` (422 `editor_required`),
+  `admin/settings` `show_editor:false` (409 `module_needs_editor`, ANTES de gravar qualquer campo), `cc_create`
+  (criar/duplicar/template, 422) e o próprio `admin/esqueletos` (gravar liga o módulo). Rotas:
+  `/contest/admin/esqueletos` (set/off/reset, 64 KB por linguagem, linguagem = `PLATFORM_LANGS` + o que o contest
+  declara) e `/contest/esqueletos` (o time; 404 `module_off` fora do efetivo); o `/contest/userinfo` diz
+  `code_templates`. Web: painel **Prova › Esqueletos** (`esqueletos-tab.js`; módulo num grupo COMUM — o
+  `panelVisible` não olha o grupo), `contest.js` usa `web/shared/editor-skeleton.js` (a regra: personalizado ›
+  padrão; `off` e `function_langs` = vazio; troca de linguagem só com o texto intacto; **trava do esqueleto intacto
+  só na TELA** — o `/submit` não a aplica). Fora do preset "Maratona"; a Central (`esqueletos`) dá fail sem editor,
+  warn em ICPC e com Java `public class` (o editor envia `solution.java`). ⚠ ARG_MAX: esqueletos somam centenas de
+  KB — o export (`cc_modules_spec`/`cc_export_spec`) e o GET de template passaram a levar módulos/templates por
+  ARQUIVO (`--slurpfile`/`ok_json_slurp`); seção nova grande em spec segue o mesmo caminho. Testes:
+  `smoke-esqueletos.sh` (36), `smoke-esqueletos.gjs.sh`. Doc: `MANUAL-ADMIN` §1½ (pt/en/es).
 - **FUSO (2026-08-06)**: a imagem é debian-slim **sem TZ** ⇒ o servidor rodava em UTC e TUDO que
   ele escrevia p/ humano saía 3 h adiantado (DM do convite, preflight, caderno, relatório). Hoje
   `lib/common.sh` faz `export TZ="$MOJ_TZ"` (default `America/Sao_Paulo`, em `etc/common.conf`) e

@@ -10,6 +10,7 @@ import { el } from '/shared/ui.js';
 import { apiGet, apiPost } from '/shared/api.js';
 import { makeSettingsEditor, toLocalDT, dtToEpoch } from '/shared/contest-config/index.js';
 import { T } from '/shared/i18n.js';
+import { esqErrorText } from './modules.js';
 
 const enc = encodeURIComponent;
 
@@ -76,7 +77,7 @@ export function makeSettingsTab(CONTEST, opts = {}) {
       try {
         await apiPost('/contest/admin/settings?contest=' + enc(CONTEST), v, G);
         s.secret = v.secret; msg.className = 'small'; msg.textContent = T('✓ salvo', '✓ saved', '✓ guardado');
-      } catch (e) { msg.className = 'small error-box'; msg.textContent = e.message || T('falha', 'failed', 'fallido'); }
+      } catch (e) { msg.className = 'small error-box'; msg.textContent = esqErrorText(e); }   // inclui o 409 do módulo esqueletos
       save.disabled = false;
     });
     panel.append(el('div', { class: 'row', style: 'margin-top:.7rem' }, save, msg));

@@ -3,7 +3,8 @@
 # Detecção ÚNICA dos módulos de um contest a partir dos ARTEFATOS que ele já tem (lib/modules.sh
 # mod_detect: regions.json → sedes, ua-gate/trava/nutella → maquinas, rounds.json → rodadas,
 # docs/config.json → documentos, balloons.json → baloes, cohorts.json → coortes,
-# registrations.json → inscricoes, webcast/fotos → telao, classification.json → classificacao).
+# registrations.json → inscricoes, webcast/fotos → telao, classification.json → classificacao,
+# virtual/runs → virtual, esqueletos.json → esqueletos).
 # Sem --apply é DRY-RUN: só lista. Com --apply grava CONTEST_MODULES (união com o que já está
 # ligado) só onde muda, e audita (modules-detect). Idempotente: 2ª rodada = 0 mudanças.
 # Saída: TSV `contest<TAB>decisão<TAB>módulos<TAB>motivos` no stdout; resumo no stderr.

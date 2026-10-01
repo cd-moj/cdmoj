@@ -16,6 +16,7 @@ import { T } from '/shared/i18n.js';
 export const PANEL_MODULE = {
   inscricoes: ['inscricoes'],
   rodadas: ['rodadas'], documentos: ['documentos'], baloes: ['baloes'], classificacao: ['classificacao'], virtual: ['virtual'],
+  esqueletos: ['esqueletos'],   // painel de módulo num grupo COMUM (Prova): o panelVisible não olha o grupo
   times: ['sedes', 'telao'], coortes: ['coortes'], sedes: ['sedes'],
   gate: ['maquinas'], anomalias: ['maquinas'], mlinux: ['maquinas'],
 };
@@ -30,6 +31,7 @@ export const GROUPS = () => [
   ] },
   { id: 'prova', label: T('🧩 Prova', '🧩 Contest', '🧩 Competencia'), panels: [
     { id: 'problemas', label: T('Problemas', 'Problems', 'Problemas') },
+    { id: 'esqueletos', label: T('Esqueletos', 'Skeletons', 'Esqueletos') },
     { id: 'relatorio', label: T('Relatório', 'Report', 'Informe') },
   ] },
   { id: 'pessoas', label: T('👥 Pessoas', '👥 People', '👥 Personas'), panels: [

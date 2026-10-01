@@ -6,7 +6,7 @@
 import { el } from '/shared/ui.js';
 import { apiGet, apiPost } from '/shared/api.js';
 import { T } from '/shared/i18n.js';
-import { MODULES, PRESETS } from './modules.js';
+import { MODULES, PRESETS, esqErrorText } from './modules.js';
 
 const enc = encodeURIComponent;
 
@@ -71,7 +71,7 @@ export function makeModulesTab(CONTEST) {
       await fetchData(); renderCards();
       msg.className = 'small'; msg.textContent = T('✓ salvo', '✓ saved', '✓ guardado');
       window.dispatchEvent(new CustomEvent('moj:modules', { detail: { enabled: (DATA && DATA.enabled) || [] } }));
-    } catch (e) { msg.className = 'small error-box'; msg.textContent = e.message || T('falha', 'failed', 'fallido'); }
+    } catch (e) { msg.className = 'small error-box'; msg.textContent = esqErrorText(e); }   // inclui o 422 do módulo esqueletos
   }
   async function fetchData() { DATA = await apiGet('/contest/admin/modules?contest=' + enc(CONTEST), G); }
 

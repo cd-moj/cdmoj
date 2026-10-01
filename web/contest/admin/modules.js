@@ -7,7 +7,7 @@
 // Módulo novo: id aqui + no bash (MODULES, mod_detect) + painel em nav.js (PANEL_MODULE) + doc.
 import { T } from '/shared/i18n.js';
 
-export const MODULE_IDS = ['sedes', 'maquinas', 'rodadas', 'documentos', 'baloes', 'coortes', 'inscricoes', 'telao', 'classificacao', 'virtual'];
+export const MODULE_IDS = ['sedes', 'maquinas', 'rodadas', 'documentos', 'baloes', 'coortes', 'inscricoes', 'telao', 'classificacao', 'virtual', 'esqueletos'];
 
 // fábrica preguiçosa: T() no topo congelaria o idioma antes do LOCALE do contest
 export const MODULES = () => [
@@ -61,6 +61,11 @@ export const MODULES = () => [
       'After it ends, any training account can redo the contest against the official scoreboard, in the participant\'s own time. It only turns on if ALL problems are already public in training; a secret contest never.',
       'Después de terminar, cualquier cuenta de entrenamiento puede rehacer la competencia contra el marcador oficial, en su propio tiempo. Solo se activa si TODOS los problemas ya son públicos en el entrenamiento; una competencia secreta nunca.'),
     panels: [T('Evento › Virtual', 'Event › Virtual', 'Evento › Virtual')] },
+  { id: 'esqueletos', icon: '📝', name: T('Esqueleto de código', 'Code skeleton', 'Esqueleto de código'),
+    desc: T('O editor de código do time abre com o esqueleto da linguagem (o mesmo do treino) ou com o que você escrever para este contest; uma linguagem também pode abrir vazia. Precisa do editor de código no browser ligado. Enviar o esqueleto sem mudar nada é recusado na tela. Problema de submissão de função abre vazio.',
+      'The team code editor opens with the language skeleton (the same as in training) or with the one you write for this contest; a language can also open empty. It needs the in-browser code editor on. Submitting the skeleton without changes is refused on screen. A function-submission problem opens empty.',
+      'El editor de código del equipo abre con el esqueleto del lenguaje (el mismo del entrenamiento) o con el que escribas para esta competencia; un lenguaje también puede abrir vacío. Necesita el editor de código en el navegador activado. Enviar el esqueleto sin cambios se rechaza en pantalla. Un problema de envío de función abre vacío.'),
+    panels: [T('Prova › Esqueletos', 'Contest › Skeletons', 'Competencia › Esqueletos')] },
 ];
 
 // presets só PRÉ-MARCAM as caixas do painel Módulos — o admin ainda salva
@@ -71,6 +76,16 @@ export const PRESETS = () => [
     hint: T('o comum + gate de máquina, sessão única e anomalias', 'the common part + machine gate, single session and anomalies', 'lo común + control de acceso de máquina, sesión única y anomalías') },
   { id: 'seletiva', name: T('Seletiva / prova com inscrição', 'Selection / contest with registration', 'Selectiva / competencia con inscripción'), mods: ['inscricoes', 'documentos', 'baloes', 'telao'],
     hint: T('inscrição, caderno, balões e cerimônia — uma sede', 'registration, booklet, balloons and ceremony — one site', 'inscripción, cuadernillo, globos y ceremonia — una sede') },
-  { id: 'maratona', name: T('Maratona / ICPC (várias sedes)', 'Maratona / ICPC (multi-site)', 'Maratona / ICPC (multisede)'), mods: MODULE_IDS.filter((m) => m !== 'virtual'),   // virtual é decisão de DEPOIS da prova (exige problemas públicos)
+  { id: 'maratona', name: T('Maratona / ICPC (várias sedes)', 'Maratona / ICPC (multi-site)', 'Maratona / ICPC (multisede)'), mods: MODULE_IDS.filter((m) => m !== 'virtual' && m !== 'esqueletos'),   // virtual é decisão de DEPOIS da prova (exige problemas públicos); na maratona o time espera o editor VAZIO
     hint: T('tudo ligado', 'everything on', 'todo activado') },
 ];
+
+// mensagens dos códigos de erro do módulo (o servidor responde em PT; a tela fala o idioma da interface)
+export function esqErrorText(e) {
+  const code = (e && (e.code || (e.data && e.data.code))) || '';
+  if (code === 'editor_required') return T('Os esqueletos precisam do editor embutido: ligue "Editor de código no browser" em Central › Regras.', 'Skeletons need the built-in editor: turn on "In-browser code editor" in Home › Rules.', 'Los esqueletos necesitan el editor integrado: activa "Editor de código en el navegador" en Central › Reglas.');
+  if (code === 'module_needs_editor') return T('O módulo Esqueletos de código está ligado e precisa do editor embutido: desligue o módulo antes (Central › Módulos).', 'The Code skeleton module is on and needs the built-in editor: turn the module off first (Home › Modules).', 'El módulo Esqueleto de código está activado y necesita el editor integrado: desactiva el módulo antes (Central › Módulos).');
+  if (code === 'code_too_big') return T('Esqueleto grande demais (máximo de 64 KB).', 'Skeleton too large (64 KB maximum).', 'Esqueleto demasiado grande (máximo de 64 KB).');
+  if (code === 'lang_invalid') return T('Linguagem inválida para este contest.', 'Invalid language for this contest.', 'Lenguaje inválido para esta competencia.');
+  return (e && e.message) || T('erro', 'error', 'error');
+}

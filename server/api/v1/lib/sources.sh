@@ -7,6 +7,7 @@
 # Espera $_DIR = raiz de api/v1 (o router e o molde o definem antes).
 source "$_DIR/lib/common.sh"
 source "$_DIR/lib/modules.sh"        # módulos ligáveis do contest (catálogo + mod_on; só funções)
+source "$_DIR/lib/esqueletos.sh"     # módulo esqueletos: esq_effective (userinfo) + leitura/escrita do esqueletos.json
 source "$_DIR/lib/spool-shard.sh"
 source "$_DIR/lib/params.sh"
 source "$_DIR/lib/auth.sh"

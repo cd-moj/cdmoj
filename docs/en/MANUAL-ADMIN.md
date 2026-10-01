@@ -1,4 +1,4 @@
-<!-- i18n-source: MANUAL-ADMIN.md blob:d1f563d87f58483f5be81d3a4fe8b23bb97953f1 -->
+<!-- i18n-source: MANUAL-ADMIN.md blob:1631fb0cb4a3a7dd6c09293ed8590fa47f5b119b -->
 # MOJ: Organizer manual (the contest .admin panel)
 
 > **Translation note.** This manual is a translation of the Portuguese original. The command-line tools (`moj`, `moj-contest`, `moj-comp`) print their messages in Portuguese, and the command examples below are identical to the original.
@@ -32,7 +32,7 @@ turn on.
 | Group | Panels | Appears |
 |---|---|---|
 | **🏁 Home** | Home · **Modules** · Rules | always |
-| **🧩 Contest** | Problems · **Report** | always |
+| **🧩 Contest** | Problems · Skeletons (`esqueletos`) · **Report** | always (Skeletons only with the module) |
 | **👥 People** | Accounts · Registrations (`inscricoes`) · Sessions | always (Registrations only with the module) |
 | **🎛️ Operations** | Status · Staff · Judges · Audit | always |
 | **🏟️ Event** | Rounds (`rodadas`) · Documents (`documentos`) · Balloons (`baloes`) · Qualification (`classificacao`) · Teams (`sedes` or `telao`) · Cohorts (`coortes`) · Sites & schools (`sedes`) | with the module in parentheses |
@@ -157,6 +157,7 @@ you turn it on again, all comes back.
 | `telao` | Reveal and Big screen cards; Event › Teams (photos) | `animeitor.json`, `webcast.json`, team photos |
 | `classificacao` | Event › Qualification (algorithm selector) | `classification.json` |
 | `virtual` | Event › Virtual; **Virtual** button on the card of the ended contest; link on the scoreboard (see §6¾) | `virtual/runs/` |
+| `esqueletos` | Contest › Skeletons: the team code editor opens with the language skeleton (below) | `esqueletos.json` |
 
 Where to turn a module on: **Home › Modules** (the presets only preselect), step **7 · Modules** of
 [create contest](/treino/criar/), `moj-contest -c <cid> modules on|off` or the `modules{}` section
@@ -168,6 +169,32 @@ one JSON creates the full contest, with the data of each module (sites, colors, 
 rounds, documents, registration window, big screen, qualification). The `export` gives back the
 same section, without secrets. For contests created before the modules, MOJ detects the modules
 one time from the files that they already have (`server/bin/contest-modules-detect.sh`).
+
+### Code skeletons (module `esqueletos`)
+
+In a contest, the team code editor opens **empty**: the team writes its full code. With the module
+`esqueletos`, the editor opens with the language **skeleton** (the `main` and the usual reads). Use it
+in a course list or a course exam, when the skeleton helps the student.
+
+- **It needs the in-browser code editor on** (Home › Rules). MOJ refuses to turn the module on with
+  the editor off. MOJ also refuses to turn the editor off while the module is on: turn the module off
+  first.
+- In **Contest › Skeletons**, each language has three choices:
+  - **MOJ default**: the same skeleton as in training;
+  - **custom**: the skeleton that you write for this contest;
+  - **no skeleton**: that language opens empty.
+- When the team changes the language, the text changes only while it is still the untouched
+  skeleton. The code that the team typed stays.
+- The screen refuses to submit the skeleton without changes ("You have not changed the skeleton
+  yet"). The empty-editor check still applies.
+- A **function-submission** problem (the package declares `FUNCTION_LANGS`) opens empty in the driver
+  languages: the `main` of the skeleton would give a Compilation Error.
+- Warning: the editor sends the file as `solution.<extension>`. In Java, do not declare the class as
+  `public` (`javac` requires a public class to have the file name). The Home page warns.
+- The module is not in the "Maratona / ICPC" preset: in a programming marathon the team expects an
+  empty editor. In an ICPC contest the Home page warns.
+- The custom skeleton goes with the export, the template and the duplicate. From the CLI:
+  `moj-contest -c <cid> esqueletos ls|show|set|off|reset`.
 
 ## 2. Rules (Home › Rules): option by option
 

@@ -11,7 +11,7 @@
 # Este catálogo tem um ESPELHO em web/contest/admin/modules.js (nome/descrição/painéis p/ a
 # UI). server/test/smoke-admin-nav.sh confere que as duas listas são iguais — módulo novo
 # entra nos dois no mesmo commit. O gate na UI é conveniência: o acesso é cortado na API.
-MODULES=(sedes maquinas rodadas documentos baloes coortes inscricoes telao classificacao virtual)
+MODULES=(sedes maquinas rodadas documentos baloes coortes inscricoes telao classificacao virtual esqueletos)
 
 mod_valid(){ local m; for m in "${MODULES[@]}"; do [[ "$m" == "$1" ]] && return 0; done; return 1; }
 # mod_raw <c> — o valor cru do conf ("a,b,c" ou vazio); zero fork (conf_value é builtin)
@@ -90,6 +90,8 @@ mod_detect(){
       compgen -G "$d/virtual/runs/*.json" >/dev/null 2>&1 && { printf virtual/runs; return 0; } ;;
     classificacao)
       [[ -s "$d/classification.json" ]] && jq -e '(.stages // []) | length > 0' "$d/classification.json" >/dev/null 2>&1 && { printf classification.json; return 0; } ;;
+    esqueletos)
+      [[ -s "$d/esqueletos.json" ]] && jq -e '(.langs // {}) | length > 0' "$d/esqueletos.json" >/dev/null 2>&1 && { printf esqueletos.json; return 0; } ;;
   esac
   return 1
 }

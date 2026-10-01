@@ -26,6 +26,7 @@ import { makeDocsTab } from './docs-tab.js';
 import { makeBalloonsTab } from './balloons-tab.js';
 import { makeClassifyTab } from './classify-tab.js';
 import { makeVirtualTab } from './virtual-tab.js';
+import { makeEsqueletosTab } from './esqueletos-tab.js';
 import { makeUsersTab } from './users-tab.js';
 import { makeRegistrationsTab } from './registrations-tab.js';
 import { makeSessionsTab } from './sessions-tab.js';
@@ -69,6 +70,7 @@ const MK = {
   baloes: () => makeBalloonsTab(CONTEST),
   classificacao: () => makeClassifyTab(CONTEST),
   virtual: () => makeVirtualTab(CONTEST),
+  esqueletos: () => makeEsqueletosTab(CONTEST),
   times: () => makeTeamsTab(CONTEST),
   coortes: () => makeCohortsTab(CONTEST),
   sedes: () => makeSitesTab(CONTEST, { go, has }),

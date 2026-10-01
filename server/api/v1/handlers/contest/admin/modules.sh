@@ -36,6 +36,12 @@ for m in "${ON[@]}"; do
   esac
   fail 422 "Participação virtual indisponível: $_vmsg" "virtual_not_eligible"
 done
+# `esqueletos` EXIGE o editor embutido (lib/esqueletos.sh): sem ele o esqueleto não tem onde aparecer.
+# O sentido inverso (desligar o editor com o módulo ligado) é recusado no admin/settings.
+for m in "${ON[@]}"; do
+  [[ "$m" == esqueletos ]] || continue
+  esq_editor_on "$contest" || fail 422 "Esqueletos de código precisam do editor embutido: ligue \"Editor de código no browser\" nas Regras antes" "editor_required"
+done
 cur=",$(mod_raw "$contest"),"
 for m in "${ON[@]}";  do [[ "$cur" == *",$m,"* ]] || cur="$cur$m,"; done
 for m in "${OFF[@]}"; do cur="${cur//,$m,/,}"; done

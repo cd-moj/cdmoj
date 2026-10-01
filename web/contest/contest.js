@@ -4,6 +4,7 @@ import { apiGet, apiGetText, apiGetBlob, apiPost, getToken } from '/shared/api.j
 import { login, logout, status, fileToBase64, textToBase64 } from '/shared/auth.js';
 import { el, verdictClass, isPending, fmtDate, resumoText } from '/shared/ui.js';
 import { createEditor } from '/shared/editor.js';
+import { skeletonFor, isSkeleton, docOnLangChange, contestSkeletonCfg } from '/shared/editor-skeleton.js';
 import { LANGUAGES, DEFAULT_SUBMIT_LANGUAGES, langById, extCanon } from '/shared/languages.js';
 import { T, setLang, getLang } from '/shared/i18n.js';
 import { navLabel } from '/shared/nav-i18n.js';
@@ -75,6 +76,14 @@ let basic = null;
 let problems = [];
 let balloons = {};
 let userinfo = null;
+// módulo `esqueletos` (lib/esqueletos.sh): os esqueletos que o contest personalizou — UMA busca por página, só
+// quando o /contest/userinfo diz que o módulo vale. null = editor VAZIO, como sempre foi.
+let SKEL_LOAD = null;
+function loadSkeletons() {
+  if (!(userinfo && userinfo.code_templates === true)) return Promise.resolve(null);
+  if (!SKEL_LOAD) SKEL_LOAD = apiGet('/contest/esqueletos?contest=' + encodeURIComponent(CONTEST), { contest: CONTEST, auth: true }).catch(() => null);
+  return SKEL_LOAD;
+}
 let submissions = [];
 let loginCountdownTimer = null, loginPollTimer = null;
 let preStartTimer = null, preStartPoll = null;
@@ -889,14 +898,21 @@ function renderSubmitInline(p) {
   dlg.addEventListener('cancel', (e) => { e.preventDefault(); exitFull(); });   // Esc fecha limpo
   if (EDITOR_ONLY) { expandBtn.style.display = 'none'; popBtn.style.display = 'none'; }
 
-  async function mountEditor() {
-    if (editor) return;
-    editor = await createEditor(editorMount, { doc: '', cm: langById(sel.value).cm, tab: 'indent' });
-    sel.addEventListener('change', async () => {
-      const cur = editor.getValue(); editorMount.innerHTML = '';
-      editor = await createEditor(editorMount, { doc: cur, cm: langById(sel.value).cm, tab: 'indent' });
-    });
-    setTimeout(refreshEd, 50);
+  // esqueleto do módulo `esqueletos` (shared/editor-skeleton.js): começa com o da linguagem e só troca o texto
+  // ao mudar de linguagem enquanto ele é vazio ou intacto; problema de FUNÇÃO (function_langs) abre vazio.
+  // skel = null (módulo desligado) = o comportamento de sempre: editor vazio, texto mantido ao trocar.
+  let skel = null, mounting = null;
+  function mountEditor() {
+    if (!mounting) mounting = (async () => {
+      skel = contestSkeletonCfg(await loadSkeletons(), p.function_langs || []);
+      editor = await createEditor(editorMount, { doc: skel ? skeletonFor(sel.value, skel) : '', cm: langById(sel.value).cm, tab: 'indent' });
+      sel.addEventListener('change', async () => {
+        const cur = skel ? docOnLangChange(editor.getValue(), sel.value, skel) : editor.getValue(); editorMount.innerHTML = '';
+        editor = await createEditor(editorMount, { doc: cur, cm: langById(sel.value).cm, tab: 'indent' });
+      });
+      setTimeout(refreshEd, 50);
+    })();
+    return mounting;
   }
   edBtn.addEventListener('click', async () => {
     if (fileInput.files && fileInput.files[0]) {
@@ -916,6 +932,9 @@ function renderSubmitInline(p) {
     }
     const txt = editor ? editor.getValue() : '';
     if (!txt.trim()) { edSteps.innerHTML = `<span class="error-box">${T('Escreva código ou escolha um arquivo.', 'Write code or choose a file.', 'Escribe código o elige un archivo.')}</span>`; return; }
+    // o esqueleto INTACTO conta como vazio: sem isto a trava acima nunca dispararia com o módulo ligado, e um
+    // clique acidental mandaria o main puro (WA com penalidade)
+    if (skel && isSkeleton(txt, skel)) { edSteps.innerHTML = `<span class="error-box">${T('Você ainda não alterou o esqueleto: escreva a sua solução.', 'You have not changed the skeleton yet: write your solution.', 'Todavía no cambiaste el esqueleto: escribe tu solución.')}</span>`; return; }
     edSteps.textContent = T('Preparando…', 'Preparing…', 'Preparando…');
     doSubmit({ filename: 'solution.' + sel.value, code_b64: textToBase64(txt), source: 'web' }, edSteps, edBtn);
   });
@@ -1127,6 +1146,9 @@ async function bootEditorOnly() {
   document.body.classList.add('editor-only');
   show('mainView');
   document.title = 'Editor — ' + (basic.contest_name || 'Contest');
+  // a janela "só editor" não passava pelo boot normal: sem o userinfo, o editor ignorava o editor embutido
+  // desligado e o módulo `esqueletos`
+  if (!userinfo) userinfo = await apiGet('/contest/userinfo?contest=' + encodeURIComponent(CONTEST), { contest: CONTEST, auth: true }).catch(() => null);
   let list = [];
   try {
     const j = await apiGet('/contest/problems?contest=' + encodeURIComponent(CONTEST), { contest: CONTEST, auth: true });
