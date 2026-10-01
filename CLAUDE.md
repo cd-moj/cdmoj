@@ -1079,7 +1079,9 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   smoke; contrato de rc 0/1/2 config/3 recusa, `--check`. **Override manual** (`exclude`/`withdraw`/`add`/
   `override_undo`, motivo obrigatório e interno) fica SEPARADO do `result` do motor e sobrevive ao re-apply; a
   composição (motor − retirados + manuais) é UMA regra jq, `CL_JQ`. Placar e relatório leem o ESTÁGIO (um chip
-  por estágio; `ext:` = time de fora do placar, só no `classificados.html`), nunca o motor.
+  por estágio; `ext:` = time de fora do placar, só no `classificados.html`), nunca o motor. Motores: `sbc-fase1`
+  (`classify-br.sh`) e `latam-pda` (`classify-pda.sh`: região/país das capturas do LOGIN — fora do padrão = recusa
+  rc 3; geográfica do PDF em INTEIROS; lista de espera + `promote_next`; teste `smoke-classify-pda.sh`).
   Testes: `smoke-contest-modules.sh` (57), `smoke-preflight.sh`, `smoke-contest-create.sh`.
 - **MÓDULO `esqueletos` (esqueleto de código no editor do time, issue #40 do Alex Orozco, 30/09/2026)**:
   no contest o editor abre VAZIO (o time escreve o código DELE por completo — o PR #34 foi recusado por isso);

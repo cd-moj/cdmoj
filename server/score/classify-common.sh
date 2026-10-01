@@ -88,5 +88,56 @@ cl_female(){
   return 0
 }
 
+# cl_locale — o LOCALE do contest (pt|en|es; outro/ausente = pt): rótulos que o motor escreve (nome de região)
+cl_locale(){
+  local l; l="$(grep -m1 '^LOCALE=' "$CD/conf" 2>/dev/null | cut -d= -f2 | tr -d "\"'")"
+  case "$l" in en|es) printf '%s' "$l";; *) printf 'pt';; esac
+}
+
+# CL_NORM_AWK / CL_NORM_JQ — a chave de ESCOLA, a mesma regra nos dois lados: "<país>:<sigla>" com a sigla em
+# minúsculas (ASCII) e sem espaço/ponto/vírgula/hífen/sublinhado/aspas ("U.F.P.E" = "ufpe"). O `school_alias`
+# da config junta chaves diferentes numa só (os campi de uma instituição).
+CL_NORM_AWK='function cl_norm(s){ s = tolower(s); gsub(/[ .,_\047"-]/, "", s); return s }'
+CL_NORM_JQ='def cl_norm: ascii_downcase | gsub("[ .,_\\x27\"-]"; "");
+def cl_skey: split(":") | if length >= 2 then (.[0] | ascii_downcase) + ":" + (.[1:] | join(":") | cl_norm) else (.[0] | cl_norm) end;'
+
+# cl_attrs <login-regex> <regiões-válidas.txt> <alias.tsv> — $W/attrs.tsv = "login \t região \t país \t escola"
+# p/ cada linha de $W/rows.tsv (já sem os excluídos). Região e país saem do LOGIN (as duas capturas da regex);
+# escola = "<país>:<sigla normalizada>" › alias. RECUSA (rc 3, com os logins no stderr) se algum login não casa a
+# regex ou traz região fora da tabela — o motor nunca adivinha. Avisos: school_missing (sem sigla nem nome: a
+# escola vira o próprio login) e school_key_collision (a mesma chave com nomes completos diferentes — confira se
+# são mesmo a mesma instituição).
+cl_attrs(){
+  local re="$1" rf="$2" af="$3"
+  # a regex vai por ENVIRON: o -v do gawk interpreta as barras invertidas (\. viraria .)
+  CL_RE="$re" LC_ALL=C gawk -F'\t' -v OFS='\t' -v RF="$rf" -v AF="$af" -v BAD="$W/attrs.bad" -v MISS="$W/attrs.miss" -v COL="$W/attrs.col" "$CL_NORM_AWK"'
+    BEGIN { RE = ENVIRON["CL_RE"]
+            while ((getline l < RF) > 0) if (l != "") R[l] = 1; close(RF)
+            while ((getline l < AF) > 0) { split(l, a, "\t"); if (a[1] != "") AL[a[1]] = a[2] } close(AF)
+            printf "" > BAD; printf "" > MISS; printf "" > COL }
+    { lg = $3
+      if (!match(lg, RE, m) || m[1] == "" || m[2] == "") { print lg "\tpadrão" > BAD; next }
+      rg = tolower(m[1]); ct = tolower(m[2])
+      if (!(rg in R)) { print lg "\tregião " rg > BAD; next }
+      us = $5; uf = $7
+      if (cl_norm(us) != "")      sk = ct ":" cl_norm(us)
+      else if (cl_norm(uf) != "") sk = ct ":" cl_norm(uf)
+      else { sk = "login:" lg; print lg > MISS }
+      if (sk in AL) sk = AL[sk]
+      if (uf != "") { if (!(sk in UF)) UF[sk] = uf; else if (UF[sk] != uf && !(sk in COLD)) { COLD[sk] = 1; print sk "\t" UF[sk] "\t" uf > COL } }
+      print lg, rg, ct, sk }' "$W/rows.tsv" > "$W/attrs.tsv" || return 1
+  if [[ -s "$W/attrs.bad" ]]; then
+    { echo "classify: $(wc -l < "$W/attrs.bad") login(s) fora do padrão de região/país (a regex é $re) — exclua-os ou corrija a regra:"
+      head -20 "$W/attrs.bad" | awk -F'\t' '{ print "  " $1 " (" $2 ")" }'; } >&2
+    return 3
+  fi
+  local miss col
+  miss="$(head -20 "$W/attrs.miss" | jq -Rcs 'split("\n") | map(select(length > 0))')"
+  col="$(head -20 "$W/attrs.col" | jq -Rcs 'split("\n") | map(select(length > 0) | split("\t") | {school:.[0], a:.[1], b:.[2]})')"
+  [[ "$miss" != "[]" && -n "$miss" ]] && cl_warn school_missing "$(jq -cn --argjson l "$miss" '{logins:$l}')"
+  [[ "$col" != "[]" && -n "$col" ]] && cl_warn school_key_collision "$(jq -cn --argjson l "$col" '{schools:$l}')"
+  return 0
+}
+
 # cl_warnings_json — os avisos acumulados como array JSON (p/ a saída do motor)
 cl_warnings_json(){ jq -cs '.' "$W/warn.jsonl" 2>/dev/null || printf '[]'; }

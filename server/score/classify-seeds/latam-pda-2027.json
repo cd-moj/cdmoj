@@ -1,0 +1,285 @@
+{
+  "algorithm": "latam-pda",
+  "N": 40,
+  "max_per_school": 2,
+  "login_regex": "^team([a-z]{2})([a-z]{2})",
+  "regions": [
+    {
+      "code": "br",
+      "name": {
+        "pt": "Brasil",
+        "en": "Brazil",
+        "es": "Brasil"
+      }
+    },
+    {
+      "code": "cb",
+      "name": {
+        "pt": "Caribe",
+        "en": "Caribbean",
+        "es": "Caribe"
+      }
+    },
+    {
+      "code": "ca",
+      "name": {
+        "pt": "América Central",
+        "en": "Central America",
+        "es": "Centroamérica"
+      }
+    },
+    {
+      "code": "mx",
+      "name": {
+        "pt": "México",
+        "en": "Mexico",
+        "es": "México"
+      }
+    },
+    {
+      "code": "no",
+      "name": {
+        "pt": "América do Sul Norte",
+        "en": "South America / North",
+        "es": "Sudamérica Norte"
+      }
+    },
+    {
+      "code": "so",
+      "name": {
+        "pt": "América do Sul Sul",
+        "en": "South America / South",
+        "es": "Sudamérica Sur"
+      }
+    }
+  ],
+  "fractions_prev": {
+    "br": 0,
+    "cb": 0,
+    "ca": 0,
+    "mx": 0,
+    "no": 0,
+    "so": 0
+  },
+  "host_country": "mx",
+  "host_schools": [],
+  "school_alias": {},
+  "female_node": "Times femininos",
+  "participation": "account",
+  "performance": {
+    "min_solved": 0
+  },
+  "countries": {
+    "cap": "min_minus_1",
+    "min_solved": 1
+  },
+  "host": {
+    "min_solved": 0
+  },
+  "geo": {
+    "min_solved": 0,
+    "on_unfilled": "none"
+  },
+  "female": [
+    {
+      "id": "fem-host-country",
+      "scope": "host_country",
+      "min_women": 3,
+      "slots": 1
+    },
+    {
+      "id": "fem-latam",
+      "scope": "latam",
+      "min_women": 3,
+      "slots": 1
+    }
+  ],
+  "edition_blocks": [
+    {
+      "id": "pend",
+      "type": "fixed",
+      "counts_for_school": false,
+      "label": {
+        "pt": "Pendentes de 2026",
+        "en": "Pending teams from 2026",
+        "es": "Pendientes de 2026",
+        "short": {
+          "pt": "pendente 2026",
+          "en": "pending 2026",
+          "es": "pendiente 2026"
+        }
+      },
+      "teams": [
+        {
+          "ext": "acxioma-uclv",
+          "team": "ACxioma",
+          "univ": "Universidad Central \"Martha Abreu\" de Las Villas",
+          "country": "cu",
+          "region": "cb"
+        },
+        {
+          "ext": "lugia-usb",
+          "team": "Lugia Brasileiro",
+          "univ": "Universidad Simón Bolívar",
+          "country": "ve",
+          "region": "no"
+        }
+      ]
+    },
+    {
+      "id": "fem-host-school",
+      "type": "female",
+      "scope": "host_school",
+      "min_women": 3,
+      "slots": 1,
+      "label": {
+        "pt": "Feminina da instituição-sede",
+        "en": "Host institution all-female",
+        "es": "Femenina de la institución sede",
+        "short": {
+          "pt": "feminina sede",
+          "en": "host all-female",
+          "es": "femenina sede"
+        }
+      }
+    },
+    {
+      "id": "fem-region",
+      "type": "female",
+      "scope": "per_region",
+      "min_women": 3,
+      "slots": 1,
+      "label": {
+        "pt": "Feminina por região",
+        "en": "Regions all-female",
+        "es": "Femenina por región",
+        "short": {
+          "pt": "feminina região",
+          "en": "region all-female",
+          "es": "femenina región"
+        }
+      }
+    },
+    {
+      "id": "fem2",
+      "type": "female",
+      "scope": "latam",
+      "min_women": 2,
+      "slots": 3,
+      "label": {
+        "pt": "Duas ou mais competidoras",
+        "en": "Two or more female contestants",
+        "es": "Dos o más competidoras",
+        "short": {
+          "pt": "≥2 competidoras",
+          "en": "≥2 female",
+          "es": "≥2 competidoras"
+        }
+      }
+    },
+    {
+      "id": "fem1",
+      "type": "female",
+      "scope": "latam",
+      "min_women": 1,
+      "slots": 3,
+      "label": {
+        "pt": "Uma ou mais competidoras",
+        "en": "One or more female contestants",
+        "es": "Una o más competidoras",
+        "short": {
+          "pt": "≥1 competidora",
+          "en": "≥1 female",
+          "es": "≥1 competidora"
+        }
+      }
+    },
+    {
+      "id": "country-part",
+      "type": "country_participation",
+      "quotas": [
+        5,
+        4,
+        3,
+        2,
+        1
+      ],
+      "min_solved": 0,
+      "cycle_teams": {},
+      "cycle_institutions": {},
+      "label": {
+        "pt": "Participação por país (ciclo)",
+        "en": "Country participation (cycle)",
+        "es": "Participación por país (ciclo)",
+        "short": {
+          "pt": "participação país",
+          "en": "country participation",
+          "es": "participación país"
+        }
+      }
+    },
+    {
+      "id": "host-extra",
+      "type": "host_school",
+      "slots": 2,
+      "general_rule": false,
+      "label": {
+        "pt": "Instituição-sede (adicional)",
+        "en": "Additional host institution",
+        "es": "Institución sede (adicional)",
+        "short": {
+          "pt": "sede adicional",
+          "en": "host extra",
+          "es": "sede adicional"
+        }
+      }
+    },
+    {
+      "id": "reserve",
+      "type": "reserve",
+      "slots": 6,
+      "label": {
+        "pt": "Reserva",
+        "en": "Reserve",
+        "es": "Reserva"
+      }
+    }
+  ],
+  "waitlist": {
+    "general_rule": true,
+    "limit": 30,
+    "min_solved": 0,
+    "tiers": [
+      {
+        "id": "mty",
+        "schools": [],
+        "label": {
+          "pt": "Instituições de Monterrey",
+          "en": "Monterrey institutions",
+          "es": "Instituciones de Monterrey"
+        }
+      },
+      {
+        "id": "nl",
+        "schools": [],
+        "label": {
+          "pt": "Demais instituições de Nuevo León",
+          "en": "Other Nuevo León institutions",
+          "es": "Demás instituciones de Nuevo León"
+        }
+      },
+      {
+        "id": "mx",
+        "countries": [
+          "mx"
+        ],
+        "label": {
+          "pt": "Demais instituições do México",
+          "en": "Other institutions in Mexico",
+          "es": "Demás instituciones de México"
+        }
+      }
+    ]
+  },
+  "exclude": []
+}

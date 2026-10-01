@@ -5,7 +5,7 @@
 # rótulos pt/en/es, chip, vias. Quem diz QUAL SCRIPT roda é a allowlist abaixo, em bash: o id do pedido
 # só vira caminho de arquivo por ela. O smoke-contest-modules.sh confere que catálogo e allowlist têm os
 # mesmos ids. Motor novo = script em score/ + linha aqui + entrada no catálogo + smoke.
-declare -gA CL_ENGINES=( [sbc-fase1]="classify-br.sh" )
+declare -gA CL_ENGINES=( [sbc-fase1]="classify-br.sh" [latam-pda]="classify-pda.sh" )
 CL_SCORE_DIR="${BASH_SOURCE[0]%/*}/../../../score"
 CL_CATALOG="$CL_SCORE_DIR/classify-catalog.json"
 

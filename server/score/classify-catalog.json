@@ -6,31 +6,197 @@
       "stage": "final-br",
       "next_stage": "pda",
       "form": "br",
-      "name": {"pt": "SBC 1ª fase → Final Brasileira", "en": "SBC 1st phase → Brazilian Finals", "es": "SBC 1ª fase → Final Brasileña"},
+      "name": {
+        "pt": "SBC 1ª fase → Final Brasileira",
+        "en": "SBC 1st phase → Brazilian Finals",
+        "es": "SBC 1ª fase → Final Brasileña"
+      },
       "desc": {
         "pt": "regra 1: melhores gerais (≤2 por escola) · regra 2: vagas por sede e supersede (≤1 por escola) · regra 4: participação feminina · regra 3/comitê: manual",
         "en": "rule 1: best overall (≤2 per school) · rule 2: slots per site and supersite (≤1 per school) · rule 4: female participation · rule 3/committee: manual",
         "es": "regla 1: mejores en general (≤2 por escuela) · regla 2: cupos por sede y supersede (≤1 por escuela) · regla 4: participación femenina · regla 3/comité: manual"
       },
-      "defaults": {"name": "Final Brasileira", "venue": "Uberlândia", "when": "novembro/2026", "chip": "Final BR"},
-      "vias": ["regra1", "regra2", "regra4"]
+      "defaults": {
+        "name": "Final Brasileira",
+        "venue": "Uberlândia",
+        "when": "novembro/2026",
+        "chip": "Final BR"
+      },
+      "vias": [
+        "regra1",
+        "regra2",
+        "regra4"
+      ]
+    },
+    {
+      "id": "latam-pda",
+      "script": "classify-pda.sh",
+      "stage": "pda",
+      "next_stage": "mundial",
+      "form": "json",
+      "seed": "latam-pda-2027.json",
+      "waitlist": true,
+      "name": {
+        "pt": "LATAM: regional → Campeonato Latino-Americano (PDA)",
+        "en": "LATAM: regional → Latin America Championship (PDA)",
+        "es": "LATAM: regional → Campeonato Latinoamericano (PDA)"
+      },
+      "desc": {
+        "pt": "N/2 por desempenho (≤2 por escola) · vagas por país · instituição-sede · representação geográfica (frações entre anos) · 2 femininas · blocos da edição 2027 (pendentes, femininas, participação por país, sede, reserva) · lista de espera por proximidade",
+        "en": "N/2 by performance (≤2 per school) · country slots · host institution · geographic representation (fractions carried between years) · 2 all-female · 2027 edition blocks (pending, female, country participation, host, reserve) · proximity waiting list",
+        "es": "N/2 por desempeño (≤2 por escuela) · cupos por país · institución sede · representación geográfica (fracciones entre años) · 2 femeninas · bloques de la edición 2027 (pendientes, femeninas, participación por país, sede, reserva) · lista de espera por proximidad"
+      },
+      "defaults": {
+        "name": "Campeonato Latino-Americano 2027",
+        "venue": "Monterrey",
+        "when": "abril/2027",
+        "chip": "PDA"
+      },
+      "vias": [
+        "p1",
+        "p2",
+        "p3",
+        "p4",
+        "fem-host-country",
+        "fem-latam"
+      ]
     }
   ],
-  "manual_vias": ["manual", "lista", "reserva"],
+  "manual_vias": [
+    "manual",
+    "lista",
+    "reserva"
+  ],
   "vias": {
-    "regra1": {"pt": "Regra 1 — melhores gerais", "en": "Rule 1 — best overall", "es": "Regla 1 — mejores en general",
-               "short": {"pt": "regra 1", "en": "rule 1", "es": "regla 1"}},
-    "regra2": {"pt": "Regra 2 — vagas por sede", "en": "Rule 2 — site slots", "es": "Regla 2 — cupos por sede",
-               "short": {"pt": "regra 2", "en": "rule 2", "es": "regla 2"}},
-    "regra4": {"pt": "Regra 4 — participação feminina", "en": "Rule 4 — female participation", "es": "Regla 4 — participación femenina",
-               "short": {"pt": "regra 4", "en": "rule 4", "es": "regla 4"}},
-    "manual": {"pt": "Promoção manual (comitê)", "en": "Manual promotion (committee)", "es": "Promoción manual (comité)",
-               "short": {"pt": "comitê", "en": "committee", "es": "comité"}},
-    "comite": {"pt": "Promoção manual (comitê)", "en": "Manual promotion (committee)", "es": "Promoción manual (comité)",
-               "short": {"pt": "comitê", "en": "committee", "es": "comité"}},
-    "lista":  {"pt": "Lista de espera", "en": "Waiting list", "es": "Lista de espera",
-               "short": {"pt": "lista de espera", "en": "waiting list", "es": "lista de espera"}},
-    "reserva": {"pt": "Vaga de reserva", "en": "Reserve slot", "es": "Cupo de reserva",
-               "short": {"pt": "reserva", "en": "reserve", "es": "reserva"}}
+    "regra1": {
+      "pt": "Regra 1 — melhores gerais",
+      "en": "Rule 1 — best overall",
+      "es": "Regla 1 — mejores en general",
+      "short": {
+        "pt": "regra 1",
+        "en": "rule 1",
+        "es": "regla 1"
+      }
+    },
+    "regra2": {
+      "pt": "Regra 2 — vagas por sede",
+      "en": "Rule 2 — site slots",
+      "es": "Regla 2 — cupos por sede",
+      "short": {
+        "pt": "regra 2",
+        "en": "rule 2",
+        "es": "regla 2"
+      }
+    },
+    "regra4": {
+      "pt": "Regra 4 — participação feminina",
+      "en": "Rule 4 — female participation",
+      "es": "Regla 4 — participación femenina",
+      "short": {
+        "pt": "regra 4",
+        "en": "rule 4",
+        "es": "regla 4"
+      }
+    },
+    "manual": {
+      "pt": "Promoção manual (comitê)",
+      "en": "Manual promotion (committee)",
+      "es": "Promoción manual (comité)",
+      "short": {
+        "pt": "comitê",
+        "en": "committee",
+        "es": "comité"
+      }
+    },
+    "comite": {
+      "pt": "Promoção manual (comitê)",
+      "en": "Manual promotion (committee)",
+      "es": "Promoción manual (comité)",
+      "short": {
+        "pt": "comitê",
+        "en": "committee",
+        "es": "comité"
+      }
+    },
+    "lista": {
+      "pt": "Lista de espera",
+      "en": "Waiting list",
+      "es": "Lista de espera",
+      "short": {
+        "pt": "lista de espera",
+        "en": "waiting list",
+        "es": "lista de espera"
+      }
+    },
+    "reserva": {
+      "pt": "Vaga de reserva",
+      "en": "Reserve slot",
+      "es": "Cupo de reserva",
+      "short": {
+        "pt": "reserva",
+        "en": "reserve",
+        "es": "reserva"
+      }
+    },
+    "p1": {
+      "pt": "Passo 1 — desempenho",
+      "en": "Step 1 — performance",
+      "es": "Paso 1 — desempeño",
+      "short": {
+        "pt": "desempenho",
+        "en": "performance",
+        "es": "desempeño"
+      }
+    },
+    "p2": {
+      "pt": "Passo 2 — países participantes",
+      "en": "Step 2 — participating countries",
+      "es": "Paso 2 — países participantes",
+      "short": {
+        "pt": "país",
+        "en": "country",
+        "es": "país"
+      }
+    },
+    "p3": {
+      "pt": "Passo 3 — instituição-sede",
+      "en": "Step 3 — host institution",
+      "es": "Paso 3 — institución sede",
+      "short": {
+        "pt": "sede",
+        "en": "host",
+        "es": "sede"
+      }
+    },
+    "p4": {
+      "pt": "Passo 4 — representação geográfica",
+      "en": "Step 4 — geographic representation",
+      "es": "Paso 4 — representación geográfica",
+      "short": {
+        "pt": "região",
+        "en": "region",
+        "es": "región"
+      }
+    },
+    "fem-host-country": {
+      "pt": "Feminina — país-sede",
+      "en": "All-female — host country",
+      "es": "Femenina — país sede",
+      "short": {
+        "pt": "feminina país-sede",
+        "en": "all-female host",
+        "es": "femenina país sede"
+      }
+    },
+    "fem-latam": {
+      "pt": "Feminina — América Latina",
+      "en": "All-female — Latin America",
+      "es": "Femenina — América Latina",
+      "short": {
+        "pt": "feminina LATAM",
+        "en": "all-female LATAM",
+        "es": "femenina LATAM"
+      }
+    }
   }
 }

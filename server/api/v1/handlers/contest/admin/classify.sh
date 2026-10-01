@@ -17,6 +17,9 @@
 #   add      {login | ext+team, reason, via?, univ?, school?, country?, region?} -> promove à mão (via
 #                                         manual|lista|reserva); p/ o motor, conta como já promovido
 #   override_undo {id}                 -> desfaz um override
+#   promote_next {reason}              -> o 1º da LISTA DE ESPERA (recalculada contra o estágio atual) vira um
+#                                         add via "lista" (motor com waitlist no catálogo; 409 waitlist_empty).
+#                                         add via "reserva" além das vagas de reserva do motor = 409 reserve_full
 # Todo override vai ao audit (classify-override).
 #
 # O estágio guarda: config, result (a saída PURA do motor), overrides, e `teams` = a COMPOSIÇÃO (motor −
@@ -59,7 +62,9 @@ force="$(jq -r 'if .force == true then 1 else 0 end' "$BF")"
 [[ -z "$stage" || "$stage" =~ ^[a-z0-9-]{1,32}$ ]] || fail 400 "stage inválido" "stage_invalid"
 
 # --- arquivo de estágios (sempre sob a trava nas escritas) ------------------------------------------
-_lock(){ mkdir -p "$CONTESTSDIR/$contest/var"; exec 7>"$CONTESTSDIR/$contest/var/.classify.lock"; flock -w 20 7 || fail 409 "Classificação ocupada — tente de novo" "busy"; }
+_lock(){ [[ -n "${CL_LOCKED:-}" ]] && return 0
+  mkdir -p "$CONTESTSDIR/$contest/var"; exec 7>"$CONTESTSDIR/$contest/var/.classify.lock"
+  flock -w 20 7 || fail 409 "Classificação ocupada — tente de novo" "busy"; CL_LOCKED=1; }
 # _stage_get <id> > arquivo — o estágio (ou vazio + rc 1 se não existe)
 _stage_get(){ [[ -s "$CF" ]] || return 1; jq -ce --arg s "$1" 'first((.stages // [])[] | select(.id == $s)) // empty' "$CF" 2>/dev/null; }
 # _stage_put <arquivo-do-estágio> — substitui (ou acrescenta) o estágio; tmp+mv
@@ -72,15 +77,23 @@ _stage_put(){
   [[ -s "$tmp" ]] || { rm -f "$tmp"; fail 500 "Falha ao gravar" "write_fail"; }
   mv -f "$tmp" "$CF"
 }
-# _run_engine <alg> <config> <estágio> <saída> — roda o motor com os overrides do estágio; os rc do motor
-# viram 422: 2 config_invalid (com errors), 3 engine_refused (o motor diz qual time/código), resto
-# engine_failed.
+# _run_engine <alg> <config> <estágio> <saída> [waitlist] — roda o motor com os overrides do estágio
+# (cl_engine_cfg: exclude + preassigned). Com `waitlist`, roda o modo --waitlist contra o ESTADO do estágio
+# (os times compostos contam como promovidos; os retirados ficam de fora). Os rc do motor viram 422:
+# 2 config_invalid (com errors), 3 engine_refused (o motor diz qual time/código), resto engine_failed.
 _run_engine(){
-  local p rc
+  local p rc mode=()
   p="$(cl_engine_path "$1")" || fail 422 "Algoritmo de classificação desconhecido: $1" "algorithm_invalid"
   jq -c --slurpfile st "$3" "$CL_JQ"'cl_engine_cfg($st[0])' "$2" > "$W/ecfg.json" 2>/dev/null \
     || fail 422 "Config inválida" "config_invalid"
-  bash "$p" "$contest" "$W/ecfg.json" "$4" 2>"$W/eerr"; rc=$?
+  if [[ "${5:-}" == waitlist ]]; then
+    mode=(--waitlist)
+    jq -c --slurpfile st "$3" '. + {waitlist_state: ($st[0] | {
+        promoted: [ (.teams // {}) | to_entries[] | {key:.key} + (.value | {school, country, region} | with_entries(select(.value != null))) ],
+        skip: [ (.overrides // [])[] | select(.op == "withdraw" and (.login // "") != "") | .login ] })}' \
+      "$W/ecfg.json" > "$W/ecfg2.json" && mv -f "$W/ecfg2.json" "$W/ecfg.json"
+  fi
+  bash "$p" "${mode[@]}" "$contest" "$W/ecfg.json" "$4" 2>"$W/eerr"; rc=$?
   case "$rc" in
     0) [[ -s "$4" ]] || fail 422 "Motor não produziu saída" "engine_failed";;
     2) FAIL_EXTRA="$(jq -c '{errors:((.errors // []) | map(tostring))}' "$W/eerr" 2>/dev/null)" \
@@ -112,6 +125,24 @@ _need_reason(){ # motivo obrigatório (texto, ≤ 500); devolve em REASON
   [[ -n "$REASON" ]] || fail 422 "Motivo obrigatório" "reason_required"
   (( ${#REASON} <= 500 )) || fail 422 "Motivo longo demais (máx. 500)" "reason_too_long"
 }
+
+# promote_next: o 1º da LISTA DE ESPERA, recalculada contra o estágio ATUAL (os times compostos contam como
+# promovidos; os retirados ficam de fora), vira um override `add` via "lista" — o mesmo caminho do add abaixo.
+if [[ "$action" == promote_next ]]; then
+  stage="${stage:-final-br}"
+  _lock
+  _stage_get "$stage" > "$W/st.json" || fail 404 "Estágio não existe: $stage" "no_stage"
+  alg="$(jq -r '.config.algorithm // ""' "$W/st.json")"
+  jq -e --arg a "$alg" 'any(.engines[]; .id == $a and .waitlist == true)' "$CL_CATALOG" >/dev/null 2>&1 \
+    || fail 409 "O motor deste estágio não tem lista de espera" "waitlist_unsupported"
+  _need_reason
+  jq -c '.config' "$W/st.json" > "$W/cfg.json"
+  _run_engine "$alg" "$W/cfg.json" "$W/st.json" "$W/wl.json" waitlist
+  nxt="$(jq -r '.waitlist[0].login // ""' "$W/wl.json")"
+  [[ -n "$nxt" ]] || fail 409 "A lista de espera está vazia" "waitlist_empty"
+  jq -c --arg l "$nxt" --arg s "$stage" --arg r "$REASON" '{action:"add", stage:$s, login:$l, via:"lista", reason:$r}' <<<'{}' > "$BF"
+  action=add
+fi
 
 case "$action" in
   preview|apply)
@@ -223,6 +254,11 @@ case "$action" in
           via="$(jq -r '.via // "manual"' "$BF")"
           jq -e --arg v "$via" '.manual_vias | index($v)' "$CL_CATALOG" >/dev/null 2>&1 \
             || fail 422 "via inválida p/ promoção manual: $via" "via_invalid"
+          # reserva: no máximo as vagas que o motor reportou (result.reserve.slots)
+          if [[ "$via" == reserva ]]; then
+            jq -e "$CL_JQ"'(.result.reserve.slots // null) as $n | $n == null or ([ cl_ovs[] | select(.op == "add" and .via == "reserva") ] | length) < $n' \
+              "$W/st.json" >/dev/null 2>&1 || fail 409 "As vagas de reserva deste estágio já foram usadas" "reserve_full"
+          fi
           if [[ -n "$ext" ]]; then
             jq -e '((.team // "") | tostring | length) > 0' "$BF" >/dev/null || fail 422 "Time de fora do placar precisa de nome (team)" "team_required"
             teamj="$(jq -c '{team, univ, school, country, region} | with_entries(select(.value != null) | .value |= (tostring | .[0:120]))' "$BF")"
@@ -258,5 +294,5 @@ case "$action" in
     ok_json_slurp '{stage:$s, override:$o, overrides:$f[0].overrides, total:($f[0].teams | length)}' f "$(cat "$W/new.json")" \
       --arg s "$stage" --arg o "$oid"
     ;;
-  *) fail 400 "action deve ser preview|apply|publish|unpublish|delete|exclude|withdraw|add|override_undo" "action_invalid";;
+  *) fail 400 "action deve ser preview|apply|publish|unpublish|delete|exclude|withdraw|add|override_undo|promote_next" "action_invalid";;
 esac

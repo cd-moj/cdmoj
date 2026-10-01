@@ -31,7 +31,7 @@ async function apiGet(){ return JSON.parse(JSON.stringify(GET)); }
 async function apiPost(p, body){ POSTS.push(body); return {}; }
 JS
   strip "$W/shared/dom.js"; strip "$W/shared/admin-ui.js"; strip "$W/contest/score/score-classified.js"
-  strip "$W/contest/admin/classify-tab.js"
+  strip "$W/contest/admin/classify-result.js"; strip "$W/contest/admin/classify-tab.js"
   cat <<'JS'
 const L = { regra1:{pt:'Regra 1 — melhores gerais', short:{pt:'regra 1'}}, regra2:{pt:'Regra 2 — vagas por sede'}, manual:{pt:'Promoção manual (comitê)'} };
 const BR = { id:'sbc-fase1', name:{pt:'SBC 1ª fase → Final Brasileira'}, stage:'final-br', form:'br', defaults:{name:'Final Brasileira', chip:'Final BR'}, vias:['regra1','regra2','regra4'] };
@@ -84,6 +84,20 @@ const val = (n) => (n._v != null ? n.value : (n.attrs.value || ''));   // el() g
   p.find('select', (n) => n.children.some((o) => o.attrs && o.attrs.value === 'reserva'))[0].value = 'manual';   // o browser já começa na 1ª opção
   addBtn.ev.click(); await null; await null;
   print('post2=' + JSON.stringify(POSTS[0]));
+  // 2b) estágio de motor com lista de espera: botão "promover o próximo" + detalhes (geo, lista)
+  const PDA = { id:'latam-pda', name:{pt:'LATAM PDA'}, stage:'pda', form:'json', waitlist:true, seed:{N:40} };
+  GET = { stages:[{ id:'pda', status:'draft', name:'PDA', chip:'PDA', config:{algorithm:'latam-pda', N:12},
+    result:{ blocks:[{id:'p1', slots:6, used:6}], geo:{schools_latam:18, remaining:3, overflow:0, regions:[{code:'mx', name:'México', schools:4, q:12, nslots:0, fraction_prev:0, fraction:0.6667, extra:1, slots:1, filled:1, fraction_out:0}]},
+      fractions_out:{no:0.3333}, waitlist:[{pos:1, tier:'mx', login:'teammxmx05', team:'UANL 1', place:23}] },
+    relation:[], overrides:[] }], algorithms:[BR, PDA], vias:L, manual_vias:['manual','lista','reserva'] };
+  POSTS.length = 0; PROMPT = 'vaga do UTN';
+  const tab3 = makeClassifyTab('lar'); await tab3.load();
+  const nxt = tab3.panel.find('button', (b) => txt(b).includes('Promover o próximo'))[0];
+  print('next_btn=' + !!nxt);
+  nxt.ev.click(); await null; await null;
+  print('post3=' + JSON.stringify(POSTS[0]));
+  const all = txt(tab3.panel);
+  print('details=' + (all.includes('Representação geográfica') && all.includes('México') && all.includes('Lista de espera — 1') && all.includes('{"fractions_prev":{"no":0.3333}}')));
   // 3) contest sem estágio: abre em "nova etapa" com o formulário BR
   GET = { stages:[], algorithms:[BR, JS_], vias:L, manual_vias:['manual'] };
   const tab2 = makeClassifyTab('cb'); await tab2.load();
@@ -108,5 +122,8 @@ check "$(kv typed_kept)" nova1 "trocar o motor não apaga o id digitado"
 check "$(kv collapsed_sel)" pda "id de estágio existente no modo nova etapa = esse estágio"
 check "$(kv pda_json)" true "estágio sem motor leva o motor escolhido"
 check "$(kv post2)" '{"stage":"pda","action":"add","via":"manual","reason":"regra 3","login":"teamsp02"}' "add vai p/ o estágio selecionado (não o anterior)"
+check "$(kv next_btn)" true "motor com lista de espera: botão promover o próximo"
+check "$(kv post3)" '{"stage":"pda","action":"promote_next","reason":"vaga do UTN"}' "promote_next com o motivo, no estágio"
+check "$(kv details)" true "detalhes: geo, lista de espera, frações p/ o ano seguinte"
 check "$(kv empty_sel)" "__new empty_ta=2" "sem estágio: abre em nova etapa com o formulário BR"
 echo "classify-tab: $PASS ok, $FAIL falhas"; [[ $FAIL -eq 0 ]]

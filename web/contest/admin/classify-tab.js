@@ -10,6 +10,7 @@ import { apiGet, apiPost } from '/shared/api.js';
 import { T } from '/shared/i18n.js';
 import { fmtEpoch } from '/shared/admin-ui.js';
 import { pickLabel } from '/contest/score/score-classified.js';
+import { warningsBox, resultDetails } from './classify-result.js';
 
 const enc = encodeURIComponent;
 
@@ -57,16 +58,6 @@ function parseSlots(text) {
 }
 const slotsText = (o) => Object.entries(o || {}).map(([k, v]) => k + ' = ' + v).join('\n');
 
-// avisos dos motores, pelo código (o motor manda {code, data}); código desconhecido aparece cru
-const WARN_T = () => ({
-  female_node_missing: T('Sem o recorte "Times femininos" no regions.json: nenhum time conta como feminino.',
-    'No "Times femininos" slice in regions.json: no team counts as female.',
-    'Sin el recorte "Times femininos" en regions.json: ningún equipo cuenta como femenino.'),
-  female_multi_bucket: T('Time em mais de uma faixa feminina (vale a maior):', 'Team in more than one female bracket (the highest counts):',
-    'Equipo en más de una franja femenina (vale la mayor):'),
-  female_prefix_match: T('A lista feminina casa estes logins só por PREFIXO — confira a regex:', 'The female list matches these logins only by PREFIX — check the regex:',
-    'La lista femenina coincide con estos logins solo por PREFIJO — revisa la regex:'),
-});
 const OP_T = () => ({
   exclude: T('⊘ excluído do cálculo', '⊘ excluded from the computation', '⊘ excluido del cálculo'),
   withdraw: T('✂ retirado (vaga vaga)', '✂ withdrawn (slot left open)', '✂ retirado (cupo vacante)'),
@@ -157,18 +148,6 @@ export function makeClassifyTab(CONTEST) {
     return wrap;
   }
 
-  function warningsBox(ws) {
-    if (!ws || !ws.length) return null;
-    const W = WARN_T();
-    return el('div', { class: 'warn-box', style: 'margin:.4rem 0' },
-      el('b', {}, T('⚠ Avisos do motor', '⚠ Engine warnings', '⚠ Avisos del motor')),
-      el('ul', { style: 'margin:.3rem 0 0 1.1rem' }, ...ws.map((w) => {
-        const d = w.data || {};
-        const extra = Array.isArray(d.logins) ? ' ' + d.logins.join(', ') : (Object.keys(d).length ? ' ' + JSON.stringify(d) : '');
-        return el('li', { class: 'small' }, (W[w.code] || w.code) + extra);
-      })));
-  }
-
   function overridesBox(ovs) {
     if (!ovs || !ovs.length) return null;
     const O = OP_T();
@@ -244,12 +223,17 @@ export function makeClassifyTab(CONTEST) {
           }
           act({ action: pub ? 'unpublish' : 'publish' });
         } }, pub ? T('🔕 Despublicar', '🔕 Unpublish', '🔕 Despublicar') : T('📢 Publicar', '📢 Publish', '📢 Publicar')),
+        alg && alg.waitlist ? el('button', { class: 'btn ghost', title: T('o 1º da lista de espera, recalculada agora', 'the first on the waiting list, recomputed now', 'el primero de la lista de espera, recalculada ahora'),
+          onclick: () => { const r = askReason(T('Promover o próximo da lista de espera?', 'Promote the next team on the waiting list?', '¿Promover al siguiente de la lista de espera?')); if (r) act({ action: 'promote_next', reason: r }); } },
+          T('⏭ Promover o próximo da lista', '⏭ Promote the next on the list', '⏭ Promover al siguiente de la lista')) : null,
         pub ? null : el('button', { class: 'btn ghost danger', onclick: () => {
           if (confirm(T('Apagar o estágio em rascunho ', 'Delete the draft stage ', '¿Borrar la etapa en borrador ') + st.id + T('? (overrides inclusive)', '? (overrides included)', '? (overrides incluidos)'))) act({ action: 'delete' });
         } }, T('🗑 Apagar rascunho', '🗑 Delete draft', '🗑 Borrar borrador'))),
       warningsBox(st.result && st.result.warnings),
       relationTable(rel, st.labels, st.via_order, true),
       addBox(),
+      (() => { const d = resultDetails(st.result, st.labels); return d ? el('details', { style: 'margin-top:.6rem' },
+        el('summary', {}, el('b', {}, T('📊 Detalhes do cálculo', '📊 Computation details', '📊 Detalles del cálculo'))), d) : null; })(),
       overridesBox((st.overrides || []).filter((o) => o.op === 'exclude' || o.op === 'withdraw' || o.op === 'add'))));
   }
 
@@ -371,6 +355,7 @@ export function makeClassifyTab(CONTEST) {
                 Object.entries(p.unused).map(([k, v]) => viaLabel(p.labels, k, true) + ': ' + v).join(' · ')) : null,
               (r.overrides || []).length ? el('p', { class: 'small' }, T('Com os overrides manuais do estágio (', 'With the stage manual overrides (', 'Con los overrides manuales de la etapa (') + r.overrides.length + ').') : null,
               relationTable(rel, p.labels || (st && st.labels), order, false),
+              resultDetails(p, p.labels),
               el('div', { class: 'row', style: 'gap:.5rem;margin-top:.6rem' },
                 el('button', { class: 'btn', onclick: async () => {
                   const pubNow = st && st.status === 'published';
