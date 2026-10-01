@@ -88,7 +88,8 @@ const val = (n) => (n._v != null ? n.value : (n.attrs.value || ''));   // el() g
   const PDA = { id:'latam-pda', name:{pt:'LATAM PDA'}, stage:'pda', form:'json', waitlist:true, seed:{N:40} };
   GET = { stages:[{ id:'pda', status:'draft', name:'PDA', chip:'PDA', config:{algorithm:'latam-pda', N:12},
     result:{ blocks:[{id:'p1', slots:6, used:6}], geo:{schools_latam:18, remaining:3, overflow:0, regions:[{code:'mx', name:'México', schools:4, q:12, nslots:0, fraction_prev:0, fraction:0.6667, extra:1, slots:1, filled:1, fraction_out:0}]},
-      fractions_out:{no:0.3333}, waitlist:[{pos:1, tier:'mx', login:'teammxmx05', team:'UANL 1', place:23}] },
+      fractions_out:{no:0.3333}, waitlist:[{pos:1, tier:'mx', login:'teammxmx05', team:'UANL 1', place:23}],
+      awards:{champion:[{login:'a1', team:'Alfa', place:1}], medals:{gold:[{login:'a1', team:'Alfa', place:1}]}, regional:[{region:'br', title:'Campeones Brasileños', login:'b1', team:'Beta', place:2}]} },
     relation:[], overrides:[] }], algorithms:[BR, PDA], vias:L, manual_vias:['manual','lista','reserva'] };
   POSTS.length = 0; PROMPT = 'vaga do UTN';
   const tab3 = makeClassifyTab('lar'); await tab3.load();
@@ -98,6 +99,7 @@ const val = (n) => (n._v != null ? n.value : (n.attrs.value || ''));   // el() g
   print('post3=' + JSON.stringify(POSTS[0]));
   const all = txt(tab3.panel);
   print('details=' + (all.includes('Representação geográfica') && all.includes('México') && all.includes('Lista de espera — 1') && all.includes('{"fractions_prev":{"no":0.3333}}')));
+  print('awards=' + (all.includes('Prêmios (informativo)') && all.includes('Alfa (#1)') && all.includes('Campeones Brasileños')));
   // 3) contest sem estágio: abre em "nova etapa" com o formulário BR
   GET = { stages:[], algorithms:[BR, JS_], vias:L, manual_vias:['manual'] };
   const tab2 = makeClassifyTab('cb'); await tab2.load();
@@ -125,5 +127,6 @@ check "$(kv post2)" '{"stage":"pda","action":"add","via":"manual","reason":"regr
 check "$(kv next_btn)" true "motor com lista de espera: botão promover o próximo"
 check "$(kv post3)" '{"stage":"pda","action":"promote_next","reason":"vaga do UTN"}' "promote_next com o motivo, no estágio"
 check "$(kv details)" true "detalhes: geo, lista de espera, frações p/ o ano seguinte"
+check "$(kv awards)" true "detalhes: prêmios do Mundial (informativo)"
 check "$(kv empty_sel)" "__new empty_ta=2" "sem estágio: abre em nova etapa com o formulário BR"
 echo "classify-tab: $PASS ok, $FAIL falhas"; [[ $FAIL -eq 0 ]]

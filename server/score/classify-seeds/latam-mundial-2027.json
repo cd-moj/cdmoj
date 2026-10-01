@@ -1,0 +1,95 @@
+{
+  "algorithm": "latam-mundial",
+  "N_WF": null,
+  "min_solved": 1,
+  "max_per_school": 1,
+  "region_slot_unfilled": "overall",
+  "login_regex": "^team([a-z]{2})([a-z]{2})",
+  "regions": [
+    {
+      "code": "br",
+      "name": {
+        "pt": "Brasil",
+        "en": "Brazil",
+        "es": "Brasil"
+      },
+      "title": {
+        "pt": "Campeões Brasileiros",
+        "en": "Brazilian Champions",
+        "es": "Campeones Brasileños"
+      }
+    },
+    {
+      "code": "cb",
+      "name": {
+        "pt": "Caribe",
+        "en": "Caribbean",
+        "es": "Caribe"
+      },
+      "title": {
+        "pt": "Campeões Regionais do Caribe",
+        "en": "Caribbean Regional Champions",
+        "es": "Campeones Regionales del Caribe"
+      }
+    },
+    {
+      "code": "ca",
+      "name": {
+        "pt": "América Central",
+        "en": "Central America",
+        "es": "Centroamérica"
+      },
+      "title": {
+        "pt": "Campeões da América Central",
+        "en": "Central American Champions",
+        "es": "Campeones Centroamericanos"
+      }
+    },
+    {
+      "code": "mx",
+      "name": {
+        "pt": "México",
+        "en": "Mexico",
+        "es": "México"
+      },
+      "title": {
+        "pt": "Campeões Mexicanos",
+        "en": "Mexican Champions",
+        "es": "Campeones Mexicanos"
+      }
+    },
+    {
+      "code": "no",
+      "name": {
+        "pt": "América do Sul Norte",
+        "en": "South America / North",
+        "es": "Sudamérica Norte"
+      },
+      "title": {
+        "pt": "Campeões da América do Sul Norte",
+        "en": "South America North Champions",
+        "es": "Campeones de Sudamérica Norte"
+      }
+    },
+    {
+      "code": "so",
+      "name": {
+        "pt": "América do Sul Sul",
+        "en": "South America / South",
+        "es": "Sudamérica Sur"
+      },
+      "title": {
+        "pt": "Campeões da América do Sul Sul",
+        "en": "South America South Champions",
+        "es": "Campeones de Sudamérica Sur"
+      }
+    }
+  ],
+  "school_alias": {},
+  "awards": {
+    "gold": 4,
+    "silver": 4,
+    "bronze": 4
+  },
+  "exclude": []
+}

@@ -60,6 +60,34 @@
         "fem-host-country",
         "fem-latam"
       ]
+    },
+    {
+      "id": "latam-mundial",
+      "script": "classify-mundial.sh",
+      "stage": "mundial",
+      "next_stage": null,
+      "form": "json",
+      "seed": "latam-mundial-2027.json",
+      "name": {
+        "pt": "LATAM: Campeonato → Mundial (World Finals)",
+        "en": "LATAM: Championship → World Finals",
+        "es": "LATAM: Campeonato → Mundial (World Finals)"
+      },
+      "desc": {
+        "pt": "o campeão de cada região (≥1 resolvido; região sem time = vaga do geral) + N_WF − 6 melhores do geral · 1 time por instituição · prêmios informativos (campeão, medalhas, campeões regionais)",
+        "en": "the champion of each region (≥1 solved; region without a team = overall slot) + N_WF − 6 best overall · 1 team per institution · informative awards (champion, medals, regional champions)",
+        "es": "el campeón de cada región (≥1 resuelto; región sin equipo = cupo general) + N_WF − 6 mejores del general · 1 equipo por institución · premios informativos (campeón, medallas, campeones regionales)"
+      },
+      "defaults": {
+        "name": "ICPC World Finals",
+        "venue": "",
+        "when": "",
+        "chip": "Mundial"
+      },
+      "vias": [
+        "wf-region",
+        "wf-overall"
+      ]
     }
   ],
   "manual_vias": [
@@ -196,6 +224,26 @@
         "pt": "feminina LATAM",
         "en": "all-female LATAM",
         "es": "femenina LATAM"
+      }
+    },
+    "wf-region": {
+      "pt": "Campeão da região",
+      "en": "Region champion",
+      "es": "Campeón de la región",
+      "short": {
+        "pt": "campeão da região",
+        "en": "region champion",
+        "es": "campeón de la región"
+      }
+    },
+    "wf-overall": {
+      "pt": "Melhores do geral",
+      "en": "Best overall",
+      "es": "Mejores del general",
+      "short": {
+        "pt": "geral",
+        "en": "overall",
+        "es": "general"
       }
     }
   }

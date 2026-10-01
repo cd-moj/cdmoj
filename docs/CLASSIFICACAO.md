@@ -119,13 +119,33 @@ preenchidas), `fractions_out`, `country_participation`, `reserve`, `waitlist[]`,
 Os logins da LATAM 2026 (`teambrspso…`) não seguem o padrão `team<RR><PP>`; o motor foi validado pelo
 `server/test/smoke-classify-pda.sh` (N=12, cada caso conferido à mão).
 
+## Motor `latam-mundial` (Campeonato Latino-Americano → Mundial)
+
+`server/score/classify-mundial.sh`, estágio `mundial`, chip "Mundial". Roda no contest do CAMPEONATO. A semente é
+`server/score/classify-seeds/latam-mundial-2027.json`; o RCD informa `N_WF` (as vagas da LATAM no Mundial). Sem ele, o
+motor avisa (`n_wf_missing`) e não classifica ninguém.
+
+1. **Campeão de cada região** (`wf-region`): o melhor time da região com ≥ `min_solved` (1) resolvido.
+2. **Geral** (`wf-overall`): as `N_WF − campeões` vagas restantes aos melhores do placar. A vaga de região sem time
+   elegível vai ao geral (`region_slot_unfilled: "overall"`, decisão do Ribas; `"none"` a deixa sem uso), com o aviso
+   `wf_region_unfilled`.
+
+Só UM time por instituição (`max_per_school: 1`) vai ao Mundial, nos dois passos. Região, país e escola saem como no
+`latam-pda` (login + `school_alias`), com a mesma recusa.
+
+**Prêmios** (`awards`, INFORMATIVOS: não mudam a classificação): o campeão LATAM (1º lugar), as medalhas pela posição
+(`awards: {gold:4, silver:4, bronze:4}` = ouro 1–4, prata 5–8, bronze 9–12) e o campeão de cada região com o título
+dela (`regions[].title`, pt/en/es). Empate divide a posição; se ele atravessa a faixa, a medalha vai a mais times e o
+motor avisa (`award_tie`). O painel mostra os prêmios em "📊 Detalhes do cálculo".
+
 ## Motores e catálogo
 
 `config.algorithm` diz qual motor roda. O handler (`admin/classify.sh`) só executa um script da **allowlist**
 `CL_ENGINES` (`lib/classify.sh`). O **catálogo** `server/score/classify-catalog.json` descreve cada motor: estágio padrão,
 próximo estágio, formulário do painel (`form`), padrões (nome, local, quando, chip), vias e semente. Ele também traz os
 rótulos pt/en/es de toda via. O `smoke-contest-modules.sh` confere que catálogo e allowlist têm os mesmos ids. Hoje:
-`sbc-fase1` (estágio `final-br`, chip "Final BR") e `latam-pda` (estágio `pda`, chip "PDA").
+`sbc-fase1` (estágio `final-br`, chip "Final BR"), `latam-pda` (estágio `pda`, chip "PDA") e `latam-mundial` (estágio
+`mundial`, chip "Mundial").
 
 **Motor novo** = `score/classify-<x>.sh` + uma linha em `CL_ENGINES` + uma entrada no catálogo + smoke. O placar, o
 relatório e a rota pública leem o ESTÁGIO, nunca o motor. Id fora da lista = 422 `algorithm_invalid`.
@@ -193,7 +213,8 @@ dados da prova.
 
 Testes: `server/test/smoke-classify-br.sh` (motor, relatório com dois estágios, gate de rascunho, handler e overrides),
 `smoke-classify-pda.sh` (o motor da PDA passo a passo, `--check`, `--geo`, lista de espera, `promote_next`, reserva,
-trava com 8 escritas em paralelo),
+trava com 8 escritas em paralelo), `smoke-classify-mundial.sh` (campeões, 1 por instituição, região sem time → geral,
+medalhas com empate),
 `smoke-score-classified.gjs.sh` (chips do placar), `smoke-classify-tab.gjs.sh` (o painel: grupos, ações no estágio
 certo, nova etapa, editor JSON), `smoke-contest-modules.sh` (catálogo × allowlist, spec com
 `stages[]`).

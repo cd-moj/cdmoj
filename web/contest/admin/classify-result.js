@@ -40,6 +40,14 @@ export const WARN_T = () => ({
     'Una escuela sede ya tiene equipo: el paso 3 no otorga cupo.'),
   school_missing: T('Times sem sigla nem nome de escola (cada um vira a própria escola):', 'Teams without school acronym or name (each one becomes its own school):',
     'Equipos sin sigla ni nombre de escuela (cada uno se vuelve su propia escuela):'),
+  wf_region_unfilled: T('Região sem campeão elegível (≥1 resolvido): a vaga foi para o geral.', 'Region with no eligible champion (≥1 solved): the slot went to the overall ranking.',
+    'Región sin campeón elegible (≥1 resuelto): el cupo pasó al general.'),
+  n_wf_missing: T('Sem N_WF na config: informe as vagas da América Latina no Mundial.', 'No N_WF in the config: enter the Latin America World Finals slots.',
+    'Sin N_WF en la config: indica los cupos de América Latina en el Mundial.'),
+  n_wf_below_regions: T('N_WF menor que o número de regiões: só as primeiras regiões têm campeão classificado.', 'N_WF is smaller than the number of regions: only the first regions get a champion slot.',
+    'N_WF menor que el número de regiones: solo las primeras regiones tienen campeón clasificado.'),
+  award_tie: T('Empate atravessa a faixa de medalha (a medalha vai a mais times):', 'A tie crosses a medal band (more teams get the medal):',
+    'Un empate atraviesa la franja de medalla (la medalla va a más equipos):'),
   school_key_collision: T('A mesma chave de escola com nomes completos diferentes — confira se são a mesma instituição:',
     'The same school key with different full names — check that they are the same institution:',
     'La misma clave de escuela con nombres completos distintos — revisa si son la misma institución:'),
@@ -126,6 +134,17 @@ export function resultDetails(p, labels) {
     box.append(el('p', { class: 'small' }, T('Reserva: ', 'Reserve: ', 'Reserva: ') + p.reserve.slots +
       T(' vaga(s) — o comitê as usa com "➕ Promover à mão" (via reserva).', ' slot(s) — the committee uses them with "➕ Promote by hand" (reserve route).',
         ' cupo(s) — el comité los usa con "➕ Promover a mano" (vía reserva).')));
+  }
+  if (p.awards) {
+    const a = p.awards, md = a.medals || {};
+    const who = (xs) => (xs || []).map((t) => (t.team || t.login) + ' (#' + t.place + ')').join(', ') || '—';
+    box.append(el('h4', { style: 'margin:.7rem 0 .2rem' }, T('Prêmios (informativo)', 'Awards (informative)', 'Premios (informativo)')),
+      table([[T('Prêmio', 'Award', 'Premio')], [T('Times', 'Teams', 'Equipos')]], [
+        [[T('Campeão', 'Champion', 'Campeón')], [who(a.champion)]],
+        [[T('🥇 Ouro', '🥇 Gold', '🥇 Oro')], [who(md.gold)]],
+        [[T('🥈 Prata', '🥈 Silver', '🥈 Plata')], [who(md.silver)]],
+        [[T('🥉 Bronze', '🥉 Bronze', '🥉 Bronce')], [who(md.bronze)]],
+        ...(a.regional || []).map((r) => [[r.title || r.name || r.region], [(r.team || r.login) + ' (#' + r.place + ')']])]));
   }
   if (Array.isArray(p.waitlist)) {
     box.append(el('h4', { style: 'margin:.7rem 0 .2rem' }, T('Lista de espera', 'Waiting list', 'Lista de espera') + ' — ' + p.waitlist.length),
