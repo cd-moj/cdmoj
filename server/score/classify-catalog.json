@@ -88,6 +88,33 @@
         "wf-region",
         "wf-overall"
       ]
+    },
+    {
+      "id": "manual",
+      "script": "classify-manual.sh",
+      "stage": "proxima-fase",
+      "next_stage": null,
+      "form": "manual",
+      "reason_optional": true,
+      "name": {
+        "pt": "Manual: escolho no placar quem sobe",
+        "en": "Manual: I pick on the scoreboard who advances",
+        "es": "Manual: elijo en el marcador quién avanza"
+      },
+      "desc": {
+        "pt": "você diz quantos times sobem e qual é a próxima fase; o painel mostra o placar e você clica em quem promover (motivo opcional) — para contests menores, como uma seletiva de universidade",
+        "en": "you set how many teams advance and what the next stage is; the panel shows the scoreboard and you click who to promote (reason optional) — for smaller contests, such as a university selection contest",
+        "es": "indicas cuántos equipos avanzan y cuál es la próxima etapa; el panel muestra el marcador y haces clic en quién promover (motivo opcional) — para competencias menores, como una selectiva universitaria"
+      },
+      "defaults": {
+        "name": "Próxima fase",
+        "venue": "",
+        "when": ""
+      },
+      "vias": [
+        "manual"
+      ],
+      "manual_slots": true
     }
   ],
   "manual_vias": [

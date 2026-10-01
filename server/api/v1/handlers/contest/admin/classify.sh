@@ -17,6 +17,8 @@
 #   add      {login | ext+team, reason, via?, univ?, school?, country?, region?} -> promove à mão (via
 #                                         manual|lista|reserva); p/ o motor, conta como já promovido
 #   override_undo {id}                 -> desfaz um override
+# Motor `manual` (catálogo reason_optional/manual_slots): TODA promoção é um `add` — motivo opcional, no máximo
+#   config.slots promovidos (409 slots_full); o result traz o `ranking` (o placar) p/ o painel.
 #   promote_next {reason}              -> o 1º da LISTA DE ESPERA (recalculada contra o estágio atual) vira um
 #                                         add via "lista" (motor com waitlist no catálogo; 409 waitlist_empty).
 #                                         add via "reserva" além das vagas de reserva do motor = 409 reserve_full
@@ -120,9 +122,9 @@ _compose(){
            labels: (($c[0].vias + (.result.labels // {})) | with_entries(select(.key as $k | $order | any(.[]; . == $k)))),
            chip: (.chip // $E.defaults.chip // .name // .id)}' "$1"
 }
-_need_reason(){ # motivo obrigatório (texto, ≤ 500); devolve em REASON
+_need_reason(){ # [optional] — motivo (texto, ≤ 500) em REASON; obrigatório, salvo `optional` (motor manual)
   REASON="$(jq -r '((.reason // .note // "") | tostring | gsub("^\\s+|\\s+$"; ""))' "$BF")"
-  [[ -n "$REASON" ]] || fail 422 "Motivo obrigatório" "reason_required"
+  [[ -n "$REASON" || "${1:-}" == optional ]] || fail 422 "Motivo obrigatório" "reason_required"
   (( ${#REASON} <= 500 )) || fail 422 "Motivo longo demais (máx. 500)" "reason_too_long"
 }
 
@@ -227,7 +229,11 @@ case "$action" in
       key="$(jq -r 'if (.login // "") != "" then .login else "ext:" + (.ext // "") end' "$W/ov.json")"
       REASON="$(jq -r '.reason // ""' "$W/ov.json")"
     else
-      _need_reason
+      # motor manual (catálogo reason_optional): a PROMOÇÃO é o próprio cálculo e o motivo é opcional
+      ralg="$(jq -r '.config.algorithm // ""' "$W/st.json")"
+      if [[ "$action" == add ]] && jq -e --arg a "$ralg" 'any(.engines[]; .id == $a and .reason_optional == true)' "$CL_CATALOG" >/dev/null 2>&1; then
+        _need_reason optional
+      else _need_reason; fi
       login="$(jq -r '.login // ""' "$BF")"; ext="$(jq -r '.ext // ""' "$BF")"
       [[ -n "$login" && -n "$ext" ]] && fail 400 "Use login OU ext" "login_invalid"
       if [[ -n "$ext" ]]; then
@@ -254,6 +260,12 @@ case "$action" in
           via="$(jq -r '.via // "manual"' "$BF")"
           jq -e --arg v "$via" '.manual_vias | index($v)' "$CL_CATALOG" >/dev/null 2>&1 \
             || fail 422 "via inválida p/ promoção manual: $via" "via_invalid"
+          # motor manual: no máximo `slots` promovidos (o admin aumenta o número p/ promover mais)
+          if jq -e --arg a "$ralg" 'any(.engines[]; .id == $a and .manual_slots == true)' "$CL_CATALOG" >/dev/null 2>&1; then
+            jq -e "$CL_JQ"'(.config.slots // null) as $n | $n == null or ([ cl_ovs[] | select(.op == "add") ] | length) < $n' \
+              "$W/st.json" >/dev/null 2>&1 \
+              || FAIL_EXTRA="$(jq -c '{slots:(.config.slots)}' "$W/st.json")" fail 409 "As $(jq -r '.config.slots' "$W/st.json") vagas desta etapa já foram preenchidas — aumente o número para promover mais" "slots_full"
+          fi
           # reserva: no máximo as vagas que o motor reportou (result.reserve.slots)
           if [[ "$via" == reserva ]]; then
             jq -e "$CL_JQ"'(.result.reserve.slots // null) as $n | $n == null or ([ cl_ovs[] | select(.op == "add" and .via == "reserva") ] | length) < $n' \

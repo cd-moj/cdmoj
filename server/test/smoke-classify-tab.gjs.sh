@@ -115,6 +115,27 @@ const val = (n) => (n._v != null ? n.value : (n.attrs.value || ''));   // el() g
   print('no_null_text=' + !txt(tab3.panel).includes('null') + ',' + !txt(tab.panel).includes('null'));
   print('details=' + (all.includes('Representação geográfica') && all.includes('México') && all.includes('Lista de espera — 1') && all.includes('{"fractions_prev":{"no":0.3333}}')));
   print('awards=' + (all.includes('Prêmios (informativo)') && all.includes('Alfa (#1)') && all.includes('Campeones Brasileños')));
+  // 2c) motor manual: o placar com "Promover" na linha; o motivo (opcional) abre na própria linha
+  const MAN = { id:'manual', name:{pt:'Manual'}, stage:'proxima-fase', form:'manual', reason_optional:true, defaults:{name:'Próxima fase'} };
+  const mstage = (rel) => ({ id:'seletiva', status:'draft', name:'Maratona SBC', chip:'SBC', config:{algorithm:'manual', slots:2},
+    result:{ ranking:[{place:1, login:'alfa', team:'Alfa', univ:'UNB', total:3, penalty:6}, {place:2, login:'beta', team:'Beta', univ:'UNB', total:2, penalty:5},
+      {place:3, login:'gama', team:'Gama', univ:'UNB', total:2, penalty:9}] }, relation:rel, overrides:[] });
+  GET = { stages:[mstage([{login:'beta', team:'Beta', via:'manual', manual:true, override:'ov-1', reason:''}])], algorithms:[BR, MAN], vias:L, manual_vias:['manual','lista','reserva'] };
+  POSTS.length = 0;
+  const tab4 = makeClassifyTab('sel'); await tab4.load();
+  const m = tab4.panel;
+  print('man_count=' + m.find('b').map(txt).some((t) => t === 'Promovidos: 1 de 2'));
+  const alfaRow = m.find('tr', (r) => txt(r).includes('Alfa') && txt(r).includes('UNB'))[0];
+  print('beta_done=' + m.find('tr', (r) => txt(r).includes('Beta') && txt(r).includes('✓ promovido')).length);
+  alfaRow.find('button', (b) => txt(b).includes('Promover'))[0].ev.click();
+  const why = alfaRow.find('input')[0]; why.value = 'campeã da seletiva';
+  alfaRow.find('button', (b) => txt(b) === '✔')[0].ev.click(); for (let k = 0; k < 4; k++) await null;
+  print('post_man=' + JSON.stringify(POSTS[0]));
+  print('man_form=' + m.find('label').map(txt).some((t) => t.startsWith('Quantos times serão promovidos')) + ',' + m.find('label').map(txt).some((t) => t.startsWith('Próxima fase')));
+  // cheio: 2 de 2 ⇒ sem botão de promover
+  GET = { stages:[mstage([{login:'beta', via:'manual', manual:true, override:'ov-1'}, {login:'alfa', via:'manual', manual:true, override:'ov-2'}])], algorithms:[BR, MAN], vias:L, manual_vias:['manual'] };
+  const tab5 = makeClassifyTab('sel'); await tab5.load();
+  print('full_btns=' + tab5.panel.find('button', (b) => txt(b).includes('⬆ Promover')).length + ',' + txt(tab5.panel).includes('todas as vagas preenchidas'));
   // 3) contest sem estágio: abre em "nova etapa" com o formulário BR
   GET = { stages:[], algorithms:[BR, JS_], vias:L, manual_vias:['manual'] };
   const tab2 = makeClassifyTab('cb'); await tab2.load();
@@ -147,5 +168,10 @@ check "$(kv preview)" true "prévia: avisos formatados, blocos"
 check "$(kv no_null_text)" "true,true" "nenhum \"null\" na tela"
 check "$(kv details)" true "detalhes: geo, lista de espera, frações p/ o ano seguinte"
 check "$(kv awards)" true "detalhes: prêmios do Mundial (informativo)"
+check "$(kv man_count)" true "manual: promovidos k de N"
+check "$(kv beta_done)" 1 "manual: o promovido aparece marcado no placar"
+check "$(kv post_man)" '{"stage":"seletiva","action":"add","login":"alfa","reason":"campeã da seletiva"}' "manual: promover pela linha, com o motivo do campo"
+check "$(kv man_form)" "true,true" "manual: formulário com o nº de vagas e a próxima fase"
+check "$(kv full_btns)" "0,true" "manual: vagas cheias = sem botão, com o aviso"
 check "$(kv empty_sel)" "__new empty_ta=2" "sem estágio: abre em nova etapa com o formulário BR"
 echo "classify-tab: $PASS ok, $FAIL falhas"; [[ $FAIL -eq 0 ]]

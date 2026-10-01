@@ -1082,7 +1082,9 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   por estágio; `ext:` = time de fora do placar, só no `classificados.html`), nunca o motor. Motores: `sbc-fase1`
   (`classify-br.sh`) e `latam-pda` (`classify-pda.sh`: região/país das capturas do LOGIN — fora do padrão = recusa
   rc 3; geográfica do PDF em INTEIROS; lista de espera + `promote_next`; teste `smoke-classify-pda.sh`) e
-  `latam-mundial` (`classify-mundial.sh`, no contest do Campeonato; prêmios informativos; `smoke-classify-mundial.sh`).
+  `latam-mundial` (`classify-mundial.sh`, no contest do Campeonato; prêmios informativos; `smoke-classify-mundial.sh`) e
+  `manual` (`classify-manual.sh`, seletiva: o painel mostra o placar e cada promoção é um `add` com motivo opcional, até
+  `slots` — 409 `slots_full`; `smoke-classify-manual.sh`).
   Testes: `smoke-contest-modules.sh` (57), `smoke-preflight.sh`, `smoke-contest-create.sh`.
 - **MÓDULO `esqueletos` (esqueleto de código no editor do time, issue #40 do Alex Orozco, 30/09/2026)**:
   no contest o editor abre VAZIO (o time escreve o código DELE por completo — o PR #34 foi recusado por isso);

@@ -194,7 +194,7 @@ hk(){ jq -e "$1" <<<"$BODY" >/dev/null 2>&1 && ok || bad "$2  [${BODY:0:300}]"; 
 stj(){ jq -r --arg s "$1" "first(.stages[] | select(.id == \$s)) | $2" "$C/classification.json"; }
 CFGJ="$(cat "$FIX/cfg.json")"
 calla GET
-hk '(.algorithms | map(.id)) == ["sbc-fase1","latam-pda","latam-mundial"] and (.algorithms[1].seed.N == 40) and (.algorithms[1].stage == "pda")' "GET: catálogo com a semente oficial"
+hk '(.algorithms | map(.id) | index("latam-pda")) != null and (.algorithms[1].seed.N == 40) and (.algorithms[1].stage == "pda")' "GET: catálogo com a semente oficial"
 calla POST "$(jq -cn --argjson c "$CFGJ" '{action:"preview", config:$c}')"
 hk '.stage == "pda" and (.relation | length) == 23 and (.preview.geo.schools_latam == 18)' "preview: estágio padrão pda"
 calla POST "$(jq -cn --argjson c "$CFGJ" '{action:"apply", config:$c}')"

@@ -171,7 +171,7 @@ export function makeClassifyTab(CONTEST) {
           el('th', {}, T('Motivo', 'Reason', 'Motivo')), el('th', {}, T('Quem / quando', 'Who / when', 'Quién / cuándo')), el('th', {}, ''))), tb)));
   }
 
-  function addBox() {
+  function addBox(optionalReason) {
     const mode = el('select', {}, el('option', { value: 'login' }, T('time do placar (login)', 'scoreboard team (login)', 'equipo del marcador (login)')),
       el('option', { value: 'ext' }, T('time de fora do placar', 'team outside the scoreboard', 'equipo fuera del marcador')));
     const login = el('input', { placeholder: 'login', style: 'min-width:150px' });
@@ -179,18 +179,63 @@ export function makeClassifyTab(CONTEST) {
     const team = el('input', { placeholder: T('nome do time', 'team name', 'nombre del equipo'), style: 'min-width:150px;display:none' });
     const univ = el('input', { placeholder: T('escola', 'school', 'escuela'), style: 'min-width:100px;display:none' });
     const via = el('select', {}, ...(DATA.manual_vias || ['manual']).map((v) => el('option', { value: v }, viaLabel(null, v, false))));
-    const reason = el('input', { placeholder: T('motivo (obrigatório)', 'reason (required)', 'motivo (obligatorio)'), style: 'min-width:220px' });
+    const reason = el('input', { placeholder: optionalReason ? T('motivo (opcional)', 'reason (optional)', 'motivo (opcional)') : T('motivo (obrigatório)', 'reason (required)', 'motivo (obligatorio)'), style: 'min-width:220px' });
     mode.onchange = () => { const e = mode.value === 'ext'; login.style.display = e ? 'none' : ''; [ext, team, univ].forEach((x) => { x.style.display = e ? '' : 'none'; }); };
     return el('div', { class: 'row', style: 'gap:.5rem;flex-wrap:wrap;align-items:center;margin-top:.6rem' },
       mode, login, ext, team, univ, via, reason,
       el('button', { class: 'btn', onclick: () => {
         const r = reason.value.trim();
-        if (!r) { showErr({ message: T('Informe o motivo.', 'Enter the reason.', 'Indica el motivo.') }); return; }
+        if (!r && !optionalReason) { showErr({ message: T('Informe o motivo.', 'Enter the reason.', 'Indica el motivo.') }); return; }
         const b = { action: 'add', via: via.value, reason: r };
         if (mode.value === 'ext') { b.ext = ext.value.trim(); b.team = team.value.trim(); if (univ.value.trim()) b.univ = univ.value.trim(); }
         else b.login = login.value.trim();
         act(b);
       } }, T('➕ Promover à mão', '➕ Promote by hand', '➕ Promover a mano')));
+  }
+
+  // --- motor manual: o PLACAR com "Promover" em cada time (motivo opcional, campo na própria linha) ---
+  function rankingBox(st, rel) {
+    const slots = Number((st.config || {}).slots) || 0;
+    const promoted = new Set(rel.filter((t) => !t.withdrawn).map((t) => t.login));
+    const k = promoted.size;
+    const full = k >= slots;
+    const rows = ((st.result || {}).ranking || []);
+    const tb = el('tbody');
+    rows.forEach((t) => {
+      const act0 = el('td', { style: 'white-space:nowrap' });
+      const idle = () => {
+        act0.innerHTML = '';
+        if (promoted.has(t.login)) { act0.append(el('span', { class: 'small', style: 'color:var(--ok,#1a7f37)' }, T('✓ promovido', '✓ promoted', '✓ promovido'))); return; }
+        if (full) return;
+        act0.append(el('button', { class: 'btn small', onclick: () => {
+          // o campo do motivo abre NA LINHA do time; ✔ promove, ✕ desiste
+          act0.innerHTML = '';
+          const why = el('input', { placeholder: T('motivo (opcional)', 'reason (optional)', 'motivo (opcional)'), style: 'min-width:200px' });
+          act0.append(why, ' ',
+            el('button', { class: 'btn small', title: T('promover', 'promote', 'promover'), onclick: () => act({ action: 'add', login: t.login, reason: why.value.trim() }) }, '✔'), ' ',
+            el('button', { class: 'btn ghost small', title: T('cancelar', 'cancel', 'cancelar'), onclick: idle }, '✕'));
+        } }, T('⬆ Promover', '⬆ Promote', '⬆ Promover')));
+      };
+      idle();
+      tb.append(el('tr', { style: promoted.has(t.login) ? 'background:var(--ok-bg,#f0faf2)' : '' },
+        el('td', { class: 'n' }, t.place != null ? String(t.place) : '—'),
+        el('td', {}, t.team || t.login, el('span', { class: 'small muted' }, ' · ' + t.login)),
+        el('td', { class: 'small' }, t.univ || ''),
+        el('td', { class: 'n' }, String(t.total)), el('td', { class: 'n' }, String(t.penalty)), act0));
+    });
+    return el('div', {},
+      el('p', {}, el('b', {}, T('Promovidos: ', 'Promoted: ', 'Promovidos: ') + k + T(' de ', ' of ', ' de ') + slots),
+        full ? el('span', { class: 'small muted' }, ' — ' + T('todas as vagas preenchidas; para promover mais, aumente o número em "Regras e vagas".',
+          'all slots filled; to promote more, raise the number in "Rules and slots".', 'todos los cupos ocupados; para promover más, aumenta el número en "Reglas y cupos".')) : null),
+      el('div', { class: 'row', style: 'gap:.5rem;align-items:center;margin:.3rem 0' },
+        el('h4', { style: 'margin:0' }, T('Placar', 'Scoreboard', 'Marcador')),
+        el('button', { class: 'btn ghost small', title: T('relê o placar agora (as promoções ficam)', 'reloads the scoreboard now (promotions are kept)', 'vuelve a leer el marcador ahora (las promociones se conservan)'),
+          onclick: () => act({ action: 'apply', config: st.config }) }, T('🔄 Atualizar placar', '🔄 Refresh scoreboard', '🔄 Actualizar marcador'))),
+      rows.length
+        ? el('div', { class: 'chart-wrap' }, el('table', { class: 'moj narrow' },
+          el('thead', {}, el('tr', {}, el('th', { class: 'n' }, '#'), el('th', {}, T('Time', 'Team', 'Equipo')), el('th', {}, T('Escola', 'School', 'Escuela')),
+            el('th', { class: 'n' }, 'Total'), el('th', { class: 'n' }, T('Penal.', 'Pen.', 'Penal.')), el('th', {}, ''))), tb))
+        : el('p', { class: 'muted small' }, T('O placar está vazio.', 'The scoreboard is empty.', 'El marcador está vacío.')));
   }
 
   // --- o estágio selecionado: estado, publicar, relação com ações, overrides ---
@@ -234,10 +279,13 @@ export function makeClassifyTab(CONTEST) {
         } }, T('🗑 Apagar rascunho', '🗑 Delete draft', '🗑 Borrar borrador'))),
       warningsBox(st.result && st.result.warnings, Object.assign({}, DATA.vias, st.labels)),
       relationTable(rel, st.labels, st.via_order, true),
-      addBox(),
-      (() => { const d = resultDetails(st.result, st.labels); return d ? el('details', { style: 'margin-top:.6rem' },
-        el('summary', {}, el('b', {}, T('📊 Detalhes do cálculo', '📊 Computation details', '📊 Detalles del cálculo'))), d) : null; })(),
-      overridesBox((st.overrides || []).filter((o) => o.op === 'exclude' || o.op === 'withdraw' || o.op === 'add'))));
+      ...(alg && alg.form === 'manual'
+        // motor manual: as promoções SÃO a classificação — o placar com "Promover" em vez dos detalhes do cálculo
+        ? [rankingBox(st, rel), addBox(true)]
+        : [addBox(false),
+          (() => { const d = resultDetails(st.result, st.labels); return d ? el('details', { style: 'margin-top:.6rem' },
+            el('summary', {}, el('b', {}, T('📊 Detalhes do cálculo', '📊 Computation details', '📊 Detalles del cálculo'))), d) : null; })(),
+          overridesBox((st.overrides || []).filter((o) => o.op === 'exclude' || o.op === 'withdraw' || o.op === 'add'))])));
   }
 
   // --- configuração + prévia + aplicar ---
@@ -265,7 +313,18 @@ export function makeClassifyTab(CONTEST) {
     const fChip = el('input', { value: (st && st.chip) || d.chip || '', style: 'width:8rem' });
     let getCfg;
     const formBox = el('div', {});
-    if (alg.form === 'br') {
+    const manual = alg.form === 'manual';
+    if (manual) {
+      // motor manual: só o número de vagas (a próxima fase é o nome/local/quando/chip acima)
+      const fSlots = el('input', { type: 'number', min: '0', value: String(cur && cur.slots != null ? cur.slots : ''), style: 'width:6rem' });
+      getCfg = () => {
+        const v = fSlots.value.trim();
+        if (!/^[0-9]+$/.test(v)) throw new Error(T('Informe quantos times serão promovidos.', 'Enter how many teams will be promoted.', 'Indica cuántos equipos serán promovidos.'));
+        return { algorithm: algId, slots: Number(v) };
+      };
+      formBox.append(el('div', { class: 'row', style: 'gap:.6rem;flex-wrap:wrap;align-items:center;margin:.4rem 0' },
+        el('label', {}, T('Quantos times serão promovidos: ', 'How many teams will be promoted: ', 'Cuántos equipos serán promovidos: '), fSlots)));
+    } else if (alg.form === 'br') {
       const c = cur || {};
       const fRegion = el('select', {}, el('option', { value: 'Brasil' }, T('Brasil', 'Brazil', 'Brasil')));
       const fR1 = el('input', { type: 'number', value: String(c.r1 != null ? c.r1 : 15), style: 'width:5rem' });
@@ -337,9 +396,18 @@ export function makeClassifyTab(CONTEST) {
       el('p', { class: 'small muted' }, pickLabel(alg.desc || '')),
       el('div', { class: 'row', style: 'gap:.6rem;flex-wrap:wrap;align-items:center;margin:.4rem 0' },
         el('label', {}, T('Motor: ', 'Engine: ', 'Motor: '), fAlg),
-        el('label', {}, T('Etapa: ', 'Stage: ', 'Etapa: '), fName), el('label', {}, T('Local: ', 'Venue: ', 'Lugar: '), fVenue),
+        el('label', {}, manual ? T('Próxima fase: ', 'Next stage: ', 'Próxima etapa: ') : T('Etapa: ', 'Stage: ', 'Etapa: '), fName),
+        el('label', {}, T('Local: ', 'Venue: ', 'Lugar: '), fVenue),
         el('label', {}, T('Quando: ', 'When: ', 'Cuándo: '), fWhen), el('label', {}, 'Chip: ', fChip)),
       formBox,
+      manual ? el('div', { class: 'row', style: 'gap:.5rem;margin-top:.5rem' },
+        el('button', { class: 'btn', onclick: () => {
+          clearMsg();
+          let cfg; try { cfg = getCfg(); } catch (e) { showErr(e); return; }
+          if (st && st.status === 'published' && !confirm(T('Esta etapa está PUBLICADA: salvar muda o placar NA HORA. Continuar?',
+            'This stage is PUBLISHED: saving changes the scoreboard IMMEDIATELY. Continue?', 'Esta etapa está PUBLICADA: guardar cambia el marcador AL INSTANTE. ¿Continuar?'))) return;
+          apply(cfg, false);
+        } }, st && st.config ? T('✔ Salvar', '✔ Save', '✔ Guardar') : T('✔ Salvar e carregar o placar', '✔ Save and load the scoreboard', '✔ Guardar y cargar el marcador'))) :
       el('div', { class: 'row', style: 'gap:.5rem;margin-top:.5rem' },
         el('button', { class: 'btn', onclick: async () => {
           clearMsg();

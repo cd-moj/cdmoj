@@ -47,6 +47,21 @@ fase, aplicadas EM ORDEM (config define vagas; tudo editável no painel):
 - Overrides: `exclude[]` tira o login da região antes do ranking (ele nem conta como campeão da sede);
   `preassigned[]` pula o time em todas as regras e sai em `pre[]` com os dados do placar.
 
+## Motor `manual` (toda promoção à mão)
+
+`server/score/classify-manual.sh`, para contests menores (a seletiva de uma universidade). Não há regra: o admin
+escolhe quem sobe.
+
+- Na config, só `slots` (quantos times serão promovidos). A **próxima fase** é o próprio estágio: nome, local,
+  quando e chip, digitados no painel. O id padrão é `proxima-fase`, e o chip padrão é o nome.
+- O motor devolve o PLACAR oficial em `result.ranking`, sem convidados e sem excluídos, até `ranking_limit` (500)
+  linhas; se passar, avisa (`ranking_truncated`). Nada é automático (`classified: []`).
+- No painel, cada linha do placar tem "⬆ Promover". O campo do motivo (OPCIONAL neste motor) abre na própria linha.
+  Cada promoção é um override `add` (via `manual`); ↩ desfaz.
+- Mais promoções que `slots` = 409 `slots_full`: o botão some e o painel manda aumentar o número.
+- "🔄 Atualizar placar" re-aplica (re-lê o placar) e mantém as promoções.
+- O catálogo marca o motor com `reason_optional` e `manual_slots`. Fora do `add`, o motivo segue obrigatório.
+
 ## Motor `latam-pda` (regional LATAM → Campeonato Latino-Americano, a "PDA")
 
 `server/score/classify-pda.sh`, estágio `pda`, chip "PDA". A regra é o PDF "2026-2027 ICPC Latin America – Promotion
@@ -144,8 +159,8 @@ motor avisa (`award_tie`). O painel mostra os prêmios em "📊 Detalhes do cál
 `CL_ENGINES` (`lib/classify.sh`). O **catálogo** `server/score/classify-catalog.json` descreve cada motor: estágio padrão,
 próximo estágio, formulário do painel (`form`), padrões (nome, local, quando, chip), vias e semente. Ele também traz os
 rótulos pt/en/es de toda via. O `smoke-contest-modules.sh` confere que catálogo e allowlist têm os mesmos ids. Hoje:
-`sbc-fase1` (estágio `final-br`, chip "Final BR"), `latam-pda` (estágio `pda`, chip "PDA") e `latam-mundial` (estágio
-`mundial`, chip "Mundial").
+`sbc-fase1` (estágio `final-br`, chip "Final BR"), `latam-pda` (estágio `pda`, chip "PDA"), `latam-mundial` (estágio
+`mundial`, chip "Mundial") e `manual` (estágio `proxima-fase`, chip = o nome da próxima fase).
 
 **Motor novo** = `score/classify-<x>.sh` + uma linha em `CL_ENGINES` + uma entrada no catálogo + smoke. O placar, o
 relatório e a rota pública leem o ESTÁGIO, nunca o motor. Id fora da lista = 422 `algorithm_invalid`.
@@ -216,7 +231,7 @@ dados da prova.
 Testes: `server/test/smoke-classify-br.sh` (motor, relatório com dois estágios, gate de rascunho, handler e overrides),
 `smoke-classify-pda.sh` (o motor da PDA passo a passo, `--check`, `--geo`, lista de espera, `promote_next`, reserva,
 trava com 8 escritas em paralelo), `smoke-classify-mundial.sh` (campeões, 1 por instituição, região sem time → geral,
-medalhas com empate),
+medalhas com empate), `smoke-classify-manual.sh` (placar, promoção sem motivo, `slots_full`, desfazer),
 `smoke-score-classified.gjs.sh` (chips do placar), `smoke-classify-tab.gjs.sh` (o painel: grupos, ações no estágio
 certo, nova etapa, editor JSON), `smoke-contest-modules.sh` (catálogo × allowlist, spec com
 `stages[]`).
