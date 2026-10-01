@@ -52,6 +52,10 @@ ck "com o editor: liga"                       '[[ "$(confmods "$E")" == esquelet
 call /contest/admin/settings POST '{"name":"Outro nome","show_editor":false}' adm-ev 'contest=ev'
 ck "desligar o editor com o módulo: 409 module_needs_editor" '[[ "$OUT" == *"Status: 409"* && "$(J .error.code)" == module_needs_editor ]]'
 ck "…e NADA foi gravado (nem o nome)"         '! grep -q "^SHOWEDITOR=" "$E/conf" && grep -q "^CONTEST_NAME=ev$" "$E/conf"'
+for v in '"false"' 0 null; do
+  call /contest/admin/settings POST "{\"show_editor\":$v}" adm-ev 'contest=ev'
+  ck "show_editor:$v (o bset desliga com tudo que não é true): 409 também" '[[ "$(J .error.code)" == module_needs_editor ]] && ! grep -q "^SHOWEDITOR=" "$E/conf"'
+done
 call /contest/admin/settings POST '{"show_editor":true}' adm-ev 'contest=ev'
 ck "manter o editor ligado passa"             '[[ "$OUT" == *"Status: 200"* ]]'
 
@@ -122,6 +126,8 @@ printf '%s' '{"id":"p#a","title":"A","tags":[]}' > "$FIX/treino/var/jsons/p#a.js
 printf '{"esqueletos":true}' > "$RUN/m1.json"
 call /treino/contest-create/create POST "$(mkspec esq1 false "$RUN/m1.json")" prof
 ck "criar sem editor + esqueletos: 422 editor_required" '[[ "$(J .error.code)" == editor_required && ! -d "$FIX/esq1" ]]'
+call /treino/contest-create/create POST "$(mkspec esq1 '"false"' "$RUN/m1.json")" prof
+ck "show_editor:\"false\" (string) também: 422"  '[[ "$(J .error.code)" == editor_required && ! -d "$FIX/esq1" ]]'
 for l in c cpp java; do head -c 60000 /dev/zero | tr '\0' "${l:0:1}" > "$RUN/t-$l"; done
 jq -cn --rawfile c "$RUN/t-c" --rawfile p "$RUN/t-cpp" --rawfile j "$RUN/t-java" \
   '{esqueletos:{langs:{c:{mode:"custom",code:$c}, cpp:{mode:"custom",code:$p}, java:{mode:"custom",code:$j}, py:{mode:"off"}}}}' > "$RUN/mods.json"

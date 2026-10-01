@@ -171,8 +171,9 @@ cc_create(){
     *) fail 422 "Modo inválido" "mode_invalid";;
   esac
   # módulo `esqueletos` EXIGE o editor embutido (lib/esqueletos.sh) — vale p/ criar, duplicar e template
+  # (a condição ESPELHA o cc_settings_conf_lines: `jq -r .show_editor` == "false" desliga — booleano OU string)
   if jq -e '((.modules // {}).esqueletos) as $e | (($e == true) or ((($e | type) == "object") and ($e.on != false)))
-            and (.show_editor == false)' >/dev/null 2>&1 <<<"$spec"; then
+            and ((.show_editor | tostring) == "false")' >/dev/null 2>&1 <<<"$spec"; then
     fail 422 "Esqueletos de código precisam do editor embutido: ligue o editor ou tire o módulo esqueletos" "editor_required"
   fi
   case "$priority" in
