@@ -143,6 +143,13 @@ cat_ids="$(jq -r '[.engines[].id] | sort | join(",")' "$ROOT/score/classify-cata
 allow_ids="$(_DIR="$ROOT/api/v1" bash -c 'source "$_DIR/lib/classify.sh"; printf "%s\n" "${!CL_ENGINES[@]}" | sort | paste -sd,')"
 ck "catálogo × allowlist: mesmos ids ($cat_ids)" '[[ -n "$cat_ids" && "$cat_ids" == "$allow_ids" ]]'
 ck "catálogo: cada motor tem o script da allowlist" '_DIR="$ROOT/api/v1" bash -c '"'"'source "$_DIR/lib/classify.sh"; for a in "${!CL_ENGINES[@]}"; do [[ -s "$CL_SCORE_DIR/${CL_ENGINES[$a]}" && "$(jq -r --arg a "$a" ".engines[]|select(.id==\$a)|.script" "$CL_CATALOG")" == "${CL_ENGINES[$a]}" ]] || exit 1; done'"'"''
+# todo texto traduzido do catálogo e das sementes ({pt,en,es} — nome/descrição de motor, rótulo de via, short, label
+# de bloco, nome/título de região) nasce nos TRÊS idiomas: objeto com qualquer um deles tem de ter os três, não vazios
+i18n_gaps="$(for f in "$ROOT/score/classify-catalog.json" "$ROOT"/score/classify-seeds/*.json; do
+  jq -r --arg f "${f##*/}" '[paths(objects) as $p | getpath($p) as $o | select($o | has("pt") or has("en") or has("es"))
+    | select(any(("pt", "en", "es"); ($o[.] // "") | (type != "string" or length == 0))) | ($p | map(tostring) | join("."))]
+    | .[] | "\($f): \(.)"' "$f"; done)"
+ck "catálogo e sementes: todo texto em pt/en/es${i18n_gaps:+ (faltam: ${i18n_gaps//$'\n'/; })}" '[[ -z "$i18n_gaps" ]]'
 echo "== classificação no spec: {stages:[…]} =="
 SPEC4="$(jq -cn --argjson s "$((NOW+600))" --argjson e "$((NOW+4200))" '{id:"novo4", name:"Novo 4", mode:"icpc", start:$s, end:$e, allow_empty:true,
   modules:{classificacao:{stages:[{algorithm:"sbc-fase1", config:{r1:3}, name:"Final"}, {id:"outra", algorithm:"sbc-fase1", config:{r1:1}, chip:"Outra"}]}}}')"
