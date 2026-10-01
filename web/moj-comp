@@ -46,7 +46,7 @@
 MOJ_TOOL="${MOJ_TOOL:-moj}"
 # carimbo de build: "dev" no repo; o mkdist.sh troca pelo <git-short>-<data> nos artefatos
 # distribuídos (é o que `moj version`/`doctor` comparam com o /moj.build do servidor)
-MOJ_CLI_BUILD="8587ea8-20260930"
+MOJ_CLI_BUILD="b63fccd-20261001"
 die(){ printf '%s: %s\n' "$MOJ_TOOL" "$*" >&2; exit 1; }
 # bash>=4 ANTES de qualquer bashismo (mapfile, read -i, ${x^^}): o /bin/bash do macOS é 3.2
 [ "${BASH_VERSINFO[0]:-0}" -ge 4 ] || die "preciso de bash >= 4 (macOS: brew install bash e rode com ele)"
@@ -436,7 +436,9 @@ _load_problems(){ # atualiza o mapa local letra→id (o submit OFFLINE depende d
   jq -r '.default_statement_lang // "pt"' <<<"$r" > "$(_cdir)/stmt-default" 2>/dev/null
   printf '%s' "$r"
 }
-_letter2id(){ awk -F'\t' -v l="$1" 'toupper($1)==toupper(l){print $2; exit}' "$(_cdir)/problems.tsv" 2>/dev/null; }
+# `|| true`: sem o problems.tsv (antes do 1º `problems`) o awk sai 2 e o `pid="$(…)"` matava o `submit` MUDO sob
+# set -e — antes do fallback que recarrega a lista
+_letter2id(){ awk -F'\t' -v l="$1" 'toupper($1)==toupper(l){print $2; exit}' "$(_cdir)/problems.tsv" 2>/dev/null || true; }
 _letter_langs(){ local v; v="$(awk -F'\t' -v l="$1" 'toupper($1)==toupper(l){print $4; exit}' "$(_cdir)/problems.tsv" 2>/dev/null)"; printf '%s' "${v:-pt}"; }
 # _stmt_all <letra> <base> [lang] — baixa html+pdf de UM idioma (ou de todos os oferecidos):
 # PT = <base>.html|pdf; outro = <base>.<lang>.html|pdf. Ecoa os arquivos gravados.
@@ -639,8 +641,9 @@ cmd_submit(){ need_contest; need_login
   if _is_treino; then     # treino: id direto, sem modo offline (você está na Internet aberta)
     [[ $force -eq 1 ]] && die "o modo offline é de CONTEST — no treino livre envie com rede."
     local r id
+    # rc 22 = o servidor RESPONDEU com erro (já impresso: ex. o 429 do teto de 3 envios na fila); só o resto é rede
     r="$(_api_net POST "/submit$(qc)" "$(_submit_body "$letter" "$file")")" \
-      || die "não deu p/ enviar agora (sem rede?) — tente de novo."
+      || { [[ $? -eq 22 ]] && return 1; die "não deu p/ enviar agora (sem rede?) — tente de novo."; }
     id="$(jq -r '.submission_id // empty' <<<"$r")"
     echo "enviada ($letter, $(basename "$file")) — id $id. aguardando veredicto…"
     _watch_verdict "$id" "$letter"; return $?
