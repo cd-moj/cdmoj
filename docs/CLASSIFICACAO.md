@@ -94,7 +94,7 @@ Rules". A config oficial está em `server/score/classify-seeds/latam-pda-2027.js
 
 | Tipo | O que faz |
 |---|---|
-| `fixed` | Times de fora do placar (os pendentes de 2026), chave `ext:<id>`, sem posição. Por padrão não contam como time da escola/país/região (`counts_for_school: false`). |
+| `fixed` | Times de fora do placar (os pendentes de 2026), chave `ext:<id>`, sem posição. Por padrão não contam como time da escola/país/região (`counts_for_school: false`, decisão do Ribas de 01/10/2026). |
 | `female` | `scope`: `host_school` (a instituição-sede), `host_country`, `latam` ou `per_region` (`slots` POR região); `min_women` 3/2/1. Sem a regra geral. |
 | `country_participation` | Cotas `quotas` (5, 4, 3, 2, 1) aos países com mais times no CICLO, desempate por instituições: a tabela do RCD em `cycle_teams`/`cycle_institutions`. Vazia, a prévia usa as contagens DESTE contest e avisa (`cycle_table_empty`). Empate nas duas = `cycle_tie`. As vagas vão aos melhores times de instituições ainda sem time (1 por instituição). |
 | `host_school` | Vagas extras da instituição-sede; `general_rule: false` na semente (decisão do Ribas). |
@@ -178,9 +178,11 @@ Vale para TODO estágio. O cálculo do motor e as decisões manuais ficam SEPARA
 - `withdraw` e o undo dele não rodam o motor (compõem sobre o `result` guardado).
 - No motor BR, o `preassigned` pula o time em todas as regras e não conta no limite de escola de nenhuma.
 - No motor `latam-pda`, o promovido à mão conta como promovido para a regra geral (a escola, o país e a região dele
-  já têm time), mas NÃO ocupa uma das N vagas padrão: o P4 completa N com as vagas dos passos 1 a 3. É uma
-  interpretação (o PDF não fala de promoção manual): o `add` é a vaga extra do comitê; erro do cálculo se corrige
-  com `exclude`, que recalcula.
+  já têm time), mas NÃO ocupa uma das N vagas padrão (nem das N_WF do Mundial): o P4 completa N com as vagas dos
+  passos 1 a 3. O PDF não fala de promoção manual; decisão do Ribas (01/10/2026): o `add` é a vaga extra do comitê, e
+  erro do cálculo se corrige com `exclude`, que recalcula.
+- `exclude` tira o time da PARTICIPAÇÃO: ele sai também das contagens de escolas e países (frações do P4, X do P2).
+  Decisão do Ribas (01/10/2026): time inelegível não pesa nas contagens.
 - O `promote_next` roda o motor com os MESMOS overrides (`exclude` incluído): um login excluído por override nem
   trava a lista (recusa) nem aparece nela.
 - Tudo vai ao audit (`classify-override`), e a trava `var/.classify.lock` serializa as escritas.
