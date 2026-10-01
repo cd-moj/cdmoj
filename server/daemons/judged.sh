@@ -274,7 +274,29 @@ intake_enqueue() {
     record_verdict "$contest" "$login" "$EPOCHSECONDS" "$problem" "$lang" "Judge Error" "$EPOCHSECONDS" "$id"
     schedule_score_rebuild "$contest"; return 1
   fi
-  q_enqueue "$id" "$prio" "$job"
+  q_enqueue "$id" "$prio" "$job" "$(deprio_delay "$contest" "$id" "$login" "$prio")"
+}
+
+# deprio_delay <contest> <id> <login> <prio> -> atraso (s) do job na fila. PROVA não tem teto de envios (o teto
+# é do treino e das listas, no /submit); em troca, o time com MUITAS pendentes perde prioridade (01/10/2026):
+# com mais de SUBMIT_DEPRIO_PENDING (5) envios esperando o juiz — a linha deste já está no history, o /submit a
+# grava antes de responder, então é "a partir do 6º"; conta só até a linha DESTE envio, então um spool represado
+# não adianta os cinco primeiros —, o job entra na MESMA banda como se tivesse chegado
+# SUBMIT_DEPRIO_DELAY (120) s depois. Conforme os veredictos saem, o próximo volta ao normal (conta a cada envio).
+# SUBMIT_DEPRIO_PENDING=0 desliga. Gêmeo em Python: deprio_delay() do daemons/spool-drain.py.
+deprio_delay() {
+  local contest="$1" id="$2" login="$3" prio="$4" lim dl n
+  case "$prio" in prova|super) ;; *) echo 0; return;; esac
+  lim="${SUBMIT_DEPRIO_PENDING:-5}"; lim="${lim//[^0-9]/}"; lim="${lim:-5}"
+  dl="${SUBMIT_DEPRIO_DELAY:-120}"; dl="${dl//[^0-9]/}"; dl="${dl:-120}"
+  (( lim > 0 && dl > 0 )) || { echo 0; return; }
+  n="$(user_queue_pending "$contest" "$login" "$id")"; n="${n//[^0-9]/}"; n="${n:-0}"
+  if (( n > lim )); then
+    log "deprio id=$id contest=$contest login=$login pendentes=$n atraso=${dl}s"
+    clog "$contest" envio-deprio "id=$id login=$login pendentes=$n atraso=${dl}s"
+    echo "$dl"; return
+  fi
+  echo 0
 }
 
 # ===== Veredicto MANUAL (.judge): segura o veredicto computado p/ revisão de 2 juízes ======

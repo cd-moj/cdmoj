@@ -18,6 +18,7 @@ import { flagName, flagNamesReady } from '/shared/flags.js';
 import { pickStmtLang, makeStmtLangChips, setChipsActive, rememberStmtLang, stmtHtmlLang } from '/shared/statement-langs.js';
 import { decorateSamples } from '/shared/statement-samples.js';
 import { langById } from '/shared/languages.js';
+import { submitErrorText } from '/shared/submit-ux.js';
 
 const CID = new URLSearchParams(location.search).get('c') || '';
 const enc = encodeURIComponent;
@@ -244,7 +245,7 @@ function sendForm(p) {
       await apiPost('/submit?contest=treino', { problem_id: p.id, filename: f.name, code_b64: await fileToBase64(f), source: 'file', virtual: CID }, A);
       msg.textContent = T('enviado — aguarde o veredicto', 'sent — wait for the verdict', 'enviado — espera el veredicto'); file.value = ''; name.textContent = T('nenhum arquivo', 'no file', 'ningún archivo');
       await refreshRun();
-    } catch (e) { msg.style.color = '#c0392b'; msg.textContent = e.message; send.disabled = false; }
+    } catch (e) { msg.style.color = '#c0392b'; msg.textContent = submitErrorText(e); send.disabled = false; }   // 429 = teto de envios na fila
   });
   return el('div', { class: 'vr-send' }, file,
     el('button', { class: 'btn ghost', onclick: () => file.click() }, T('Escolher arquivo…', 'Choose file…', 'Elegir archivo…')), name, send, msg,

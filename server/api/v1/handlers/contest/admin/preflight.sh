@@ -111,6 +111,44 @@ else
     "Sin congelamiento" "las competencias ICPC suelen congelar el marcador (Configuración → Freeze)"
 fi
 
+# --- envios na fila (submit.sh / judged.sh, 01/10/2026) --------------------------------
+# A PRIORIDADE decide: lista (lista-publica/lista-privada; ausente = lista-publica) tem teto de N envios esperando o
+# juiz por time (SUBMIT_MAX_INFLIGHT, padrão 3); prova/super não tem teto e perde prioridade a partir do 6º pendente.
+# A prioridade é escolhida na criação e não se edita depois — o `warn` é p/ quem NUNCA a escolheu numa prova
+# (icpc/obi sem CONTEST_PRIORITY): lista explícita é configuração deliberada e fica `ok`.
+_cprio="$(conf_value "$contest" CONTEST_PRIORITY)"; _cprio="${_cprio//\\/}"
+case "$_cprio" in
+  prova|super)
+    add3 submit_cap ok "Envios na fila: sem teto (prioridade $_cprio)" \
+      "a partir do 6º envio esperando o juiz, o time perde prioridade na fila de julgamento (nunca é recusado)" \
+      "Submissions in the queue: no limit (priority $_cprio)" \
+      "from the 6th submission waiting for the judge, the team gets a lower priority in the judging queue (it is never refused)" \
+      "Envíos en la cola: sin límite (prioridad $_cprio)" \
+      "a partir del 6.º envío esperando al juez, el equipo pierde prioridad en la cola de evaluación (nunca se rechaza)" ;;
+  *)
+    _cmax="$(conf_value "$contest" SUBMIT_MAX_INFLIGHT)"; _cmax="${_cmax//[^0-9]/}"; _cmax="${_cmax:-${SUBMIT_MAX_INFLIGHT:-3}}"
+    _cp="${_cprio:-lista-publica}"
+    if (( _cmax == 0 )); then
+      add3 submit_cap ok "Envios na fila: sem teto" "SUBMIT_MAX_INFLIGHT=0 no conf" \
+        "Submissions in the queue: no limit" "SUBMIT_MAX_INFLIGHT=0 in the conf" \
+        "Envíos en la cola: sin límite" "SUBMIT_MAX_INFLIGHT=0 en el conf"
+    elif [[ -z "$_cprio" && ( "$mode" == icpc || "$mode" == obi ) ]]; then
+      add3 submit_cap warn "Teto de $_cmax envios na fila por time" \
+        "a prioridade não foi definida e vale a de lista: cada time tem no máximo $_cmax envios esperando veredicto e o próximo é recusado. Se isto é uma prova e não uma lista, peça ao operador do MOJ CONTEST_PRIORITY=prova no conf" \
+        "Limit of $_cmax submissions in the queue per team" \
+        "the priority was not set, so the list priority applies: each team has at most $_cmax submissions waiting for a verdict and the next one is refused. If this is a contest and not a list, ask the MOJ operator to set CONTEST_PRIORITY=prova in the conf" \
+        "Límite de $_cmax envíos en la cola por equipo" \
+        "la prioridad no fue definida y vale la de lista: cada equipo tiene como máximo $_cmax envíos esperando veredicto y el siguiente se rechaza. Si esto es una competencia y no una lista, pide al operador del MOJ CONTEST_PRIORITY=prova en el conf"
+    else
+      add3 submit_cap ok "Teto de $_cmax envios na fila por time (prioridade $_cp)" \
+        "cada time tem no máximo $_cmax envios esperando veredicto; o próximo é recusado até sair um resultado" \
+        "Limit of $_cmax submissions in the queue per team (priority $_cp)" \
+        "each team has at most $_cmax submissions waiting for a verdict; the next one is refused until a result comes out" \
+        "Límite de $_cmax envíos en la cola por equipo (prioridad $_cp)" \
+        "cada equipo tiene como máximo $_cmax envíos esperando veredicto; el siguiente se rechaza hasta que salga un resultado"
+    fi ;;
+esac
+
 # --- balão × freeze -----------------------------------------------------------
 # Só faz sentido com freeze configurado. Nunca `fail`: as duas políticas são legítimas — a
 # padrão (retém) protege o placar congelado, e liberar é escolha deliberada do admin.

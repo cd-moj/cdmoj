@@ -10,6 +10,7 @@ import { T, setLang, getLang } from '/shared/i18n.js';
 import { navLabel } from '/shared/nav-i18n.js';
 import { mountContestUserChip } from '/shared/contest-shell.js';
 import { makeSubmissionsTable } from '/contest/submissions-table.js';
+import { makeSubmitFlow, attachSubmitButton, lastSubKey, submitChannel } from '/shared/submit-ux.js';
 import { mountSiteFooter } from '/shared/site-footer.js';
 import { openHtmlReport } from '/shared/submission-links.js';
 import { balloonColorHex, balloonSVG, balloonEdge, balloonTint } from '/contest/score/score-colors.js';
@@ -795,18 +796,31 @@ function toggleDetail(p, item, toggle, submitWrap) {
 // form de submit por problema: upload rápido (na linha) + editor completo no detalhe
 // (CodeMirror com tela cheia e "nova janela", espelhando o modo treino).
 function renderSubmitInline(p) {
-  // envia ao juiz; problem_id já é a forma canônica 'coleção#problema' (vinda de /contest/problems)
-  async function doSubmit(payload, stepsEl, btnEl) {
-    btnEl.disabled = true; stepsEl.textContent = T('Enviando…', 'Sending…', 'Enviando…');
-    try {
-      await apiPost('/submit?contest=' + encodeURIComponent(CONTEST),
-        { problem_id: p.problem_id, ...payload }, { contest: CONTEST, auth: true });
-      stepsEl.textContent = T('✓ Enviado!', '✓ Sent!', '✓ ¡Enviado!');
-      setTimeout(loadSubmissions, 1200);
-    } catch (ex) {
-      stepsEl.innerHTML = `<span class="error-box">${T('Erro: ', 'Error: ', 'Error: ') + (ex && ex.message ? ex.message : T('falha ao enviar', 'failed to send', 'no se pudo enviar'))}</span>`;
-    } finally { btnEl.disabled = false; }
-  }
+  // UM fluxo de envio POR PROBLEMA (shared/submit-ux.js): a linha (arquivo) e o editor compartilham a máquina —
+  // roda só enquanto o POST está no ar, "✓ Enviado" verde por 1,5 s, 2º clique p/ o mesmo código. problem_id já é a
+  // forma canônica 'coleção#problema' (vinda de /contest/problems).
+  const flow = makeSubmitFlow({ key: lastSubKey(CONTEST, userinfo && userinfo.login, p.problem_id),
+    send: (payload) => apiPost('/submit?contest=' + encodeURIComponent(CONTEST),
+      { problem_id: p.problem_id, ...payload }, { contest: CONTEST, auth: true }) });
+  const describe = (r) => (p.short_name || p.problem_id) + ' · ' + langById(r.prep.lang).label;
+  const hint = () => EDITOR_ONLY
+    ? T('acompanhe na página do contest', 'follow it on the contest page', 'síguelo en la página de la competencia')
+    : el('a', { href: '#mySubsSection', onclick: (e) => { e.preventDefault(); document.getElementById('mySubsSection')?.scrollIntoView({ block: 'start' }); } },
+      T('acompanhe em Minhas submissões', 'follow it in My submissions', 'síguelo en Mis envíos'));
+  // a linha pendente aparece NA HORA (a resposta traz id/epoch/lang); a janela ⧉ avisa a principal
+  const sent = (resp, prep) => {
+    const rec = { subid: resp && resp.submission_id, problem: (resp && resp.problem_id) || p.problem_id,
+      lang: (resp && resp.lang) || String(prep.lang || '').toUpperCase(), epoch: resp && resp.epoch };
+    if (EDITOR_ONLY) submitBus().post({ type: 'submitted', ...rec }); else noteSubmitted(rec);
+  };
+  // whitelist do problema vale TAMBÉM p/ arquivo (a API recusa; aqui é a mensagem amigável antes do POST)
+  const extOk = (name) => {
+    const fext = name.includes('.') ? name.split('.').pop() : '';
+    if (p.languages && p.languages.length && !p.languages.map(extCanon).includes(extCanon(fext))) {
+      throw new Error(T(`Este problema só aceita: ${p.languages.join(', ')} — o arquivo .${fext || '?'} não pode ser enviado.`, `This problem only accepts: ${p.languages.join(', ')} — the .${fext || '?'} file cannot be submitted.`, `Este problema solo acepta: ${p.languages.join(', ')} — el archivo .${fext || '?'} no se puede enviar.`));
+    }
+    return extCanon(fext);
+  };
 
   // ---- linha sempre visível: upload rápido de arquivo ----
   // O input nativo ficava com max-width:170px e mostrava "No…d" (issue #23): agora ele é
@@ -822,14 +836,17 @@ function renderSubmitInline(p) {
   const steps = el('span', { class: 'submit-steps' });
   const btn = el('button', { class: 'btn', type: 'button' }, T('Enviar', 'Submit', 'Enviar'));
   const row = el('span', { class: 'prob-submit' }, fileInput, pick, fileName, btn, steps);
-  btn.addEventListener('click', async () => {
-    if (fileInput.files && fileInput.files[0]) {
-      const f = fileInput.files[0];
-      steps.textContent = T('Preparando…', 'Preparing…', 'Preparando…');
-      doSubmit({ filename: f.name, code_b64: await fileToBase64(f), source: 'file' }, steps, btn);
-    } else {
-      steps.innerHTML = `<span class="muted small">${T('Escolha um arquivo ou escreva no editor (abra os detalhes ▼).', 'Choose a file or write in the editor (open details ▼).', 'Elige un archivo o escribe en el editor (abre los detalles ▼).')}</span>`;
-    }
+  // o botão da linha envia SÓ o arquivo, e o limpa depois do envio (o próximo é escolhido de novo — o arquivo
+  // do disco é relido, nunca um conteúdo velho)
+  attachSubmitButton(flow, btn, steps, {
+    label: () => T('Enviar', 'Submit', 'Enviar'), describe, hint,
+    prepare: async () => {
+      const f = fileInput.files && fileInput.files[0];
+      if (!f) throw new Error(T('Escolha um arquivo ou escreva no editor (abra os detalhes ▼).', 'Choose a file or write in the editor (open details ▼).', 'Elige un archivo o escribe en el editor (abre los detalles ▼).'));
+      const lang = extOk(f.name);
+      return { payload: { filename: f.name, code_b64: await fileToBase64(f), source: 'file' }, lang };
+    },
+    onSent: (resp, prep) => { fileInput.value = ''; fileName.textContent = ''; fileName.title = ''; sent(resp, prep); },
   });
 
   // ---- editor completo (montado sob demanda no detalhe) ----
@@ -908,29 +925,22 @@ function renderSubmitInline(p) {
     })();
     return mounting;
   }
-  edBtn.addEventListener('click', async () => {
-    if (fileInput.files && fileInput.files[0]) {
-      const f = fileInput.files[0];
-      // whitelist do problema vale TAMBÉM p/ upload de arquivo (a API rejeita; aqui é a
-      // mensagem amigável antes do POST — o dropdown do editor já filtra)
-      if (p.languages && p.languages.length) {
-        const fext = f.name.includes('.') ? f.name.split('.').pop() : '';
-        if (!p.languages.map(extCanon).includes(extCanon(fext))) {
-          edSteps.innerHTML = `<span class="error-box">${T(`Este problema só aceita: ${p.languages.join(', ')} — o arquivo .${fext || '?'} não pode ser enviado.`, `This problem only accepts: ${p.languages.join(', ')} — the .${fext || '?'} file cannot be submitted.`, `Este problema solo acepta: ${p.languages.join(', ')} — el archivo .${fext || '?'} no se puede enviar.`)}</span>`;
-          return;
-        }
+  // o botão do editor envia SÓ o editor (antes um arquivo esquecido na linha vencia o texto e pulava as travas)
+  attachSubmitButton(flow, edBtn, edSteps, {
+    label: () => T('Enviar solução', 'Submit solution', 'Enviar solución'), describe, hint, onSent: sent,
+    prepare: async () => {
+      const txt = editor ? editor.getValue() : '';
+      if (!txt.trim()) {
+        const f = fileInput.files && fileInput.files[0];
+        throw new Error(f
+          ? T(`O editor está vazio. Para enviar o arquivo ${f.name}, use o botão Enviar ao lado dele.`, `The editor is empty. To submit the file ${f.name}, use the Submit button next to it.`, `El editor está vacío. Para enviar el archivo ${f.name}, usa el botón Enviar que está a su lado.`)
+          : T('Escreva o seu código no editor.', 'Write your code in the editor.', 'Escribe tu código en el editor.'));
       }
-      edSteps.textContent = T('Preparando…', 'Preparing…', 'Preparando…');
-      doSubmit({ filename: f.name, code_b64: await fileToBase64(f), source: 'file' }, edSteps, edBtn);
-      return;
-    }
-    const txt = editor ? editor.getValue() : '';
-    if (!txt.trim()) { edSteps.innerHTML = `<span class="error-box">${T('Escreva código ou escolha um arquivo.', 'Write code or choose a file.', 'Escribe código o elige un archivo.')}</span>`; return; }
-    // o esqueleto INTACTO conta como vazio: sem isto a trava acima nunca dispararia com o módulo ligado, e um
-    // clique acidental mandaria o main puro (WA com penalidade)
-    if (skel && isSkeleton(txt, skel)) { edSteps.innerHTML = `<span class="error-box">${T('Você ainda não alterou o esqueleto: escreva a sua solução.', 'You have not changed the skeleton yet: write your solution.', 'Todavía no cambiaste el esqueleto: escribe tu solución.')}</span>`; return; }
-    edSteps.textContent = T('Preparando…', 'Preparing…', 'Preparando…');
-    doSubmit({ filename: 'solution.' + sel.value, code_b64: textToBase64(txt), source: 'web' }, edSteps, edBtn);
+      // o esqueleto INTACTO conta como vazio: sem isto a trava acima nunca dispararia com o módulo ligado, e um
+      // clique acidental mandaria o main puro (WA com penalidade)
+      if (skel && isSkeleton(txt, skel)) throw new Error(T('Você ainda não alterou o esqueleto: escreva a sua solução.', 'You have not changed the skeleton yet: write your solution.', 'Todavía no cambiaste el esqueleto: escribe tu solución.'));
+      return { payload: { filename: 'solution.' + sel.value, code_b64: textToBase64(txt), source: 'web' }, lang: sel.value };
+    },
   });
 
   return { row, editorBlock, mountEditor, refreshEd };
@@ -947,6 +957,15 @@ function mountSubmissionsTable() {
     onLoaded: (list) => { submissions = list; retintProblems(); } });
 }
 async function loadSubmissions() { if (!subsTable) mountSubmissionsTable(); return subsTable.load(); }
+// um envio acabou de sair (nesta página ou na janela ⧉): a linha pendente entra NA HORA e a tabela recarrega
+// sem o microcache do nginx — antes esperava 1,2 s e podia pegar a resposta de 2 s atrás
+function noteSubmitted(rec) {
+  if (!subsTable) mountSubmissionsTable();
+  subsTable.addPending(rec);
+  subsTable.load({ fresh: true });
+}
+let _bus = null;
+const submitBus = () => (_bus ||= submitChannel(CONTEST));
 
 // Faixa da RODADA: um contest pode rodar aquecimento (ensaio) antes da prova oficial, no mesmo
 // endereço e com o mesmo login. O time não pode confundir os dois — então, quando a rodada no ar
@@ -995,6 +1014,8 @@ async function bootMain() {
   balloons = bc ? (bc.balloons || bc) : {};
 
   renderRoundBanner();
+  // envio feito na janela ⧉ só-editor: a linha pendente aparece aqui na hora (BroadcastChannel, mesma origem)
+  submitBus().listen((m) => { if (m && m.type === 'submitted' && m.subid) noteSubmitted(m); });
   // rodadas: faixa do aquecimento + link p/ o arquivo das encerradas (só quando houver)
   apiGet('/contest/rounds?contest=' + encodeURIComponent(CONTEST), { contest: CONTEST, auth: true })
     .then(j => renderRoundsLink((j.rounds || []).filter(r => r.state === 'archived'))).catch(() => {});

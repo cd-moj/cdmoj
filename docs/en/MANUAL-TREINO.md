@@ -1,4 +1,4 @@
-<!-- i18n-source: MANUAL-TREINO.md blob:ce87837d89148ef015a8e2ff722fe27b2240fa35 -->
+<!-- i18n-source: MANUAL-TREINO.md blob:6c09422f790b7b8f8e0000907d1f7d29f6a94e83 -->
 # MOJ: Free Training Manual (student)
 
 > **Translation note.** This manual is a translation of the Portuguese original. The command-line tools (`moj`, `moj-contest`, `moj-comp`) print their messages in Portuguese, and the command examples below are identical to the original.
@@ -237,8 +237,26 @@ You must be **logged in** to submit. In the **Submit solution** panel:
 2. Write your code in one of these two ways:
    - **Type it in the editor.** The editor (its name is CodeMirror) comes with a **template** of
      the selected language to help you start.
-   - **Or upload a file** in the **or file:** field.
-3. Click **Submit solution**. The message **Submitted!** shows.
+   - **Or upload a file** in the **or file:** field. When you select a file, MOJ sends the file.
+3. Click **Submit solution**.
+
+**What you see after the click.** There is no pop-up window. The button shows a spinner with **Sending…** while
+the submission goes to the server, and it does not accept another click. Then it becomes green for a moment,
+with **✓ Sent**. Below it, the confirmation **✓ Submitted at 14:03:12 — C++** shows, and the submission
+appears in the history immediately. After the submission, the file field is empty.
+
+MOJ does not send an empty editor or the language template without changes: it asks you to write your
+solution.
+
+**Same code again.** If the code is equal to the last code that you submitted for that problem, in the same
+language, the first click does not submit. The button becomes orange and shows **Same code as the 14:03
+submission — submit again?**. Click again within 5 seconds to submit it anyway. A different language counts as
+new code.
+
+**At most 3 submissions in the queue.** Your account can have up to **3 submissions waiting for a verdict** at
+the same time. The 4th one is refused with the message "You already have 3 submissions waiting for a verdict".
+Wait for a result and submit again. The limit also applies to virtual participation. It makes sure that no
+account takes the judge for itself.
 
 The editor has some conveniences:
 

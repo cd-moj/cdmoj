@@ -5,6 +5,8 @@
 //
 //   const st = makeSubmissionsTable({ contest, basic, problems, userinfo, filterEl, tableEl, onLoaded });
 //   await st.load();   // busca o history, pinta e agenda o poll (5–10 s) se houver pendente
+//   st.addPending({ subid, problem, lang, epoch });   // linha OTIMISTA na hora do envio (resposta do /submit)
+//   st.load({ fresh: true });                          // recarga sem o microcache do nginx (logo após enviar)
 //   st.stop();         // cancela o poll (ao sair da página)
 // `onLoaded(submissions)` avisa quem precisa da lista (a página principal re-tinge os problemas).
 import { apiGet, apiGetText, getToken } from '/shared/api.js';
@@ -29,6 +31,9 @@ export function parseHistLine(line) {
 export function makeSubmissionsTable({ contest, basic, problems, userinfo, filterEl, tableEl, onLoaded } = {}) {
   const enc = encodeURIComponent;
   let submissions = [], subSumm = {}, subFilter = 'ALL', sortField = 'epoch', sortAsc = false, pollTimer = null;
+  // linhas OTIMISTAS (o envio que acabou de sair): aparecem na hora, destacadas, e somem quando o history do
+  // servidor as traz (ou depois de OPT_TTL s, se nunca vierem — aí quem manda é o servidor)
+  const OPT_TTL = 60, optimistic = new Map();
   const probs = () => (problems || []).filter((p) => p.show !== false);
   const shortNameOf = (pid) => { const p = (problems || []).find((x) => x.problem_id === pid); return p ? (p.short_name || pid) : pid; };
   const fullNameOf = (pid) => { const p = (problems || []).find((x) => x.problem_id === pid); return p ? (p.full_name || '') : ''; };
@@ -99,18 +104,40 @@ export function makeSubmissionsTable({ contest, basic, problems, userinfo, filte
         rtxt ? el('div', { class: 'small muted', style: 'margin-top:.15rem' }, rtxt) : '');
       const logCell = canLog ? el('td', {}, el('a', { href: '#', onclick: (e) => { e.preventDefault();
         openReportAuthed(`/submission/log?contest=${enc(contest)}&id=${enc(s.subid)}&time=${enc(s.epoch)}`); } }, 'log')) : null;
-      tb.append(el('tr', {}, el('td', {}, minuto(s.epoch)),
+      tb.append(el('tr', { class: s.optimistic ? 'sub-new' : null }, el('td', {}, minuto(s.epoch)),
         el('td', {}, el('b', {}, shortNameOf(s.problem)), ' ', el('span', { class: 'small muted' }, fullNameOf(s.problem))),
         el('td', {}, fileLink), vcell, el('td', {}, fmtDate(s.epoch)), logCell));
     });
     return el('table', { class: 'moj' }, head, tb);
   }
 
-  async function load() {
+  // o servidor manda; a otimista só fica enquanto ele ainda não a trouxe (e por no máx. OPT_TTL s)
+  function mergeOptimistic(list) {
+    const now = Date.now() / 1000, have = new Set(list.map((s) => s.subid));
+    for (const [id, o] of optimistic) { if (have.has(id) || now - o.added > OPT_TTL) optimistic.delete(id); }
+    return list.concat([...optimistic.values()].map((o) => o.row));
+  }
+  function addPending({ subid, problem, lang, epoch } = {}) {
+    if (!subid || submissions.some((s) => s.subid === subid)) return;
+    const ep = Number(epoch) > 0 ? Number(epoch) : Math.floor(Date.now() / 1000);
+    const row = { sinceStart: ep, user: '', problem: problem || '', lang: lang || '', subid, epoch: ep,
+      verdict: 'Not Answered Yet', optimistic: true };
+    optimistic.set(subid, { row, added: Date.now() / 1000 });
+    submissions = submissions.concat([row]);
+    renderFilter(); renderTable();
+  }
+
+  async function load({ fresh = false } = {}) {
     let txt;
-    try { txt = await apiGetText('/contest/history?contest=' + enc(contest), { contest, auth: true }); }
-    catch { return; }
-    submissions = txt.split('\n').map((s) => s.trim()).filter(Boolean).map(parseHistLine).filter(Boolean);
+    // fresh: o microcache do nginx (2 s) tem a URI na chave — o parâmetro a mais pula o cache logo após um envio
+    try { txt = await apiGetText('/contest/history?contest=' + enc(contest) + (fresh ? '&_=' + Date.now() : ''), { contest, auth: true }); }
+    catch {
+      // GET falhou (rede, 502): o poll NÃO pode morrer calado — com pendente na tela, tenta de novo
+      clearTimeout(pollTimer);
+      if (submissions.some((s) => isPending(s.verdict))) pollTimer = setTimeout(load, 8000 + Math.random() * 4000);
+      return;
+    }
+    submissions = mergeOptimistic(txt.split('\n').map((s) => s.trim()).filter(Boolean).map(parseHistLine).filter(Boolean));
     // resumo das já julgadas — lotes de 100 (URL curta), best-effort; icpc devolve null e nada aparece
     const done = submissions.filter((s) => !isPending(s.verdict)).map((s) => s.subid).filter((id) => !(id in subSumm));
     for (let i = 0; i < done.length; i += 100) {
@@ -123,6 +150,6 @@ export function makeSubmissionsTable({ contest, basic, problems, userinfo, filte
     if (submissions.some((s) => isPending(s.verdict))) pollTimer = setTimeout(load, 5000 + Math.random() * 5000);
   }
   function stop() { clearTimeout(pollTimer); pollTimer = null; }
-  return { load, stop, render: () => { renderFilter(); renderTable(); }, get submissions() { return submissions; },
+  return { load, stop, addPending, render: () => { renderFilter(); renderTable(); }, get submissions() { return submissions; },
     setProblems(p) { problems = p; }, setUserinfo(u) { userinfo = u; } };
 }

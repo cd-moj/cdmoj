@@ -101,6 +101,22 @@ de um POST sem esses campos com o MESMO checksum (boot/agente velho não apagam 
 - **Escalonamento**: `q_claim` prefere juízes **quentes** (já têm o problema em cache); quem
   não tem só pega o job após `COLD_GRACE` (8 s) — aí baixa+calibra sob demanda. Qualquer juiz
   capaz julga qualquer problema; nada de "validar inventário".
+- **Idade × ordem na fila** (01/10/2026): dentro da banda a fila é FIFO pelo NOME do arquivo
+  (`<epoch>_<id>.json`), e quem lê esse prefixo é só a ORDEM e a promoção de famintos
+  (`q_promote_starved`). As carências do `q_claim` (`COLD_GRACE`, `LANG_GRACE`, `POOL_GRACE`) contam a
+  idade REAL — o `enq` do `.cmeta` (= `enqueued_at` do job), o mesmo relógio do `_wide_jobs` e do
+  `queue_stuck`. Por isso um job promovido ou devolvido (nome refeito) não paga de novo a carência do
+  juiz frio, e um job ADIANTADO não vira "mais novo" para ela.
+- **Menos prioridade p/ o time da PROVA com muitas pendentes** (01/10/2026): prova não tem teto de
+  envios (o teto de `SUBMIT_MAX_INFLIGHT`, 3, é do treino e das listas, no `/submit`). Em troca, no
+  intake (`judged.sh` `deprio_delay`, e o gêmeo `daemons/spool-drain.py`), se o time tem mais de
+  `SUBMIT_DEPRIO_PENDING` (5) envios esperando o juiz — contados no history até a linha DESTE envio, sem
+  os segurados em `review/` (`user_queue_pending`) —, o job entra na MESMA banda com o nome adiantado
+  `SUBMIT_DEPRIO_DELAY` (120) s (`q_enqueue <id> <prio> <job> <atraso>`): fica atrás de quem chegar nos
+  próximos 2 min, mas um juiz livre o pega na hora se a banda estiver vazia. `enqueued_at` segue real;
+  a promoção de famintos conta pelo nome (o adiantado espera 300+120 s p/ subir de banda). Trilha:
+  `envio-deprio` no `var/admin-audit.log` do contest e "deprio id=…" no log do judged. Teste:
+  `server/test/smoke-submit-deprio.sh`.
 - **Pool de juízes** (consistência de hardware): o contest pode fixar as máquinas que corrigem
   (`CONTEST_JUDGES` no conf; override por problema em `problem-judges.json`). O daemon resolve o
   pool EFETIVO no enqueue e grava **`allowed_hosts`** no job; `q_claim` só entrega a host listado.
@@ -290,6 +306,8 @@ os agentes mortos a fila simplesmente pausa (nada expira errado).
 | `DECLINE_BACKOFF` / `DECLINE_MAX` | `60` / `3` | s que o host que recusou pula o job / recusas até Judge Error |
 | `PARALLEL_MAX_DEFAULT` | `4` | teto de testes ao mesmo tempo por job (por juiz: `parallel_max` no judges-config) |
 | `SWEEP_THROTTLE` | `5` | s entre varreduras de hold/infactível |
+| `SUBMIT_DEPRIO_PENDING` | `5` | (judged/spool-drain) prova/super: com MAIS que isso esperando o juiz, o envio entra adiantado na banda; `0` desliga |
+| `SUBMIT_DEPRIO_DELAY` | `120` | s que o nome do job do time com muitas pendentes é adiantado (menos prioridade, mesma banda) |
 | `POOL_GRACE` | `0` | s; job com `allowed_hosts` (pool): `0` = ESTRITO (só o pool julga; offline = fila espera), `>0` = qualquer juiz após esse tempo |
 | `JUDGE_CACHE` | `~/.cache/moj/problems` | (juiz) cache local de pacotes por problema |
 | `MOJ_PROBLEMS_DIR` | `…/moj-problems` | (servidor) store dos pacotes servidos aos juízes |

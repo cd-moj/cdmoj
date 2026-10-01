@@ -3,10 +3,11 @@ import { apiGet, apiGetText, apiPost, getToken } from '/shared/api.js';
 import { fileToBase64, textToBase64, status } from '/shared/auth.js';
 import { el, verdictClass, isPending, fmtDate, renderAuthArea, resumoText } from '/shared/ui.js';
 import { createEditor } from '/shared/editor.js';
-import { skeletonFor, docOnLangChange } from '/shared/editor-skeleton.js';
+import { skeletonFor, isSkeleton, docOnLangChange } from '/shared/editor-skeleton.js';
 import { DEFAULT_SUBMIT_LANGUAGES, langById, extCanon } from '/shared/languages.js';
 import { openHtmlReport } from '/shared/submission-links.js';
 import { T } from '/shared/i18n.js';
+import { makeSubmitFlow, attachSubmitButton, lastSubKey } from '/shared/submit-ux.js';
 import { pickStmtLang, makeStmtLangChips, setChipsActive, rememberStmtLang, stmtHtmlLang } from '/shared/statement-langs.js';
 import { decorateSamples, downloadSamplesZip, downloadableSamples } from '/shared/statement-samples.js';
 
@@ -204,12 +205,19 @@ function parseHistLine(line) {
            subid: p[p.length - 1], epoch: p[p.length - 2], verdict: p.slice(4, p.length - 2).join(':') };
 }
 
-async function loadHistory() {
+async function loadHistory({ fresh = false } = {}) {
   const box = document.getElementById('history');
   if (!getToken(CONTEST)) { box.innerHTML = `<span class="muted small">${T('Entre para ver seu histórico.', 'Log in to view your history.', 'Inicia sesión para ver tu historial.')}</span>`; return; }
   let txt;
-  try { txt = await apiGetText('/treino/history?id=' + encodeURIComponent(ID), { contest: CONTEST, auth: true }); }
-  catch { box.innerHTML = '<span class="muted small">—</span>'; return; }
+  // fresh (logo após um envio): o parâmetro a mais pula o microcache do nginx, que tem a URI na chave
+  try { txt = await apiGetText('/treino/history?id=' + encodeURIComponent(ID) + (fresh ? '&_=' + Date.now() : ''), { contest: CONTEST, auth: true }); }
+  catch {
+    // o poll não morre calado: se a tabela tinha pendente, tenta de novo (a tabela velha fica na tela)
+    clearTimeout(pollTimer);
+    if (box.querySelector('.spin')) pollTimer = setTimeout(loadHistory, 8000 + Math.random() * 4000);
+    else box.innerHTML = '<span class="muted small">—</span>';
+    return;
+  }
   const rows = txt.split('\n').map((s) => s.trim()).filter(Boolean).map(parseHistLine).filter(Boolean)
                   .sort((a, b) => Number(b.epoch) - Number(a.epoch));
   box.innerHTML = '';
@@ -302,7 +310,7 @@ async function renderSubmit() {
       el('span', { class: 'small muted' }, T('ou arquivo:', 'or file:', 'o archivo:')), fileInput,
       helpLink,
       el('span', { style: 'flex:1' }), expandBtn, popBtn, closeFullBtn, toggle),
-    editorBox, steps, btn);
+    editorBox, btn, steps);
   // dialog dedicado p/ a tela cheia: o editor MOVE-se p/ dentro (top layer) e volta ao fechar.
   const dlg = document.createElement('dialog'); dlg.className = 'editor-dialog'; document.body.append(dlg);
   function enterFull() {
@@ -328,37 +336,35 @@ async function renderSubmit() {
     await swapEditor(docOnLangChange(cur, langSel.value, { functionLangs: problemFnLangs }), langSel.value);
   });
 
-  btn.addEventListener('click', async () => {
-    btn.disabled = true; steps.textContent = T('Preparando…', 'Preparing…', 'Preparando…');
-    try {
-      let filename, code_b64, source;
+  // envio (shared/submit-ux.js): roda só enquanto o POST está no ar, "✓ Enviado" verde por 1,5 s, 2º clique p/ o
+  // mesmo código; o arquivo escolhido vence o editor (é ele que está na barra) e é limpo depois do envio
+  const flow = makeSubmitFlow({ key: lastSubKey(CONTEST, st.login, ID),
+    send: (payload) => apiPost('/submit?contest=' + CONTEST, { problem_id: ID, ...payload }, { contest: CONTEST, auth: true }) });
+  attachSubmitButton(flow, btn, steps, {
+    label: () => T('Enviar solução', 'Submit solution', 'Enviar solución'),
+    describe: (r) => langById(r.prep.lang).label,
+    hint: () => T('acompanhe no histórico abaixo', 'follow it in the history below', 'síguelo en el historial de abajo'),
+    prepare: async () => {
       if (fileInput.files && fileInput.files[0]) {
-        filename = fileInput.files[0].name;
+        const filename = fileInput.files[0].name;
         // whitelist do problema vale TAMBÉM p/ upload de arquivo (a API rejeita; aqui é
         // só a mensagem amigável antes do POST — o dropdown do editor já filtra)
         const fext = filename.includes('.') ? filename.split('.').pop() : '';
         if (problemLangs.length && !problemLangs.map(extCanon).includes(extCanon(fext))) {
-          steps.innerHTML = '<span class="error-box">'
-            + T(`Este problema só aceita: ${problemLangs.join(', ')} — o arquivo .${fext || '?'} não pode ser enviado.`,
-                `This problem only accepts: ${problemLangs.join(', ')} — the .${fext || '?'} file cannot be submitted.`,
-                `Este problema solo acepta: ${problemLangs.join(', ')} — el archivo .${fext || '?'} no puede enviarse.`)
-            + '</span>';
-          return;
+          throw new Error(T(`Este problema só aceita: ${problemLangs.join(', ')} — o arquivo .${fext || '?'} não pode ser enviado.`,
+            `This problem only accepts: ${problemLangs.join(', ')} — the .${fext || '?'} file cannot be submitted.`,
+            `Este problema solo acepta: ${problemLangs.join(', ')} — el archivo .${fext || '?'} no puede enviarse.`));
         }
-        code_b64 = await fileToBase64(fileInput.files[0]);
-        source = 'file';   // upload -> conta o editor declarado do usuário
-      } else {
-        filename = 'solution.' + curLangId;
-        code_b64 = textToBase64(editorApi.getValue());
-        source = 'web';    // editor web do MOJ
+        // upload -> conta o editor declarado do usuário
+        return { payload: { filename, code_b64: await fileToBase64(fileInput.files[0]), source: 'file' }, lang: extCanon(fext) };
       }
-      steps.textContent = T('Enviando…', 'Sending…', 'Enviando…');
-      await apiPost('/submit?contest=' + CONTEST, { problem_id: ID, filename, code_b64, source }, { contest: CONTEST, auth: true });
-      steps.innerHTML = `<span class="v-ok" style="padding:.2rem .5rem;border-radius:6px">${T('✓ Enviado! Acompanhe no histórico abaixo.', '✓ Submitted! Follow it in the history below.', '✓ ¡Enviado! Sigue su estado en el historial de abajo.')}</span>`;
-      await loadHistory();
-    } catch (e) {
-      steps.innerHTML = '<span class="error-box">' + T('Erro: ', 'Error: ', 'Error: ') + (e.message || T('falha ao enviar', 'failed to submit', 'no se pudo enviar')) + '</span>';
-    } finally { btn.disabled = false; }
+      const txt = editorApi ? editorApi.getValue() : '';
+      if (!txt.trim()) throw new Error(T('Escreva o seu código no editor ou escolha um arquivo.', 'Write your code in the editor or choose a file.', 'Escribe tu código en el editor o elige un archivo.'));
+      // o esqueleto da linguagem INTACTO é WA na certa: pede a solução antes de gastar o juiz
+      if (isSkeleton(txt, { functionLangs: problemFnLangs })) throw new Error(T('Você ainda não alterou o código inicial: escreva a sua solução.', 'You have not changed the starter code yet: write your solution.', 'Todavía no cambiaste el código inicial: escribe tu solución.'));
+      return { payload: { filename: 'solution.' + curLangId, code_b64: textToBase64(txt), source: 'web' }, lang: curLangId };   // editor web do MOJ
+    },
+    onSent: () => { fileInput.value = ''; loadHistory({ fresh: true }); },
   });
 }
 

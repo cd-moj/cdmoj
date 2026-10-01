@@ -65,6 +65,9 @@
     .prob-right { display:flex; align-items:center; gap:.7rem; flex-wrap:wrap; }
     .prob-detail { padding:.2rem .9rem 1rem; border-top:1px solid var(--line); }
     .prob-submit { display:flex; align-items:center; gap:.5rem; flex-wrap:wrap; }
+    /* a linha de status do envio (shared/submit-ux.js) quebra EMBAIXO do botão — no celular e no desktop */
+    .prob-submit .submit-steps { margin:0; min-height:0; }
+    .prob-submit .submit-steps:not(:empty) { flex-basis:100%; }
     .balloon-svg { width:20px; height:23px; vertical-align:middle; }
     /* problema no contest: enunciado | editor lado a lado, com modos de colapso */
     .prob-cols { display:grid; grid-template-columns:1fr; gap:1.2rem; align-items:start; margin-top:.4rem; }

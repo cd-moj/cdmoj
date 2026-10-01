@@ -1681,7 +1681,10 @@
         },
         "responses": {
           "200": {
-            "description": "{submission_id, status:\"queued\"}"
+            "description": "{submission_id, status:\"queued\", epoch, problem_id, lang} — epoch/lang = o que foi gravado na linha pendente do history (a web põe a linha na tabela na hora)"
+          },
+          "429": {
+            "description": "submit_busy — TETO DE ENVIOS NA FILA (treino, inclusive a virtual, e contests de LISTA: CONTEST_PRIORITY lista-publica/lista-privada; ausente = lista-publica): a conta já tem SUBMIT_MAX_INFLIGHT (padrão 3; 0 desliga) envios esperando o juiz. error.inflight/error.max trazem os números. O servidor não olha conteúdo; envio segurado na revisão manual não conta; papel é isento. Prova (prova/super) não tem teto — o time com mais de 5 esperando perde prioridade no escalonador."
           }
         }
       }

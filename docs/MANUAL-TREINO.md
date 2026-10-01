@@ -230,8 +230,24 @@ Você precisa estar **logado** para enviar. No painel **Enviar solução**:
 2. Escreva o seu código de uma destas duas formas:
    - **Digite no editor.** O editor (chamado CodeMirror) já vem com um **modelo** da
      linguagem escolhida para você começar.
-   - **Ou envie um arquivo** no campo **ou arquivo:**.
-3. Clique em **Enviar solução**. Aparece a mensagem **Enviado!**.
+   - **Ou envie um arquivo** no campo **ou arquivo:**. Com um arquivo escolhido, é ele que vai.
+3. Clique em **Enviar solução**.
+
+**O que você vê depois do clique.** Não há janela pop-up. O botão mostra uma roda com **Enviando…** enquanto
+o envio vai ao servidor e não aceita outro clique. Depois fica verde por um instante, com **✓ Enviado**. Embaixo
+dele aparece a confirmação **✓ Enviado às 14:03:12 — C++**, e a submissão entra no histórico na hora. Depois do
+envio, o campo de arquivo fica vazio.
+
+O MOJ não envia o editor vazio nem o modelo da linguagem sem nenhuma mudança: ele pede que você escreva a sua
+solução.
+
+**Mesmo código de novo.** Se o código é igual ao último que você enviou naquele problema, na mesma linguagem,
+o primeiro clique não envia. O botão fica laranja e diz **Mesmo código do envio das 14:03 — enviar de novo?**.
+Clique de novo em até 5 segundos para enviar assim mesmo. Trocar a linguagem conta como código novo.
+
+**No máximo 3 envios na fila.** A sua conta pode ter até **3 envios esperando veredicto** ao mesmo tempo. O 4º
+é recusado com o aviso "Você já tem 3 envios esperando o veredicto". Espere sair um resultado e envie de novo.
+O limite vale também na participação virtual. Ele existe para que nenhuma conta ocupe o juiz sozinha.
 
 O editor tem alguns confortos:
 

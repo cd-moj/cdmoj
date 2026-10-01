@@ -1,4 +1,4 @@
-<!-- i18n-source: MANUAL-TREINO.md blob:ce87837d89148ef015a8e2ff722fe27b2240fa35 -->
+<!-- i18n-source: MANUAL-TREINO.md blob:6c09422f790b7b8f8e0000907d1f7d29f6a94e83 -->
 # MOJ: Manual del Entrenamiento libre (estudiante)
 
 > **Nota de traducción.** Este manual es una traducción del original en portugués. Las herramientas de línea de comandos (`moj`, `moj-contest`, `moj-comp`) muestran sus mensajes en portugués, y los ejemplos de comandos son idénticos al original.
@@ -233,8 +233,26 @@ Necesitas **iniciar sesión** para enviar. En el panel **Enviar solución**:
 2. Escribe tu código de una de estas dos formas:
    - **Escríbelo en el editor.** El editor (llamado CodeMirror) ya viene con una **plantilla** del
      lenguaje elegido para que empieces.
-   - **O envía un archivo** en el campo **o archivo:**.
-3. Haz clic en **Enviar solución**. Aparece el mensaje **¡Enviado!**.
+   - **O envía un archivo** en el campo **o archivo:**. Con un archivo elegido, se envía el archivo.
+3. Haz clic en **Enviar solución**.
+
+**Lo que ves después del clic.** No hay ventana emergente. El botón muestra una rueda con **Enviando…** mientras
+el envío va al servidor y no acepta otro clic. Después se pone verde por un instante, con **✓ Enviado**. Debajo
+aparece la confirmación **✓ Enviado a las 14:03:12 — C++**, y el envío entra en el historial en el momento.
+Después del envío, el campo de archivo queda vacío.
+
+El MOJ no envía el editor vacío ni la plantilla del lenguaje sin ningún cambio: te pide que escribas tu
+solución.
+
+**El mismo código otra vez.** Si el código es igual al último que enviaste en ese problema, en el mismo
+lenguaje, el primer clic no envía. El botón se pone naranja y dice **Mismo código que el envío de las 14:03:
+¿enviar de nuevo?**. Haz clic otra vez en menos de 5 segundos para enviarlo igual. Cambiar el lenguaje cuenta
+como código nuevo.
+
+**Como máximo 3 envíos en la cola.** Tu cuenta puede tener hasta **3 envíos esperando veredicto** al mismo
+tiempo. El 4.º se rechaza con el aviso "Ya tienes 3 envíos esperando el veredicto". Espera a que salga un
+resultado y envía de nuevo. El límite vale también en la participación virtual. Existe para que ninguna cuenta
+ocupe el juez sola.
 
 El editor tiene algunas comodidades:
 

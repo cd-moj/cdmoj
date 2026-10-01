@@ -1,4 +1,4 @@
-<!-- i18n-source: MANUAL-CONTEST.md blob:de0793bac66ec94955168314c4648b09dfb944f6 -->
+<!-- i18n-source: MANUAL-CONTEST.md blob:552b5d27be82c916cbd9454ab1b982f28cd7bb62 -->
 # MOJ: Contestant manual (contest)
 
 > **Translation note.** This manual is a translation of the Portuguese original. The command-line tools (`moj`, `moj-contest`, `moj-comp`) print their messages in Portuguese, and the command examples below are identical to the original.
@@ -173,11 +173,43 @@ open: you can keep two problems open at the same time.
 > VS Code, CLion and PyCharm, with compilers and a debugger. Find out **during the warm-up** which of
 > the two screens you have.
 
-To submit a solution:
+There are two submit buttons, one for each path:
 
-1. Select the **language**.
-2. Type the code in the editor or send a **file**.
+- **Submit**, on the problem row, sends the **file** that you selected next to it.
+- **Submit solution**, below the editor, sends **only the editor text**. A file selected on the row is not sent.
+
+To submit from the editor:
+
+1. Open the problem (▼) and select the **language**.
+2. Type the code.
 3. Click **Submit solution**.
+
+To submit a file:
+
+1. Click **Choose file** on the problem row.
+2. Click **Submit**, next to the file name.
+
+**What you see after the click.** There is no pop-up window. The button itself shows the progress:
+
+- a spinner with **Sending…** while the submission goes to the server. The button does not accept another click;
+- **✓ Sent**, in green, for a moment: the submission arrived;
+- next to the button, the confirmation **✓ Submitted at 14:03:12 — A · C++** stays, with a link to **My submissions**;
+- the submission appears immediately in the **My submissions** table, as pending. The verdict arrives by itself.
+
+A submission from the editor in **⧉ New window** also appears immediately on the contest page.
+
+After you submit a file, the file selector is empty. To send it again, select the file again: MOJ reads the
+version that is on the disk now.
+
+**Same code again.** If the code is equal to the last code that you submitted for that problem, in the same
+language, the first click does not submit. The button becomes orange and shows **Same code as the 14:03
+submission — submit again?**. Click again within 5 seconds to submit it anyway. You can submit the same code
+again. A different language counts as new code.
+
+**Submissions in the queue.** In a **list** contest, each account has at most **3 submissions waiting for a
+verdict**. The 4th one is refused with the message "You already have 3 submissions waiting for a verdict". Wait
+for a result and submit again. A contest with the **Contest** priority has no such limit. From the 6th
+submission waiting for a verdict, the next submissions of the same team go further back in the judging queue.
 
 > **What MOJ accepts.** The file extension must belong to a language that the platform runs. If the
 > problem limits the languages, it must be one of the languages allowed there. MOJ refuses a
@@ -185,7 +217,7 @@ To submit a solution:
 > problem accepts. No judge can run an `.exe`. Before this check, such a submission went into the
 > queue and stayed pending forever. The maximum source code size is **1 MB**.
 >
-> If you get an error instead of "✓ Sent!", **read the message**: it tells you exactly what
+> If you get an error instead of "✓ Sent", **read the message**: it tells you exactly what
 > happened. A submission is accepted only when the server confirms it. A submission cannot be
 > "lost on the way".
 

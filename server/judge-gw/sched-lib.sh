@@ -361,12 +361,17 @@ _cmeta_load() {
 _hardmem() { local m="$1"; [[ "$m" =~ ^[0-9]+$ ]] || m=0; local h=$(( m + 64 )); (( h < 600 )) && h=600; printf '%s' "$h"; }
 
 # ------------------------------------------------------------------- fila de jobs
-# q_enqueue <id> <priority> <job-json> : enfileira na banda da prioridade.
+# q_enqueue <id> <priority> <job-json> [atraso-s] : enfileira na banda da prioridade. A banda é FIFO
+# pelo NOME (`<epoch>_<id>.json`); com ATRASO o nome leva `agora+atraso` — o job entra na MESMA banda
+# como se tivesse chegado depois (menos prioridade p/ o time da prova com muitas pendentes, judged.sh
+# intake_enqueue). Atraso NÃO é idade: as carências do q_claim usam o `enq` real do `.cmeta`
+# (`enqueued_at` do job); só a ordem da fila e a promoção de famintos leem o nome.
 q_enqueue() {
-  local id="$1" prio="$2" json="$3" band
+  local id="$1" prio="$2" json="$3" delay="${4:-0}" band
+  [[ "$delay" =~ ^[0-9]+$ ]] || delay=0
   band="$(sched_band_of "$prio")"
   sched_init_dirs
-  local base="${EPOCHSECONDS}_${id}.json"
+  local base="$(( EPOCHSECONDS + delay ))_${id}.json"
   local tmp="$QUEUEDIR/$band/.${base}.tmp"
   printf '%s' "$json" > "$tmp" && mv -f "$tmp" "$QUEUEDIR/$band/$base"
 }
@@ -445,8 +450,11 @@ q_claim() {
         base="${f##*/}"
         # pool de juízes (allowed_hosts): ESTRITO por default (POOL_GRACE=0) — pool
         # offline segura a fila de propósito; POOL_GRACE>0 libera como fallback.
+        # As carências contam a idade REAL (`enq` do .cmeta = enqueued_at do job, o relógio do
+        # _wide_jobs e do queue_stuck), nunca o prefixo do nome: o nome é ordem de fila — vem
+        # adiantado no job com atraso (q_enqueue) e é refeito na promoção/devolução.
         if [[ -n "$hosts" && ",$hosts," != *",$host,"* ]]; then
-          ts="${base%%_*}"
+          ts="$enq"
           { (( POOL_GRACE > 0 )) && [[ "$ts" =~ ^[0-9]+$ ]] \
               && (( now - ts > POOL_GRACE )); } || continue
         fi
@@ -454,7 +462,7 @@ q_claim() {
         if [[ -n "$LSET" ]]; then
           case "$jl" in py2|py3) jl=py;; esac
           if [[ -n "$jl" && "$LSET" != *" $jl "* ]]; then
-            ts="${base%%_*}"
+            ts="$enq"
             [[ "$ts" =~ ^[0-9]+$ ]] && (( now - ts <= LANG_GRACE )) && { skipped_time=1; continue; }
           fi
         fi
@@ -466,7 +474,7 @@ q_claim() {
         v="${prob//\//#}"
         [[ -n "${PH[$v]:-}" ]] && probhot=1
         if (( probhot == 0 )); then
-          ts="${base%%_*}"
+          ts="$enq"
           [[ "$ts" =~ ^[0-9]+$ ]] && (( now - ts <= COLD_GRACE )) && { skipped_time=1; continue; }
         fi
         # recusa recente DESTE host (decline): pula por DECLINE_BACKOFF

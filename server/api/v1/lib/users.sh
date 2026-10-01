@@ -464,6 +464,30 @@ count_pending(){
   echo "$m"
 }
 
+# user_queue_pending <c> <login> [id] — nº de envios do login ESPERANDO O JUIZ: linhas pendentes do history
+# menos as SEGURADAS na fila de revisão (MANUAL_VERDICT: o juiz já julgou e o veredicto espera voto humano em
+# review/<id>.json — não ocupa a fila). Com <id>, conta só até a linha DESSE envio, na ordem do history (= ordem
+# de envio, o arquivo só cresce por apêndice): com o spool represado, o time que mandou 8 tem 8 linhas pendentes
+# antes de o daemon ler o 1º, e "a partir do 6º" tem de valer p/ o 6º, não p/ os 8. Lê UM arquivo. Usado pelo
+# teto de envios na fila (/submit, treino e listas — sem id) e pela menos-prioridade da prova (judged.sh
+# deprio_delay — com id); o gêmeo em Python é o queue_pending() do daemons/spool-drain.py — mexeu num, mexa no outro.
+user_queue_pending(){
+  local c="$1" l="$2" upto="${3:-}" n=0 line id hf rd="$CONTESTSDIR/$1/review" hasrd=0
+  local re=':(Not Answered Yet|On queue|on queue|Running|running):'
+  hf="$(user_hist_file "$c" "$l")"
+  [[ -f "$hf" ]] || { echo 0; return; }
+  [[ -d "$rd" ]] && hasrd=1
+  if [[ -z "$upto" ]] && (( ! hasrd )); then
+    n="$(grep -cE "$re" "$hf" 2>/dev/null)"; n="${n//[^0-9]/}"; echo "${n:-0}"; return
+  fi
+  while IFS= read -r line; do
+    id="${line##*:}"
+    (( hasrd )) && [[ -n "$id" && -f "$rd/$id.json" ]] || n=$(( n + 1 ))
+    [[ -n "$upto" && "$id" == "$upto" ]] && break
+  done < <(grep -E "$re" "$hf" 2>/dev/null)
+  echo "$n"
+}
+
 # resolve_submission <c> <sid> — popula SUB_OWNER, SUB_SRC, SUB_LOG, SUB_RESULT (vazios se
 # ausentes), resolvendo por id em users/<owner>/{submissions,mojlog,results}/<sid>.*.
 # PRÉ-REQUISITO: o caller já fez `set +o noglob; shopt -s nullglob` (padrão dos handlers).

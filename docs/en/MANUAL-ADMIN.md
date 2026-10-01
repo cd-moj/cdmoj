@@ -1,4 +1,4 @@
-<!-- i18n-source: MANUAL-ADMIN.md blob:27e561a21f8dba0c537439c957b577344a1bdae9 -->
+<!-- i18n-source: MANUAL-ADMIN.md blob:fdea8cb41851121c02c6df5c44755f89f928c39f -->
 # MOJ: Organizer manual (the contest .admin panel)
 
 > **Translation note.** This manual is a translation of the Portuguese original. The command-line tools (`moj`, `moj-contest`, `moj-comp`) print their messages in Portuguese, and the command examples below are identical to the original.
@@ -221,6 +221,7 @@ in a course list or a course exam, when the skeleton helps the student.
 
 - **💻 Languages allowed in the contest**: the list of allowed languages in the contest (each problem can restrict it more, in Contest › Problems).
 - **🖥️ Judge machines (pool)**: which judging MACHINES serve this contest (empty = any online judge). Do not confuse them with HUMAN judges (section 4).
+- **Judging priority and submissions in the queue**: you select it when you **create** the contest (step 5 · Options of the wizard). It does not change later. With **Public list** (the default) or **Private list**, each team has at most **3 submissions waiting for a verdict**: the 4th one is refused until a result comes out. This protects the judge from accounts that resubmit without a stop. With **Contest**, there is no limit: from the **6th submission waiting for a verdict**, the next submissions of that team go further back in the queue (as if they arrived 2 minutes later). Nothing is refused. A submission held for manual verdict does not count. The **🏁 Central** shows the rule in effect (item "Submissions in the queue") and warns when an ICPC contest has no selected priority. The MOJ operator can adjust it in the conf: `CONTEST_PRIORITY=prova` or `SUBMIT_MAX_INFLIGHT=<n>` (`0` turns off the limit).
 - **Manual verdict**: turns on **grading validated by human judges** (section 4).
 - **Judges required to validate each verdict**: the quorum of the manual review: **1 to 5, default 2**. With 1, one vote decides (single review). With N≥2, the verdict goes out only with N **unanimous** votes. Any disagreement becomes a conflict for the chief judge.
 - **⏱ Penalty (ICPC scoreboard)**: the minutes added per non-accepted attempt before the Accepted (default 20), and WHICH verdicts count as penalty (default wa/tle/mle/rte: **Compilation Error is OUT** by default; empty = nothing counts).

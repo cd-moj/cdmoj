@@ -255,6 +255,17 @@ check "conferência final => ok \"Telão validado\""                 '[[ "$(lvl 
 sed -i 's/,telao,/,/' "$C/conf"; run
 check "módulo telao desligado => checagem ausente"                   '[[ "$(lvl telao)" == "(ausente)" ]]'
 
+echo "== envios na fila: a PRIORIDADE decide o teto (submit_cap) =="
+run
+check "icpc SEM prioridade (nunca escolhida) => warn com o teto 3"  '[[ "$(lvl submit_cap)" == warn && "$(det submit_cap)" == *"no máximo 3 envios"* && "$(det submit_cap)" == *"CONTEST_PRIORITY=prova"* ]]'
+printf 'CONTEST_PRIORITY=lista-publica\n' >> "$C/conf"; run
+check "lista-publica explícita => ok (configuração deliberada)"   '[[ "$(lvl submit_cap)" == ok && "$(det submit_cap)" == *"no máximo 3 envios"* ]]'
+printf 'SUBMIT_MAX_INFLIGHT=0\n' >> "$C/conf"; run
+check "SUBMIT_MAX_INFLIGHT=0 => ok sem teto"                       '[[ "$(lvl submit_cap)" == ok && "$(det submit_cap)" == *"SUBMIT_MAX_INFLIGHT=0"* ]]'
+sed -i '/^CONTEST_PRIORITY=/d; /^SUBMIT_MAX_INFLIGHT=/d' "$C/conf"; printf 'CONTEST_PRIORITY=prova\n' >> "$C/conf"; run
+check "prova => ok sem teto, menos prioridade a partir do 6º"      '[[ "$(lvl submit_cap)" == ok && "$(det submit_cap)" == *"6º"* ]]'
+sed -i '/^CONTEST_PRIORITY=/d' "$C/conf"
+
 echo "== trilíngue: todo item de toda execução acima leva en + es (sem português) =="
 I18N_NSEEN="$(tr ' ' '\n' <<<"$I18N_SEEN" | sed '/^$/d' | sort -u | wc -l)"
 check "varredura cobriu muitos ids (>= 25 distintos; viu $I18N_NSEEN)" '(( I18N_NSEEN >= 25 ))'

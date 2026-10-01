@@ -64,6 +64,14 @@ provisória terminada em `:<id>` com veredicto `Not Answered Yet` (e recomputa o
 `metrics.json` do usuário, p/ o PENDING aparecer no placar) — é o que o front
 mostra como "julgando" enquanto faz polling.
 
+**Teto de envios na fila (treino e listas, 01/10/2026).** Antes de gerar o id, `submit.sh` conta os envios
+do login ainda esperando o juiz (`user_queue_pending`: linhas pendentes do history menos as seguradas em
+`review/`). No treino e em contest de LISTA (`CONTEST_PRIORITY` `lista-publica`/`lista-privada`, ausente =
+`lista-publica`), com `SUBMIT_MAX_INFLIGHT` (3) ou mais, responde **429 `submit_busy`** e nada vai ao spool
+nem ao history. Conferência e gravação sob `flock` por login. Prova não tem teto: perde prioridade no
+intake (seção 4). A resposta OK traz `epoch`/`problem_id`/`lang`, e a web põe a linha pendente na tabela na
+hora (`web/shared/submit-ux.js`), sem esperar o polling.
+
 **Formato do history por-usuário (6 campos, login implícito no diretório):**
 `tempo:problemid:lang:verdict:epoch:subid`. Os leitores agregados usam
 `emit_user_history`/`emit_history_stream` (lib/users.sh), que reinjetam o login e
@@ -141,6 +149,12 @@ juiz (repo judge/, agente moj-agent@)
    POST /judge/result      ─▶ sched-lib grava run/results/<id>.json (o daemon consome via consumer)
    POST /judge/tl-report   ─▶ reporta o TL calibrado (run/tl/<id>.json)
 ```
+
+**Ordem na banda e menos prioridade na prova.** A banda é FIFO pelo nome do job (`<epoch>_<id>.json`).
+Na prova, o time com mais de `SUBMIT_DEPRIO_PENDING` (5) envios esperando o juiz tem o job seguinte
+enfileirado com o nome adiantado `SUBMIT_DEPRIO_DELAY` (120) s (`judged.sh` `deprio_delay` + o gêmeo
+`spool-drain.py`): mesma banda, atrás de quem chegar nos próximos 2 min. As carências do claim contam a
+idade real (`enq` do `.cmeta`), nunca o nome. Detalhes em `server/judge-gw/PULL.md`.
 
 **O TL aparece no contest logo depois da calibração.** O `/contest/problems` não abre o pacote: ele
 compara o checksum de `run/tl/<id>.json` com o `tl_checksum` do índice de donos, e o índice só se refaz em

@@ -1767,6 +1767,18 @@ mexa na outra. O índice separa as coleções por `\u001f` (nome é texto livre:
   Tag `es*` abre em espanhol; outra que não comece por `pt` cai em `en` (mesma regra do
   navegador). **NÃO** traduzir: **veredictos** (string vem do servidor — só o rótulo à
   volta), enunciados, **títulos de problema/nomes de contest/time**, corpo de notícias, tags.
+- **ENVIO DE SOLUÇÃO = `web/shared/submit-ux.js`, SEM pop-up** (decisão do Ribas, 01/10/2026). Fonte ÚNICA do
+  botão de envio no contest (linha, editor, tela cheia, janela ⧉) e no treino: `makeSubmitFlow` = máquina POR
+  PROBLEMA (os botões do mesmo problema compartilham; `sending` começa NO CLIQUE, antes do `fileToBase64` — era a
+  janela do clique duplo; `sent` verde 1,5 s ignorando cliques; `confirm` âmbar 5 s quando o código — hash
+  linguagem+conteúdo no `localStorage`, gravado só após sucesso — é igual ao último enviado: o 2º clique NO MESMO
+  botão envia) e `attachSubmitButton` (o DOM: `aria-disabled`/`aria-busy`, nunca `disabled`, p/ o verde não sair
+  cinza; linha `role=status` com a hora do SERVIDOR). No contest o botão da linha manda SÓ o arquivo e o limpa; o
+  do editor manda SÓ o editor. A resposta do `/submit` (`epoch/lang`) vira linha OTIMISTA em
+  `makeSubmissionsTable().addPending` + `load({fresh:true})` (parâmetro anti-microcache); a janela ⧉ avisa a
+  principal por `BroadcastChannel` (`submitChannel`). Tabela/histórico com pendente re-armam o poll quando o GET
+  falha (morria calado). Testes: `smoke-submit-ux.gjs.sh`, `smoke-contest-submit.gjs.sh` (fatia o
+  `renderSubmitInline` REAL do contest.js — mudou a assinatura dele, ajuste o teste).
 - **AUTO-REFRESH É EM LUGAR — a página NUNCA pode parecer que recarregou** (regra do Ribas,
   2026-09-02; já tinha acontecido antes e voltou no painel Sessões & anomalias, que fechava os
   `<details>` a cada 30 s). Painel com timer constrói o ESQUELETO uma vez e, no tick, só troca o
@@ -1889,6 +1901,20 @@ mexa na outra. O índice separa as coleções por `\u001f` (nome é texto livre:
   problem_notfound`, nada vai ao spool nem ao history. Antes, um id privado conhecido era julgado e
   devolvia veredicto + report a qualquer conta. Teste: `server/test/smoke-submit-visibility.sh`.
   Fixture de teste que submete no treino precisa do `var/jsons/<id>.json` público.
+- **ENVIOS NA FILA: teto no treino/listas, menos prioridade na prova** (01/10/2026; relatos de alunos: 10 cliques
+  = 10 julgamentos). A PRIORIDADE decide. Treino (inclusive a virtual) e contest de LISTA (`CONTEST_PRIORITY`
+  `lista-publica`/`lista-privada`, AUSENTE = `lista-publica`): no máx. `SUBMIT_MAX_INFLIGHT` (3; conf ou env; 0
+  desliga) envios esperando o juiz por conta ⇒ **429 `submit_busy`** (`submit.sh`, sob `flock` em fd DINÂMICO
+  — o fd 8 é do `vr_lock`). Prova/super: sem teto; com mais de `SUBMIT_DEPRIO_PENDING` (5) esperando, o job
+  entra na MESMA banda com o nome adiantado `SUBMIT_DEPRIO_DELAY` (120) s — `deprio_delay` no `judged.sh` E no
+  gêmeo `daemons/spool-drain.py` (mexeu num, mexa no outro). A contagem é UMA função, `user_queue_pending`
+  (`lib/users.sh`, gêmeo `queue_pending()` no Python): pendentes do history menos os segurados em `review/`, e
+  com `<id>` só ATÉ a linha daquele envio (spool represado: o time que mandou 8 antes de o daemon ler o 1º não
+  pode ter os 5 primeiros adiantados). O servidor NUNCA barra conteúdo — há quem reenvie o mesmo código de
+  propósito (heurística aleatória); o "mesmo código" é só da TELA. As carências do `q_claim` contam a idade
+  real (`enq` do `.cmeta`); só a ordem e a promoção de famintos leem o nome do job. A prioridade se escolhe na
+  CRIAÇÃO e não se edita depois: a Central avisa (`submit_cap`, warn) contest icpc/obi SEM prioridade
+  escolhida. Testes: `smoke-submit-inflight.sh`, `smoke-submit-deprio.sh` (+ mutantes), `smoke-preflight.sh`.
 - **NOME DE ARQUIVO DO ALUNO É ENTRADA HOSTIL, e ele viaja até um `/bin/sh`.** O `filename` do
   `/submit` vai no job, o agente do juiz materializa a fonte **preservando o nome**, o
   `build-and-test.sh` a copia p/ dentro da jaula e o `mojtools/lang/*/compile.sh` monta um

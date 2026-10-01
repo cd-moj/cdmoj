@@ -162,11 +162,43 @@ outros: dá para deixar dois abertos ao mesmo tempo.
 > imagem da prova vem preparada: no **Maratona Linux** há Vim, Emacs, VS Code, CLion e PyCharm,
 > com compiladores e depurador prontos. Descubra qual das duas telas você tem **no aquecimento**.
 
-Para enviar uma solução:
+Há dois botões de envio, um para cada caminho:
 
-1. Escolha a **linguagem**.
-2. Digite o código no editor ou envie um **arquivo**.
+- **Enviar**, na linha do problema, manda o **arquivo** escolhido ao lado dele.
+- **Enviar solução**, embaixo do editor, manda **só o texto do editor**. Um arquivo escolhido na linha não entra.
+
+Para enviar pelo editor:
+
+1. Abra o problema (▼) e escolha a **linguagem**.
+2. Digite o código.
 3. Clique em **Enviar solução**.
+
+Para enviar um arquivo:
+
+1. Clique em **Escolher arquivo**, na linha do problema.
+2. Clique em **Enviar**, ao lado do nome do arquivo.
+
+**O que você vê depois do clique.** Não há janela pop-up. O próprio botão mostra o andamento:
+
+- uma roda com **Enviando…** enquanto o envio vai ao servidor. O botão não aceita outro clique;
+- **✓ Enviado**, em verde, por um instante: a submissão chegou;
+- ao lado do botão fica a confirmação **✓ Enviado às 14:03:12 — A · C++**, com o link para **Minhas submissões**;
+- a submissão aparece na hora na tabela **Minhas submissões**, como pendente. O veredicto chega sozinho.
+
+O envio feito na janela **⧉ Nova janela** do editor também aparece na hora na página do contest.
+
+Depois de enviar um arquivo, o seletor fica vazio. Para mandar de novo, escolha o arquivo outra vez: o MOJ lê
+a versão que está no disco agora.
+
+**Mesmo código de novo.** Se o código é igual ao último que você enviou naquele problema, na mesma linguagem,
+o primeiro clique não envia. O botão fica laranja e diz **Mesmo código do envio das 14:03 — enviar de novo?**.
+Clique de novo em até 5 segundos para enviar assim mesmo — reenviar o mesmo código é permitido. Trocar a
+linguagem conta como código novo.
+
+**Envios na fila.** Num contest de **lista**, cada conta tem no máximo **3 envios esperando veredicto**. O 4º
+é recusado com o aviso "Você já tem 3 envios esperando o veredicto". Espere sair um resultado e envie de novo.
+Num contest com a prioridade **Prova** não há esse limite; a partir do 6º envio esperando veredicto, os seguintes do mesmo time entram
+mais atrás na fila de julgamento.
 
 > **O que o MOJ aceita.** A extensão do arquivo tem de ser de uma linguagem que a plataforma
 > roda — e, se o problema restringe as linguagens, de uma das permitidas ali. Mandar um binário
@@ -174,7 +206,7 @@ Para enviar uma solução:
 > problema aceita: nenhum juiz do mundo roda um `.exe`, e antes essa submissão entrava na fila e
 > ficava pendente para sempre. O tamanho do código é limitado a **1 MB**.
 >
-> Se a resposta for um erro em vez de "✓ Enviado!", **leia a mensagem**: ela diz exatamente o que
+> Se a resposta for um erro em vez de "✓ Enviado", **leia a mensagem**: ela diz exatamente o que
 > houve. Uma submissão só é aceita quando o servidor confirma — não existe "sumiu no caminho".
 
 ## 4. Minhas submissões

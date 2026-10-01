@@ -107,6 +107,30 @@ if [[ -n "$virtual_cid" ]]; then
   fi
 fi
 
+# TETO DE ENVIOS NA FILA (treino e listas, 01/10/2026): quem acrescenta um "\n" e reenvia sem parar esgota o juiz
+# — o servidor não barra conteúdo (há quem reenvie o mesmo código de propósito, heurística aleatória), então o que
+# segura é o número de envios AINDA SEM VEREDICTO por conta: no máx. SUBMIT_MAX_INFLIGHT (padrão 3, conf do contest;
+# 0 desliga) ⇒ 429 submit_busy. Vale p/ o treino (inclusive a participação virtual) e p/ todo contest de LISTA
+# (CONTEST_PRIORITY lista-publica/lista-privada; ausente = lista-publica). Prova (prova/super) não tem teto — lá o
+# time com muitas pendentes perde PRIORIDADE no escalonador (judged.sh intake_enqueue). Papel é isento.
+# Conferência e gravação da linha pendente sob flock POR LOGIN: dois POSTs paralelos não passam juntos do teto.
+# Pendência órfã é resolvida pelo reconciliador (>15 min), então ninguém fica preso p/ sempre; envio SEGURADO na
+# revisão manual (review/<id>.json) não conta — o juiz já o julgou (user_queue_pending).
+_prio="$(conf_value "$contest" CONTEST_PRIORITY)"; _prio="${_prio//\\/}"
+if ! is_reserved_role_login "$SESSION_LOGIN" \
+   && [[ "$contest" == treino || -z "$_prio" || "$_prio" == lista-publica || "$_prio" == lista-privada ]]; then
+  _max="$(conf_value "$contest" SUBMIT_MAX_INFLIGHT)"; _max="${_max//[^0-9]/}"; _max="${_max:-${SUBMIT_MAX_INFLIGHT:-3}}"
+  if (( _max > 0 )); then
+    _ud="$(user_dir "$contest" "$SESSION_LOGIN")"; mkdir -p "$_ud" 2>/dev/null
+    exec {_slk}>"$_ud/.submit.lock"; flock -w 10 "$_slk" || fail 409 "Envio em andamento — tente de novo" "busy"
+    _inf="$(user_queue_pending "$contest" "$SESSION_LOGIN")"; _inf="${_inf//[^0-9]/}"; _inf="${_inf:-0}"
+    if (( _inf >= _max )); then
+      FAIL_EXTRA="{\"inflight\":$_inf,\"max\":$_max}" \
+        fail 429 "Você já tem $_inf envio(s) aguardando veredicto — espere sair o resultado antes de enviar de novo" "submit_busy"
+    fi
+  fi
+fi
+
 AGORA="$EPOCHSECONDS"
 ID="$(printf '%s%s%s%s%s' "$contest" "$AGORA" "$SESSION_LOGIN" "$problem" "$RANDOM" | md5sum | cut -d' ' -f1)"
 
@@ -163,4 +187,6 @@ printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$AGORA" "$ID" "$SESSION_LOGIN" "$
   "${SESSION_MKEY:-}" "${SESSION_TOKEN:0:8}" \
   >> "$CONTESTSDIR/$contest/var/submit-origin.log" 2>/dev/null || true
 
-ok_json '{submission_id:$id, status:"queued"}' --arg id "$ID"
+# epoch/problem_id/lang: a web põe a linha PENDENTE na tabela na hora, com o horário do servidor (shared/submit-ux.js)
+ok_json '{submission_id:$id, status:"queued", epoch:$ep, problem_id:$p, lang:$l}' \
+  --arg id "$ID" --argjson ep "$AGORA" --arg p "$problem" --arg l "$FILETYPE"

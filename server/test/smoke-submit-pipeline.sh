@@ -17,7 +17,9 @@ mkdir -p "$SPOOLDIR" "$SPOOLDONEDIR"
 
 NOW="$EPOCHSECONDS"
 C="$FIX/sp"; mkdir -p "$C/var" "$C/enunciados"
-{ printf 'CONTEST_ID=sp\nCONTEST_NAME=Pipeline\nCONTEST_TYPE=icpc\n'
+# prioridade de PROVA: este teste reenvia o mesmo código várias vezes sem juiz; numa lista o teto de 3 envios na fila
+# (smoke-submit-inflight.sh) o barraria — aqui o assunto é o pipeline, não o teto
+{ printf 'CONTEST_ID=sp\nCONTEST_NAME=Pipeline\nCONTEST_TYPE=icpc\nCONTEST_PRIORITY=prova\n'
   printf 'CONTEST_START=%s\nCONTEST_END=%s\n' "$((NOW-3600))" "$((NOW+3600))"
   printf "PROBS=( x col#pa Alfa A col#pa )\n"; } > "$C/conf"
 fx_user "$C" aluno s "Aluno"

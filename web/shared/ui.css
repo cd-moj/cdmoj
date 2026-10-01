@@ -158,6 +158,22 @@ table.moj tbody tr:last-child td { border-bottom:0; }
 .cm-mojeditor .cm-focused { outline:0; }
 .code-fallback { padding:.8rem; background:#0d1626; color:#e2e8f0; line-height:1.5; }
 .submit-steps { font-size:.86rem; color:var(--muted); margin:.5rem 0; min-height:1.2em; }
+/* ENVIO pela web (shared/submit-ux.js): o estado mora no BOTÃO — roda enquanto a requisição está no ar,
+   "✓ Enviado" verde por 1,5 s, âmbar p/ "mesmo código — enviar de novo?" — e numa linha de status ao lado.
+   aria-disabled (não `disabled`): o botão segue focado e o verde não sai acinzentado. */
+.btn[aria-disabled="true"] { cursor:not-allowed; opacity:.55; box-shadow:none; }
+.btn.is-sending, .btn.is-sent { opacity:1; cursor:progress; }
+.btn.is-sending .spin { border-color:rgba(255,255,255,.45); border-top-color:#fff; }
+.btn.is-sent { background:var(--ok); color:#fff; box-shadow:0 2px 8px rgba(21,128,61,.3); }
+.btn.is-confirm { background:#b45309; color:#fff; box-shadow:0 2px 8px rgba(180,83,9,.3); white-space:normal; text-align:left; }
+.submit-ok { display:inline-block; background:var(--ok-bg); color:var(--ok); font-weight:650; font-size:.9rem;
+  padding:.3rem .65rem; border-radius:8px; }
+.submit-ok a { color:inherit; text-decoration:underline; }
+.submit-steps .error-box { display:inline-block; }   /* a caixa inteira, não um span quebrado em linhas */
+/* a linha OTIMISTA da tabela de envios (o que acabou de sair, antes de o servidor confirmar) */
+table.moj tbody tr.sub-new td { background:#eef6ff; }
+table.moj tbody tr.sub-new td:first-child { box-shadow:inset 3px 0 0 var(--blue); }
+@media (prefers-reduced-motion: reduce) { .btn.is-sending .spin { animation-duration:2.4s; } }
 /* caixa do editor: altura inicial fixa, redimensionável e com toggle */
 .editor-box { height:380px; min-height:120px; max-height:82vh; overflow:hidden; resize:vertical;
   border:1px solid var(--line); border-radius:12px; box-shadow:var(--shadow-sm); background:#fff; transition:height .15s; }

@@ -1,4 +1,4 @@
-<!-- i18n-source: MANUAL-CONTEST.md blob:de0793bac66ec94955168314c4648b09dfb944f6 -->
+<!-- i18n-source: MANUAL-CONTEST.md blob:552b5d27be82c916cbd9454ab1b982f28cd7bb62 -->
 # MOJ: Manual del competidor (competencia)
 
 > **Nota de traducción.** Este manual es una traducción del original en portugués. Las herramientas de línea de comandos (`moj`, `moj-contest`, `moj-comp`) muestran sus mensajes en portugués, y los ejemplos de comandos son idénticos al original.
@@ -173,11 +173,43 @@ otros: puedes dejar dos abiertos al mismo tiempo.
 > VS Code, CLion y PyCharm, con compiladores y depurador listos. Descubre cuál de las dos pantallas
 > tienes **en el calentamiento**.
 
-Para enviar una solución:
+Hay dos botones de envío, uno para cada camino:
 
-1. Elige el **lenguaje**.
-2. Escribe el código en el editor o envía un **archivo**.
+- **Enviar**, en la fila del problema, manda el **archivo** elegido a su lado.
+- **Enviar solución**, debajo del editor, manda **solo el texto del editor**. Un archivo elegido en la fila no se envía.
+
+Para enviar desde el editor:
+
+1. Abre el problema (▼) y elige el **lenguaje**.
+2. Escribe el código.
 3. Haz clic en **Enviar solución**.
+
+Para enviar un archivo:
+
+1. Haz clic en **Elegir archivo**, en la fila del problema.
+2. Haz clic en **Enviar**, al lado del nombre del archivo.
+
+**Lo que ves después del clic.** No hay ventana emergente. El propio botón muestra el avance:
+
+- una rueda con **Enviando…** mientras el envío va al servidor. El botón no acepta otro clic;
+- **✓ Enviado**, en verde, por un instante: el envío llegó;
+- al lado del botón queda la confirmación **✓ Enviado a las 14:03:12 — A · C++**, con el enlace a **Mis envíos**;
+- el envío aparece en el momento en la tabla **Mis envíos**, como pendiente. El veredicto llega solo.
+
+El envío hecho en la **⧉ Ventana nueva** del editor también aparece en el momento en la página de la competencia.
+
+Después de enviar un archivo, el selector queda vacío. Para mandarlo de nuevo, elige el archivo otra vez: el
+MOJ lee la versión que está en el disco ahora.
+
+**El mismo código otra vez.** Si el código es igual al último que enviaste en ese problema, en el mismo
+lenguaje, el primer clic no envía. El botón se pone naranja y dice **Mismo código que el envío de las 14:03:
+¿enviar de nuevo?**. Haz clic otra vez en menos de 5 segundos para enviarlo igual: reenviar el mismo código está
+permitido. Cambiar el lenguaje cuenta como código nuevo.
+
+**Envíos en la cola.** En una competencia de **lista**, cada cuenta tiene como máximo **3 envíos esperando
+veredicto**. El 4.º se rechaza con el aviso "Ya tienes 3 envíos esperando el veredicto". Espera a que salga un
+resultado y envía de nuevo. Una competencia con la prioridad **Competencia** no tiene ese límite; a partir del
+6.º envío esperando veredicto, los siguientes del mismo equipo entran más atrás en la cola de evaluación.
 
 > **Lo que el MOJ acepta.** La extensión del archivo tiene que ser de un lenguaje que la plataforma
 > ejecuta y, si el problema restringe los lenguajes, de uno de los permitidos ahí. Si envías un
@@ -185,7 +217,7 @@ Para enviar una solución:
 > que acepta ese problema: ningún juez del mundo ejecuta un `.exe`, y antes ese envío entraba en la
 > cola y quedaba pendiente para siempre. El tamaño del código está limitado a **1 MB**.
 >
-> Si la respuesta es un error en lugar de "✓ ¡Enviado!", **lee el mensaje**: dice exactamente qué
+> Si la respuesta es un error en lugar de "✓ Enviado", **lee el mensaje**: dice exactamente qué
 > pasó. Un envío solo se acepta cuando el servidor lo confirma; no existe "se perdió en el camino".
 
 ## 4. Mis envíos
