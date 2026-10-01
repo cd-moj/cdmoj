@@ -14,7 +14,9 @@
 #   moj-comp samples <letra> [--dir D]    Baixa os exemplos do problema como arquivos: ./samples/<letra>/<nome>.in e .out.
 #                                         `fetch` já faz isso para todos os problemas (pasta samples/ do kit).
 #   moj-comp score                        Mostra o placar.
-#   moj-comp submit <letra> <arquivo>     Envia e espera o veredicto. Sem rede, empacota sozinho.
+#   moj-comp submit <letra> <arquivo> [--no-wait]   Envia e espera o veredicto. Ctrl-C para de esperar;
+#                                         a submissão fica. Sem rede, empacota sozinho.
+#   moj-comp wait [id…]                   Espera o veredicto das submissões pendentes.
 #   moj-comp subs                         Lista as suas submissões e veredictos.
 #   moj-comp clar ls | ask <letra|geral> <pergunta>   Lista e faz perguntas.
 #   moj-comp news                         Mostra os avisos da organização.
@@ -23,7 +25,7 @@
 #                                         sozinho e acompanha os veredictos quando a rede voltar.
 #   moj-comp version | update | doctor    Compara o build. Atualiza. Diagnostica o ambiente.
 # Treino livre (a mesma CLI, sem o modo offline): moj-comp login treino (conta do site);
-#   problems <busca> · statement <org#slug> · samples <org#slug> · submit <org#slug> <arquivo> · subs
+#   problems <busca> · statement <org#slug> · samples <org#slug> · submit <org#slug> <arquivo> · wait · subs
 # Config: MOJ_URL (default https://moj.naquadah.com.br), MOJ_CONTEST (= -c).
 # Requisitos: bash, curl, jq, openssl. Sem root. Sem instalação. Um arquivo só.
 # Prova com gate de navegador: rode a CLI na máquina de prova. Ela manda o User-Agent do
@@ -46,7 +48,7 @@
 MOJ_TOOL="${MOJ_TOOL:-moj}"
 # carimbo de build: "dev" no repo; o mkdist.sh troca pelo <git-short>-<data> nos artefatos
 # distribuídos (é o que `moj version`/`doctor` comparam com o /moj.build do servidor)
-MOJ_CLI_BUILD="b63fccd-20261001"
+MOJ_CLI_BUILD="55e4076-20261001"
 die(){ printf '%s: %s\n' "$MOJ_TOOL" "$*" >&2; exit 1; }
 # bash>=4 ANTES de qualquer bashismo (mapfile, read -i, ${x^^}): o /bin/bash do macOS é 3.2
 [ "${BASH_VERSINFO[0]:-0}" -ge 4 ] || die "preciso de bash >= 4 (macOS: brew install bash e rode com ele)"
@@ -620,21 +622,101 @@ _submit_body(){ # <problem_id> <arquivo> — corpo do /submit (código via arqui
   body="$(jq -cn --arg p "$1" --arg f "$(basename "$2")" --rawfile b "$b64f" \
       '{problem_id:$p, filename:$f, code_b64:$b, source:"file"}')"
   rm -f "$b64f"; printf '%s' "$body"; }
-_watch_verdict(){ # <id> [prob-id-treino] — polling do history até sair de provisório (~90s)
-  local id="$1" prob="${2:-}" i line v rota
-  rota="/contest/history$(qc)"; _is_treino && rota="/treino/history?id=$(enc "$prob")"
-  for (( i=0; i<30; i++ )); do
-    line="$(_api_net GET "$rota" 2>/dev/null | grep ":$id\$" | tail -1)" || line=""
-    v="$(awk -F: '{v=$5; for(j=6;j<=NF-2;j++) v=v":"$j; print v}' <<<"$line")"
-    case "$v" in ""|"Not Answered Yet"|"On queue"|"on queue"|"Running"|"running") sleep 3;;
-      *) echo "veredicto: $v"; return 0;; esac
+# ---- esperar o veredicto (01/10/2026) ------------------------------------------------------------
+# O vigia antigo desistia em ~90 s e mandava rodar `subs` (relato de usuário). Agora espera SEM LIMITE e o Ctrl-C
+# para de esperar — a submissão segue na fila do juiz. Uma consulta ao history serve TODOS os ids (UM awk por
+# consulta); o contador é só printf. Variáveis do vigia: _WIDS (ids ainda pendentes), _WMULTI (formato da linha),
+# _WTTY (contador só com stderr em terminal), _WSTOP (o trap do Ctrl-C liga).
+_WIDS=(); _WMULTI=0; _WTTY=0; _WSTOP=0; _WPFX=""
+_wv_clear(){ (( _WTTY )) && printf '\r\033[K' >&2; return 0; }
+# _wv_take <resposta-do-history> — imprime o veredicto dos ids de _WIDS que já saíram e os tira de _WIDS.
+# History: tempo:login:problema:lang:VEREDICTO:epoch:id — o veredicto pode ter ':'. Pendente (Not Answered Yet,
+# On queue, Running) e id ausente seguem esperando.
+_wv_take(){
+  local got gid gp gv id keep=()
+  local -A fin=()
+  got="$(awk -F: -v want=" ${_WIDS[*]} " '
+    { id = $NF; if (id == "" || index(want, " " id " ") == 0) next
+      v = $5; for (j = 6; j <= NF - 2; j++) v = v ":" $j
+      if (tolower(v) ~ /^(not answered yet|on queue|running)/) next
+      print id "\t" $3 "\t" v }' <<<"$1")"
+  [[ -n "$got" ]] || return 0
+  while IFS=$'\t' read -r gid gp gv; do [[ -n "$gid" ]] && fin[$gid]="$gp"$'\t'"$gv"; done <<<"$got"
+  for id in "${_WIDS[@]}"; do
+    if [[ -n "${fin[$id]+x}" ]]; then
+      _wv_clear; gp="${fin[$id]%%$'\t'*}"; gv="${fin[$id]#*$'\t'}"
+      if (( _WMULTI )); then printf '%s%s (%s): %s\n' "$_WPFX" "$gp" "${id:0:8}" "$gv"; else printf 'veredicto: %s\n' "$gv"; fi
+    else keep+=("$id"); fi
   done
-  echo "(veredicto ainda não saiu — acompanhe com '$MOJ_TOOL subs')"; }
+  _WIDS=(${keep[@]+"${keep[@]}"})
+  return 0
+}
+# _watch_ids <rota-do-history> <id>… — espera os veredictos. rc 0 = todos saíram; 1 = o servidor respondeu ERRO
+# (ex. sessão expirada; a mensagem dele já saiu no stderr); Ctrl-C = sai da CLI com 130.
+# Consulta a cada 2 s até 30 s, 5 s até 3 min, depois 10 s (MOJ_COMP_POLL=<s> fixa — testes). Aviso aos
+# MOJ_COMP_SLOW (60) s; fora de terminal, um lembrete a cada 5 min.
+_watch_ids(){
+  local rota="$1"; shift
+  _WIDS=("$@"); (( ${#_WIDS[@]} > 0 )) || return 0
+  _WMULTI=0; (( ${#_WIDS[@]} > 1 )) && _WMULTI=1
+  _WTTY=0; [[ -t 2 ]] && _WTTY=1
+  _WSTOP=0; trap '_WSTOP=1' INT
+  local fixed="${MOJ_COMP_POLL:-}" slow="${MOJ_COMP_SLOW:-60}" t0=$SECONDS el=0 next=0 iv rc r net=1 warned=0 lastnote=0
+  [[ "$slow" =~ ^[0-9]+$ ]] || slow=60
+  while :; do
+    (( _WSTOP )) && break
+    el=$(( SECONDS - t0 ))
+    if [[ -n "$fixed" ]] || (( el >= next )); then
+      if (( el < 30 )); then iv=2; elif (( el < 180 )); then iv=5; else iv=10; fi
+      next=$(( el + iv ))
+      rc=0; r="$(_api_net GET "$rota")" || rc=$?
+      (( _WSTOP )) && break
+      if (( rc == 22 )); then _wv_clear; trap - INT; return 1; fi
+      if (( rc == 0 )); then net=1; _wv_take "$r"; else net=0; fi
+      (( ${#_WIDS[@]} == 0 )) && { trap - INT; return 0; }
+    fi
+    if (( !warned && el >= slow )); then
+      warned=1; lastnote=$el; _wv_clear
+      printf '⏳ o veredicto está demorando (fila cheia, juiz ocupado ou revisão dos juízes). A submissão já está no servidor: pode sair com Ctrl-C e ver depois com `%s subs` ou `%s wait`.\n' "$MOJ_TOOL" "$MOJ_TOOL" >&2
+    elif (( warned && !_WTTY && el - lastnote >= 300 )); then
+      lastnote=$el; printf '… ainda aguardando veredicto (%d min)\n' $(( el / 60 )) >&2
+    fi
+    if (( _WTTY )); then
+      printf '\r\033[K⏳ aguardando veredicto… %d:%02d%s' $(( el / 60 )) $(( el % 60 )) \
+        "$( (( net )) || printf ' (sem rede — tentando de novo)')" >&2
+    fi
+    sleep "${fixed:-1}" || true     # o Ctrl-C mata o sleep (rc 130): sob set -e isso encerraria a CLI SEM o aviso
+  done
+  _wv_clear; trap - INT
+  printf 'parei de esperar. A submissão continua na fila do juiz — veja com `%s subs` ou volte a esperar com `%s wait`.\n' "$MOJ_TOOL" "$MOJ_TOOL" >&2
+  exit 130
+}
+cmd_wait(){ need_contest; need_login
+  local rota r a ids=()
+  if _is_treino; then rota="/treino/history-full"; else rota="/contest/history$(qc)"; fi
+  if (( $# > 0 )); then
+    for a in "$@"; do [[ "$a" =~ ^[A-Za-z0-9]+$ ]] || die "id inválido: $a (uso: $MOJ_TOOL wait [id…])"; ids+=("$a"); done
+  else
+    r="$(_api_net GET "$rota")" || { [[ $? -eq 22 ]] && return 1; die "sem rede agora — tente de novo."; }
+    mapfile -t ids < <(awk -F: '{ v = $5; for (j = 6; j <= NF - 2; j++) v = v ":" $j
+      if ($NF != "" && tolower(v) ~ /^(not answered yet|on queue|running)/) print $NF }' <<<"$r")
+  fi
+  (( ${#ids[@]} > 0 )) || { echo "nenhuma submissão esperando veredicto."; return 0; }
+  echo "aguardando ${#ids[@]} veredicto(s)… (Ctrl-C para de esperar)"
+  _watch_ids "$rota" "${ids[@]}"; }
+# _sent_msg <letra> <arquivo> <id> <nowait> — a linha "enviada"; rc 1 = não esperar (--no-wait)
+_sent_msg(){
+  if [[ "$4" == 1 ]]; then
+    echo "enviada ($1, $(basename "$2")) — id $3. Veja o veredicto com \`$MOJ_TOOL subs\` ou espere com \`$MOJ_TOOL wait\`."
+    return 1
+  fi
+  echo "enviada ($1, $(basename "$2")) — id $3. aguardando veredicto… (Ctrl-C para de esperar; a submissão fica)"; }
 cmd_submit(){ need_contest; need_login
-  local force=0 letter="" file="" a
+  local force=0 nowait=0 letter="" file="" a
   for a in "$@"; do case "$a" in
     --offline) force=1;;
-    --*) die "opção desconhecida: $a (uso: $MOJ_TOOL submit <letra> <arquivo> [--offline])";;
+    --no-wait) nowait=1;;
+    --*) die "opção desconhecida: $a (uso: $MOJ_TOOL submit <letra> <arquivo> [--no-wait] [--offline])";;
     *) if [[ -z "$letter" ]]; then letter="$a"; else file="$a"; fi;;
   esac; done
   [[ -n "$letter" && -f "$file" ]] || die "uso: $MOJ_TOOL submit <$(_is_treino && echo 'id' || echo 'letra')> <arquivo>"
@@ -645,8 +727,8 @@ cmd_submit(){ need_contest; need_login
     r="$(_api_net POST "/submit$(qc)" "$(_submit_body "$letter" "$file")")" \
       || { [[ $? -eq 22 ]] && return 1; die "não deu p/ enviar agora (sem rede?) — tente de novo."; }
     id="$(jq -r '.submission_id // empty' <<<"$r")"
-    echo "enviada ($letter, $(basename "$file")) — id $id. aguardando veredicto…"
-    _watch_verdict "$id" "$letter"; return $?
+    _sent_msg "$letter" "$file" "$id" "$nowait" || return 0
+    _watch_ids "/treino/history?id=$(enc "$letter")" "$id"; return $?
   fi
   cmd_sync --quiet || true       # fila pendente tenta ir na frente (ordem preservada)
   if [[ $force -eq 0 ]]; then
@@ -658,8 +740,8 @@ cmd_submit(){ need_contest; need_login
     if [[ $rc -eq 0 ]]; then
       _anchor >/dev/null 2>&1 || true
       local id; id="$(jq -r '.submission_id // empty' <<<"$r")"
-      echo "enviada ($letter, $(basename "$file")) — id $id. aguardando veredicto…"
-      _watch_verdict "$id"; return $?
+      _sent_msg "$letter" "$file" "$id" "$nowait" || return 0
+      _watch_ids "/contest/history$(qc)" "$id"; return $?
     elif [[ $rc -eq 22 ]]; then
       return 1                      # erro HTTP real (fora da janela, letra errada…): NÃO vira offline
     fi
@@ -729,7 +811,9 @@ cmd_outbox(){ need_contest; _contest_only outbox
   done; shopt -u nullglob
   (( n == 0 )) && echo "fila offline vazia." || echo "$n pacote(s) esperando rede — envie com: $MOJ_TOOL sync (ou deixe o monitor cuidar)"; }
 cmd_sync(){ need_contest; _contest_only sync
-  local quiet=0; [[ "${1:-}" == --quiet ]] && quiet=1
+  local quiet=0 nowait=0 a
+  for a in "$@"; do case "$a" in --quiet) quiet=1;; --no-wait) nowait=1;; esac; done
+  SYNC_ACCEPTED=()
   local d="$(_cdir)/outbox" f files=()
   shopt -s nullglob; for f in "$d"/*.pkt; do files+=("$f"); done; shopt -u nullglob
   (( ${#files[@]} > 0 )) || { (( quiet )) || echo "fila offline vazia."; return 0; }
@@ -757,11 +841,16 @@ cmd_sync(){ need_contest; _contest_only sync
          mv -f "$f" "$d/rejeitados/";;
     esac; i=$((i+1))
   done
-  (( ${#ids[@]} > 0 )) && (( quiet == 0 )) && { echo "aguardando veredicto(s)…"; local id; for id in "${ids[@]}"; do _watch_verdict "$id"; done; }
+  SYNC_ACCEPTED=(${ids[@]+"${ids[@]}"})
+  if (( ${#ids[@]} > 0 && quiet == 0 && nowait == 0 )); then
+    echo "aguardando veredicto(s)… (Ctrl-C para de esperar)"
+    _watch_ids "/contest/history$(qc)" "${ids[@]}"; return $?
+  fi
   return 0; }
 cmd_monitor(){ need_contest; _contest_only monitor
-  echo "monitor da fila offline — Ctrl-C sai. Tentando reenviar a cada 15s…"
-  local n r online f
+  local tick="${MOJ_COMP_MONITOR_TICK:-15}"
+  echo "monitor da fila offline — Ctrl-C sai. Tentando reenviar a cada ${tick}s…"
+  local n r online f mon_ids=()
   while :; do
     shopt -s nullglob; local files=("$(_cdir)/outbox"/*.pkt); shopt -u nullglob
     n=0; for f in "${files[@]}"; do [[ -e "$f" ]] && n=$((n+1)); done
@@ -770,10 +859,17 @@ cmd_monitor(){ need_contest; _contest_only monitor
     printf '\n[%s] rede: %s · fila: %d pacote(s)\n' "$(date -u -d "@$(_now_utc)" +%H:%M:%S 2>/dev/null || date +%T)" "$online" "$n"
     if (( n > 0 )); then cmd_outbox | sed 's/^/  /'; fi
     if [[ "$online" == ONLINE ]]; then
-      if (( n > 0 )); then cmd_sync || true
-      else echo "  fila vazia e rede OK — tudo em dia. (Ctrl-C p/ sair; sigo vigiando)"; fi
+      # o monitor NUNCA espera veredicto parado (bloquearia o reenvio): guarda os ids aceitos e, a cada volta,
+      # UMA consulta ao history mostra os que saíram
+      if (( n > 0 )); then cmd_sync --no-wait || true; mon_ids+=(${SYNC_ACCEPTED[@]+"${SYNC_ACCEPTED[@]}"})
+      elif (( ${#mon_ids[@]} == 0 )); then echo "  fila vazia e rede OK — tudo em dia. (Ctrl-C p/ sair; sigo vigiando)"; fi
+      if (( ${#mon_ids[@]} > 0 )) && r="$(_api_net GET "/contest/history$(qc)" 2>/dev/null)"; then
+        _WIDS=("${mon_ids[@]}"); _WMULTI=1; _WTTY=0; _WPFX="  veredicto "; _wv_take "$r"; _WPFX=""
+        mon_ids=(${_WIDS[@]+"${_WIDS[@]}"})
+        (( ${#mon_ids[@]} > 0 )) && echo "  aguardando ${#mon_ids[@]} veredicto(s)…"
+      fi
     fi
-    sleep 15
+    sleep "$tick"
   done; }
 
 cmd_doctor(){ local bad=0 srv
@@ -806,6 +902,7 @@ case "$cmd" in
   samples|exemplos) cmd_samples "$@";;
   submit|enviar) cmd_submit "$@";;
   subs|status) cmd_subs "$@";;
+  wait|esperar) cmd_wait "$@";;
   score|placar) cmd_score "$@";;
   news|noticias) cmd_news "$@";;
   clar|clarification) cmd_clar "$@";;
