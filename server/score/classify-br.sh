@@ -24,47 +24,26 @@
 #       com 3♀ → 2 com ≥2♀ → 1 com ≥1♀; sem limite de escola; não repete classificado.
 #   r3/comitê e redistribuição: MANUAIS (handler add) — aqui só sai o `unused` por regra.
 set -u
-: "${CONTESTSDIR:=/home/ribas/moj/contests}"
 C="${1:-}"; CFG="${2:-}"; OUT="${3:-/dev/stdout}"
 [[ -n "$C" && -s "$CFG" ]] || { echo "uso: classify-br.sh <contest> <config.json> [out]" >&2; exit 1; }
-case "$C" in *[!A-Za-z0-9._-]*|""|*..*) echo "classify-br: contest inválido" >&2; exit 1;; esac
-CD="$CONTESTSDIR/$C"
-PLACAR="$CD/var/placar-full.txt"; [[ -s "$PLACAR" ]] || PLACAR="$CD/var/placar.txt"
-[[ -s "$PLACAR" && -s "$CD/regions.json" ]] || { echo "classify-br: sem placar/regions" >&2; exit 1; }
-
-W="$(mktemp -d)"; trap 'rm -rf "$W"' EXIT
+# o comum aos motores: o placar pelo CABEÇALHO (até 30/09/2026 este motor contava as colunas do FIM, com
+# `$NF` = guest — sem coorte unranked não há coluna guest, e ele lia o total errado e descartava quem tinha
+# LastAC=1), a pertença das femininas e os avisos
+source "$(cd "$(dirname "$(readlink -f "$0")")" && pwd)/classify-common.sh"
+cl_init "$C" || exit 1
+[[ -s "$CD/regions.json" ]] || { echo "classify-br: sem regions.json" >&2; exit 1; }
 REGION="$(jq -r '.region // "Brasil"' "$CFG")"
 
-# --- regions.json → TSVs ------------------------------------------------------------------
-# folhas de SEDE sob a região (nome\tregex): exclui nós view (recortes) e deduplica por
-# NOME (a folha repetida sob supersede tem o MESMO nome/regex da sede da região).
-jq -r --arg R "$REGION" '
-  def walk_(v): ([.name // "", .regex // "", ((.view // false)|tostring),
-                  (((.subregions // [])|length)|tostring), v] | @tsv),
-                ((.subregions // [])[] | walk_(v));
-  .[] | select(.name == $R) | .regex as $rr
-  | ([.name, $rr, "top", "x", "x"] | @tsv), ((.subregions // [])[] | walk_("1"))
-' "$CD/regions.json" > "$W/nodes.tsv"
-awk -F'\t' 'NR==1{print > "'"$W"'/region.tsv"; next}
-  $3=="false" && $4=="0" && $2!="" && !seen[$1]++ { print $1 "\t" $2 }' "$W/nodes.tsv" > "$W/leaves.tsv"
 # supersedes (nome → sedes membras) — filhos dos nós cujo nome está em config.supersedes
 jq -r --arg R "$REGION" '
   .[] | select(.name == $R) | (.subregions // [])[]
   | select((.subregions // [])|length > 0)
   | .name as $sn | (.subregions // [])[] | [$sn, .name] | @tsv
 ' "$CD/regions.json" > "$W/super.tsv"
-# listas femininas (categoria \t login) — logins explícitos nos regexes das folhas por país
-jq -r '
-  def leaves_: (.subregions // [])[] | if ((.subregions // [])|length)>0 then leaves_ else . end;
-  .[] | select(.name == "Times femininos") | (.subregions // [])[]
-  | .name as $cat | (if ((.subregions // [])|length)>0 then leaves_ else . end)
-  | [$cat, (.regex // "")] | @tsv
-' "$CD/regions.json" 2>/dev/null | awk -F'\t' '{
-    cat=""; if ($1 ~ /^3/) cat="f3"; else if ($1 ~ /^2/) cat="f2"; else if ($1 ~ /^1/) cat="f1"
-    if (cat=="") next
-    n=split($2, m, /[^A-Za-z0-9_-]+/)
-    for (i=1;i<=n;i++) if (m[i] ~ /^team/) print cat "\t" m[i]
-  }' | sort -u > "$W/fem.tsv"
+# listas femininas (categoria \t login): PERTENÇA aos recortes "Times femininos" › 3/2/1 (cl_female) — a
+# faixa é a MAIOR; f3 = 3 competidoras, e as regras abaixo testam "≥" (f3 ou f2…), então basta ela
+cl_female "$C" "Times femininos"
+awk -F'\t' '{ print "f" $2 "\t" $1 }' "$W/female.tsv" | sort -u > "$W/fem.tsv"
 
 # --- sede e região pela regra ÚNICA (lib/regions.sh) ------------------------------------------
 # Quem está na REGIÃO = pertença ao nó da região (1º nó do topo, não-recorte, com esse nome); a SEDE de
@@ -88,28 +67,16 @@ jq -r '(.supersedes // {}) | to_entries[] | [.key, (.value|tostring)] | @tsv' "$
 R1="$(jq -r '.r1 // 15' "$CFG")"
 F3="$(jq -r '.r4.f3 // 3' "$CFG")"; F2="$(jq -r '.r4.f2 // 2' "$CFG")"; F1="$(jq -r '.r4.f1 // 1' "$CFG")"
 
-# --- ranking da REGIÃO (place de COMPETIÇÃO; sem convidado) -------------------------------
-# TXT: cabeçalho pode ter desc/asc; dados começam na flag. Campos pelo FIM (23 colunas):
-# NF-3=Total NF-2=Penalty NF-1=LastAC NF=guest; 2=login 3=univ_short 4=team_name.
-awk -F: -v STF="$W/sites.tsv" 'BEGIN { while ((getline l < STF) > 0) { split(l, a, "\t"); if (a[3] == "1") INR[a[1]] = 1 } close(STF) }
-  NR<=2{next} {
-  login=$2; guest=$NF
-  if (guest=="1") next
-  if (!(login in INR)) next
-  tot=$(NF-3)+0; pen=$(NF-2)+0; lac=$(NF-1)
-  seen++
-  if (seen>1 && tot==pt && pen==pp && lac==pl) place=pv; else place=seen
-  pt=tot; pp=pen; pl=lac; pv=place
-  print place "\t" login "\t" $3 "\t" $4 "\t" tot
-}' "$PLACAR" > "$W/rank.tsv"
+# --- ranking da REGIÃO (place de COMPETIÇÃO recontado na região; sem convidado) -----------
+cl_rows
+awk -F'\t' '$3 == "1" { print $1 }' "$W/sites.tsv" > "$W/inr.txt"
+cl_subset_places "$W/rows.tsv" "$W/inr.txt" | awk -F'\t' '{ print $2 "\t" $3 "\t" $5 "\t" $6 "\t" ($8 + 0) }' > "$W/rank.tsv"
 
 # --- o MOTOR (awk: estado sequencial das regras) ------------------------------------------
 awk -F'\t' -v R1="$R1" -v F3="$F3" -v F2="$F2" -v F1="$F1" \
-    -v LF="$W/leaves.tsv" -v SF="$W/super.tsv" -v CS="$W/cfg-sedes.tsv" \
+    -v SF="$W/super.tsv" -v CS="$W/cfg-sedes.tsv" \
     -v CU="$W/cfg-super.tsv" -v FEMF="$W/fem.tsv" -v STF="$W/sites.tsv" '
 BEGIN{
-  while ((getline l < LF) > 0) { split(l, a, "\t"); nleaf++; lname[nleaf]=a[1]; lre[nleaf]=a[2] }
-  close(LF)
   while ((getline l < CS) > 0) { split(l, a, "\t"); vsede[a[1]]=a[2]+0 }
   close(CS)
   while ((getline l < CU) > 0) { split(l, a, "\t"); vsuper[a[1]]=a[2]+0 }
@@ -186,7 +153,7 @@ END{
 
 # --- JSON final ---------------------------------------------------------------------------
 jq -Rn --arg region "$REGION" --arg contest "$C" \
-   --rawfile cls "$W/classified.tsv" --rawfile uns "$W/unused.tsv" '
+   --rawfile cls "$W/classified.tsv" --rawfile uns "$W/unused.tsv" --slurpfile wn <(cl_warnings_json) '
   ($cls | split("\n") | map(select(length>0) | split("\t"))
         | map({via:.[0], login:.[1], team:.[2], univ:.[3], sede:.[4],
                place:(.[5]|tonumber), total:(.[6]|tonumber), detail:.[7]})) as $list
@@ -195,4 +162,4 @@ jq -Rn --arg region "$REGION" --arg contest "$C" \
   | { contest:$contest, region:$region, generated_at:(now|floor),
       classified:($list | sort_by(.place)),
       by_rule:($list | group_by(.via) | map({key:.[0].via, value:length}) | from_entries),
-      total:($list|length), unused:$unused }' > "$OUT"
+      total:($list|length), unused:$unused, warnings:($wn[0] // []) }' > "$OUT"

@@ -16,6 +16,9 @@
 #     região (a regex do nó da região, diferenciando maiúsculas) e a sede de cada um (a 1ª FOLHA não-recorte
 #     da região cuja regex casa — a sede GRAVADA é ignorada) × o NOVO (pertença ao nó da região; a sede
 #     canônica).
+#   FEMININAS ("Times femininos" › 3/2/1 competidoras): o corte ANTIGO dos motores (os tokens `team…` das
+#     regexes das folhas de cada faixa) × a PERTENÇA nova (lib/regions.sh) — o que os motores de classificação
+#     passam a usar (score/classify-common.sh cl_female). Rode ANTES de trocar, na árvore real.
 #   QUEM O STAFF VÊ (print-requests/staff-filters.json): `region:<nome>` =
 #     etiquetas (senha!) — o nome é o da sede gravada OU a derivada das etiquetas;
 #     impressão/fila   — o nome é o da sede GRAVADA;
@@ -24,7 +27,10 @@
 set -u
 C="${1:-}"; [[ -n "$C" ]] || { echo "uso: $0 <contest> [--examples N]" >&2; exit 2; }
 EX=8; [[ "${2:-}" == --examples ]] && EX="${3:-8}"
-REGION="$(jq -r '.config.region // .region // empty' "$CONTESTSDIR/$C/classification.json" 2>/dev/null)"; REGION="${REGION:-Brasil}"
+# a região é a do estágio do motor BR (classification.json = {version, stages[]}); até 30/09/2026 isto lia um
+# `.config.region` no TOPO do arquivo, que nunca existiu — caía sempre em "Brasil"
+REGION="$(jq -r 'first(.stages[]? | select((.config.algorithm // "sbc-fase1") == "sbc-fase1") | .config.region // empty) // empty' \
+  "$CONTESTSDIR/$C/classification.json" 2>/dev/null)"; REGION="${REGION:-Brasil}"
 HERE="$(cd "$(dirname "$(readlink -f "$0")")" && pwd)"
 source "$HERE/../api/v1/lib/common.sh" 2>/dev/null || true
 source "$HERE/../api/v1/lib/regions.sh"
@@ -110,6 +116,26 @@ END {
     }
     printf "\n  CLASSIFICAÇÃO (região \"%s\"): %d login(s) entram/saem da região, %d mudam de sede%s%s\n", REGION, dcin, dcs, exs["ci"], exs["cs"]
   } else printf "\n  CLASSIFICAÇÃO: sem nó \"%s\" no topo — nada a comparar\n", REGION
+  # --- FEMININAS: tokens `team…` das regexes das folhas de cada faixa (corte antigo) × pertença nova
+  fi = -1; for (i = 0; i < n; i++) if (dep[i] == 0 && nm[i] == "Times femininos") { fi = i; break }
+  if (fi >= 0) {
+    nb = 0
+    for (i = fi + 1; i < n && dep[i] > 0; i++) if (dep[i] == 1 && nm[i] ~ /^[123]/) { nb++; BI[nb] = i; BC[nb] = substr(nm[i], 1, 1) }
+    for (b = 1; b <= nb; b++) {
+      bi = BI[b]; delete OT; delete AT
+      for (i = bi; i < n && (i == bi || dep[i] > dep[bi]); i++) {
+        leaf = (i + 1 >= n || dep[i + 1] <= dep[i]); if (!leaf || rx[i] == "") continue
+        m = split(rx[i], tk, /[^A-Za-z0-9_-]+/); for (j = 1; j <= m; j++) { if (tk[j] != "") AT[tk[j]] = 1; if (tk[j] ~ /^team/) OT[tk[j]] = 1 }
+      }
+      ofc = 0; for (t in OT) { ofc++; OLDF[t] = (OLDF[t] > BC[b]) ? OLDF[t] : BC[b] }
+      nfc = 0; for (k = 1; k <= u; k++) { l = L[k]; if ((l, bi) in MEM) { nfc++; NEWF[l] = (NEWF[l] > BC[b]) ? NEWF[l] : BC[b]; if (!(l in OT)) { fad++; addex("fa", sprintf("%-22s entra em \"%s\" (%s)", l, nm[bi], (l in AT) ? "está na lista, mas o corte antigo só pegava logins team…" : "a regex casa, mas não é token da lista — prefixo?")) } } }
+      for (t in OT) if (!((t, bi) in MEM)) { frm++; addex("fr", sprintf("%-22s sai de \"%s\" (token da lista sem conta, ou fora da regex)", t, nm[bi])) }
+      printf "\n  FEMININAS \"%s\": antigo %d · NOVO %d", nm[bi], ofc, nfc
+    }
+    for (t in OLDF) { nv = (t in NEWF) ? NEWF[t] : ""; if (OLDF[t] != nv) { fcat++; addex("fc", sprintf("%-22s faixa %s → NOVO %s", t, OLDF[t], (nv != "") ? nv : "nenhuma")) } }
+    for (t in NEWF) if (!(t in OLDF)) { fcat++; addex("fc", sprintf("%-22s faixa nenhuma → NOVO %s", t, NEWF[t])) }
+    printf "\n  FEMININAS: %d entram por regex (não eram tokens), %d saem, %d mudam de faixa%s%s%s\n", fad, frm, fcat, exs["fa"], exs["fr"], exs["fc"]
+  } else printf "\n  FEMININAS: sem o nó \"Times femininos\" no topo — nada a comparar\n"
   # --- STAFF: quem cada um vê (region:<nome>; entradas regex valem igual nos três)
   for (x in MEM) { split(x, pp, SUBSEP); LK[pp[1], lc(NN[pp[2]])] = 1 }     # login × nome de nó em que ele está
   for (s = 1; s <= st; s++) { w = SL[s]; who[w] = 1; tk = ST[s]

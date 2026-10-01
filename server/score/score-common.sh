@@ -218,30 +218,54 @@ _sc_users_compute() {
   }
 }
 
-# sc_place_map <placar.txt> -> "login \t posição" (só quem tem posição; convidado não tem).
-# Fonte ÚNICA da posição no placar geral p/ os consumidores fora do placar (relatório
-# offline, coletor mlinux): MESMA regra de empate do rep_score_html do report-gen —
-# resolvidos + penalidade + minuto do último AC; linha 1 = flag de modo, linha 2 = cabeçalho.
-sc_place_map(){
+# sc_board_rows <placar.txt> -> TSV, uma linha por time, na ORDEM do placar:
+#   seq  place  login  flag  univ_short  team  univ_full  total  penalty  lastac  attempted  guest
+# O PARSER ÚNICO do TXT do placar (updatescore-icpc.sh): as colunas saem pelo NOME do cabeçalho (linha 2;
+# os `desc`/`asc` do começo dele não existem nas linhas), nunca pela posição — a coluna `guest` só existe
+# com coorte unranked na visão, e o classify-br.sh, que contava do fim (`$NF` = guest), lia o total errado
+# e descartava quem tinha LastAC=1 quando ela faltava (achado em 30/09/2026).
+#   place     = posição de COMPETIÇÃO entre os não-convidados (resolvidos + penalidade + minuto do último AC
+#               iguais = mesma posição: 1, 2, 2, 4); convidado sai com place vazio e não consome posição;
+#   attempted = 1 se alguma célula de problema não está vazia (tentou ao menos um problema);
+#   guest     = 0|1 (ausente, "0", "false" e "no" = 0).
+# POSIX awk (o relatório e o coletor mlinux podem rodar sob mawk).
+sc_board_rows(){
   awk -F: '
     function trim(s){ gsub(/^[ \t]+|[ \t]+$/,"",s); return s }
+    function col(i){ return i ? trim($(i)) : "" }
     NR==1{ next }
     NR==2{ n=split($0,H,":"); s=1
       while (s<=n) { h=trim(tolower(H[s])); if (h=="desc"||h=="asc") s++; else break }
       ncol=0; for(i=s;i<=n;i++){ ncol++; hdr[ncol]=H[i] }
       for(i=1;i<=ncol;i++){ h=trim(tolower(hdr[i]))
         if(h=="username")iuser=i; else if(h=="total")itot=i; else if(h=="penalty")ipen=i
-        else if(h=="lastac")ilast=i; else if(h=="guest")iguest=i }
+        else if(h=="lastac")ilast=i; else if(h=="guest")iguest=i; else if(h=="flag")iflag=i
+        else if(h=="univ short")ius=i; else if(h=="team name")iteam=i; else if(h=="univ full")iuf=i }
+      # células de problema = as colunas entre "univ full" e "Total"
+      pfirst=(iuf ? iuf+1 : 0); plast=(itot ? itot-1 : 0)
       next }
     NF==0{ next }
     {
-      g=(iguest? trim($(iguest)) : "")
-      if (g!="" && g!="0" && tolower(g)!="false" && tolower(g)!="no") next
-      tot=(itot? trim($(itot)) : ""); pen=(ipen? trim($(ipen)) : ""); lac=(ilast? trim($(ilast)) : "")
-      n_++
-      if (n_>1 && tot==pt_ && pen==pp_ && lac==pl_) place=pc_
-      else place=n_
-      pt_=tot; pp_=pen; pl_=lac; pc_=place
-      if (iuser && trim($(iuser))!="") printf "%s\t%s\n", trim($(iuser)), place
+      g=col(iguest); guest=(g!="" && g!="0" && tolower(g)!="false" && tolower(g)!="no") ? 1 : 0
+      tot=col(itot); pen=col(ipen); lac=col(ilast)
+      att=0; if (pfirst && plast >= pfirst) for (i=pfirst; i<=plast; i++) if (trim($(i)) != "") { att=1; break }
+      seq++
+      place=""
+      if (!guest) {
+        n_++
+        if (n_>1 && tot==pt_ && pen==pp_ && lac==pl_) place=pc_
+        else place=n_
+        pt_=tot; pp_=pen; pl_=lac; pc_=place
+      }
+      printf "%d\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%d\t%d\n", seq, place, col(iuser), col(iflag), col(ius), col(iteam), col(iuf), (tot==""?0:tot), (pen==""?0:pen), lac, att, guest
     }' "$1"
+}
+
+# sc_place_map <placar.txt> -> "login \t posição" (só quem tem posição; convidado não tem).
+# Fonte ÚNICA da posição no placar geral p/ os consumidores fora do placar (relatório
+# offline, coletor mlinux): MESMA regra de empate do rep_score_html do report-gen —
+# resolvidos + penalidade + minuto do último AC; linha 1 = flag de modo, linha 2 = cabeçalho.
+# Feito em cima do sc_board_rows (o parser único).
+sc_place_map(){
+  sc_board_rows "$1" | awk -F'\t' '$12 == 0 && $3 != "" { printf "%s\t%s\n", $3, $2 }'
 }

@@ -146,5 +146,32 @@ B_ANON2="$(callc "")"
 jq -e '(.stages[0].draft // false) == false and (.stages[0].teams | length) == 10' <<<"$B_ANON2" >/dev/null \
   && PASS=$((PASS+1)) || { FAIL=$((FAIL+1)); echo "FALHOU: publicado não chegou ao anônimo" >&2; }
 
+# ---- parte 4: placar SEM coluna guest (sem coorte unranked) -----------------------------------
+# Regressão de 30/09/2026: o motor contava as colunas do FIM (`$NF` = guest). Sem coorte unranked a coluna
+# não existe: `$NF` virava o LastAC (time com LastAC=1 era tomado por convidado e SUMIA) e o "Total" vinha
+# de uma célula de problema. Agora o placar sai pelo cabeçalho (sc_board_rows).
+C2="$FIX/cb2"; mkdir -p "$C2/var" "$C2/enunciados"
+{ printf 'CONTEST_ID=cb2\nCONTEST_TYPE=icpc\nCONTEST_NAME=Classify2\n'
+  printf 'CONTEST_START=%s\nCONTEST_END=%s\n' "$T0" "$(( NOW + 3600 ))"
+  printf 'PROBS=( x col#p1 P1 A col#p1 x col#p2 P2 B col#p2 x col#p3 P3 C col#p3 x col#p4 P4 D col#p4 x col#p5 P5 E col#p5 )\n'
+} > "$C2/conf"
+jq -n '[{name:"Brasil", regex:"^team", subregions:[{name:"SP, Capital", regex:"^teamsp"}]},
+        {name:"Times femininos", regex:"^(teamsp0)", view:true, subregions:[
+          {name:"2 competidoras", regex:"^(teamsp0)", view:true}]}]' > "$C2/regions.json"
+C_SAVE="$C"; C="$C2"
+mkteam teamsp01 USP  "USP Um"   "1,1,1"     # 3 problemas, LastAC = 1 (o antigo o tomava por convidado)
+mkteam teamsp02 FATEC "FATEC Um" "2,3,4"    # 3 problemas
+C="$C_SAVE"
+( cd "$ROOT/score" && CONTESTSDIR="$FIX" bash build.sh cb2 >/dev/null 2>&1 )
+B2="$C2/var/placar.txt"; [[ -s "$C2/var/placar-full.txt" ]] && B2="$C2/var/placar-full.txt"
+grep -q ':guest' "$B2" && { FAIL=$((FAIL+1)); echo "FALHOU: fixture tinha coluna guest (devia não ter)" >&2; } || PASS=$((PASS+1))
+jq -n '{region:"Brasil", r1:2, r4:{f3:0,f2:0,f1:0}, sedes:{}, supersedes:{}}' > "$FIX/cfg2.json"
+OUT2="$FIX/out2.json"
+bash "$ROOT/score/classify-br.sh" cb2 "$FIX/cfg2.json" "$OUT2" 2>/dev/null || { echo "motor falhou (cb2)"; exit 1; }
+ck2(){ if jq -e "$1" "$OUT2" >/dev/null 2>&1; then PASS=$((PASS+1)); else FAIL=$((FAIL+1)); echo "FALHOU: $2  [$1]" >&2; fi }
+ck2 '.total == 2 and ([.classified[].via] | unique) == ["regra1"]' "sem coluna guest: os dois na regra 1 (veio $(jq -c '[.classified[]|{login,via,total}]' "$OUT2"))"
+ck2 '(.classified[] | select(.login=="teamsp01") | .total) == 3' "teamsp01 (LastAC=1) com total 3"
+ck2 '[.warnings[] | select(.code=="female_prefix_match") | .data.logins[]] | sort == ["teamsp01","teamsp02"]' "aviso: lista feminina casando por PREFIXO (^(teamsp0))"
+
 echo "smoke-classify-br: PASS=$PASS FAIL=$FAIL"
 (( FAIL == 0 ))
