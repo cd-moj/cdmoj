@@ -3852,6 +3852,53 @@
         }
       }
     },
+    "/treino/admin/contest-priority": {
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "SUPER-ADMIN do treino: muda a prioridade no julgamento de um contest, inclusive super (o único caminho p/ dar ou tirar super). Audita no contest (priority) e na trilha do treino (contest-priority). .admin comum = 403 superadmin_required; contest inexistente = 404; valor inválido = 422 priority_invalid",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "contest": {
+                    "type": "string"
+                  },
+                  "priority": {
+                    "type": "string",
+                    "enum": [
+                      "lista-publica",
+                      "lista-privada",
+                      "prova",
+                      "super"
+                    ]
+                  }
+                },
+                "required": [
+                  "contest",
+                  "priority"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "{contest, priority, previous, changed}"
+          },
+          "403": {
+            "description": "superadmin_required"
+          },
+          "404": {
+            "description": "contest inexistente"
+          }
+        }
+      }
+    },
     "/treino/admin/contests": {
       "get": {
         "tags": [
@@ -5257,7 +5304,7 @@
         "tags": [
           "contest-admin"
         ],
-        "summary": "Configurações do contest (inclui statement_langs/statement_langs_mode/default_statement_lang só leitura — muda-se em /contest/admin/statement-langs; mode read-only, tz = fuso IANA da prova (CONTEST_TZ; vazio = MOJ_TZ da instalação), judges[] = pool de juízes do contest, e a penalidade ICPC: penalty_minutes, penalty_verdicts; show_log é o valor EFETIVO — em modo icpc, SHOWLOG ausente = false; freeze_release_at = quando pode descongelar; POST freeze:0 antes disso = 409 freeze_locked; guest_numbering = convidados numerados na sequência própria, flag g no TXT)",
+        "summary": "Configurações do contest (inclui statement_langs/statement_langs_mode/default_statement_lang só leitura — muda-se em /contest/admin/statement-langs; mode read-only, tz = fuso IANA da prova (CONTEST_TZ; vazio = MOJ_TZ da instalação), judges[] = pool de juízes do contest, e a penalidade ICPC: penalty_minutes, penalty_verdicts; show_log é o valor EFETIVO — em modo icpc, SHOWLOG ausente = false; freeze_release_at = quando pode descongelar; POST freeze:0 antes disso = 409 freeze_locked; guest_numbering = convidados numerados na sequência própria, flag g no TXT; priority = prioridade efetiva (ausente = lista-publica), priority_set = definida no conf, priority_locked = está em super)",
         "parameters": [
           {
             "$ref": "#/components/parameters/contest"
@@ -5274,7 +5321,7 @@
         "tags": [
           "contest-admin"
         ],
-        "summary": "show_editor:false com o módulo esqueletos ligado = 409 module_needs_editor, recusado antes de gravar qualquer campo. Atualiza configurações (auditado; locale = pt|en|es — idioma da interface, do papel impresso e do relatório; outro valor = 422 locale_invalid; tz = fuso IANA da prova, 422 tz_invalid se não existir no zoneinfo e null/vazio volta ao padrão da instalação; judges[] = pool de juízes — hostnames do registro, vazio remove: escalonador ESTRITO, pool offline segura a fila; penalty_minutes int default 20, penalty_verdicts array de wa/tle/mle/rte/ce — editar em prova recomputa o placar; show_log:true grava SHOWLOG=1 explícito — religa o log mesmo em modo icpc)",
+        "summary": "priority = lista-publica|lista-privada|prova (super = 403 priority_forbidden; contest em super = 403 priority_locked — só o super-admin muda, em /treino/admin/contest-priority; outro = 422 priority_invalid), auditada no contest e na trilha do treino. show_editor:false com o módulo esqueletos ligado = 409 module_needs_editor, recusado antes de gravar qualquer campo. Atualiza configurações (auditado; locale = pt|en|es — idioma da interface, do papel impresso e do relatório; outro valor = 422 locale_invalid; tz = fuso IANA da prova, 422 tz_invalid se não existir no zoneinfo e null/vazio volta ao padrão da instalação; judges[] = pool de juízes — hostnames do registro, vazio remove: escalonador ESTRITO, pool offline segura a fila; penalty_minutes int default 20, penalty_verdicts array de wa/tle/mle/rte/ce — editar em prova recomputa o placar; show_log:true grava SHOWLOG=1 explícito — religa o log mesmo em modo icpc)",
         "parameters": [
           {
             "$ref": "#/components/parameters/contest"

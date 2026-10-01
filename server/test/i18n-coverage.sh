@@ -55,7 +55,7 @@ ck "toda chamada T(…) do web/ tem 3 argumentos (pt, en, es)" '[[ -z "$BAD" ]]'
 cat > "$T/pt.py" <<'EOF'
 import json, re, sys
 PT = re.compile(r"[ãõçÃÕÇ]|\b(não|você|vocês|também|então|até|já|mais|uma|seu|sua|sem|quando|ainda|usuário|senha|arquivo|equipe|placar|submissão|submissões|balão|balões|prova)\b|ções\b|ção\b", re.I)
-ALLOW = re.compile(r"nota-sem-traducao|\blogin[:,]senha[:,]nome\b|Maratona SBC de Programação|Sociedade Brasileira de Computação|Olimpíada Brasileira de Informática|Programação|\bOBI\b|moj\.naquadah|conceição", re.I)
+ALLOW = re.compile(r"nota-sem-traducao|\blogin[:,]senha[:,]nome\b|Maratona SBC de Programação|Sociedade Brasileira de Computação|Olimpíada Brasileira de Informática|Programação|\bOBI\b|moj\.naquadah|conceição|priority=prova\b", re.I)   # priority=prova: valor do comando, não texto
 out = []
 for w, s in json.load(open(sys.argv[1])):
     t = ALLOW.sub('', s)

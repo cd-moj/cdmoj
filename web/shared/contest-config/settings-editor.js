@@ -2,7 +2,9 @@
 // /contest/admin/settings + linguagens + gate de UA + placar completo), compartilhado entre a
 // aba Configurações do admin e o passo "Opções" do wizard de criação (paridade real: é o MESMO
 // editor). mode:'admin' inclui nome/início/fim; mode:'create' os omite (ficam no passo Dados)
-// e acrescenta a PRIORIDADE de julgamento ('super' só aparece p/ admin do treino).
+// e acrescenta a PRIORIDADE de julgamento ('super' só aparece p/ o SUPER-ADMIN do treino, `canSuper`). No modo
+// admin a prioridade é um bloco no FIM (editável desde 01/10/2026; Super nunca é oferecida aqui e, se o contest já
+// está em Super, o campo vem travado — quem muda é o super-admin, no Painel do treino › Contests).
 // Sem botão de salvar próprio — quem monta decide o que fazer com getValue().
 import { el } from '/shared/ui.js';
 import { T } from '/shared/i18n.js';
@@ -15,7 +17,7 @@ const chk = (l, c) => el('div', { class: 'field' }, el('label', { style: 'font-w
 const mkBool = (v) => { const c = el('input', { type: 'checkbox' }); c.checked = !!v; return c; };
 const PRIORITY_LABEL = () => ({
   'lista-publica': T('Lista pública (padrão)', 'Public list (default)', 'Lista pública (por defecto)'), 'lista-privada': T('Lista privada', 'Private list', 'Lista privada'),
-  prova: T('Prova (julga antes das listas)', 'Contest (judged before lists)', 'Competencia (se evalúa antes que las listas)'), super: T('Super (admin; fura toda fila)', 'Super (admin; jumps the whole queue)', 'Super (admin; salta toda la cola)'),
+  prova: T('Prova (julga antes das listas)', 'Contest (judged before lists)', 'Competencia (se evalúa antes que las listas)'), super: T('Super (super-admin do treino; fura toda fila)', 'Super (training super-admin; jumps the whole queue)', 'Super (superadministrador del entrenamiento; salta toda la cola)'),
 });
 
 const PENALTY_OPTS = [
@@ -27,7 +29,7 @@ const PENALTY_DEFAULT = ['wa', 'tle', 'mle', 'rte'];
 // contestMode: modo do placar ('icpc'|'obi'|…) — a seção de penalidade só existe no icpc.
 // O wizard permite voltar e trocar o modo: use setContestMode() no remount.
 // apiCtx: contexto {contest, auth} p/ o judge-picker buscar o registro de juízes.
-export function makeSettingsEditor({ value = {}, mode = 'admin', isAdmin = false, contestMode = '', apiCtx = null } = {}) {
+export function makeSettingsEditor({ value = {}, mode = 'admin', canSuper = false, contestMode = '', apiCtx = null } = {}) {
   const s = value || {};
   const isCreate = mode === 'create';
   const name = el('input', { value: s.name || '' });
@@ -37,7 +39,7 @@ export function makeSettingsEditor({ value = {}, mode = 'admin', isAdmin = false
   const freeze = el('input', { type: 'datetime-local', value: s.freeze ? toLocalDT(s.freeze) : '' });
   const locale = el('select', {}, el('option', { value: 'pt' }, 'Português'), el('option', { value: 'en' }, 'English'), el('option', { value: 'es' }, 'Español'));
   locale.value = s.locale || 'pt';
-  const prios = ['lista-publica', 'lista-privada', 'prova', ...(isAdmin ? ['super'] : [])];
+  const prios = ['lista-publica', 'lista-privada', 'prova', ...(canSuper ? ['super'] : [])];
   const PL = PRIORITY_LABEL();
   const priority = el('select', {}, ...prios.map((p) => el('option', { value: p }, PL[p] || p)));
   priority.value = prios.includes(s.priority) ? s.priority : 'lista-publica';
@@ -72,6 +74,19 @@ export function makeSettingsEditor({ value = {}, mode = 'admin', isAdmin = false
     'America/Bogota', 'Europe/Lisbon', 'UTC'];
   const tzList = el('datalist', { id: 'tzlist' }, ...TZS.map((z) => el('option', { value: z })));
   const tz = el('input', { value: s.tz || '', list: 'tzlist', placeholder: 'America/Sao_Paulo', style: 'width:16rem' });
+
+  // PRIORIDADE no modo admin: "não definida" (vale Lista pública) é um estado próprio — escolher QUALQUER uma,
+  // inclusive Lista, registra a decisão (a Central avisa prova icpc/obi sem prioridade escolhida). Só vai no
+  // getValue() quando MUDA: o salvar das outras opções não regrava nem audita a prioridade.
+  const prioLocked = !isCreate && s.priority === 'super';
+  const prioInitial = s.priority_set ? (s.priority || '') : '';
+  const aPrio = el('select', {},
+    ...(prioLocked ? [el('option', { value: 'super' }, PL.super)] : [
+      ...(prioInitial ? [] : [el('option', { value: '' }, T('— não definida (vale Lista pública) —', '— not set (Public list applies) —', '— no definida (vale Lista pública) —'))]),
+      ...['lista-publica', 'lista-privada', 'prova'].map((p) => el('option', { value: p }, PL[p]))]));
+  aPrio.value = prioLocked ? 'super' : prioInitial;
+  aPrio.style.maxWidth = '26rem';
+  if (prioLocked) { aPrio.disabled = true; aPrio.style.background = '#f1f4f8'; aPrio.style.color = 'var(--muted)'; aPrio.style.cursor = 'not-allowed'; }
 
   let cmode = contestMode;
   const penaltySec = el('div', {},
@@ -149,10 +164,23 @@ export function makeSettingsEditor({ value = {}, mode = 'admin', isAdmin = false
         'By default the solved cell always looks the same (green) and the balloon colour goes in a small dot beside it — so "solved" does not depend on seeing the colour, and the WHITE balloon stops vanishing into the scoreboard background. The other option is the classic: the whole cell painted with the balloon colour (light colours then get an outline so they do not vanish). Applies to the scoreboard, the reveal ceremony and the report.',
         'Por defecto, la celda de quien resolvió siempre se ve igual (verde) y el color del globo va en un puntito al lado — así "resuelto" no depende de distinguir el color, y el globo BLANCO deja de desaparecer en el fondo del marcador. La otra opción es la clásica: toda la celda pintada con el color del globo (ahí los colores claros reciben un contorno para no desaparecer). Aplica al marcador, la ceremonia de revelación y el informe.')),
     field(T('Como pintar', 'How to paint', 'Cómo pintar'), blnStyle));
+  // idem: no FIM (índices 35–37 no GROUPS do settings-tab.js, seção Julgamento). Só no modo admin: na criação a
+  // prioridade fica ao lado do idioma (acima).
+  if (!isCreate) box.append(
+    el('h3', { style: 'margin:1rem 0 .3rem' }, T('🚦 Prioridade no julgamento', '🚦 Judging priority', '🚦 Prioridad en la evaluación')),
+    el('p', { class: 'muted small' }, prioLocked
+      ? T('Este contest está em Super, a prioridade que passa na frente de toda fila. Quem a deu foi o super-admin do treino, e só ele a muda (Painel do treino › Contests).',
+        'This contest is on Super, the priority that jumps the whole queue. The training super-admin set it, and only the super-admin can change it (Training panel › Contests).',
+        'Esta competencia está en Super, la prioridad que salta toda la cola. La dio el superadministrador del entrenamiento, y solo él la cambia (Panel del entrenamiento › Competencias).')
+      : T('Decide a vez desta prova na fila de julgamento e a regra de envios. Lista (pública ou privada): cada time tem no máximo 3 envios esperando veredicto; o próximo é recusado até sair um resultado. Prova: julgada antes das listas e sem teto; a partir do 6º envio esperando veredicto, os seguintes do time vão mais para trás na fila. A prioridade Super só o super-admin do treino dá. Toda mudança fica registrada na Auditoria.',
+        'Decides this contest’s turn in the judging queue and the submission rule. List (public or private): each team has at most 3 submissions waiting for a verdict; the next one is refused until a result comes out. Contest: judged before the lists and with no limit; from the 6th submission waiting for a verdict, the team’s next ones go further back in the queue. Only the training super-admin gives the Super priority. Every change is recorded in the Audit log.',
+        'Decide el turno de esta competencia en la cola de evaluación y la regla de envíos. Lista (pública o privada): cada equipo tiene como máximo 3 envíos esperando veredicto; el siguiente se rechaza hasta que salga un resultado. Competencia: se evalúa antes que las listas y sin límite; a partir del 6.º envío esperando veredicto, los siguientes del equipo van más atrás en la cola. Solo el superadministrador del entrenamiento da la prioridad Super. Todo cambio queda registrado en la Auditoría.')),
+    field(T('Prioridade', 'Priority', 'Prioridad'), aPrio));
 
   function getValue() {
     return {
       ...(isCreate ? { priority: priority.value } : {
+        ...(!prioLocked && aPrio.value && aPrio.value !== prioInitial ? { priority: aPrio.value } : {}),
         name: name.value.trim() || undefined,
         ...(start.value ? { start: dtToEpoch(start.value) } : {}),
         ...(end.value ? { end: dtToEpoch(end.value) } : {}),

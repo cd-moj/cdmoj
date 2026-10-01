@@ -12,7 +12,7 @@ source "$_LIBDIR/contest-gate.sh"
 if [[ "${REQUEST_METHOD:-GET}" == GET ]]; then
   CONTEST_NAME=""; CONTEST_START=0; CONTEST_END=0; LOGIN_START_TIME=""; LOGIN_ENABLED=""; CONTEST_TZ=""
   FREEZE_TIME=""; LOCALE=""; SHOWLOG=""; SHOWEDITOR=""; LOGIN_UA_SUBSTRING=""; SCORE_ANON=""; SHOWTL=""; LANGUAGES=""; SCORE_FULL_USERS=""; BACKUP=""; PRINT=""; MANUAL_VERDICT=""; SECRET=""; CONTEST_JUDGES=""; BALLOONS_DURING_FREEZE=""; SCORE_BALLOON_STYLE=""
-  PENALTY_MINUTES=""; PENALTY_VERDICTS="__unset"; GUEST_NUMBERING=""; STATEMENT_LANGS=""
+  PENALTY_MINUTES=""; PENALTY_VERDICTS="__unset"; GUEST_NUMBERING=""; STATEMENT_LANGS=""; CONTEST_PRIORITY=""
   load_contest_conf "$contest"
   source "$_LIBDIR/contest-statement.sh"
   langs_json='[]'; [[ -n "$LANGUAGES" ]] && langs_json="$(printf '%s\n' $LANGUAGES | grep -v '^$' | jq -R . | jq -cs .)"
@@ -30,7 +30,9 @@ if [[ "${REQUEST_METHOD:-GET}" == GET ]]; then
             show_tl:$stl, languages:$langs, judges:$jdg, score_full_users:$sfu, allow_backup:$ab, allow_print:$ap, manual_verdict:$mv,
             secret:$sec, mode:$mode, penalty_minutes:$pm, penalty_verdicts:$pvd, review_judges:$rj,
             balloons_during_freeze:$bdf, balloons_frozen:$bfz, balloon_style:$bsty, modules:$mods,
-            freeze_release_at:$fra, guest_numbering:$gnum, statement_langs:$slangs, statement_langs_mode:$smode, default_statement_lang:$sdef}' \
+            freeze_release_at:$fra, guest_numbering:$gnum, statement_langs:$slangs, statement_langs_mode:$smode, default_statement_lang:$sdef,
+            priority:(if $prio == "" then "lista-publica" else $prio end), priority_set:($prio != ""), priority_locked:($prio == "super")}' \
+    --arg prio "$CONTEST_PRIORITY" \
     --arg smode "$(cs_mode "$contest")" \
     --argjson slangs "$(jq -cn --arg s "$(cs_norm "$STATEMENT_LANGS")" '$s|split(" ")')" \
     --arg sdef "$(cs_default "$contest" "$(cs_norm "$STATEMENT_LANGS")")" \
@@ -73,6 +75,23 @@ delvar(){ cc_del_conf_var "$contest" "$1"; CH+=("$1=padrao"); }
 # `bset` abaixo — qualquer valor que não seja `true` desliga (string "false", 0, null…), não só o booleano.
 if jq -e 'has("show_editor") and ((.show_editor | tostring) != "true")' >/dev/null 2>&1 <<<"$body" && mod_on "$contest" esqueletos; then
   fail 409 "O módulo Esqueletos de código está ligado e precisa do editor embutido: desligue o módulo antes (Central › Módulos)" "module_needs_editor"
+fi
+
+# PRIORIDADE no julgamento (lib/contest-create.sh cc_set_priority, 01/10/2026): o admin do contest escolhe entre
+# lista-publica / lista-privada / prova. Super é do SUPER-ADMIN do treino (Painel do treino › Contests): aqui ela
+# nunca é dada e, se o contest já está em Super, ninguém daqui a tira. Conferido ANTES de qualquer gravação;
+# mudança vai à auditoria do contest e à trilha central do treino.
+if has priority; then
+  _prio="$(jq -r '.priority // ""' <<<"$body")"
+  cc_priority_ok "$_prio" || fail 422 "Prioridade inválida (lista-publica, lista-privada ou prova)" "priority_invalid"
+  _pnow="$(conf_value "$contest" CONTEST_PRIORITY)"; _pnow="${_pnow//\\/}"
+  if [[ "$_pnow" == super && "$_prio" != super ]]; then
+    fail 403 "Este contest tem prioridade Super, dada pelo super-admin do treino — só ele a muda (Painel do treino › Contests)" "priority_locked"
+  fi
+  [[ "$_prio" == super && "$_pnow" != super ]] && \
+    fail 403 "A prioridade Super é exclusiva do super-admin do treino (Painel do treino › Contests)" "priority_forbidden"
+  cc_set_priority "$contest" "$_prio" regras || fail 500 "Falha ao gravar a prioridade" "priority_write"
+  (( CC_PRIO_CHANGED )) && CH+=("CONTEST_PRIORITY=$_prio")
 fi
 
 # fotografia do que invalida metrics/placar (freeze e penalidade) ANTES de gravar: se mudar,

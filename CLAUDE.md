@@ -1912,9 +1912,22 @@ mexa na outra. O índice separa as coleções por `\u001f` (nome é texto livre:
   com `<id>` só ATÉ a linha daquele envio (spool represado: o time que mandou 8 antes de o daemon ler o 1º não
   pode ter os 5 primeiros adiantados). O servidor NUNCA barra conteúdo — há quem reenvie o mesmo código de
   propósito (heurística aleatória); o "mesmo código" é só da TELA. As carências do `q_claim` contam a idade
-  real (`enq` do `.cmeta`); só a ordem e a promoção de famintos leem o nome do job. A prioridade se escolhe na
-  CRIAÇÃO e não se edita depois: a Central avisa (`submit_cap`, warn) contest icpc/obi SEM prioridade
-  escolhida. Testes: `smoke-submit-inflight.sh`, `smoke-submit-deprio.sh` (+ mutantes), `smoke-preflight.sh`.
+  real (`enq` do `.cmeta`); só a ordem e a promoção de famintos leem o nome do job. A Central avisa
+  (`submit_cap`, warn) contest icpc/obi SEM prioridade escolhida. Testes: `smoke-submit-inflight.sh`,
+  `smoke-submit-deprio.sh` (+ mutantes), `smoke-preflight.sh`.
+- **PRIORIDADE EDITÁVEL E AUDITADA; SUPER SÓ DO SUPER-ADMIN** (01/10/2026, pedido do Ribas). Escritor ÚNICO
+  `cc_set_priority` (`lib/contest-create.sh`; `cc_priority_ok` = a allowlist): grava `CONTEST_PRIORITY` e audita no
+  contest (`priority de=… para=… via=…`) E na trilha central do treino (`contest-priority contest=…`, o feed 📜
+  Atividade); mesma prioridade = nada gravado. Duas portas: Central › Regras (`/contest/admin/settings`, admin do
+  contest: lista-publica/lista-privada/prova; Super = 403 `priority_forbidden`; contest em Super = 403
+  `priority_locked`) e Painel do treino › Contests (`/treino/admin/contest-priority`, só `is_superadmin` — inclui
+  Super). ⚠ Super NUNCA se decide numa sessão de contest: lá a conta `.admin` é LOCAL e o NOME não prova que é o
+  super-admin do treino (qualquer admin cria uma conta local com o nome que quiser) — só sessão do TREINO. Criação:
+  Super só com `superadmin_login "$creator"`; `duplicate` de contest Super por outra conta nasce `prova`; o
+  nascimento entra na trilha (`via=criação`). A banda muda só p/ os envios seguintes. Clientes: bloco no FIM do
+  `settings-editor.js` (índices 35–37 no GROUPS; vai no `getValue()` só quando MUDA), coluna no painel do treino,
+  `moj-contest settings set priority=…` e `moj-contest priority <cid> <p>`. Testes: `smoke-contest-priority.sh`,
+  `smoke-settings-groups.gjs.sh`, `moj-cli/test/contest-priority.sh`.
 - **NOME DE ARQUIVO DO ALUNO É ENTRADA HOSTIL, e ele viaja até um `/bin/sh`.** O `filename` do
   `/submit` vai no job, o agente do juiz materializa a fonte **preservando o nome**, o
   `build-and-test.sh` a copia p/ dentro da jaula e o `mojtools/lang/*/compile.sh` monta um

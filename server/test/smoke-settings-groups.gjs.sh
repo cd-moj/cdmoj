@@ -6,7 +6,9 @@
 #   • todo filho do editor está em exatamente UMA seção (nenhum sobra p/ "Outras opções", nenhum repete);
 #   • os campos-âncora caem na seção certa (login/secreto/gate na de acesso, log/editor na do time,
 #     veredicto manual/linguagens/pool no julgamento, anônimo/penalidade/balões no placar, fuso na janela);
-#   • o "auto-cadastro (late users)" não existe mais.
+#   • o "auto-cadastro (late users)" não existe mais;
+#   • PRIORIDADE (01/10/2026): editável no admin sem Super, travada quando é Super, só vai ao servidor quando muda;
+#     na criação, Super só p/ o super-admin do treino.
 set -u
 command -v gjs >/dev/null 2>&1 || { echo "settings-groups: gjs ausente — pulando"; exit 0; }
 WEB="$(cd "$(dirname "$(readlink -f "$0")")/../../web" && pwd)"
@@ -56,9 +58,29 @@ const want=[['Login habilitado','Acesso'],['SUPER SECRETO','Acesso'],['Gate de l
   ['ver o log de julgamento','O que o time vê'],['Editor de código no browser','O que o time vê'],['pedidos de impressão','O que o time vê'],
   ['Veredicto manual','Julgamento'],['Nº de juízes que validam','Julgamento'],['Linguagens permitidas','Julgamento'],['Máquinas de juiz','Julgamento'],
   ['Placar anônimo','Placar'],['Penalidade','Placar'],['Placar completo','Placar'],['Balões durante o freeze','Placar'],['Célula "resolveu"','Placar'],
-  ['Fuso horário da prova','Identidade'],['Abertura do login','Identidade']];
+  ['Fuso horário da prova','Identidade'],['Abertura do login','Identidade'],['Prioridade no julgamento','Julgamento']];
 for (const [txt, g] of want) { const got=sec(txt); ck('"'+txt+'" → '+g, got.includes(g), got); }
 ck('o "auto-cadastro (late users)" não existe mais', !ed.el.textContent.includes('auto-cadastro') && ed.getValue().allow_late===undefined);
+// PRIORIDADE (01/10/2026): editável no modo admin, sem Super; Super travada; só vai no getValue() quando MUDA
+const sels=(e)=>{ const out=[]; const walk=(n)=>{ for (const c of (n.children||[])) { if (c.tagName==='select') out.push(c); walk(c); } }; walk(e.el); return out; };
+const prioSel=(e)=>sels(e).find((x)=>x.children.some((o)=>o.attrs && o.attrs.value==='prova'));
+const opts=(x)=>x.children.map((o)=>o.attrs.value);
+let e2=makeSettingsEditor({ value:{ priority:'lista-publica', priority_set:false }, mode:'admin', contestMode:'icpc' });
+let ps=prioSel(e2);
+ck('admin: "não definida" + as três de baixo, sem Super', ps && JSON.stringify(opts(ps))==='["","lista-publica","lista-privada","prova"]', ps && JSON.stringify(opts(ps)));
+ck('admin: sem mudar, o getValue() não leva prioridade', !('priority' in e2.getValue()));
+ps.value='lista-publica';
+ck('admin: escolher Lista pública (antes não definida) conta como mudança', e2.getValue().priority==='lista-publica');
+e2=makeSettingsEditor({ value:{ priority:'prova', priority_set:true }, mode:'admin', contestMode:'icpc' }); ps=prioSel(e2);
+ck('admin: definida = sem a opção "não definida"', JSON.stringify(opts(ps))==='["lista-publica","lista-privada","prova"]' && ps.value==='prova');
+ck('admin: igual à salva não vai', !('priority' in e2.getValue()));
+ps.value='lista-privada'; ck('admin: mudou → vai', e2.getValue().priority==='lista-privada');
+e2=makeSettingsEditor({ value:{ priority:'super', priority_set:true, priority_locked:true }, mode:'admin', contestMode:'icpc' });
+const sup=sels(e2).find((x)=>x.children.some((o)=>o.attrs && o.attrs.value==='super'));
+ck('admin em Super: campo travado, só Super, aviso do super-admin', sup && sup.disabled===true && JSON.stringify(opts(sup))==='["super"]' && e2.el.textContent.includes('só ele a muda'));
+ck('admin em Super: o getValue() nunca leva prioridade', !('priority' in e2.getValue()));
+const cr=(cs)=>prioSel(makeSettingsEditor({ value:{}, mode:'create', contestMode:'icpc', canSuper:cs }));
+ck('criação: Super só com canSuper (super-admin do treino)', !opts(cr(false)).includes('super') && opts(cr(true)).includes('super'));
 print(''); print('RESULT: '+pass+' passed, '+fail+' failed');
 imports.system.exit(fail>0?1:0);
 EOF

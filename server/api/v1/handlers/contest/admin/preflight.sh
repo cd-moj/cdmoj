@@ -114,8 +114,8 @@ fi
 # --- envios na fila (submit.sh / judged.sh, 01/10/2026) --------------------------------
 # A PRIORIDADE decide: lista (lista-publica/lista-privada; ausente = lista-publica) tem teto de N envios esperando o
 # juiz por time (SUBMIT_MAX_INFLIGHT, padrão 3); prova/super não tem teto e perde prioridade a partir do 6º pendente.
-# A prioridade é escolhida na criação e não se edita depois — o `warn` é p/ quem NUNCA a escolheu numa prova
-# (icpc/obi sem CONTEST_PRIORITY): lista explícita é configuração deliberada e fica `ok`.
+# O `warn` é p/ quem NUNCA a escolheu numa prova (icpc/obi sem CONTEST_PRIORITY): lista explícita é configuração
+# deliberada e fica `ok`. Escolher (inclusive Lista) em Central › Regras tira o aviso.
 _cprio="$(conf_value "$contest" CONTEST_PRIORITY)"; _cprio="${_cprio//\\/}"
 case "$_cprio" in
   prova|super)
@@ -134,11 +134,11 @@ case "$_cprio" in
         "Envíos en la cola: sin límite" "SUBMIT_MAX_INFLIGHT=0 en el conf"
     elif [[ -z "$_cprio" && ( "$mode" == icpc || "$mode" == obi ) ]]; then
       add3 submit_cap warn "Teto de $_cmax envios na fila por time" \
-        "a prioridade não foi definida e vale a de lista: cada time tem no máximo $_cmax envios esperando veredicto e o próximo é recusado. Se isto é uma prova e não uma lista, peça ao operador do MOJ CONTEST_PRIORITY=prova no conf" \
+        "a prioridade não foi definida e vale a de lista: cada time tem no máximo $_cmax envios esperando veredicto e o próximo é recusado. Se isto é uma prova, escolha a prioridade Prova em Regras (escolher Lista também tira este aviso)" \
         "Limit of $_cmax submissions in the queue per team" \
-        "the priority was not set, so the list priority applies: each team has at most $_cmax submissions waiting for a verdict and the next one is refused. If this is a contest and not a list, ask the MOJ operator to set CONTEST_PRIORITY=prova in the conf" \
+        "the priority was not set, so the list priority applies: each team has at most $_cmax submissions waiting for a verdict and the next one is refused. If this is a contest, select the Contest priority in Rules (selecting a List also removes this warning)" \
         "Límite de $_cmax envíos en la cola por equipo" \
-        "la prioridad no fue definida y vale la de lista: cada equipo tiene como máximo $_cmax envíos esperando veredicto y el siguiente se rechaza. Si esto es una competencia y no una lista, pide al operador del MOJ CONTEST_PRIORITY=prova en el conf"
+        "la prioridad no fue definida y vale la de lista: cada equipo tiene como máximo $_cmax envíos esperando veredicto y el siguiente se rechaza. Si esto es una competencia, elige la prioridad Competencia en Reglas (elegir una Lista también quita este aviso)"
     else
       add3 submit_cap ok "Teto de $_cmax envios na fila por time (prioridade $_cp)" \
         "cada time tem no máximo $_cmax envios esperando veredicto; o próximo é recusado até sair um resultado" \

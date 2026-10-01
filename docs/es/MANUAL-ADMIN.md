@@ -1,4 +1,4 @@
-<!-- i18n-source: MANUAL-ADMIN.md blob:fdea8cb41851121c02c6df5c44755f89f928c39f -->
+<!-- i18n-source: MANUAL-ADMIN.md blob:cc8f99e72a456cc4c275c892aa432ff9dabf25fa -->
 # MOJ: Manual del organizador (el panel .admin de la competencia)
 
 > **Nota de traducción.** Este manual es una traducción del original en portugués. Las herramientas de línea de comandos (`moj`, `moj-contest`, `moj-comp`) muestran sus mensajes en portugués, y los ejemplos de comandos son idénticos al original.
@@ -216,7 +216,7 @@ habituales). Úsalo en una lista o un examen de curso, cuando el esqueleto ayuda
 
 - **💻 Lenguajes permitidos en la competencia**: la lista permitida en la competencia (cada problema puede restringir más, en Competencia › Problemas).
 - **🖥️ Máquinas de juez (pool)**: qué MÁQUINAS de evaluación atienden esta competencia (vacío = cualquier juez en línea). No confundir con los jueces HUMANOS (sección 4).
-- **Prioridad en la evaluación y envíos en la cola**: se elige al **crear** la competencia (paso 5 · Opciones del asistente) y no cambia después. Con **Lista pública** (por defecto) o **Lista privada**, cada equipo tiene como máximo **3 envíos esperando veredicto**: el 4.º se rechaza hasta que salga un resultado. Eso protege al juez de quien reenvía sin parar. Con **Competencia**, no hay límite: a partir del **6.º envío esperando veredicto**, los siguientes de ese equipo entran más atrás en la cola (como si llegaran 2 minutos después), sin rechazar nada. Un envío retenido en el veredicto manual no cuenta. La **🏁 Central** muestra la regla vigente (ítem "Envíos en la cola") y avisa cuando una competencia ICPC quedó sin prioridad elegida. El operador del MOJ la ajusta en el conf: `CONTEST_PRIORITY=prova` o `SUBMIT_MAX_INFLIGHT=<n>` (`0` desactiva el límite).
+- **Prioridad en la evaluación y envíos en la cola**: decide el turno de la competencia en la cola de evaluación y la regla de envíos. Se elige al crear y se cambia aquí, en cualquier momento, al final de la sección **⚖️ Evaluación**. Con **Lista pública** (por defecto) o **Lista privada**, cada equipo tiene como máximo **3 envíos esperando veredicto**: el 4.º se rechaza hasta que salga un resultado. Eso protege al juez de quien reenvía sin parar. Con **Competencia**, se evalúa antes que las listas y no hay límite: a partir del **6.º envío esperando veredicto**, los siguientes de ese equipo entran más atrás en la cola (como si llegaran 2 minutos después), sin rechazar nada. Un envío retenido en el veredicto manual no cuenta. El cambio vale para los próximos envíos. La **Super** (salta toda la cola) solo la da o quita el **superadministrador del entrenamiento**, en Panel del entrenamiento › Competencias: aquí no aparece, y una competencia en Super queda con el campo bloqueado. Todo cambio de prioridad va a la **Auditoría** de la competencia y a la traza del entrenamiento, con quién lo cambió, de cuál a cuál y por dónde. La **🏁 Central** muestra la regla vigente (ítem "Envíos en la cola") y avisa cuando una competencia ICPC quedó sin prioridad elegida. El operador del MOJ cambia el límite de 3 en el conf: `SUBMIT_MAX_INFLIGHT=<n>` (`0` lo desactiva).
 - **Veredicto manual**: activa la **corrección validada por jueces humanos** (sección 4).
 - **N.º de jueces que validan cada veredicto**: el quórum de la corrección manual: **de 1 a 5, predeterminado 2**. Con 1, un único voto decide (revisión simple); con N≥2, el veredicto solo sale con N votos **unánimes**: cualquier divergencia se convierte en conflicto para el juez principal.
 - **⏱ Penalización (marcador ICPC)**: minutos sumados por cada intento no aceptado antes del Accepted (predeterminado 20) y QUÉ veredictos penalizan (predeterminado wa/tle/mle/rte: **Compilation Error queda FUERA** por defecto; vacío = nada penaliza).
@@ -909,6 +909,14 @@ ver solo lo que creaste. El propietario aparece con foto, nombre y enlace a su p
 
 **Id reservado.** Un id que empieza por `icpc` es de la organización de la Maratona. Solo un super-admin crea
 una competencia con ese id. El asistente avisa antes y la API la rechaza.
+
+**Prioridad (columna Prioridad).** El superadministrador cambia la prioridad de cualquier competencia
+directamente en la tabla, incluida **Super**, que salta toda la cola. Este es el único lugar para dar o quitar
+Super. El asistente solo ofrece Super al superadministrador, y una copia (**duplicar**) de una competencia Super
+hecha por otra cuenta nace como **Competencia**. Los demás administradores solo ven la columna: el admin de
+cada competencia cambia las otras prioridades en Central › Reglas. Todo cambio queda en la Auditoría de la
+competencia y en la traza del entrenamiento (feed 📜 Actividad, acción `contest-priority`). Por la CLI:
+`moj contest priority <cid> <prioridad>`.
 
 **Quién puede crear competencias y problemas.** El mismo permiso vale para crear competencias y para crear
 problemas y colecciones en la Gestión de Problemas. Las cuentas `.admin` siempre pueden. Para las demás:

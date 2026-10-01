@@ -257,7 +257,7 @@ check "módulo telao desligado => checagem ausente"                   '[[ "$(lvl
 
 echo "== envios na fila: a PRIORIDADE decide o teto (submit_cap) =="
 run
-check "icpc SEM prioridade (nunca escolhida) => warn com o teto 3"  '[[ "$(lvl submit_cap)" == warn && "$(det submit_cap)" == *"no máximo 3 envios"* && "$(det submit_cap)" == *"CONTEST_PRIORITY=prova"* ]]'
+check "icpc SEM prioridade (nunca escolhida) => warn com o teto 3"  '[[ "$(lvl submit_cap)" == warn && "$(det submit_cap)" == *"no máximo 3 envios"* && "$(det submit_cap)" == *"prioridade Prova em Regras"* ]]'
 printf 'CONTEST_PRIORITY=lista-publica\n' >> "$C/conf"; run
 check "lista-publica explícita => ok (configuração deliberada)"   '[[ "$(lvl submit_cap)" == ok && "$(det submit_cap)" == *"no máximo 3 envios"* ]]'
 printf 'SUBMIT_MAX_INFLIGHT=0\n' >> "$C/conf"; run

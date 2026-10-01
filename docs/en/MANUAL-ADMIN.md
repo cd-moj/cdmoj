@@ -1,4 +1,4 @@
-<!-- i18n-source: MANUAL-ADMIN.md blob:fdea8cb41851121c02c6df5c44755f89f928c39f -->
+<!-- i18n-source: MANUAL-ADMIN.md blob:cc8f99e72a456cc4c275c892aa432ff9dabf25fa -->
 # MOJ: Organizer manual (the contest .admin panel)
 
 > **Translation note.** This manual is a translation of the Portuguese original. The command-line tools (`moj`, `moj-contest`, `moj-comp`) print their messages in Portuguese, and the command examples below are identical to the original.
@@ -221,7 +221,7 @@ in a course list or a course exam, when the skeleton helps the student.
 
 - **💻 Languages allowed in the contest**: the list of allowed languages in the contest (each problem can restrict it more, in Contest › Problems).
 - **🖥️ Judge machines (pool)**: which judging MACHINES serve this contest (empty = any online judge). Do not confuse them with HUMAN judges (section 4).
-- **Judging priority and submissions in the queue**: you select it when you **create** the contest (step 5 · Options of the wizard). It does not change later. With **Public list** (the default) or **Private list**, each team has at most **3 submissions waiting for a verdict**: the 4th one is refused until a result comes out. This protects the judge from accounts that resubmit without a stop. With **Contest**, there is no limit: from the **6th submission waiting for a verdict**, the next submissions of that team go further back in the queue (as if they arrived 2 minutes later). Nothing is refused. A submission held for manual verdict does not count. The **🏁 Central** shows the rule in effect (item "Submissions in the queue") and warns when an ICPC contest has no selected priority. The MOJ operator can adjust it in the conf: `CONTEST_PRIORITY=prova` or `SUBMIT_MAX_INFLIGHT=<n>` (`0` turns off the limit).
+- **Judging priority and submissions in the queue**: decides the contest's turn in the judging queue and the submission rule. You select it at creation and you can change it here at any time, at the end of the **⚖️ Judging** section. With **Public list** (the default) or **Private list**, each team has at most **3 submissions waiting for a verdict**: the 4th one is refused until a result comes out. This protects the judge from accounts that resubmit without a stop. With **Contest**, the contest is judged before the lists and there is no limit: from the **6th submission waiting for a verdict**, the next submissions of that team go further back in the queue (as if they arrived 2 minutes later). Nothing is refused. A submission held for manual verdict does not count. The change applies to the next submissions. Only the **training super-admin** gives or removes **Super** (it jumps the whole queue), in Training panel › Contests: Super does not show here, and a contest on Super has a locked field. Every priority change goes to the contest **Audit** log and to the training trail, with who changed it, from which to which, and through which screen. The **🏁 Central** shows the rule in effect (item "Submissions in the queue") and warns when an ICPC contest has no selected priority. The MOJ operator changes the limit of 3 in the conf: `SUBMIT_MAX_INFLIGHT=<n>` (`0` turns it off).
 - **Manual verdict**: turns on **grading validated by human judges** (section 4).
 - **Judges required to validate each verdict**: the quorum of the manual review: **1 to 5, default 2**. With 1, one vote decides (single review). With N≥2, the verdict goes out only with N **unanimous** votes. Any disagreement becomes a conflict for the chief judge.
 - **⏱ Penalty (ICPC scoreboard)**: the minutes added per non-accepted attempt before the Accepted (default 20), and WHICH verdicts count as penalty (default wa/tle/mle/rte: **Compilation Error is OUT** by default; empty = nothing counts).
@@ -964,6 +964,13 @@ what you created. The owner appears with photo, name and a link to the profile.
 
 **Reserved id.** An id that starts with `icpc` belongs to the Maratona organization. Only a
 super-admin can create a contest with this id. The wizard warns before, and the API refuses.
+
+**Priority (Priority column).** The super-admin changes the priority of any contest directly in the table,
+including **Super**, which jumps the whole queue. This is the only place to give or remove Super. The
+wizard offers Super only to the super-admin, and a copy (**duplicate**) of a Super contest made by another
+account starts as **Contest**. The other administrators only see the column: the admin of each contest
+changes the other priorities in Central › Rules. Every change goes to the contest Audit log and to the
+training trail (📜 Activity feed, action `contest-priority`). From the CLI: `moj contest priority <cid> <priority>`.
 
 **Who can create contests and problems.** The same permission applies to creating contests and to
 creating problems and collections in Problem Management. `.admin` accounts can always create

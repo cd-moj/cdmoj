@@ -1140,6 +1140,28 @@ function makeContestsTab() {
   const statusOf = (c) => { const now = Date.now() / 1000; if (c.start && now < c.start) return 'upcoming'; if (c.end && now > c.end) return 'ended'; return 'running'; };
   const STATUS = () => ({ running: [T('em andamento', 'running', 'en curso'), 'v-ok'], upcoming: [T('por vir', 'upcoming', 'próximas'), 'v-warn'], ended: [T('encerrado', 'ended', 'finalizada'), ''] });
   const dt = (e) => (e ? new Date(e * 1000).toLocaleString(undefined, { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—');
+  // PRIORIDADE no julgamento (01/10/2026): o super-admin muda aqui, inclusive Super (POST /treino/admin/contest-priority,
+  // auditado no contest e na trilha do treino); os demais só veem — o admin do contest muda em Central › Regras.
+  const PRIO = () => ({ 'lista-publica': T('Lista pública', 'Public list', 'Lista pública'), 'lista-privada': T('Lista privada', 'Private list', 'Lista privada'),
+    prova: T('Prova', 'Contest', 'Competencia'), super: T('Super', 'Super', 'Super') });
+  function prioCell(c) {
+    const P = PRIO();
+    if (!META.is_superadmin) return el('td', { class: 'small' }, c.priority ? P[c.priority] || c.priority : el('span', { class: 'muted' }, T('não definida', 'not set', 'no definida')));
+    const sel = el('select', { 'aria-label': T('Prioridade de ', 'Priority of ', 'Prioridad de ') + (c.name || c.id) },
+      ...(c.priority ? [] : [el('option', { value: '' }, T('— não definida —', '— not set —', '— no definida —'))]),
+      ...Object.keys(P).map((k) => el('option', { value: k }, P[k])));
+    sel.value = c.priority || '';
+    sel.addEventListener('change', async () => {
+      const v = sel.value; if (!v) return;
+      const warn = v === 'super' ? T(' Super passa na frente de TODA fila, inclusive das provas dos outros.', ' Super jumps the WHOLE queue, including other contests.', ' Super salta TODA la cola, incluso las competencias de los demás.') : '';
+      if (!confirm(T('Mudar a prioridade de "', 'Change the priority of "', '¿Cambiar la prioridad de "') + (c.name || c.id) + '" → ' + P[v] + '?' + warn)) { sel.value = c.priority || ''; return; }
+      sel.disabled = true;
+      try { await apiPost('/treino/admin/contest-priority', { contest: c.id, priority: v }, G()); c.priority = v; }
+      catch (e) { alert(T('Falha: ', 'Failed: ', 'Error: ') + (e.message || T('erro', 'error', 'error'))); sel.value = c.priority || ''; }
+      sel.disabled = false;
+    });
+    return el('td', {}, sel);
+  }
   function renderList() {
     const f = norm(q.value), own = ownerSel.value, md = modeSel.value, st = statusSel.value;
     let rows = ALL.filter((c) => (!mineChk.checked || c.owner === META.me)
@@ -1167,6 +1189,7 @@ function makeContestsTab() {
         el('td', {}, personCell(c.owner, c.owner_name, c.owner_has_photo, c.owner_is_admin ? el('span', { class: 'pill', style: 'margin-left:.35rem' }, 'admin') : '')),
         el('td', { class: 'small', style: 'white-space:nowrap' }, dt(c.start), ' → ', dt(c.end), el('div', {}, el('span', { class: 'verdict ' + ST[sk][1], style: 'font-size:.72rem;padding:.1rem .45rem' }, ST[sk][0]))),
         el('td', { class: 'n' }, String(c.problems_count ?? '—')),
+        prioCell(c),
         el('td', { class: 'small', style: 'white-space:nowrap' }, c.created_at ? fmtDate(c.created_at) : '—'),
         el('td', {}, el('div', { class: 'row-actions' },
           el('a', { class: 'btn ghost small', href: '/contest/?c=' + encodeURIComponent(c.id), target: '_blank' }, T('Abrir', 'Open', 'Abrir')),
@@ -1175,7 +1198,7 @@ function makeContestsTab() {
     });
     tableBox.append(el('div', { class: 'chart-wrap' }, el('table', { class: 'moj' },
       el('thead', {}, el('tr', {}, el('th', {}, T('Contest', 'Contest', 'Competencia')), el('th', {}, T('Modo', 'Mode', 'Modo')), el('th', {}, T('Dono', 'Owner', 'Dueño')), el('th', {}, T('Período', 'Period', 'Período')),
-        el('th', { class: 'n' }, T('Probl.', 'Probl.', 'Probl.')), el('th', {}, T('Criado', 'Created', 'Creado')), el('th', {}, T('Ações', 'Actions', 'Acciones')))), tb)));
+        el('th', { class: 'n' }, T('Probl.', 'Probl.', 'Probl.')), el('th', {}, T('Prioridade', 'Priority', 'Prioridad')), el('th', {}, T('Criado', 'Created', 'Creado')), el('th', {}, T('Ações', 'Actions', 'Acciones')))), tb)));
   }
   function rebuildSelects() {
     const keepO = ownerSel.value, keepM = modeSel.value;

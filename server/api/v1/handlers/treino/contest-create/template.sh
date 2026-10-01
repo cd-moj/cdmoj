@@ -16,7 +16,7 @@ cat <<'JSON'
   "mode": "icpc",
   "_mode": "icpc | obi | treino | heuristic (mode 'outro' e exclusivo de admin do treino)",
   "priority": "lista-publica",
-  "_priority": "prioridade no escalonador de julgamento: prova | lista-privada | lista-publica ('super' e exclusivo de admin do treino)",
+  "_priority": "prioridade no escalonador de julgamento: prova | lista-privada | lista-publica ('super' e exclusivo do super-admin do treino); muda depois em Central > Regras",
   "start": 0,
   "end": 0,
   "languages": ["c", "cpp", "py"],

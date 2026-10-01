@@ -178,7 +178,9 @@ cc_create(){
   fi
   case "$priority" in
     prova|lista-privada|lista-publica) ;;
-    super) [[ "$creator" == *.admin ]] || fail 403 "Prioridade 'super' é exclusiva de admin" "priority_forbidden";;
+    # Super passa na frente de TODA fila (inclusive das provas dos outros): só o SUPER-ADMIN do treino (SUPERADMINS
+    # no conf do treino) a dá — o `creator` aqui é a sessão do TREINO (wizard/CLI), identidade verificada
+    super) superadmin_login "$creator" || fail 403 "A prioridade Super é exclusiva do super-admin do treino" "priority_forbidden";;
     *) fail 422 "Prioridade inválida" "priority_invalid";;
   esac
   [[ -z "$start" || "$start" =~ ^[0-9]+$ ]] || fail 422 "Início (start) inválido" "start_invalid"
@@ -416,6 +418,11 @@ cc_create(){
   cc_apply_modules_spec "$spec" "$stg" "$creator" || { rm -rf "$stg"; fail 422 "Seção de módulo inválida no spec (${CC_MOD_ERR:-modules})" "modules_spec_invalid"; }
 
   mv -T "$stg" "$CONTESTSDIR/$id" 2>/dev/null || { rm -rf "$stg"; fail 500 "Falha ao publicar o contest (id pode ter sido criado em paralelo)" "publish_fail"; }
+
+  # a prioridade de nascimento entra na trilha (o contest e a central do treino) — as mudanças depois também
+  # entram (cc_set_priority), então "quem pôs esta prova nesta banda" sempre tem resposta
+  audit_log_to "$id" priority "de=— para=$priority via=criação"
+  audit_log_to treino contest-priority "contest=$id de=— para=$priority via=criação"
 
   # CREDS pode estar VAZIO (admin reutilizado em modo compartilhado): teste/expansão set -u safe.
   local users_json='[]'
@@ -809,6 +816,28 @@ cc_bank_filter(){
 
 # cc_set_conf_var <contest> <VAR> <value> — define/atualiza uma var no conf (escapada com %q),
 # preservando as demais linhas. cc_del_conf_var remove a var.
+# --- PRIORIDADE no escalonador (CONTEST_PRIORITY; 01/10/2026) ----------------------------------------
+# super > prova > lista-privada > lista-publica; ausente = lista-publica. Decide a BANDA da fila de julgamento e a
+# regra de envios (lista: teto SUBMIT_MAX_INFLIGHT no /submit; prova/super: sem teto, menos prioridade a partir do
+# 6º pendente). Editável depois da criação: o admin do contest muda entre as três de baixo (Central › Regras,
+# /contest/admin/settings); Super só o SUPER-ADMIN do treino dá ou tira (Painel do treino › Contests,
+# /treino/admin/contest-priority) — numa sessão de contest a conta `.admin` é LOCAL e o nome não prova identidade.
+CC_PRIORITIES="lista-publica lista-privada prova super"
+cc_priority_ok(){ [[ -n "$1" && " $CC_PRIORITIES " == *" $1 "* ]]; }
+# cc_set_priority <contest> <nova> <via> — grava e AUDITA no contest e na trilha central do treino
+# (`contest-priority` no var/admin-audit.log do treino — o feed 📜 Atividade). Quem pode o quê é do CHAMADOR.
+# Põe a anterior em CC_PRIO_OLD (vazio = não definida) e CC_PRIO_CHANGED=0|1 (mesma prioridade = nada gravado).
+cc_set_priority(){
+  local c="$1" new="$2" via="$3" old
+  old="$(conf_value "$c" CONTEST_PRIORITY)"; old="${old//\\/}"
+  CC_PRIO_OLD="$old"; CC_PRIO_CHANGED=0
+  [[ -n "$old" && "$old" == "$new" ]] && return 0
+  cc_set_conf_var "$c" CONTEST_PRIORITY "$new" || return 1
+  CC_PRIO_CHANGED=1
+  audit_log_to "$c" priority "de=${old:-não-definida} para=$new via=$via"
+  [[ "$c" == treino ]] || audit_log_to treino contest-priority "contest=$c de=${old:-não-definida} para=$new via=$via"
+  return 0
+}
 cc_set_conf_var(){
   local cf="$CONTESTSDIR/$1/conf" tmp
   [[ -f "$cf" ]] || return 1
@@ -1131,15 +1160,15 @@ cc_list_created(){
     oname="$(user_fullname_of treino "$owner")"; ophoto=false; [[ -f "$CONTESTSDIR/treino/users/$owner/photo.png" ]] && ophoto=true
     oadm=false; [[ "$owner" == *.admin ]] && oadm=true
     line="$(
-      CONTEST_NAME=""; CONTEST_TYPE=""; CONTEST_START=0; CONTEST_END=0; PROBS=()
+      CONTEST_NAME=""; CONTEST_TYPE=""; CONTEST_START=0; CONTEST_END=0; CONTEST_PRIORITY=""; PROBS=()
       . "$cdir/conf" 2>/dev/null
       [[ "${CONTEST_START:-0}" =~ ^[0-9]+$ ]] || CONTEST_START=0; [[ "${CONTEST_END:-0}" =~ ^[0-9]+$ ]] || CONTEST_END=0
       jq -cn --arg id "$cid" --arg nm "${CONTEST_NAME:-$cid}" --arg m "${CONTEST_TYPE:-${_m:-}}" \
          --arg o "${owner:-?}" --arg on "$oname" --argjson op "$ophoto" --argjson oa "$oadm" \
          --argjson at "$at" --argjson st "${CONTEST_START:-0}" --argjson en "${CONTEST_END:-0}" \
-         --argjson np "$(( ${#PROBS[@]} / 5 ))" \
+         --argjson np "$(( ${#PROBS[@]} / 5 ))" --arg pr "${CONTEST_PRIORITY:-}" \
          '{id:$id, name:$nm, mode:$m, owner:$o, owner_name:(if $on=="" then null else $on end), owner_has_photo:$op, owner_is_admin:$oa,
-           created_at:$at, start:$st, end:$en, problems_count:$np}'
+           created_at:$at, start:$st, end:$en, problems_count:$np, priority:(if $pr=="" then null else $pr end)}'
     )"
     [[ -n "$line" ]] && arr+=("$line")
   done

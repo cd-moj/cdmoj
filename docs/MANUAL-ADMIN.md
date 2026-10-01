@@ -213,7 +213,7 @@ costume). Use em lista ou prova de disciplina, quando o esqueleto ajuda o aluno.
 
 - **Linguagens** — a lista permitida no contest (cada problema pode restringir mais, em Prova › Problemas).
 - **Pool de juízes (máquinas)** — quais MÁQUINAS de julgamento atendem este contest (vazio = qualquer juiz online). Não confundir com juízes HUMANOS (seção 4).
-- **Prioridade no julgamento e envios na fila** — escolhida na **criação** do contest (passo 5 · Opções do assistente); não muda depois. Com **Lista pública** (o padrão) ou **Lista privada**, cada time tem no máximo **3 envios esperando veredicto**: o 4º é recusado até sair um resultado. Isso protege o juiz de quem reenvia sem parar. Com **Prova**, não há limite: a partir do **6º envio esperando veredicto**, os seguintes daquele time entram mais atrás na fila (como se chegassem 2 minutos depois), sem recusar nada. Envio segurado no veredicto manual não conta. A **🏁 Central** mostra a regra que vale (item "Envios na fila") e avisa quando um contest ICPC ficou sem prioridade escolhida. Ajuste pelo operador do MOJ, no conf: `CONTEST_PRIORITY=prova` ou `SUBMIT_MAX_INFLIGHT=<n>` (`0` desliga o teto).
+- **Prioridade no julgamento e envios na fila** — decide a vez da prova na fila de julgamento e a regra de envios. Escolhe-se na criação e muda-se aqui, a qualquer hora, no fim da seção **⚖️ Julgamento**. Com **Lista pública** (o padrão) ou **Lista privada**, cada time tem no máximo **3 envios esperando veredicto**: o 4º é recusado até sair um resultado. Isso protege o juiz de quem reenvia sem parar. Com **Prova**, o contest é julgado antes das listas e não há limite: a partir do **6º envio esperando veredicto**, os seguintes daquele time entram mais atrás na fila (como se chegassem 2 minutos depois), sem recusar nada. Envio segurado no veredicto manual não conta. A mudança vale para os próximos envios. A **Super** (passa na frente de toda fila) só o **super-admin do treino** dá ou tira, no Painel do treino › Contests: aqui ela não aparece, e um contest em Super fica com o campo travado. Toda mudança de prioridade vai para a **Auditoria** do contest e para a trilha do treino, com quem mudou, de qual para qual e por onde. A **🏁 Central** mostra a regra que vale (item "Envios na fila") e avisa quando um contest ICPC ficou sem prioridade escolhida. O teto de 3 muda no conf, pelo operador do MOJ: `SUBMIT_MAX_INFLIGHT=<n>` (`0` desliga).
 - **Veredicto manual** — liga a **correção validada por juízes humanos** (seção 4).
 - **Nº de juízes que validam cada veredicto** — o quórum da correção manual: **1 a 5, padrão 2**. Com 1, um único voto decide (revisão simples); com N≥2, o veredicto só sai com N votos **unânimes** — qualquer divergência vira conflito p/ o juiz-chefe.
 - **Penalidade (ICPC)** — minutos somados por tentativa não aceita antes do Accepted (padrão 20) e QUAIS veredictos penalizam (padrão wa/tle/mle/rte — **Compilation Error fica de FORA** por padrão; vazio = nada penaliza).
@@ -892,6 +892,13 @@ ver apenas o que você criou. O dono aparece com foto, nome e link para o perfil
 
 **Id reservado.** Um id que começa por `icpc` é da organização da Maratona. Só um super-admin cria
 um contest com esse id. O assistente avisa antes e a API recusa.
+
+**Prioridade (coluna Prioridade).** O super-admin muda a prioridade de qualquer contest direto na tabela,
+inclusive **Super**, que passa na frente de toda fila. Este é o único lugar para dar ou tirar Super. O
+assistente só oferece Super ao super-admin, e uma cópia (**duplicar**) de um contest Super feita por outra
+conta nasce como **Prova**. Os demais administradores só veem a coluna: o admin de cada contest muda as
+outras prioridades em Central › Regras. Toda mudança fica na Auditoria do contest e na trilha do treino
+(feed 📜 Atividade, ação `contest-priority`). Pela CLI: `moj contest priority <cid> <prioridade>`.
 
 **Quem pode criar contests e problemas.** A mesma permissão vale para criar contests e para criar
 problemas e coleções na Gestão de Problemas. Contas `.admin` sempre podem. Para as demais:

@@ -67,6 +67,11 @@ spec="$(jq -c --argjson probs "$probs" --argjson o "$body" --argjson now "$EPOCH
   | (if $o.users_from then .users_from = $o.users_from else . end)
   | (if ((.problems // [])|length) == 0 then .allow_empty = true else . end)' <<<"$base")"
 [[ -n "$spec" ]] || fail 500 "Falha ao montar o spec" "spec_fail"
+# prioridade SUPER é do super-admin do treino (cc_create recusa p/ os outros): a cópia feita por outra conta nasce
+# Prova — duplicar a Maratona p/ treinar não pode virar 403 nem herdar a frente de toda fila
+if [[ "$(jq -r '.priority // ""' <<<"$spec")" == super ]] && ! superadmin_login "$SESSION_LOGIN"; then
+  spec="$(jq -c '.priority = "prova"' <<<"$spec")"
+fi
 
 # quem duplica precisa poder VER cada problema (topo E rodadas planejadas): um .admin do treino
 # copiando um contest alheio herdaria os privados do dono — mesma guarda do create
