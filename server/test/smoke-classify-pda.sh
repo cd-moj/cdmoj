@@ -100,7 +100,7 @@ eqk "$(jq -r '[.warnings[] | select(.code=="cycle_table_empty")] | length' "$O")
 eqk "$(via teammxmx06 "$O")" "host-extra" "sede extra sem a regra geral (ITESM já tinha 2)"
 eqk "$(jq -r '.reserve.slots' "$O")" "6" "reserva reportada"
 eqk "$(jq -r '.total' "$O")" "23" "total (6 + 2 + 1 + 2 + 2 femininas + 2 pendentes + 1 + 1 + 1 + 1 + 3 + 1)"
-eqk "$(jq -r '[.classified[] | select(.via=="pend")][0].place // "null"' "$O")" "null" "pendente sem posição"
+eqk "$(jq -r '[.classified[] | select(.via=="pend")][0] | "\(.place // "null") \(.detail // "")|\(.univ)"' "$O")" "null |Universidad Central \"Martha Abreu\" de Las Villas" "pendente sem posição, escola no campo univ"
 eqk "$(jq -r '.unused["fem-region"]' "$O")" "5" "vagas não usadas por bloco"
 eqk "$(jq -r '.labels["fem2"].es' "$O")" "Dos o más competidoras" "rótulos dos blocos (es)"
 eqk "$(jq -r '.via_order | join(",")' "$O")" "p1,p2,p3,p4,fem-host-country,fem-latam,pend,fem-host-school,fem-region,fem2,fem1,country-part,host-extra" "ordem das vias (sem a reserva)"
@@ -194,7 +194,7 @@ hk(){ jq -e "$1" <<<"$BODY" >/dev/null 2>&1 && ok || bad "$2  [${BODY:0:300}]"; 
 stj(){ jq -r --arg s "$1" "first(.stages[] | select(.id == \$s)) | $2" "$C/classification.json"; }
 CFGJ="$(cat "$FIX/cfg.json")"
 calla GET
-hk '(.algorithms | map(.id)) == ["sbc-fase1","latam-pda"] and (.algorithms[1].seed.N == 40) and (.algorithms[1].stage == "pda")' "GET: catálogo com a semente oficial"
+hk '(.algorithms | map(.id)) == ["sbc-fase1","latam-pda","latam-mundial"] and (.algorithms[1].seed.N == 40) and (.algorithms[1].stage == "pda")' "GET: catálogo com a semente oficial"
 calla POST "$(jq -cn --argjson c "$CFGJ" '{action:"preview", config:$c}')"
 hk '.stage == "pda" and (.relation | length) == 23 and (.preview.geo.schools_latam == 18)' "preview: estágio padrão pda"
 calla POST "$(jq -cn --argjson c "$CFGJ" '{action:"apply", config:$c}')"
@@ -204,6 +204,10 @@ calla POST '{"action":"apply","stage":"pda","config":{"algorithm":"sbc-fase1","r
 hk '.error.code == "stage_algorithm_mismatch" and .error.stage_algorithm == "latam-pda"' "estágio de outro motor = 409"
 calla POST '{"action":"withdraw","stage":"pda","login":"teamsoar02","reason":"desistiu"}'
 hk '.total == 22' "withdraw no pda"
+calla POST '{"action":"withdraw","stage":"pda","ext":"lugia-usb","reason":"não virá"}'
+eqk "$(stj pda '(.teams | has("ext:lugia-usb")) | tostring')" "false" "withdraw de time externo (ext:)"
+calla POST '{"action":"exclude","stage":"pda","ext":"acxioma-uclv","reason":"x"}'
+hk '.error.code == "login_invalid"' "exclude de time externo = 400 (não está no placar)"
 calla POST '{"action":"promote_next","stage":"pda"}'
 hk '.error.code == "reason_required"' "promote_next sem motivo = 422"
 calla POST '{"action":"promote_next","stage":"pda","reason":"vaga do UTN"}'

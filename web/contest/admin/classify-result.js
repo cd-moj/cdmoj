@@ -53,16 +53,41 @@ export const WARN_T = () => ({
     'La misma clave de escuela con nombres completos distintos — revisa si son la misma institución:'),
 });
 
-export function warningsBox(ws) {
+// o `data` de um aviso em texto legível ("região so · vagas 1 · preenchidas 0"); `L` traduz id de bloco
+function fmtData(d, L) {
+  const K = () => ({ region: T('região', 'region', 'región'), slots: T('vagas', 'slots', 'cupos'), filled: T('preenchidas', 'filled', 'ocupados'),
+    block: T('bloco', 'block', 'bloque'), country: T('país', 'country', 'país'), quota: T('cota', 'quota', 'cuota'),
+    place: T('posição', 'place', 'posición'), last: T('entrou', 'in', 'entró'), next: T('ficou de fora', 'left out', 'quedó fuera'),
+    overflow: T('a mais', 'over', 'de más'), allocated: T('alocadas', 'allocated', 'asignados'), medal: T('medalha', 'medal', 'medalla'),
+    teams: T('times', 'teams', 'equipos'), places: T('posições', 'places', 'posiciones'), countries: T('países', 'countries', 'países'),
+    node: T('nó', 'node', 'nodo'), regions: T('regiões', 'regions', 'regiones') });
+  const k = K();
+  return Object.entries(d || {}).map(([key, v]) => {
+    let val = Array.isArray(v) ? v.map((x) => (typeof x === 'object' ? JSON.stringify(x) : String(x))).join(', ') : (typeof v === 'object' ? JSON.stringify(v) : String(v));
+    if (key === 'block' && L) val = L(val);
+    if ((key === 'region' || key === 'country') && typeof v === 'string') val = v.toUpperCase();
+    return (k[key] || key) + ' ' + val;
+  }).join(' · ');
+}
+
+// avisos agrupados por código (+ bloco): "Vaga feminina sem time elegível: Feminina por região — região BR · …; região CB · …"
+export function warningsBox(ws, labels) {
   if (!ws || !ws.length) return null;
   const W = WARN_T();
+  const L = (id) => { const x = (labels || {})[id]; return x ? pickLabel(x) : id; };
+  const groups = [];
+  ws.forEach((w) => {
+    const d = Object.assign({}, w.data || {});
+    const key = w.code + '|' + (d.block || '');
+    let g = groups.find((x) => x.key === key);
+    if (!g) { g = { key, code: w.code, block: d.block, parts: [] }; groups.push(g); }
+    if (Array.isArray(d.logins)) g.parts.push(d.logins.join(', '));
+    else { delete d.block; const t = fmtData(d, L); if (t) g.parts.push(t); }
+  });
   return el('div', { class: 'warn-box', style: 'margin:.4rem 0' },
     el('b', {}, T('⚠ Avisos do motor', '⚠ Engine warnings', '⚠ Avisos del motor')),
-    el('ul', { style: 'margin:.3rem 0 0 1.1rem' }, ...ws.map((w) => {
-      const d = w.data || {};
-      const extra = Array.isArray(d.logins) ? ' ' + d.logins.join(', ') : (Object.keys(d).length ? ' ' + JSON.stringify(d) : '');
-      return el('li', { class: 'small' }, (W[w.code] || w.code) + extra);
-    })));
+    el('ul', { style: 'margin:.3rem 0 0 1.1rem' }, ...groups.map((g) => el('li', { class: 'small' },
+      (W[g.code] || g.code) + (g.block ? ' ' + L(g.block) + (g.parts.length ? ' —' : '') : '') + (g.parts.length ? ' ' + g.parts.join('; ') : '')))));
 }
 
 const n2 = (x) => (x == null ? '—' : String(x));
@@ -105,7 +130,7 @@ export function resultDetails(p, labels) {
           ' · integer math: q = schools × remaining; slots = q ÷ LATAM schools; fraction = remainder ÷ LATAM schools.',
           ' · cuenta en enteros: q = escuelas × restantes; cupos = q ÷ escuelas de LATAM; fracción = resto ÷ escuelas de LATAM.')),
       table([[T('Região', 'Region', 'Región')], [T('Escolas', 'Schools', 'Escuelas'), 1], ['q', 1], [T('Inteiras', 'Whole', 'Enteras'), 1],
-        [T('Fração herdada', 'Carried fraction', 'Fracción heredada'), 1], [T('Fração', 'Fraction', 'Fracción'), 1], [T('Extra', 'Extra', 'Extra'), 1],
+        [T('Fração herdada', 'Carried fraction', 'Fracción heredada'), 1], [T('Fração', 'Fraction', 'Fracción'), 1], ['Extra', 1],
         [T('Vagas', 'Slots', 'Cupos'), 1], [T('Preenchidas', 'Filled', 'Ocupados'), 1], [T('Fração p/ o ano seguinte', 'Fraction for next year', 'Fracción para el año siguiente'), 1]],
         g.regions.map((r) => [[r.name || r.code], [n2(r.schools), 1], [n2(r.q), 1], [n2(r.nslots), 1], [fr(r.fraction_prev), 1], [fr(r.fraction), 1],
           [n2(r.extra), 1], [n2(r.slots), 1], [n2(r.filled), 1], [fr(r.fraction_out), 1]])));

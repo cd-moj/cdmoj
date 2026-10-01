@@ -127,12 +127,15 @@ export function makeClassifyTab(CONTEST) {
             td.append(el('button', { class: 'btn ghost small', title: T('desfazer a promoção manual', 'undo the manual promotion', 'deshacer la promoción manual'),
               onclick: () => { if (confirm(T('Desfazer a promoção manual de ', 'Undo the manual promotion of ', '¿Deshacer la promoción manual de ') + t.login + '?')) act({ action: 'override_undo', id: t.override }); } }, '↩'));
           } else {
-            td.append(
-              el('button', { class: 'btn ghost danger small', title: T('retirar SEM recalcular (a vaga fica vaga)', 'withdraw WITHOUT recomputing (the slot stays open)', 'retirar SIN recalcular (el cupo queda vacante)'),
-                onclick: () => { const r = askReason(T('Retirar ', 'Withdraw ', 'Retirar ') + t.login + T(' sem recalcular? A vaga fica vaga.', ' without recomputing? The slot stays open.', ' sin recalcular? El cupo queda vacante.')); if (r) act({ action: 'withdraw', login: t.login, reason: r }); } }, '✂'),
-              ' ',
-              el('button', { class: 'btn ghost danger small', title: T('excluir do cálculo e recalcular (o próximo herda a vaga)', 'exclude from the computation and recompute (the next team inherits the slot)', 'excluir del cálculo y recalcular (el siguiente hereda el cupo)'),
-                onclick: () => { const r = askReason(T('Excluir ', 'Exclude ', 'Excluir ') + t.login + T(' do cálculo? O próximo herda a vaga.', ' from the computation? The next team inherits the slot.', ' del cálculo? El siguiente hereda el cupo.')); if (r) act({ action: 'exclude', login: t.login, reason: r }); } }, '⊘'));
+            // time de fora do placar (ext:<id>): só retirar — excluir do cálculo não se aplica (ele não está no placar)
+            const isExt = String(t.login || '').startsWith('ext:');
+            const who = isExt ? { ext: t.login.slice(4) } : { login: t.login };
+            const cut = el('button', { class: 'btn ghost danger small', title: T('retirar SEM recalcular (a vaga fica vaga)', 'withdraw WITHOUT recomputing (the slot stays open)', 'retirar SIN recalcular (el cupo queda vacante)'),
+              onclick: () => { const r = askReason(T('Retirar ', 'Withdraw ', 'Retirar ') + t.login + T(' sem recalcular? A vaga fica vaga.', ' without recomputing? The slot stays open.', ' sin recalcular? El cupo queda vacante.')); if (r) act(Object.assign({ action: 'withdraw', reason: r }, who)); } }, '✂');
+            // append(null) escreveria o texto "null" no browser: só os nós que existem
+            if (isExt) td.append(cut);
+            else td.append(cut, ' ', el('button', { class: 'btn ghost danger small', title: T('excluir do cálculo e recalcular (o próximo herda a vaga)', 'exclude from the computation and recompute (the next team inherits the slot)', 'excluir del cálculo y recalcular (el siguiente hereda el cupo)'),
+              onclick: () => { const r = askReason(T('Excluir ', 'Exclude ', 'Excluir ') + t.login + T(' do cálculo? O próximo herda a vaga.', ' from the computation? The next team inherits the slot.', ' del cálculo? El siguiente hereda el cupo.')); if (r) act({ action: 'exclude', login: t.login, reason: r }); } }, '⊘'));
           }
           tr.append(td);
         }
@@ -207,7 +210,7 @@ export function makeClassifyTab(CONTEST) {
       el('p', {}, pub
         ? el('b', { style: 'color:var(--ok,#1a7f37)' }, T('📢 PUBLICADO no placar', '📢 PUBLISHED on the scoreboard', '📢 PUBLICADA en el marcador'))
         : el('b', { style: 'color:var(--warn,#a66a00)' }, T('📝 RASCUNHO (só o admin vê)', '📝 DRAFT (admin only)', '📝 BORRADOR (solo admin)')),
-        el('span', { class: 'small muted' }, ' · ' + T('chip ', 'chip ', 'chip ') + '“🎓 ' + (st.chip || st.id) + '” · ' + n + T(' time(s)', ' team(s)', ' equipo(s)') +
+        el('span', { class: 'small muted' }, ' · chip “🎓 ' + (st.chip || st.id) + '” · ' + n + T(' time(s)', ' team(s)', ' equipo(s)') +
           ' · ' + T('motor: ', 'engine: ', 'motor: ') + (alg ? pickLabel(alg.name) : ((st.config && st.config.algorithm) || T('nenhum (só manual)', 'none (manual only)', 'ninguno (solo manual)'))) +
           (st.applied_at ? ' · ' + T('aplicado em ', 'applied on ', 'aplicado el ') + fmtEpoch(st.applied_at) : ''))),
       el('div', { class: 'row', style: 'gap:.5rem;flex-wrap:wrap;align-items:center' },
@@ -229,7 +232,7 @@ export function makeClassifyTab(CONTEST) {
         pub ? null : el('button', { class: 'btn ghost danger', onclick: () => {
           if (confirm(T('Apagar o estágio em rascunho ', 'Delete the draft stage ', '¿Borrar la etapa en borrador ') + st.id + T('? (overrides inclusive)', '? (overrides included)', '? (overrides incluidos)'))) act({ action: 'delete' });
         } }, T('🗑 Apagar rascunho', '🗑 Delete draft', '🗑 Borrar borrador'))),
-      warningsBox(st.result && st.result.warnings),
+      warningsBox(st.result && st.result.warnings, Object.assign({}, DATA.vias, st.labels)),
       relationTable(rel, st.labels, st.via_order, true),
       addBox(),
       (() => { const d = resultDetails(st.result, st.labels); return d ? el('details', { style: 'margin-top:.6rem' },
@@ -335,7 +338,7 @@ export function makeClassifyTab(CONTEST) {
       el('div', { class: 'row', style: 'gap:.6rem;flex-wrap:wrap;align-items:center;margin:.4rem 0' },
         el('label', {}, T('Motor: ', 'Engine: ', 'Motor: '), fAlg),
         el('label', {}, T('Etapa: ', 'Stage: ', 'Etapa: '), fName), el('label', {}, T('Local: ', 'Venue: ', 'Lugar: '), fVenue),
-        el('label', {}, T('Quando: ', 'When: ', 'Cuándo: '), fWhen), el('label', {}, T('Chip: ', 'Chip: ', 'Chip: '), fChip)),
+        el('label', {}, T('Quando: ', 'When: ', 'Cuándo: '), fWhen), el('label', {}, 'Chip: ', fChip)),
       formBox,
       el('div', { class: 'row', style: 'gap:.5rem;margin-top:.5rem' },
         el('button', { class: 'btn', onclick: async () => {
@@ -349,8 +352,9 @@ export function makeClassifyTab(CONTEST) {
             const n = rel.filter((t) => !t.withdrawn).length;
             const order = (p.via_order || alg.vias || []).concat(DATA.manual_vias || []);
             prevBox.innerHTML = '';
-            prevBox.append(el('h3', {}, T('👁 Prévia — ', '👁 Preview — ', '👁 Vista previa — ') + n + T(' classificados', ' qualified', ' clasificados')),
-              warningsBox(p.warnings),
+            // filter(Boolean): append(null) escreveria "null" na tela
+            prevBox.append(...[el('h3', {}, T('👁 Prévia — ', '👁 Preview — ', '👁 Vista previa — ') + n + T(' classificados', ' qualified', ' clasificados')),
+              warningsBox(p.warnings, Object.assign({}, DATA.vias, p.labels)),
               p.unused ? el('p', { class: 'small muted' }, T('vagas não usadas: ', 'unused slots: ', 'cupos no usados: ') +
                 Object.entries(p.unused).map(([k, v]) => viaLabel(p.labels, k, true) + ': ' + v).join(' · ')) : null,
               (r.overrides || []).length ? el('p', { class: 'small' }, T('Com os overrides manuais do estágio (', 'With the stage manual overrides (', 'Con los overrides manuales de la etapa (') + r.overrides.length + ').') : null,
@@ -367,7 +371,7 @@ export function makeClassifyTab(CONTEST) {
                         'Apply as DRAFT? (manual overrides are kept; nothing shows on the scoreboard until you Publish)',
                         '¿Aplicar como BORRADOR? (los overrides manuales se conservan; nada aparece en el marcador hasta que Publiques)'))) return;
                   apply(cfg, false);
-                } }, T('✔ Aplicar', '✔ Apply', '✔ Aplicar'))));
+                } }, T('✔ Aplicar', '✔ Apply', '✔ Aplicar')))].filter(Boolean));
           } catch (e) { prevBox.innerHTML = ''; prevBox.append(el('div', { class: 'error-box' }, (e && e.message) || T('erro', 'error', 'error'))); }
         } }, T('👁 Prever classificados', '👁 Preview qualified', '👁 Prever clasificados')))));
   }

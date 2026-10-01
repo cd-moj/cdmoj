@@ -363,7 +363,7 @@ END {
       for (x = 1; x <= nfx; x++) { split(FXL[x], fx, "\t"); if (fx[1] != id) continue
         slots++; used++; NSEQ++
         if (fx[8] == 1) { if (fx[5] != "") SC[fx[5]]++; if (fx[6] != "") CT[fx[6]]++; if (fx[7] != "") RGN[fx[7]]++ }
-        print NSEQ, id, "ext:" fx[2], "", "", fx[5], fx[6], fx[7], (fx[7] in RNAME ? RNAME[fx[7]] : ""), fx[3], fx[4], fx[4] > CLF }
+        print NSEQ, id, "ext:" fx[2], "", "", fx[5], fx[6], fx[7], (fx[7] in RNAME ? RNAME[fx[7]] : ""), fx[3], fx[4], "" > CLF }
     } else if (ty == "host_school") {
       if (NHOST == 0) print "host_schools_empty", id > WNF
       FS = "host_school"; used = run_block(id, slots, BGR[b], BMS[b]); FS = "all"

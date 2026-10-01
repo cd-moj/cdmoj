@@ -280,7 +280,7 @@ rep_t(){ case "$LOC:$1" in
   pt:view_of) printf 'Visão da coorte %s' "$2";;  en:view_of) printf 'As seen by cohort %s' "$2";;
   pt:gen_place) printf 'Geral';;                  en:gen_place) printf 'Overall';;
   pt:tab_qual) printf '🏅 Classificados';;        en:tab_qual) printf '🏅 Qualified';;
-  pt:qual_title) printf '🎓 Classificados — próxima fase';; en:qual_title) printf '🎓 Qualified — next stage';;
+  pt:qual_title) printf '🎓 Classificados — próximas fases';; en:qual_title) printf '🎓 Qualified — next stages';;
   pt:qual_note) printf 'Times classificados para as próximas fases, uma seção por etapa (chip 🎓 no placar). O comitê pode promover ou retirar times depois.';; en:qual_note) printf 'Teams qualified for the next stages, one section per stage (🎓 chip on the scoreboard). The committee can promote or withdraw teams later.';;
   pt:qual_chip) printf 'Classificado';;           en:qual_chip) printf 'Qualified';;
   pt:q_place) printf 'Posição';;                  en:q_place) printf 'Place';;
@@ -475,7 +475,7 @@ rep_t(){ case "$LOC:$1" in
   es:view_of) printf 'Como lo ve la cohorte %s' "$2";;
   es:gen_place) printf 'General';;
   es:tab_qual) printf '🏅 Clasificados';;
-  es:qual_title) printf '🎓 Clasificados — próxima fase';;
+  es:qual_title) printf '🎓 Clasificados — próximas etapas';;
   es:qual_note) printf 'Equipos clasificados para las próximas etapas, una sección por etapa (chip 🎓 en el marcador). El comité puede promover o retirar equipos después.';;
   es:qual_chip) printf 'Clasificado';;
   es:q_place) printf 'Posición';;

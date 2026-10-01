@@ -158,6 +158,11 @@ call /treino/contest-create/create POST "$(jq -cn '{id:"ruim3", name:"R", mode:"
 ck "spec: config reprovada pelo --check do motor => 422" '[[ "$(J .error.code)" == modules_spec_invalid && "$(J .error.message)" == *r1* ]]'
 call /treino/contest-create/create POST "$(jq -cn '{id:"ruim4", name:"R", mode:"icpc", end:9999999999, allow_empty:true, modules:{classificacao:{stages:[{config:{}},{config:{}}]}}}')" tadm ''
 ck "spec: estágio repetido => 422"           '[[ "$(J .error.code)" == modules_spec_invalid && "$(J .error.message)" == *repetido* ]]'
+call /treino/contest-create/create POST "$(jq -cn --slurpfile s "$ROOT/score/classify-seeds/latam-pda-2027.json" '{id:"novo6", name:"N6", mode:"icpc", end:9999999999, allow_empty:true,
+  modules:{classificacao:{stages:[{algorithm:"latam-pda", config:$s[0]}, {algorithm:"latam-mundial", config:{N_WF:12, regions:[{code:"br", name:"Brasil"}]}}]}}}')" tadm ''
+ck "spec: PDA (semente oficial) + Mundial => estágios pda e mundial" '[[ "$(J .success)" == true && "$(jq -r "[.stages[].id] | join(\",\")" "$FIX/novo6/classification.json")" == "pda,mundial" && "$(jq -r ".stages[0].config.N" "$FIX/novo6/classification.json")" == 40 ]]'
+call /treino/contest-create/create POST "$(jq -cn '{id:"ruim5", name:"R", mode:"icpc", end:9999999999, allow_empty:true, modules:{classificacao:{stages:[{algorithm:"latam-pda", config:{N:10}}]}}}')" tadm ''
+ck "spec: config da PDA reprovada pelo --check (N múltiplo de 4)" '[[ "$(J .error.code)" == modules_spec_invalid && "$(J .error.message)" == *"múltiplo de 4"* ]]'
 call /treino/contest-create/create POST "$(jq -cn '{id:"novo5", name:"N5", mode:"icpc", end:9999999999, allow_empty:true, modules:{classificacao:true}}')" tadm ''
 ck "spec: classificacao:true só liga o módulo" '[[ "$(J .success)" == true && ! -e "$FIX/novo5/classification.json" && "$(confmods "$FIX/novo5")" == classificacao ]]'
 

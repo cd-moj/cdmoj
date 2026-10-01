@@ -12,7 +12,7 @@ check(){ if [[ "$1" == "$2" ]]; then PASS=$((PASS+1)); else FAIL=$((FAIL+1)); ec
 strip(){ sed -E '/^import /d; s/^export (async )?(function|const|let|class) /\1\2 /; /^export \{/d' "$1"; }
 { cat <<'JS'
 function FakeNode(tag){ this.tagName=tag; this.nodeType=1; this.children=[]; this.attrs={}; this.style={}; this._text=''; this.dataset={}; this.ev={}; }
-FakeNode.prototype.append=function(){ for (const k of arguments) this.children.push(typeof k==='object'?k:{nodeType:3,text:String(k)}); };
+FakeNode.prototype.append=function(){ for (const k of arguments) this.children.push(k!==null&&typeof k==='object'?k:{nodeType:3,text:String(k)}); };   // como o DOM: null vira o texto "null"
 FakeNode.prototype.appendChild=FakeNode.prototype.append;
 FakeNode.prototype.setAttribute=function(k,v){ this.attrs[k]=v; };
 FakeNode.prototype.addEventListener=function(k,f){ this.ev[k]=f; };
@@ -28,7 +28,8 @@ let LANG='pt'; function T(pt,en,es){ return pt; } function uiLocale(){ return 'p
 let PROMPT='desistiu'; globalThis.prompt=()=>PROMPT; globalThis.confirm=()=>true;
 let GET=null; const POSTS=[];
 async function apiGet(){ return JSON.parse(JSON.stringify(GET)); }
-async function apiPost(p, body){ POSTS.push(body); return {}; }
+let PREVIEW = null;
+async function apiPost(p, body){ POSTS.push(body); return body.action === 'preview' && PREVIEW ? JSON.parse(JSON.stringify(PREVIEW)) : {}; }
 JS
   strip "$W/shared/dom.js"; strip "$W/shared/admin-ui.js"; strip "$W/contest/score/score-classified.js"
   strip "$W/contest/admin/classify-result.js"; strip "$W/contest/admin/classify-tab.js"
@@ -40,7 +41,7 @@ const FB = { id:'final-br', status:'published', name:'Final Brasileira', chip:'F
   config:{algorithm:'sbc-fase1', r1:3, sedes:{'SP, Capital':2}}, result:{warnings:[{code:'female_prefix_match', data:{logins:['teamsp01']}}]},
   overrides:[{id:'ov-1',op:'withdraw',login:'teamrj02',reason:'desistiu'},{id:'ov-2',op:'add',login:'teamam02',reason:'regra 3'},{id:'ov-3',op:'exclude',login:'teamsp04',reason:'inelegível'}],
   relation:[{login:'teamsp01',team:'USP',via:'regra1',place:1},{login:'teamrj02',team:'UFF',via:'regra2',place:9,withdrawn:{id:'ov-1',reason:'desistiu'}},
-            {login:'teamam02',team:'UFAM',via:'manual',manual:true,override:'ov-2',reason:'regra 3'},{login:'teamxx',team:'X',via:'viaNova',place:20}] };
+            {login:'teamam02',team:'UFAM',via:'manual',manual:true,override:'ov-2',reason:'regra 3'},{login:'teamxx',team:'X',via:'viaNova',place:20},{login:'ext:lugia',team:'Lugia',via:'viaNova'}] };
 const txt = (n) => n.textContent;
 const val = (n) => (n._v != null ? n.value : (n.attrs.value || ''));   // el() grava value como atributo
 (async () => {
@@ -60,6 +61,12 @@ const val = (n) => (n._v != null ? n.value : (n.attrs.value || ''));   // el() g
   const cut = p.find('button', (b) => txt(b) === '✂')[0];
   cut.ev.click(); await null; await null;
   print('post1=' + JSON.stringify(POSTS[0]));
+  // time de fora do placar: só ✂ (sem ⊘), e o withdraw vai por `ext`
+  const extRow = p.find('tr', (r) => txt(r).includes('Lugia'))[0];
+  const extBtns = extRow.find('button').map(txt);
+  print('ext_btns=' + extBtns.join(''));
+  POSTS.length = 0; extRow.find('button')[0].ev.click(); await null; await null;
+  print('post_ext=' + JSON.stringify(POSTS[0]));
   // 2) seletor → "nova etapa": os dois estágios padrão já existem ⇒ id em branco, sem ações de override
   const sel = p.find('select')[0]; sel.value = '__new'; sel.onchange();
   let fid = p.find('input', (n) => n.attrs.placeholder === 'id')[0];
@@ -98,6 +105,14 @@ const val = (n) => (n._v != null ? n.value : (n.attrs.value || ''));   // el() g
   nxt.ev.click(); await null; await null;
   print('post3=' + JSON.stringify(POSTS[0]));
   const all = txt(tab3.panel);
+  // a PRÉVIA (sem unused, sem overrides: os nós condicionais são null) não pode escrever "null"
+  PREVIEW = { preview:{ total:1, blocks:[{id:'p1', slots:6, used:1}], warnings:[{code:'geo_unfilled', data:{region:'so', slots:1, filled:0}}], via_order:['p1'] },
+    relation:[{login:'teambrbr01', team:'USP 1', via:'p1', place:1}], overrides:[] };
+  const prevBtn = tab3.panel.find('button', (b) => txt(b).includes('Prever classificados'))[0];
+  prevBtn.ev.click(); for (let k = 0; k < 6; k++) await null;
+  const ptxt = txt(tab3.panel);
+  print('preview=' + (ptxt.includes('Prévia — 1') && ptxt.includes('região SO') && ptxt.includes('Blocos e vagas')));
+  print('no_null_text=' + !txt(tab3.panel).includes('null') + ',' + !txt(tab.panel).includes('null'));
   print('details=' + (all.includes('Representação geográfica') && all.includes('México') && all.includes('Lista de espera — 1') && all.includes('{"fractions_prev":{"no":0.3333}}')));
   print('awards=' + (all.includes('Prêmios (informativo)') && all.includes('Alfa (#1)') && all.includes('Campeones Brasileños')));
   // 3) contest sem estágio: abre em "nova etapa" com o formulário BR
@@ -110,13 +125,15 @@ JS
 out="$(gjs "$TD/t.js" 2>&1)" || { echo "$out" >&2; echo "classify-tab: gjs falhou"; exit 1; }
 [[ -z "${DEBUG:-}" ]] || echo "$out" >&2
 kv(){ sed -n "s/^$1=//p" <<<"$out" | head -1; }
-check "$(kv groups)" "Regra 1 — melhores gerais — 1|Regra 2 — vagas por sede — 0|Promoção manual (comitê) — 1|viaNova — 1" "grupos na ordem do estágio; retirado não conta; via sem rótulo pelo id"
+check "$(kv groups)" "Regra 1 — melhores gerais — 1|Regra 2 — vagas por sede — 0|Promoção manual (comitê) — 1|viaNova — 2" "grupos na ordem do estágio; retirado não conta; via sem rótulo pelo id"
+check "$(kv ext_btns)" "✂" "time externo: só retirar"
+check "$(kv post_ext)" '{"stage":"final-br","action":"withdraw","reason":"desistiu","ext":"lugia"}' "retirar time externo vai por ext"
 check "$(kv manual_row)" true "linha manual com 🛠 e o motivo"
 check "$(kv withdrawn_row)" true "linha retirada com ✂ e o motivo"
 check "$(kv warn)" true "aviso do motor traduzido pelo código"
 check "$(kv overrides_n)" "🛠 Overrides manuais — 3" "lista de overrides"
 check "$(kv br_form)" 2 "motor BR: o formulário (sedes + supersedes)"
-check "$(kv post1)" '{"stage":"final-br","action":"withdraw","login":"teamsp01","reason":"desistiu"}' "✂ = withdraw no estágio certo"
+check "$(kv post1)" '{"stage":"final-br","action":"withdraw","reason":"desistiu","login":"teamsp01"}' "✂ = withdraw no estágio certo"
 check "$(kv newid_empty)" true "nova etapa com os padrões já existentes: id em branco"
 check "$(kv new_mode_no_actions)" true "modo nova etapa: sem ações de override"
 check "$(kv json_seed)" true "motor sem formulário: editor JSON com a semente"
@@ -126,6 +143,8 @@ check "$(kv pda_json)" true "estágio sem motor leva o motor escolhido"
 check "$(kv post2)" '{"stage":"pda","action":"add","via":"manual","reason":"regra 3","login":"teamsp02"}' "add vai p/ o estágio selecionado (não o anterior)"
 check "$(kv next_btn)" true "motor com lista de espera: botão promover o próximo"
 check "$(kv post3)" '{"stage":"pda","action":"promote_next","reason":"vaga do UTN"}' "promote_next com o motivo, no estágio"
+check "$(kv preview)" true "prévia: avisos formatados, blocos"
+check "$(kv no_null_text)" "true,true" "nenhum \"null\" na tela"
 check "$(kv details)" true "detalhes: geo, lista de espera, frações p/ o ano seguinte"
 check "$(kv awards)" true "detalhes: prêmios do Mundial (informativo)"
 check "$(kv empty_sel)" "__new empty_ta=2" "sem estágio: abre em nova etapa com o formulário BR"
