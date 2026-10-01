@@ -3167,7 +3167,7 @@
         "tags": [
           "contest"
         ],
-        "summary": "Rejulgar (admin): reconstrói a fonte arquivada + reinjeta como submit",
+        "summary": "Rejulgar (admin/chefe): reconstrói a fonte arquivada + reinjeta como submit (mesmo id, shard do dono); a linha vira pendente só com o spool conferido. Resposta {queued, count, skipped:[\"<id>:<motivo>\"], skipped_count} — motivo sem_history|sem_fonte|fonte_vazia|spool_falhou",
         "security": [
           {
             "bearerAuth": []

@@ -20,6 +20,10 @@ mapfile -t IDS < <(jq -r '(.ids // []) | (if type=="array" then .[] else . end) 
 cdir="$CONTESTSDIR/$contest"
 mkdir -p "$SPOOLDIR"
 AGORA="$EPOCHSECONDS"
+# a FONTE nunca anda por argv do jq: `--arg b "$codeb64"` estourava o ARG_MAX (128 KiB POR argumento) com fonte
+# >~96 KiB — o jq morria, o spool saía com 0 byte e o rejulgamento virava Judge Error com a linha já marcada
+# pendente. Hoje: base64 em ARQUIVO + `--rawfile` (molde do /submit) e o spool é CONFERIDO antes de mexer no history.
+B64F="$(mktemp)"; trap 'rm -f "$B64F"' EXIT
 declare -a QUEUED SKIPPED
 for subid in "${IDS[@]}"; do
   [[ -n "$subid" ]] || continue
@@ -30,33 +34,42 @@ for subid in "${IDS[@]}"; do
   set -o noglob
   if [[ -z "$SUB_OWNER" ]]; then SKIPPED+=("$subid:sem_history"); continue; fi
   r_login="$SUB_OWNER"
-  # linha do history por-usuário (6 campos: tempo:prob:lang:verdict:sub_epoch:subid)
+  # linha do history por-usuário (6 campos: tempo:prob:lang:verdict:sub_epoch:subid — o veredicto pode ter ':')
   line="$(awk -F: -v id="$subid" '$NF==id{print; exit}' "$(user_hist_file "$contest" "$r_login")" 2>/dev/null)"
   if [[ -z "$line" ]]; then SKIPPED+=("$subid:sem_history"); continue; fi
   IFS=: read -r r_tempo r_prob r_lang _rest <<<"$line"
-  r_sub="$(awk -F: -v id="$subid" '$NF==id{print $(NF-1); exit}' "$(user_hist_file "$contest" "$r_login")" 2>/dev/null)"
-  llang="$(printf '%s' "$r_lang" | tr '[:upper:]' '[:lower:]')"
+  r_sub="${line%:*}"; r_sub="${r_sub##*:}"; [[ "$r_sub" =~ ^[0-9]+$ ]] || r_sub=""
+  llang="${r_lang,,}"
   src="$SUB_SRC"
   if [[ -z "$src" || ! -f "$src" ]]; then SKIPPED+=("$subid:sem_fonte"); continue; fi
-  codeb64="$(base64 -w0 < "$src" 2>/dev/null)"
-  if [[ -z "$codeb64" ]]; then SKIPPED+=("$subid:fonte_vazia"); continue; fi
-  # provisório no history do dono + metrics (o placar/Situação leem só metrics)
+  if ! base64 -w0 < "$src" > "$B64F" 2>/dev/null || [[ ! -s "$B64F" ]]; then SKIPPED+=("$subid:fonte_vazia"); continue; fi
+  # SUBMIT no spool (mesmo id), no shard do DONO (lib/spool-shard.sh) — o daemon re-julga e troca a linha por :id
+  FILETYPE="${r_lang:-TXT}"; FILETYPE="${FILETYPE^^}"
+  sd="$(spool_shard_dir "$r_login")"
+  spoolname="$contest:$AGORA:$subid:$r_login:submit:$r_prob:$FILETYPE"
+  innm="$sd/.in.$subid.$AGORA"
+  jq -cn --arg c "$contest" --arg l "$r_login" --arg p "$r_prob" --arg f "solution.${llang:-txt}" \
+     --rawfile b "$B64F" --arg t "$FILETYPE" --argjson ts "${r_sub:-$AGORA}" --arg id "$subid" \
+     '{contest:$c, login:$l, problem_id:$p, filename:$f, code_b64:($b | rtrimstr("\n")), lang:$t, time:$ts, id:$id}' \
+     > "$innm" 2>/dev/null
+  # FAIL CLOSED: spool inválido não toca o history (a linha segue com o veredicto de antes) e vira "pulada"
+  if ! jq -e '.code_b64 | length > 0' "$innm" >/dev/null 2>&1; then
+    rm -f "$innm"; SKIPPED+=("$subid:spool_falhou"); continue
+  fi
+  # provisório no history do dono + metrics (o placar/Situação leem só metrics) — e só então o spool aparece
   user_history_replace "$contest" "$r_login" "$subid" \
     "$r_tempo:$r_prob:$r_lang:Not Answered Yet:${r_sub:-$AGORA}:$subid"
   metrics_recompute "$contest" "$r_login"
-  # injeta no spool como SUBMIT (mesmo id) — o daemon re-julga e troca a linha por :id
-  FILETYPE="$(printf '%s' "${r_lang:-TXT}" | tr '[:lower:]' '[:upper:]')"
-  spoolname="$contest:$AGORA:$subid:$r_login:submit:$r_prob:$FILETYPE"
-  innm="$SPOOLDIR/.in.$subid.$AGORA"
-  jq -cn --arg c "$contest" --arg l "$r_login" --arg p "$r_prob" --arg f "solution.${llang:-txt}" \
-     --arg b "$codeb64" --arg t "$FILETYPE" --argjson ts "${r_sub:-$AGORA}" --arg id "$subid" \
-     '{contest:$c, login:$l, problem_id:$p, filename:$f, code_b64:$b, lang:$t, time:$ts, id:$id}' > "$innm"
-  mv -f "$innm" "$SPOOLDIR/$spoolname"
+  mv -f "$innm" "$sd/$spoolname"
   QUEUED+=("$subid")
 done
 
 qids="$( ((${#QUEUED[@]})) && { IFS=,; printf '%s' "${QUEUED[*]}"; } | head -c 300 )"
 audit_log_to "$contest" rejudge "ids=${qids:-} count=${#QUEUED[@]} skipped=${#SKIPPED[@]}$( ((${#SKIPPED[@]})) && printf ' [%s]' "$(IFS=,; echo "${SKIPPED[*]}")" | head -c 150)"
-ok_json '{action:"rejudge", queued:$q, count:($q|length), skipped:$s, skipped_count:($s|length)}' \
-  --argjson q "$(printf '%s\n' ${QUEUED[@]+"${QUEUED[@]}"} | jq -R . | jq -cs 'map(select(length>0))')" \
-  --argjson s "$(printf '%s\n' ${SKIPPED[@]+"${SKIPPED[@]}"} | jq -R . | jq -cs 'map(select(length>0))')"
+# as listas crescem com o rejulgamento (todas as submissões de um problema numa prova grande = milhares de ids):
+# nunca por --argjson — saem do stdin p/ um JSON que vai por ARQUIVO (ok_json_slurp)
+_res="$( { printf 'Q\t%s\n' ${QUEUED[@]+"${QUEUED[@]}"}; printf 'S\t%s\n' ${SKIPPED[@]+"${SKIPPED[@]}"}; } \
+  | jq -Rnc '[inputs | select(length > 2) | split("\t")] as $a
+      | {q: [$a[] | select(.[0] == "Q") | .[1]], s: [$a[] | select(.[0] == "S") | .[1]]}')"
+[[ -n "$_res" ]] || fail 500 "Falha ao montar a resposta" "build_fail"
+ok_json_slurp '{action:"rejudge", queued:$r[0].q, count:($r[0].q|length), skipped:$r[0].s, skipped_count:($r[0].s|length)}' r "$_res"
