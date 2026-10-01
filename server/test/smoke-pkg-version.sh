@@ -7,6 +7,8 @@
 # Relato do Arthur Botelho, 2026-09-20 (mdp-unb-xiv#campinho: 3 juízes, 1 checksum, 3 conjuntos).
 set -u
 HERE="$(dirname "$(readlink -f "$0")")"; ROOT="$(cd "$HERE/.." && pwd)"; ROUTER="$ROOT/api/v1/router.sh"
+# mojtools ao lado do checkout (não o caminho padrão do common.conf, que só existe na máquina do Ribas)
+: "${MOJTOOLS_DIR:=$(cd "$ROOT/../../mojtools" 2>/dev/null && pwd)}"; export MOJTOOLS_DIR
 FIX="$(mktemp -d)"; SESS="$(mktemp -d)"; RUN="$(mktemp -d)"; PROBS="$(mktemp -d)"
 trap 'rm -rf "$FIX" "$SESS" "$RUN" "$PROBS"' EXIT
 source "$HERE/fixture.sh"

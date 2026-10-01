@@ -13,6 +13,7 @@ set -u
 ROOT="$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)"; ROUTER="$ROOT/api/v1/router.sh"
 FIX="$(mktemp -d)"; SESS="$(mktemp -d)"; RUN="$(mktemp -d)"; trap 'rm -rf "$FIX" "$SESS" "$RUN"' EXIT
 source "$(dirname "$(readlink -f "$0")")/fixture.sh"
+fx_owners_index "$FIX" "p#a"   # índice de problemas da fixture (nunca o banco real da máquina)
 NOW="$(date +%s)"; FUT=$(( NOW + 100000 ))
 mkdir -p "$FIX/treino/var/jsons" "$FIX/treino/users"
 printf 'CONTEST_ID=treino\nCONTEST_TYPE=lista-publica\nUSER_STORE=v2\n' > "$FIX/treino/conf"
