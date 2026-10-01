@@ -2,7 +2,7 @@
 // As novas telas (log, tarefas, clarification, jplag) chamam initContestShell(contest).
 import { apiGet } from '/shared/api.js';
 import { status, logout } from '/shared/auth.js';
-import { el, avatarEl } from '/shared/ui.js';
+import { el, avatarEl, fmtCountdown } from '/shared/ui.js';
 import { T, setLang } from '/shared/i18n.js';
 import { navLabel } from '/shared/nav-i18n.js';
 import { mountSiteFooter } from '/shared/site-footer.js';
@@ -34,8 +34,7 @@ export function navHref(url, contest) {
 
 function startCountdown(basic) {
   const eln = document.getElementById('contestCountdown'); if (!eln) return;
-  const fmt = (s) => { if (s < 0) s = 0; const h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), x = s % 60, p = (n) => String(n).padStart(2, '0'); return h > 0 ? `${p(h)}:${p(m)}:${p(x)}` : `${p(m)}:${p(x)}`; };
-  const tick = () => { const left = (basic.end_time || 0) - Math.floor(Date.now() / 1000); if (left > 0) { eln.textContent = T('Termina em: ', 'Ends in: ', 'Termina en: ') + fmt(left); setTimeout(tick, 1000); } else eln.textContent = T('Competição encerrada', 'Contest ended', 'Competencia terminada'); };
+  const tick = () => { const left = (basic.end_time || 0) - Math.floor(Date.now() / 1000); if (left > 0) { eln.textContent = T('Termina em: ', 'Ends in: ', 'Termina en: ') + fmtCountdown(left); setTimeout(tick, 1000); } else eln.textContent = T('Competição encerrada', 'Contest ended', 'Competencia terminada'); };
   tick();
 }
 

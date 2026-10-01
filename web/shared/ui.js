@@ -68,6 +68,18 @@ export function fmtDate(epoch) {
   return isNaN(d.getTime()) ? '-' : d.toLocaleString(uiLocale());
 }
 
+// Cronômetro de prova ("Termina em", "Começa em", login): segundos -> "MM:SS", "HH:MM:SS" ou, de
+// 24 h para cima, "Nd HH:MM:SS". Antes as horas acumulavam ("1447:04:14" num contest de 2 meses).
+// Só dias: mês e ano não têm tamanho fixo, e o cronômetro tem de ser exato.
+export function fmtCountdown(sec) {
+  sec = Math.max(0, Math.floor(Number(sec) || 0));
+  const d = Math.floor(sec / 86400), h = Math.floor((sec % 86400) / 3600),
+        m = Math.floor((sec % 3600) / 60), s = sec % 60;
+  const p = (x) => String(x).padStart(2, '0');
+  if (d > 0) return `${d}d ${p(h)}:${p(m)}:${p(s)}`;
+  return h > 0 ? `${p(h)}:${p(m)}:${p(s)}` : `${p(m)}:${p(s)}`;
+}
+
 // --- avatar do treino: foto de perfil ou círculo de iniciais (cor estável) ---
 export function colorFromName(s) {
   s = String(s || ''); let h = 0;
