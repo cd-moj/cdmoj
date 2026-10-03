@@ -42,6 +42,9 @@ ck "contagem só p/ o admin"            '[[ "$(jq -r .balloons_frozen <<<"$BODY"
 call /contest/staff/queue GET '' stf 'contest=bf'
 ck "staff não recebe a contagem"       '[[ "$(jq -r .balloons_frozen <<<"$BODY")" == 0 ]]'
 ck "staff também não vê o balão de B"  '[[ "$(jq -r "[.requests[]|select(.short==\"B\")]|length" <<<"$BODY")" == 0 ]]'
+# a página do staff avisa o congelamento pelo /contest/basic: só a POLÍTICA (booleano), nunca a contagem
+call /contest/basic GET '' stf 'contest=bf'
+ck "basic: balloons_during_freeze=false"  '[[ "$(jq -r .balloons_during_freeze <<<"$BODY")" == false && "$BODY" != *balloons_frozen* ]]'
 
 echo "== impressão NÃO é afetada pelo freeze =="
 call /contest/print POST '{"filename":"sol.c","file_b64":"aW50IG1haW4oKXtyZXR1cm4gMDt9"}' alu 'contest=bf'
@@ -63,6 +66,8 @@ ck "settings expõe o estado"           '[[ "$(jq -r .balloons_during_freeze <<<
 call /contest/admin/settings POST '{"balloons_during_freeze":true}' adm 'contest=bf'
 ck "resposta diz quantos liberou"      '[[ "$(jq -r .balloons_released <<<"$BODY")" == 1 ]]'
 ck "auditado o release"                'grep -q "balloon-freeze-release" "$C/var/admin-audit.log"'
+call /contest/basic GET '' stf 'contest=bf'
+ck "basic: balloons_during_freeze=true"   '[[ "$(jq -r .balloons_during_freeze <<<"$BODY")" == true ]]'
 call /contest/staff/queue GET '' adm 'contest=bf'
 ck "agora o balão de B existe"         '[[ "$(shorts)" == A,B ]]'
 ck "não duplicou o de A"               '[[ "$(jq -r "[.requests[]|select(.kind==\"balloon\")]|length" <<<"$BODY")" == 2 ]]'

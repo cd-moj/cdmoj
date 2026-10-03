@@ -32,6 +32,28 @@ const seen = new Set();    // ids já auto-processados nesta sessão (não reimp
 let pollT = null;
 let RO = false;            // .cstaff puro: fila somente leitura (sem ações/automático)
 let CAN_BADGES = false;    // link de etiquetas: só .cstaff/admin
+let BASIC = null;          // /contest/basic (freeze e política de balão no freeze)
+// faixa do CONGELAMENTO: com o freeze em vigor, acerto a partir dele NÃO vira balão (o balão andando pela sala
+// conta o que o placar congelado esconde — print.sh). Sem aviso, a fila silenciosa na última hora parecia defeito
+// (TCP 2026, 03/10/2026). SEM número de retidos: a contagem diria ao staff quantos times acertaram no freeze —
+// ela fica com o admin (Situação). Atualizada EM LUGAR a cada volta da fila.
+const freezeNote = el('div', { class: 'notice', style: 'display:none;margin:.3rem 0' });
+function syncFreezeNote() {
+  const b = BASIC || {};
+  const fz = +b.freeze_time || 0;
+  const on = fz > 0 && !b.balloons_during_freeze && (b.modules || []).includes('baloes');
+  const now = Math.floor(Date.now() / 1000);
+  const hh = on ? new Date(fz * 1000).toLocaleTimeString(uiLocale(), { hour: '2-digit', minute: '2-digit' }) : '';
+  const txt = !on ? '' : now >= fz
+    ? T('🧊 Placar congelado desde ' + hh + ': acertos a partir desse horário NÃO viram balão — o balão revelaria o placar congelado. É o padrão da prova; só o admin muda (Regras › balões durante o congelamento).',
+        '🧊 Scoreboard frozen since ' + hh + ': accepted runs from that time on do NOT become balloons — a balloon would reveal the frozen scoreboard. This is the contest default; only the admin can change it (Rules › balloons during the freeze).',
+        '🧊 Marcador congelado desde las ' + hh + ': los aciertos a partir de esa hora NO generan globo — el globo revelaría el marcador congelado. Es el valor por defecto de la competencia; solo el admin lo cambia (Reglas › globos durante el congelamiento).')
+    : T('🧊 Às ' + hh + ' o placar congela: a partir daí, acertos NÃO viram balão (o balão revelaria o placar congelado).',
+        '🧊 At ' + hh + ' the scoreboard freezes: from then on, accepted runs do NOT become balloons (a balloon would reveal the frozen scoreboard).',
+        '🧊 A las ' + hh + ' el marcador se congela: desde entonces, los aciertos NO generan globo (el globo revelaría el marcador congelado).');
+  if (freezeNote.textContent !== txt) freezeNote.textContent = txt;
+  freezeNote.style.display = txt ? '' : 'none';
+}
 
 // busca o PDF combinado (com Bearer) como blob -> URL temporária (sem token na URL)
 async function pdfBlobUrl(id) {
@@ -160,6 +182,7 @@ async function loadQueue() {
   statusBar.textContent = queue.length + T(' tarefa(s) · ', ' task(s) · ', ' tarea(s) · ') + np + T(' pendente(s)', ' pending', ' pendiente(s)') +
     (RO ? T(' · somente leitura', ' · read-only', ' · solo lectura') : (autoMode ? T(' · modo automático LIGADO', ' · auto mode ON', ' · modo automático ACTIVADO') : ''));
   renderRows();
+  syncFreezeNote();
   autoTick();   // dispara o automático se houver pendente
 }
 
@@ -195,7 +218,7 @@ function render() {
     el('thead', {}, el('tr', {}, el('th', {}, '#'), el('th', {}, T('Time / login', 'Team / login', 'Equipo / login')), el('th', {}, T('Arquivo', 'File', 'Archivo')), el('th', {}, T('Status', 'Status', 'Estado')), el('th', {}, T('Págs / hora', 'Pages / time', 'Páginas / hora')), el('th', {}, T('Ações', 'Actions', 'Acciones')))),
     tbody);
   app.append(
-    el('div', { class: 'section' }, RO ? '' : autoBox,
+    el('div', { class: 'section' }, RO ? '' : autoBox, freezeNote,
       el('div', { class: 'row', style: 'margin:.2rem 0' }, statusBar, el('div', { class: 'spacer' }),
         CAN_BADGES ? el('a', { class: 'btn ghost', href: '/contest/badges/?c=' + enc(CONTEST) }, T('🏷️ Etiquetas', '🏷️ Badges', '🏷️ Etiquetas')) : '',
         MLINUX_LINK, // preenchido quando a integração nutellaboot está configurada
@@ -206,7 +229,8 @@ function render() {
 
 async function boot() {
   if (!CONTEST) { app.innerHTML = '<div class="error-box">' + T('Contest não informado.', 'Contest not specified.', 'Competencia no especificada.') + '</div>'; return; }
-  const { st } = await initContestShell(CONTEST);
+  const { st, basic } = await initContestShell(CONTEST);
+  BASIC = basic || null;
   if (!st || !st.logged_in) {
     app.innerHTML = '';
     app.append(el('div', { class: 'section' }, el('h2', {}, T('🔒 Entre no contest', '🔒 Log in to the contest', '🔒 Inicia sesión en la competencia')),

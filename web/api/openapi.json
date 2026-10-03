@@ -1817,7 +1817,7 @@
         ],
         "responses": {
           "200": {
-            "description": "{contest_id,contest_name,start_time,end_time,login_start_time,locale,login_enabled,freeze_time,score_anon,languages[],secret} — languages = whitelist do conf LANGUAGES= ([] = todas); locale = pt|en explícito (IMPÕE o idioma da UI do contest) ou \"\" quando não setado (o front cai no seletor/idioma do browser)"
+            "description": "{contest_id,contest_name,start_time,end_time,login_start_time,locale,login_enabled,freeze_time,score_anon,languages[],secret,balloons_during_freeze} (balloons_during_freeze = entregar balão com o placar congelado; a página do staff avisa a hora do freeze) — languages = whitelist do conf LANGUAGES= ([] = todas); locale = pt|en explícito (IMPÕE o idioma da UI do contest) ou \"\" quando não setado (o front cai no seletor/idioma do browser)"
           }
         }
       }

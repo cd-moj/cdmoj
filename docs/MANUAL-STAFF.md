@@ -49,7 +49,8 @@ A tela de impressão é uma tabela com **duas coisas na mesma fila**:
 > atravessando a sala conta à plateia exatamente o que o freeze existe para esconder: quem acabou de
 > resolver. Então acerto feito com o placar congelado **não vira tarefa** e **não é entregue depois**;
 > a tarefa simplesmente não existe. Se a organização preferir o clássico (balão andando durante o
-> freeze), o `.admin` liga isso em **Central › Regras** — e aí eles aparecem normalmente.
+> freeze), o `.admin` liga isso em **Central › Regras** — e aí eles aparecem normalmente. A página de
+> **Impressão** avisa a hora do congelamento numa faixa 🧊 (antes e durante), para ninguém achar que a fila travou.
 >
 > **Pedido de impressão não muda**: o time continua imprimindo a qualquer momento, freeze ou não.
 

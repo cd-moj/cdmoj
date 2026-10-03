@@ -1,4 +1,4 @@
-<!-- i18n-source: MANUAL-STAFF.md blob:462066f6d4fb062a338f0d30ce083a54f9c6d4d3 -->
+<!-- i18n-source: MANUAL-STAFF.md blob:925b645d2465c91a33dbe510315a130be7abb5e0 -->
 # MOJ: Manual del personal de sala (.staff y .cstaff)
 
 > **Nota de traducción.** Este manual es una traducción del original en portugués. Las herramientas de línea de comandos (`moj`, `moj-contest`, `moj-comp`) muestran sus mensajes en portugués, y los ejemplos de comandos son idénticos al original.
@@ -52,7 +52,8 @@ La pantalla de impresión es una tabla con **dos cosas en la misma cola**:
 > que cruza la sala le cuenta al público exactamente lo que el freeze existe para esconder: quién acaba de
 > resolver. Por eso, un acierto hecho con el marcador congelado **no se convierte en tarea** y **no se entrega después**;
 > la tarea simplemente no existe. Si la organización prefiere lo clásico (globos circulando durante el
-> freeze), el `.admin` lo activa en **Central › Reglas** — y entonces aparecen normalmente.
+> freeze), el `.admin` lo activa en **Central › Reglas** — y entonces aparecen normalmente. La página de
+> **Impresión** avisa la hora del congelamiento en una franja 🧊 (antes y durante), para que nadie piense que la cola se trabó.
 >
 > **Las solicitudes de impresión no cambian**: el equipo sigue imprimiendo en cualquier momento, con freeze o sin él.
 

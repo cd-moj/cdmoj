@@ -1,4 +1,4 @@
-<!-- i18n-source: MANUAL-STAFF.md blob:462066f6d4fb062a338f0d30ce083a54f9c6d4d3 -->
+<!-- i18n-source: MANUAL-STAFF.md blob:925b645d2465c91a33dbe510315a130be7abb5e0 -->
 # MOJ: Room staff manual (.staff and .cstaff)
 
 > **Translation note.** This manual is a translation of the Portuguese original. The command-line tools (`moj`, `moj-contest`, `moj-comp`) print their messages in Portuguese, and the command examples below are identical to the original.
@@ -52,7 +52,8 @@ The print screen is a table with **two kinds of items in the same queue**:
 > that crosses the room tells the audience exactly what the freeze hides: who solved a problem just now.
 > So a correct answer during the freeze **does not become a task** and **is not delivered later**.
 > The task does not exist. If the organization prefers the classic mode (balloons during the
-> freeze), the `.admin` turns it on in **Home › Rules**. Then the balloons show as usual.
+> freeze), the `.admin` turns it on in **Home › Rules**. Then the balloons show as usual. The **Printing**
+> page shows the freeze time in a 🧊 bar (before and during the freeze), so nobody thinks that the queue is stuck.
 >
 > **Print requests do not change**: the team can print at any time, with or without the freeze.
 
