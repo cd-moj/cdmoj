@@ -274,6 +274,38 @@ elif [[ -n "$par_probs" ]]; then
     "Problemas paralelos con juez" "CPUNEEDED>1 en:$par_probs — hay un juez en línea con las CPUs"
 fi
 
+# --- PARAR NO 1º ERRO (prova ICPC) --------------------------------------------------
+# TCP 2026 (03/10/2026): o G (214 testes, STOPWHEN_TLE=n) levava 2,5–4 min por TLE — o juiz roda TODOS os testes
+# depois do 1º erro, e o time esperando um veredicto já decidido aperta F5 em série. Em ICPC só o 1º erro importa.
+# Lê `stop_when`/`tests` do json servível (gen-problem-json.sh; rota de contest não abre pacote). Json antigo,
+# sem o campo, é DESCONHECIDO (o deploy roda o reindex-all.sh) — não vira aviso.
+if [[ "${CONTEST_TYPE:-icpc}" == icpc ]]; then
+  sw_bad=""; sw_n=0; sw_unk=0
+  for ((i=0; i+4<${#PROBS[@]}; i+=5)); do
+    pid="${PROBS[i+4]}"; bj="$(cs_bank_json "$pid" 2>/dev/null)" || continue
+    sw="$(jq -r 'if (.stop_when | type) != "object" then "?"
+                 else ([ (if .stop_when.tle == true then empty else "TLE" end), (if .stop_when.wa == true then empty else "WA" end),
+                         (if .stop_when.re == true then empty else "RE" end) ] | join("/")) + "\u0001" + ((.tests // 0) | tostring) end' "$bj" 2>/dev/null)"
+    [[ "$sw" == "?" || -z "$sw" ]] && { sw_unk=$((sw_unk + 1)); continue; }
+    sw_n=$((sw_n + 1))
+    IFS=$'\x01' read -r sw_k sw_t <<<"$sw"
+    [[ -n "$sw_k" ]] && sw_bad+=" ${PROBS[i+3]}(${sw_t} testes, segue após ${sw_k})"
+  done
+  if [[ -n "$sw_bad" ]]; then
+    sw_bad_en="${sw_bad// testes, segue após / tests, keeps going after }"; sw_bad_es="${sw_bad// testes, segue após / pruebas, sigue después de }"
+    add3 stop_first warn "Problema que segue julgando depois do 1º erro" \
+      "em prova ICPC só o 1º erro importa, mas estes rodam TODOS os testes depois dele:$sw_bad — um TLE pode levar minutos p/ sair. No editor do problema, aba Limites, marque \"parar no primeiro\" TLE/WA/RE (STOPWHEN_*=y no conf)" \
+      "Problem that keeps judging after the 1st failure" \
+      "in an ICPC contest only the 1st failure matters, but these run ALL the tests after it:$sw_bad_en — a TLE can take minutes to come out. In the problem editor, Limits tab, tick \"stop at first\" TLE/WA/RE (STOPWHEN_*=y in the conf)" \
+      "Problema que sigue evaluando después del 1.er error" \
+      "en una competencia ICPC solo importa el 1.er error, pero estos ejecutan TODAS las pruebas después de él:$sw_bad_es — un TLE puede tardar minutos en salir. En el editor del problema, pestaña Límites, marca \"detener en el primer\" TLE/WA/RE (STOPWHEN_*=y en el conf)"
+  elif (( sw_n > 0 )); then
+    add3 stop_first ok "Julgamento para no 1º erro" "os $sw_n problema(s) com a informação param no 1º TLE/WA/RE$( (( sw_unk > 0 )) && echo " ($sw_unk sem a informação — reindexe)")" \
+      "Judging stops at the 1st failure" "the $sw_n problem(s) with the information stop at the 1st TLE/WA/RE$( (( sw_unk > 0 )) && echo " ($sw_unk without the information — reindex)")" \
+      "La evaluación se detiene en el 1.er error" "los $sw_n problema(s) con la información se detienen en el 1.er TLE/WA/RE$( (( sw_unk > 0 )) && echo " ($sw_unk sin la información — reindexa)")"
+  fi
+fi
+
 # --- pool de juízes (contest + overrides por problema) ----------------------------
 # ESTRITO: job de contest/problema com pool só sai p/ host do pool — pool offline = fila presa.
 pjm='{}'; [[ -f "$cdir/problem-judges.json" ]] && pjm="$(jq -c . "$cdir/problem-judges.json" 2>/dev/null)"

@@ -446,6 +446,11 @@ Todas as chaves que o `build-and-test.sh` entende:
 | `STOPWHEN_WA` | não para | `y` interrompe no primeiro Wrong Answer | 0 |
 | `STOPWHEN_TLE` | não para | `y` interrompe no primeiro Time Limit Exceeded | 0 |
 | `STOPWHEN_RE` | não para | `y` interrompe no primeiro Runtime Error | 0 |
+
+Os três `STOPWHEN_*` e o número de testes vão ao json servível (`stop_when`, `tests`). Em prova **ICPC** só o
+primeiro erro importa, e a 🏁 Central do contest avisa o problema que segue rodando depois dele (TCP 2026: um
+problema com 214 testes e `STOPWHEN_TLE=n` levava até 4 minutos para dar TLE).
+
 | `TLERERUN` | `y` | repete o teste uma vez antes de confirmar um TLE (evita TLE por ruído da máquina) | 0 |
 | `CALIBRATIONTL` | `5` | tempo-limite usado **durante** a calibração, antes de existir um TL real | 0 |
 | `ALLOWTLEDURINGCALIBRATION` | desligado | `y` aceita solução `good` com TLE como "calibrou" (a linguagem ganha TL mesmo estourando o `CALIBRATIONTL` — casos raros de good deliberadamente no limite) | 0 |

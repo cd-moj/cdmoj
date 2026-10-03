@@ -246,6 +246,21 @@ sed -i '/^CONTEST_JUDGES=/d' "$C/conf"; rm -f "$FIX/treino/var/jsons/col#p0.json
 run
 check "sem problema paralelo => checagem ausente (sem ruído)"       '[[ "$(lvl judges_cpus)" == "(ausente)" ]]'
 
+echo "== parar no 1º erro (prova ICPC; TCP 2026: o G com 214 testes levava 4 min por TLE) =="
+run
+check "json sem stop_when (antigo) => checagem ausente" '[[ "$(lvl stop_first)" == "(ausente)" ]]'
+printf '{"id":"col#p0","title":"P0","public":true,"stop_when":{"wa":true,"tle":false,"re":true},"tests":214}' > "$FIX/treino/var/jsons/col#p0.json"
+run
+check "segue após TLE => warn com a letra, os testes e o que falta" '[[ "$(lvl stop_first)" == warn && "$(det stop_first)" == *"A(214 testes, segue após TLE)"* ]]'
+check "e em inglês"                                     '[[ "$(printf "%s" "$BODY" | jq -r "first(.checks[]|select(.id==\"stop_first\")|.detail_en)")" == *"A(214 tests, keeps going after TLE)"* ]]'
+printf '{"id":"col#p0","title":"P0","public":true,"stop_when":{"wa":true,"tle":true,"re":true},"tests":214}' > "$FIX/treino/var/jsons/col#p0.json"
+run
+check "para no 1º erro => ok"                           '[[ "$(lvl stop_first)" == ok ]]'
+sed -i 's/^CONTEST_TYPE=.*/CONTEST_TYPE=obi/' "$C/conf"; printf '{"id":"col#p0","title":"P0","public":true,"stop_when":{"wa":false,"tle":false,"re":false},"tests":9}' > "$FIX/treino/var/jsons/col#p0.json"
+run
+check "modo obi (pontua por teste) => checagem ausente" '[[ "$(lvl stop_first)" == "(ausente)" ]]'
+sed -i 's/^CONTEST_TYPE=.*/CONTEST_TYPE=icpc/' "$C/conf"; rm -f "$FIX/treino/var/jsons/col#p0.json"
+
 echo "== telão (Animeitor): chave e conferência =="
 run
 check "módulo telao sem chave nenhuma => warn"                      '[[ "$(lvl telao)" == warn && "$(det telao)" == *"usuário e token"* ]]'

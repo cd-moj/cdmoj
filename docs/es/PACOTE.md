@@ -1,4 +1,4 @@
-<!-- i18n-source: PACOTE.md blob:824f63f0cf1204c0e9f9a1b7ae0e6c69d43adbd9 -->
+<!-- i18n-source: PACOTE.md blob:90267344557b3f9e4756e09b09f4b6734dee9fe0 -->
 # MOJ: el paquete de problema (formato canónico)
 
 > **Nota de traducción.** Este manual es una traducción del original en portugués. Las herramientas de línea de comandos (`moj`, `moj-contest`, `moj-comp`) muestran sus mensajes en portugués, y los ejemplos de comandos son idénticos al original.
@@ -455,6 +455,11 @@ Todas las claves que entiende `build-and-test.sh`:
 | `STOPWHEN_WA` | no se detiene | `y` interrumpe en el primer Wrong Answer | 0 |
 | `STOPWHEN_TLE` | no se detiene | `y` interrumpe en el primer Time Limit Exceeded | 0 |
 | `STOPWHEN_RE` | no se detiene | `y` interrumpe en el primer Runtime Error | 0 |
+
+Los tres `STOPWHEN_*` y el número de pruebas van al json servido (`stop_when`, `tests`). En una competencia
+**ICPC** solo importa el primer error, y la 🏁 Central de la competencia avisa del problema que sigue ejecutándose
+después de él (TCP 2026: un problema con 214 pruebas y `STOPWHEN_TLE=n` tardaba hasta 4 minutos en dar TLE).
+
 | `TLERERUN` | `y` | repite la prueba una vez antes de confirmar un TLE (evita TLE por ruido de la máquina) | 0 |
 | `CALIBRATIONTL` | `5` | tiempo límite usado **durante** la calibración, antes de que exista un TL real | 0 |
 | `ALLOWTLEDURINGCALIBRATION` | desactivado | `y` acepta una solución `good` con TLE como "calibró" (el lenguaje obtiene TL aunque exceda el `CALIBRATIONTL` — casos raros de good deliberadamente en el límite) | 0 |

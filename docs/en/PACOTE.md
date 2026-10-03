@@ -1,4 +1,4 @@
-<!-- i18n-source: PACOTE.md blob:824f63f0cf1204c0e9f9a1b7ae0e6c69d43adbd9 -->
+<!-- i18n-source: PACOTE.md blob:90267344557b3f9e4756e09b09f4b6734dee9fe0 -->
 # MOJ: the problem package (canonical format)
 
 > **Translation note.** This manual is a translation of the Portuguese original. The command-line tools (`moj`, `moj-contest`, `moj-comp`) print their messages in Portuguese, and the command examples below are identical to the original.
@@ -464,6 +464,11 @@ All the keys that `build-and-test.sh` understands:
 | `STOPWHEN_WA` | does not stop | `y` stops at the first Wrong Answer | 0 |
 | `STOPWHEN_TLE` | does not stop | `y` stops at the first Time Limit Exceeded | 0 |
 | `STOPWHEN_RE` | does not stop | `y` stops at the first Runtime Error | 0 |
+
+The three `STOPWHEN_*` and the number of tests go to the served json (`stop_when`, `tests`). In an **ICPC**
+contest only the first failure matters, and the contest 🏁 Home warns about a problem that keeps running after it
+(TCP 2026: a problem with 214 tests and `STOPWHEN_TLE=n` took up to 4 minutes to give TLE).
+
 | `TLERERUN` | `y` | runs the test one more time before it confirms a TLE (prevents TLE from machine noise) | 0 |
 | `CALIBRATIONTL` | `5` | time limit used **during** calibration, before a real TL exists | 0 |
 | `ALLOWTLEDURINGCALIBRATION` | off | `y` accepts a `good` solution with TLE as "calibrated" (the language gets a TL even when it goes over `CALIBRATIONTL` — rare cases of a `good` solution that is deliberately at the limit) | 0 |

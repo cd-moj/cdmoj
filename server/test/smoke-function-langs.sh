@@ -29,7 +29,7 @@ drv(){ mkdir -p "$M/$1/scripts/$2"; printf '#!/bin/bash\ncat > /tmp/rwdir/__judg
 ban(){ mkdir -p "$M/$1/scripts/$2"; printf '#!/bin/bash\n# programa completo: proíbe strlen\ngrep -q strlen *.c && exit 1\nmake\n' > "$M/$1/scripts/$2/compile.sh"; }
 
 echo "== 1. function-langs-migrate.sh =="
-mkpkg fn/soma 'TLMOD[calibrafactor]=1.35\nULIMITS[-u]=10000'; drv fn/soma c; drv fn/soma py3   # conf SEM \n final
+mkpkg fn/soma 'STOPWHEN_TLE=y\nSTOPWHEN_WA=n\nTLMOD[calibrafactor]=1.35\nULIMITS[-u]=10000'; drv fn/soma c; drv fn/soma py3   # conf SEM \n final
 mkpkg ban/cesar 'A=1\n'; ban ban/cesar c                          # ban: programa completo
 mkpkg omp/par 'CPUNEEDED=4\n'; ban omp/par cpp                     # OpenMP/flags: programa completo
 mkpkg fn/jadecl 'FUNCTION_LANGS=c\n'; drv fn/jadecl c; drv fn/jadecl java   # declarado, diverge
@@ -50,6 +50,8 @@ ck "--apply: um commit, autor moj, árvore limpa"                  '[[ "$(git -C
 ck "--apply: intocados (ban, OpenMP, declarado, sem conf)"        '[[ "$(git -C "$M/ban/cesar" log --oneline | wc -l)" == 1 && "$(git -C "$M/omp/par" log --oneline | wc -l)" == 1 && "$(git -C "$M/fn/jadecl" log --oneline | wc -l)" == 1 && ! -f "$M/fn/semconf/conf" ]]'
 J="$CONTESTSDIR/treino/var/jsons-private/fn#soma.json"; DBG="$(cat "$J" 2>&1 | head -c 200)"
 ck "o reindex leva function_langs ao json servível"               '[[ "$(jq -c .function_langs "$J")" == "[\"c\",\"py\"]" ]]'
+# TCP 2026 (03/10/2026): parar no 1º erro + nº de testes vão ao json servível (o checklist da prova, sem abrir pacote)
+ck "o json servível leva stop_when (do conf) e o nº de testes"    '[[ "$(jq -c .stop_when "$J")" == "{\"wa\":false,\"tle\":true,\"re\":false}" && "$(jq .tests "$J")" == 1 ]]'
 OUT="$(bash "$ROOT/bin/function-langs-migrate.sh" 2>&1)"; DBG="$OUT"
 ck "idempotente: depois do --apply, nada a migrar"                'grep -q " 0 a migrar" <<<"$OUT"'
 
