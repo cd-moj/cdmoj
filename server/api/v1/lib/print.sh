@@ -280,7 +280,10 @@ _pr_fonts_load() {
   _PR_FB="$(awk -F': ' '/Font: DejaVu-Sans-Bold$/{print $2; exit}' <<<"$l")"
   _PR_FR="$(awk -F': ' '/Font: DejaVu-Sans$/{print $2; exit}' <<<"$l")"
   _PR_F1="$(awk -F': ' '/Font: /{print $2; exit}' <<<"$l")"
-  _PR_IMV="$(magick -version 2>/dev/null | head -1)"
+  # a chave do tile leva a versão do IM E os arquivos das duas fontes (caminho:tamanho:mtime): a
+  # imagem nova que troca o DejaVu sem trocar o IM não pode servir letreiro velho
+  local g; g="$(awk '/Font: DejaVu-Sans(-Bold)?$/{f=1} f && /glyphs:/{print $2; f=0}' <<<"$l")"
+  _PR_IMV="$(magick -version 2>/dev/null | head -1) $( [[ -n "$g" ]] && stat -c '%n:%s:%Y' $g 2>/dev/null | tr '\n' ' ')"
   _PR_FONTS_OK=1
 }
 # _pr_cap_tile <w> <h> <fill> <fonte> <peso> <stroke> <strokewidth> <gravidade> <texto> -> ecoa o

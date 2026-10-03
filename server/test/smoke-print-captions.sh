@@ -13,14 +13,20 @@
 # inline (PR_CAP_CACHE=0), na capa, na página de código (o selo do rodapé) e na folha do balão.
 set -u
 ROOT="$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)"          # .../server
-FIX="$(mktemp -d)"; trap 'chmod -R u+w "$FIX" 2>/dev/null; rm -rf "$FIX"' EXIT
+FIX="$(mktemp -d)"
+# RUNDIR em OUTRO sistema de arquivos que o workdir da folha (/tmp), quando der: é o caso da
+# produção (run/ é volume, /tmp é do container) — o `ln` do tile falha (EXDEV) e quem roda é o `cp`
+RUNB="$(mktemp -d -p /dev/shm 2>/dev/null)" || RUNB="$FIX"
+trap 'chmod -R u+w "$FIX" "$RUNB" 2>/dev/null; rm -rf "$FIX"; [[ "$RUNB" != "$FIX" ]] && rm -rf "$RUNB"' EXIT
 pass=0; fail=0
 ck(){ if eval "$2"; then echo "  ok: $1"; ((pass++)); else echo "  FAIL: $1"; ((fail++)); fi; }
 for b in paps ps2pdf pdfinfo pdfunite magick gs iconv nl file md5sum; do
   command -v "$b" >/dev/null 2>&1 || { echo "SKIP: falta '$b' — este teste roda onde a cadeia de"
     echo "      impressão existe (a imagem, ou um dev com paps+ghostscript instalados)."; exit 0; }
 done
-export CONTESTSDIR="$FIX" RUNDIR="$FIX/run"; mkdir -p "$RUNDIR"
+export CONTESTSDIR="$FIX" RUNDIR="$RUNB/run"; mkdir -p "$RUNDIR"
+if [[ "$(stat -c %d "$RUNB")" != "$(stat -c %d "${TMPDIR:-/tmp}")" ]]; then echo "(cache em outro sistema de arquivos: o tile é COPIADO p/ a folha, como na produção)"
+else echo "(cache no mesmo sistema de arquivos: o tile é preso por hardlink)"; fi
 C="$FIX/pr"; D="$C/print-requests"; mkdir -p "$D"
 printf 'CONTEST_ID=pr\nLOCALE=es\n' > "$C/conf"
 source "$ROOT/api/v1/lib/print.sh" 2>/dev/null
