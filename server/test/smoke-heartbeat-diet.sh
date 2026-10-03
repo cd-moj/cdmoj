@@ -5,8 +5,8 @@
 # inteiro). Com a fila vazia — o caso comum —, cada beat ainda lia o registro do juiz 3× (75 KB: 1.487
 # problemas), montava o mapa de problemas no q_claim, rodava 20 `mkdir -p` e regravava o registro 4×.
 # Prende (com um jq/mkdir falso no PATH que conta):
-#   · fila vazia, beat aquecido (os diretórios já existem, como na produção): ≤ 12 jq e NENHUM mkdir
-#     (eram 16 jq e 20 mkdir); o registro recebe state, last_seen,
+#   · fila vazia, beat aquecido (os diretórios já existem, como na produção): ≤ 8 jq e NENHUM mkdir
+#     (eram 16 jq e 20 mkdir; 12 até 03/10/2026); o registro recebe state, last_seen,
 #     status e free/total slots — em DUAS regravações;
 #   · com job na fila, o beat ainda reivindica (quente na hora; o registro desconta o slot).
 set -u
@@ -35,7 +35,7 @@ beat '{"host":"judge","state":"free","free_slots":4,"total_slots":4,"inv_hash":"
 beat '{"host":"judge","state":"free","free_slots":4,"total_slots":4,"inv_hash":"ih","status":"draining"}'
 ck "200, nada atribuído" '[[ "$(jq -r ".success, .assigned" <<<"$BODY" | tr "\n" " ")" == "true null " ]]'
 DBG="$NJQ jq, $NMK mkdir"
-ck "≤ 12 jq e nenhum mkdir (eram 16 e 20)" '(( NJQ <= 12 && NMK == 0 ))'
+ck "≤ 8 jq e nenhum mkdir (eram 16 e 20; 12 até 03/10)" '(( NJQ <= 8 && NMK == 0 ))'
 DBG="$(jq -c 'del(.problems)' "$RUN/registry/judge.json")"
 ck "registro: free, last_seen agora, status draining, 4/4 slots" '[[ "$(R .state) $(R .status) $(R .free_slots)/$(R .total_slots)" == "free draining 4/4" ]] && (( $(R .last_seen) >= NOW ))'
 DBG=""

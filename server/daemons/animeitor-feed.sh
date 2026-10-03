@@ -47,15 +47,20 @@ exec {LK}>"$D/feed.lock" || exit 1
 flock -n "$LK" || { echo "animeitor-feed: já há um alimentador rodando" >&2; exit 0; }
 
 declare -A T_CLOCK=() T_RUNS=() T_CFG=() T_VERIFY=() FAILS=() HOLD=() SIG=() CFG_MT=() C_URL=() C_EV=() C_CK=() C_RN=() C_VF=() FORCE=()
+declare -A V_AT=() V_FIN=()     # a última conferência lida (relida só quando o arquivo muda)
 
-_cfg_load(){ # cacheia url/evento/cadência por contest; relê só quando o animeitor.json muda (mtime)
-  local c="$1" f mt j; f="$(an_cfg_file "$c")"; mt="$(stat -c %Y "$f" 2>/dev/null || echo 0)"
-  [[ "${CFG_MT[$c]:-}" == "$mt" ]] && return 0
+# CAMINHO DE CADA SEGUNDO SEM PROCESSO (TCP 2026, 03/10/2026: ~5 jq + stat + find por segundo, relendo arquivos que
+# quase nunca mudam). O cache é por CARIMBO: `[[ arquivo -nt carimbo ]]` é builtin; o carimbo (`: >`) também.
+_cfg_load(){ # cacheia url/evento/cadência por contest; relê (UM jq) só quando o animeitor.json muda
+  local c="$1" f="$CONTESTSDIR/$1/animeitor.json" st="$D/.cfg.$1.stamp" j ev ck rn vf
+  [[ -n "${CFG_MT[$c]:-}" && -e "$st" && ! "$f" -nt "$st" ]] && return 0
+  : > "$st" 2>/dev/null       # ANTES de ler: o que mudar durante a leitura recarrega na próxima volta
   j="$(an_cfg "$c")"
-  C_URL[$c]="$(jq -r .url <<<"$j")"; C_EV[$c]="$(an_enc "$(jq -r .event <<<"$j")")"
-  C_CK[$c]="$(jq -r .feed.clock_s <<<"$j")"; C_RN[$c]="$(jq -r .feed.runs_s <<<"$j")"; C_VF[$c]="$(jq -r .feed.verify_s <<<"$j")"
+  IFS=$'\x01' read -r C_URL[$c] ev ck rn vf < <(jq -j '[(.url // ""), (.event // ""), (.feed.clock_s // "" | tostring),
+      (.feed.runs_s // "" | tostring), (.feed.verify_s // "" | tostring)] | join("\u0001")' <<<"$j")
+  C_EV[$c]="$(an_enc "$ev")"; C_CK[$c]="$ck"; C_RN[$c]="$rn"; C_VF[$c]="$vf"
   [[ "${C_CK[$c]}" =~ ^[0-9]+$ ]] || C_CK[$c]=1; [[ "${C_RN[$c]}" =~ ^[0-9]+$ ]] || C_RN[$c]=2; [[ "${C_VF[$c]}" =~ ^[0-9]+$ ]] || C_VF[$c]=300
-  CFG_MT[$c]="$mt"
+  CFG_MT[$c]=1
 }
 
 _fail(){ # <c> <onde> <http> <msg> — recuo exponencial (teto 30 s); anota o erro no início da série
@@ -75,9 +80,10 @@ _sig(){ # assinatura BARATA do que a publicação leva: o roster da visão `all`
 feed_one(){
   local c="$1" d="$CONTESTSDIR/$1" now="$EPOCHSECONDS" st
   [[ -f "$d/conf" ]] || { rm -f "$ACTIVE/$c"; log "$c: contest sumiu — desligado"; return 0; }
-  an_has_cred "$c" || return 0
   (( now < ${HOLD[$c]:-0} )) && return 0
-  _cfg_load "$c"; _an_times "$c"
+  _cfg_load "$c"
+  an_has_cred "$c" "${C_URL[$c]}" || return 0    # com a URL do cache: sem ela, a chave do MOJ relia o animeitor.json (jq) a cada segundo
+  _an_times "$c"
   if (( AN_END > 0 && now > AN_END + 86400 )); then
     rm -f "$ACTIVE/$c"; an_cfg_save "$c" "$(jq -c '.enabled = false' <<<"$(an_cfg "$c")")"
     log "$c: 24 h depois do fim — alimentador desligado sozinho"; return 0
@@ -89,7 +95,8 @@ feed_one(){
     T_CLOCK[$c]="$now"
     local t=$(( now - AN_START )); (( t > AN_DUR )) && t=$AN_DUR
     printf '{"time_seconds":%d}' "$t" > "$D/$c.time.json"
-    st="$(an_status "$(AN_URL="${C_URL[$c]}" AN_TIMEOUT="${AN_CLOCK_TIMEOUT:-3}" an_curl "$c" PATCH "/internal/events/${C_EV[$c]}/time" "$D/$c.time.json")")"
+    st="$(AN_URL="${C_URL[$c]}" AN_TIMEOUT="${AN_CLOCK_TIMEOUT:-3}" an_curl "$c" PATCH "/internal/events/${C_EV[$c]}/time" "$D/$c.time.json")"
+    st="${st##*HTTP }"; st="${st%%[^0-9]*}"      # o código da última linha "HTTP <code>" (era tail|awk a cada segundo)
     printf '%s %s %s\n' "$now" "$t" "${st:-000}" > "$d/var/animeitor.clock" 2>/dev/null
     if [[ "$st" == 200 ]]; then _ok "$c"
     elif [[ "$st" == 404 ]]; then
@@ -139,7 +146,14 @@ feed_one(){
   (( now >= AN_START )) || return 0                                   # antes do início o serviço responde not_started
   local vfile due=0 vfin=false vat=0
   vfile="$(an_verify_file "$c")"
-  if [[ -s "$vfile" ]]; then read -r vat vfin < <(jq -r '"\(.at // 0) \(.final == true)"' "$vfile" 2>/dev/null); fi
+  if [[ -s "$vfile" ]]; then
+    if [[ -z "${V_AT[$c]:-}" || ! -e "$D/.vf.$c.stamp" || "$vfile" -nt "$D/.vf.$c.stamp" ]]; then
+      : > "$D/.vf.$c.stamp" 2>/dev/null
+      read -r vat vfin < <(jq -r '"\(.at // 0) \(.final == true)"' "$vfile" 2>/dev/null)
+      V_AT[$c]="${vat:-0}"; V_FIN[$c]="${vfin:-false}"
+    fi
+    vat="${V_AT[$c]}"; vfin="${V_FIN[$c]}"
+  fi
   [[ "$vat" =~ ^[0-9]+$ ]] || vat=0
   (( ${T_VERIFY[$c]:-0} > vat )) && vat=${T_VERIFY[$c]}
   if (( AN_END == 0 || now < AN_END )); then (( now - vat >= ${C_VF[$c]} )) && due=1
@@ -164,9 +178,13 @@ feed_one(){
 
 log "alimentador no ar (pid $$, once=$ONCE)"
 while :; do
-  while IFS= read -r c; do
-    [[ -n "$c" ]] && valid_id "$c" && feed_one "$c"
-  done < <(find "$ACTIVE" -mindepth 1 -maxdepth 1 -type f -printf '%f\n' 2>/dev/null | sort)
+  # os contests ligados por GLOB (o `find | sort` eram 2 processos por segundo mesmo sem contest nenhum); o common.sh
+  # liga o noglob — desligado só p/ montar a lista
+  set +o noglob; _act=("$ACTIVE"/*); set -o noglob
+  for _af in "${_act[@]}"; do
+    [[ -f "$_af" ]] || continue
+    c="${_af##*/}"; valid_id "$c" && feed_one "$c"
+  done
   printf '%s\n' "$EPOCHSECONDS" > "$D/feed.alive" 2>/dev/null
   (( ONCE )) && break
   # dorme até a virada do próximo segundo (o relógio do telão anda em passos de 1 s, sem deriva)

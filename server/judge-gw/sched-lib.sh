@@ -128,14 +128,18 @@ reg_get() { local f="$REGISTRYDIR/$1.json"; [[ -f "$f" ]] && cat "$f"; }
 # `parallel_max`, que são do SERVIDOR), e hashear tudo fazia QUALQUER edição da entrada DRENAR
 # o juiz p/ reaplicar a mesma partição (bug (d)).
 judges_config_for() {
-  local host="$1" jconf entry norm srv_hash
+  # UM jq (eram três a CADA heartbeat de cada juiz — TCP 2026, 03/10/2026): a 1ª linha diz se há entrada p/ o host,
+  # a 2ª é o objeto normalizado (-S: chaves ordenadas, é ele que vira o hash). O `cfg_hash` entra por texto no fim
+  # — byte a byte o que o `. + {cfg_hash}` do jq escrevia (smoke-judge-config.sh).
+  local host="$1" jconf out has="" norm="" srv_hash=""
   jconf="${JUDGES_CONFIG_FILE:-$CONTESTSDIR/treino/var/judges-config.json}"
-  entry="$(jq -c --arg h "$host" '.[$h] // empty' "$jconf" 2>/dev/null)"
-  norm="$(jq -cS '{partition:(.partition // "off"), reserve:((.reserve // 0) | tonumber? // 0),
-                   disabled:((.disabled // false) == true)}' <<<"${entry:-null}" 2>/dev/null)"
-  [[ -n "$norm" ]] || norm='{"disabled":false,"partition":"off","reserve":0}'
-  if [[ -n "$entry" ]]; then srv_hash="$(printf '%s' "$norm" | md5sum | cut -c1-16)"; else srv_hash=""; fi
-  jq -c --arg hh "$srv_hash" '. + {cfg_hash:$hh}' <<<"$norm"
+  out="$(jq -cS --arg h "$host" '(.[$h] // null) as $e | ($e != null),
+          ({partition:($e.partition // "off"), reserve:(($e.reserve // 0) | tonumber? // 0),
+            disabled:(($e.disabled // false) == true)})' "$jconf" 2>/dev/null)"
+  { IFS= read -r has; IFS= read -r norm; } <<<"$out"
+  [[ "$norm" == '{'*'}' ]] || { norm='{"disabled":false,"partition":"off","reserve":0}'; has=false; }
+  [[ "$has" == true ]] && srv_hash="$(printf '%s' "$norm" | md5sum | cut -c1-16)"
+  printf '%s\n' "${norm%\}},\"cfg_hash\":\"$srv_hash\"}"
 }
 
 # sched_requeue_host <host> : devolve à fila TUDO que estava atribuído ao host — jobs

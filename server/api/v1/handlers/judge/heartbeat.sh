@@ -60,7 +60,8 @@ infeasible_sweep
 [[ -n "$agent_status" ]] && upd_touch_host "$host"
 
 # inventário mudou? pede re-registro
-stored_hash="$(jq -r '.inv_hash // empty' "$REGISTRYDIR/$host.json" 2>/dev/null)"
+# inv_hash e mem_kb do registro num jq só (o mem_kb é do claim, lá embaixo; nada regrava o registro no meio)
+IFS=$'\x01' read -r stored_hash memkb < <(jq -j '[(.inv_hash // ""), ((.mem_kb // "") | tostring)] | join("\u0001")' "$REGISTRYDIR/$host.json" 2>/dev/null)
 reregister=false
 [[ -n "$inv_hash" && "$inv_hash" != "$stored_hash" ]] && reregister=true
 
@@ -69,13 +70,11 @@ reregister=false
 # Fonte única do objeto/hash: judges_config_for (o register entrega o MESMO no boot).
 config=null
 cfgj="$(judges_config_for "$host")"
-srv_hash="$(jq -r '.cfg_hash // ""' <<<"$cfgj")"
-disabled="$(jq -r '.disabled // false' <<<"$cfgj")"
+IFS=$'\x01' read -r srv_hash disabled < <(jq -j '[(.cfg_hash // ""), ((.disabled // false) | tostring)] | join("\u0001")' <<<"$cfgj")
 [[ "$agent_cfg_hash" != "$srv_hash" ]] && config="$cfgj"
 
 # LARGURA / paralelismo: o que o claim precisa saber do juiz (registro + beat + política)
 IFS=$'\x01' read -r pol cushion share pmax < <(sched_policy "$host")
-memkb="$(jq -r '.mem_kb // ""' "$REGISTRYDIR/$host.json" 2>/dev/null)"
 export QC_SLOT_CPUS="${slot_cpus:-0}" QC_MAX_FREE_GROUP="$mfg" QC_TOTAL_SLOTS="$total_slots" QC_MEM_KB="$memkb" \
        QC_POLICY="$pol" QC_CUSHION="$cushion" QC_SHARE_MAX="$share" QC_PARALLEL_MAX="$pmax" QC_FREE="$free_slots"
 

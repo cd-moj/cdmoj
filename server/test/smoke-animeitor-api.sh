@@ -208,6 +208,15 @@ ck "2ª passada sem novidade: só o relógio viaja (nenhum history mudou ⇒ zer
 sleep 1; printf '40:col#pb:C:Accepted,100p:%s:s-feed\n' $(( START + 2400 )) >> "$C/users/zeta/history"
 : > "$MOCKD/requests.log"; FEED
 ck "veredicto novo: a passada seguinte leva SÓ essa run" '[[ "$(REQ "/runs\"")" == 1 && "$(R zeta B .answer)" == Y ]] && grep "/runs\"" "$MOCKD/requests.log" | grep -q "\"len\": [0-9]\{2,3\}[,}]"'
+# CUSTO EM REGIME (TCP 2026, 03/10/2026: jq/stat/tail/awk/find a CADA segundo relendo arquivos que quase nunca
+# mudam). O laço de verdade por 6 s com jq/stat/awk/tail/find falsos que anotam o segundo de cada chamada; a 1ª
+# passada carrega caches e publica, os 2 últimos segundos são o relógio sem novidade e não rodam nenhum deles.
+SH="$(mktemp -d)"; for x in jq stat awk tail find sort; do printf '#!/bin/bash\necho "$EPOCHSECONDS %s" >> "%s/t"\nexec "%s" "$@"\n' "$x" "$SH" "$(command -v $x)" > "$SH/$x"; chmod +x "$SH/$x"; done
+( PATH="$SH:$PATH" timeout 6 bash "$ROOT/daemons/animeitor-feed.sh" >/dev/null 2>&1 )
+TE=$EPOCHSECONDS   # só os 2 ÚLTIMOS segundos contam (a 1ª passada pode passar de 2 s numa máquina carregada)
+NREG=$(awk -v t=$((TE - 2)) '$1 >= t && $2 != "find"' "$SH/t" 2>/dev/null | wc -l); NFIND=$(awk -v t=$((TE - 2)) '$1 >= t && $2 == "find"' "$SH/t" 2>/dev/null | wc -l); rm -rf "$SH"
+# o `find … history -newer` das runs (a cada C_RN=2 s) é legítimo: até 2 no regime
+ck "relógio em regime (os 2 últimos segundos): nenhum jq/stat/tail/awk/sort e no máx. 2 find (as runs)" '(( NREG == 0 && NFIND <= 2 ))'
 # time novo com run ANTES de o roster ir: a run volta por unknown_team ⇒ a passada seguinte republica e reenvia
 mkteam tardio01 "Time Tardio" UNB "Brasília"; printf '50:col#pa:C:Accepted,100p:%s:s-tardio\n' $(( START + 3000 )) > "$C/users/tardio01/history"
 bash "$ROOT/score/build.sh" ap >/dev/null 2>&1
