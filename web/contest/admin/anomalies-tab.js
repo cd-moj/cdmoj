@@ -52,7 +52,7 @@ export function makeAnomaliesTab(CONTEST) {
     const bar = el('div', { class: 'row', style: 'gap:.6rem;flex-wrap:wrap;align-items:center;margin:.2rem 0 .6rem' },
       el('span', { class: 'pill ' + (g.active ? 'ok' : '') }, gateTxt),
       el('span', { class: 'pill ' + (ident ? 'ok' : '') }, ident ? T('máquinas identificadas (MLinux)', 'machines identified (MLinux)', 'máquinas identificadas (MLinux)') : T('nenhuma máquina identificada', 'no machine identified', 'ninguna máquina identificada')),
-      el('span', { class: 'pill ' + (g.single_session && g.enforcing ? 'ok' : '') }, g.single_session && g.enforcing ? T('sessão única por time', 'single session per team', 'sesión única por equipo') : T('sessão única não vale', 'single session not in effect', 'sesión única no vale')),
+      el('span', { class: 'pill ' + (g.single_session && g.enforcing && g.active ? 'ok' : '') }, g.single_session && g.enforcing && g.active ? T('sessão única por time', 'single session per team', 'sesión única por equipo') : T('sessão única não vale', 'single session not in effect', 'sesión única no vale')),
       el('a', { href: '#maquinas/gate', class: 'small' }, T('Gate & trava →', 'Gate & lock →', 'Gate y bloqueo →')),
       el('span', { class: 'small muted' }, T('janela: ', 'window: ', 'ventana: ') + fmtClock(d.window.start) + ' → ' + fmtClock(d.window.end)
         + ' · ' + T('apurado ', 'computed ', 'calculado ') + fmtClock(d.computed_at) + (d.round ? ' · ' + d.round : '')),
