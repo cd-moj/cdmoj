@@ -40,12 +40,17 @@ for sid in "${IDS[@]}"; do
   sid="${sid//[[:space:]]/}"
   [[ "$sid" =~ ^[0-9a-f]{32}$ || "$sid" =~ ^[0-9a-f-]{36}$ ]] || continue
   (( n++ >= 1000 )) && break
-  resolve_submission "$contest" "$sid"   # store-v2 ou legado
-  rf="$SUB_RESULT"
-  [[ -n "$rf" && -f "$rf" ]] || continue
   if [[ "$isjudge" == 0 ]]; then
     (( hidden )) && continue
-    [[ "$SUB_OWNER" == "$SESSION_LOGIN" ]] || continue      # resumo alheio: só juiz/admin (SHOWCODE removido)
+    # o NÃO-juiz só vê o resumo DELE (alheio = omitido; SHOWCODE removido): a única fonte possível é o próprio
+    # diretório. O resolve_submission faz 3 globs `users/*/…` POR ID — no treino (milhares de contas) um lote de ids
+    # levou 9,6 s (TCP 2026, 03/10/2026); aqui é um teste de arquivo.
+    rf="$cdir/users/$SESSION_LOGIN/results/$sid.json"
+    [[ -f "$rf" ]] || continue
+  else
+    resolve_submission "$contest" "$sid"   # juiz/admin: o dono pode ser qualquer conta
+    rf="$SUB_RESULT"
+    [[ -n "$rf" && -f "$rf" ]] || continue
   fi
   RF+=("$rf")
 done

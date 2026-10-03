@@ -76,22 +76,21 @@ metrics="$(printf '%s\n' "$rows" | jq -R -cs --slurpfile finf "$FINMAP" --argjso
 [[ -n "$metrics" ]] || metrics='{}'
 
 # --- AVALIAÇÃO MANUAL: quantas não avaliadas / sendo avaliadas / em conflito + quem avalia ---
-revitems=()
-while IFS= read -r rf; do
-  [[ -n "$rf" ]] || continue
-  p="$(jq -c --argjson now "$now" --argjson q "$(rv_quorum "$contest")" "$(rv_expire_filter)
+# A fila se lê NUMA PASSADA (rv_scan, a regra da casa desde 25/09: um jq + rv_quorum POR ARQUIVO aqui era o mesmo
+# custo que o review/list e o review/conflicts já tinham perdido — levantamento de 03/10/2026). E o "aguardando"
+# segue a regra do review/list: com voto(s) e AINDA abaixo do quórum (era `votes_n == 1`, só certo com quórum 2).
+rq="$(rv_quorum "$contest")"; [[ "$rq" =~ ^[0-9]+$ ]] || rq=2
+allrev="$(rv_scan "$(rv_dir "$contest")" "$(rv_expire_filter)
     | $(rv_recompute)
     | select((.status // \"open\") != \"released\")
     | { id, problem_id, login, computed_verdict, status, conflict,
         claimants:[ (.claimants // [])[] | {judge:.by, elapsed_s:(\$now - (.at // 0))} ],
-        votes_n:((.votes // [])|length) }" "$rf" 2>/dev/null)"
-  [[ -n "$p" && "$p" != null ]] && revitems+=("$p")
-done < <(find "$(rv_dir "$contest")" -maxdepth 1 -name '*.json' 2>/dev/null)
-allrev="$( ((${#revitems[@]})) && printf '%s\n' "${revitems[@]}" | jq -cs '.' || echo '[]')"
-review="$(jq -c '{
+        votes_n:((.votes // [])|length) }" --argjson now "$now" --argjson q "$rq" | jq -cs '.')"
+[[ -n "$allrev" ]] || allrev='[]'
+review="$(jq -c --argjson q "$rq" '{
   not_evaluated:   ([.[]|select((.claimants|length)==0 and ((.votes_n//0)==0))]|length),
   being_evaluated: ([.[]|select((.claimants|length)>=1)]|length),
-  awaiting_second: ([.[]|select((.claimants|length)==0 and ((.votes_n//0)==1) and (.conflict!=true))]|length),
+  awaiting_second: ([.[]|select((.claimants|length)==0 and ((.votes_n//0)>=1) and ((.votes_n//0)<$q) and (.conflict!=true))]|length),
   conflicts:       ([.[]|select(.conflict==true)]|length),
   pending_total:   length,
   evaluators:      [ .[] | select((.claimants|length)>=1 or (.votes_n//0)>=1 or .conflict==true) ] }' <<<"$allrev")"
