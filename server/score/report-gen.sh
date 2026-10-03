@@ -67,7 +67,7 @@ bash "$HERE/stats-gen.sh" "$C" "$CDIR/var/statistics.cache.json" 2>/dev/null || 
 
 # --- conf (mesmo padrão do stats-gen: o gerador roda fora do contexto de handler) ---
 PROBS=(); CONTEST_NAME=""; CONTEST_START=""; CONTEST_END=""; FREEZE_TIME=""; CONTEST_TZ=""
-PENALTY_MINUTES=""
+PENALTY_MINUTES=""; STATEMENT_LANGS=""
 set +o noglob; shopt -s nullglob
 # shellcheck disable=SC1090
 source "$CDIR/conf" 2>/dev/null || true
@@ -1410,6 +1410,16 @@ rep_author(){   # <statement_key>
 }
 
 # --- enunciados: copia p/ statements/<LETRA>.{html,pdf} (com fallback do banco) --------
+# NO IDIOMA DA PROVA (TCP 2026, 03/10/2026: LOCALE=es, enunciados em es/en/pt, e o relatório saía com o PT): o
+# idioma é o que a sanfona do contest abre por padrão — a MESMA regra do lib/contest-statement.sh (cs_norm +
+# cs_default): o LOCALE do contest se a prova o oferece (STATEMENT_LANGS; ausente/auto = todos), senão o 1º
+# oferecido. Por problema: arquivo do idioma no contest › tradução do banco › PT do contest › PT do banco
+# (idioma sem tradução cai no PT, como em toda ponta). O PDF segue o mesmo: <k>.<idioma>.pdf › <k>.pdf.
+: "${MOJTOOLS_DIR:=$MOJ_HOME/../mojtools}"
+source "$HERE/../api/v1/lib/contest-statement.sh"
+SLANGS="$(cs_norm "${STATEMENT_LANGS:-}")"; [[ -n "$SLANGS" ]] || SLANGS=pt
+SLANG="${LOCALE:-}"; SLANG="${SLANG//[^a-z]/}"
+[[ -n "$SLANG" && " $SLANGS " == *" $SLANG "* ]] || SLANG="${SLANGS%% *}"
 # stmt.tsv: letter \t fullname \t has_html(0/1) \t has_pdf(0/1) \t url \t autor
 : > "$W/stmt.tsv"
 while IFS=$'\t' read -r pshort pfull pskey _off _raw _dot _hash; do
@@ -1418,17 +1428,24 @@ while IFS=$'\t' read -r pshort pfull pskey _off _raw _dot _hash; do
   if [[ "$pskey" == *http* ]]; then
     url="$pskey"
   else
-    if [[ -f "$CDIR/enunciados/$pskey.html" ]]; then
+    # banco do treino (mesma cadeia do handler contest/problems.sh): público › privado
+    jf="$CONTESTSDIR/treino/var/jsons/$pskey.json"
+    [[ -f "$jf" ]] || jf="$CONTESTSDIR/treino/var/jsons-private/$pskey.json"
+    [[ -f "$jf" ]] || jf=""
+    if [[ "$SLANG" != pt && -f "$CDIR/enunciados/$pskey.$SLANG.html" ]]; then
+      cp -f "$CDIR/enunciados/$pskey.$SLANG.html" "$OUTD/statements/$Lsafe.html" && hh=1
+    elif [[ "$SLANG" != pt && -n "$jf" ]] && jq -e --arg l "$SLANG" '(.statements[$l].html_b64 // "") != ""' "$jf" >/dev/null 2>&1; then
+      jq -r --arg l "$SLANG" '.statements[$l].html_b64' "$jf" 2>/dev/null | base64 -d > "$OUTD/statements/$Lsafe.html" 2>/dev/null && hh=1
+    elif [[ -f "$CDIR/enunciados/$pskey.html" ]]; then
       cp -f "$CDIR/enunciados/$pskey.html" "$OUTD/statements/$Lsafe.html" && hh=1
-    else
-      # fallback: banco do treino (mesma cadeia do handler contest/problems.sh)
-      jf="$CONTESTSDIR/treino/var/jsons/$pskey.json"
-      [[ -f "$jf" ]] || jf="$CONTESTSDIR/treino/var/jsons-private/$pskey.json"
-      if [[ -f "$jf" ]] && jq -e '(.statement_html_b64 // "") != ""' "$jf" >/dev/null 2>&1; then
-        jq -r '.statement_html_b64 // ""' "$jf" 2>/dev/null | base64 -d > "$OUTD/statements/$Lsafe.html" 2>/dev/null && hh=1
-      fi
+    elif [[ -n "$jf" ]] && jq -e '(.statement_html_b64 // "") != ""' "$jf" >/dev/null 2>&1; then
+      jq -r '.statement_html_b64 // ""' "$jf" 2>/dev/null | base64 -d > "$OUTD/statements/$Lsafe.html" 2>/dev/null && hh=1
     fi
-    [[ -f "$CDIR/enunciados/$pskey.pdf" ]] && cp -f "$CDIR/enunciados/$pskey.pdf" "$OUTD/statements/$Lsafe.pdf" && hp=1
+    if [[ "$SLANG" != pt && -f "$CDIR/enunciados/$pskey.$SLANG.pdf" ]]; then
+      cp -f "$CDIR/enunciados/$pskey.$SLANG.pdf" "$OUTD/statements/$Lsafe.pdf" && hp=1
+    elif [[ -f "$CDIR/enunciados/$pskey.pdf" ]]; then
+      cp -f "$CDIR/enunciados/$pskey.pdf" "$OUTD/statements/$Lsafe.pdf" && hp=1
+    fi
   fi
   # ⚠ campo vazio NO MEIO da linha some no `IFS=$'\t' read`: TAB é whitespace, então dois
   # seguidos contam como UM separador (foi assim que o autor sumiu quando a url é vazia —

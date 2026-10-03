@@ -378,6 +378,9 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   o site gerado na promoção — auditoria, não se regenera), servido em `/relatorio/<c>/rodada/<slug>/`
   (regex do nginx ANTES da genérica); a index principal só linka rodadas quando gerada com
   `REPORT_PUBLISH=1` (no tar.gz offline o link não teria destino).
+  **Os ENUNCIADOS saem no idioma da PROVA** (03/10/2026, TCP 2026: `LOCALE=es` e o relatório copiava o PT): o
+  padrão da sanfona (`cs_norm` + a regra do `cs_default`, `lib/contest-statement.sh`) — arquivo do idioma no contest ›
+  tradução do banco › PT; `STATEMENT_LANGS=pt` = PT. Teste na seção ES do `smoke-contest-report.sh`.
   **É trilíngue como qualquer tela**: `rep_t <chave>` (molde do `_doc_t`) resolve pelo `LOCALE`
   do contest (`pt|en|es`; chave sem `es` cai no `en`) — string nova entra na tabela nos TRÊS, e bloco awk/jq recebe o rótulo já traduzido por
   `-v`/`--arg` (nunca literal no meio do programa).

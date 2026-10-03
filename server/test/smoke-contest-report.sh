@@ -247,7 +247,20 @@ ck "EN: estatística em inglês"   'grep -q "\"en\"" "$EN/statistics.html"'
 sed -i '/^LOCALE=en$/d' "$C/conf"; printf 'LOCALE=es\n' >> "$C/conf"
 printf '%%PDF-1.4 CUADERNILLO_ES\n' > "$C/docs/contest.es.pdf"
 jq -cn '{caderno_version:"v1.0",published:["contest.pt","contest.es"]}' > "$C/docs/config.json"
+# ENUNCIADOS no idioma da PROVA (TCP 2026, 03/10/2026: LOCALE=es e o relatório saía com o PT). A: arquivo es no
+# contest; B: só a tradução no BANCO (json servível, statements.es) — o PT do banco existe e não pode vencer
+printf '<!DOCTYPE html><html><body><h1>Alfa ES</h1></body></html>\n' > "$C/enunciados/col#pa.es.html"
+mkdir -p "$FIX/treino/var/jsons"
+jq -cn --arg pt "$(printf '<h1>Beta PT</h1>' | base64 -w0)" --arg es "$(printf '<h1>Beta ES</h1>' | base64 -w0)" \
+  '{id:"col#pb", title:"Beta", public:true, statement_html_b64:$pt, statements:{es:{title:"Beta", html_b64:$es}}}' > "$FIX/treino/var/jsons/col#pb.json"
 ES="$FIX/res"; CONTESTSDIR="$FIX" MOJ_PROBLEMS_DIR="$PKG" bash "$ROOT/score/report-gen.sh" rp "$ES" >/dev/null 2>&1
+ck "ES: enunciado A no idioma da prova (arquivo es do contest)" 'grep -q "Alfa ES" "$ES/statements/A.html"'
+ck "ES: enunciado B pela tradução es do banco (não o PT)"       'grep -q "Beta ES" "$ES/statements/B.html" && ! grep -q "Beta PT" "$ES/statements/B.html"'
+# prova que oferece SÓ pt (STATEMENT_LANGS=pt) com LOCALE=es: o relatório segue o que a prova mostrou — PT
+printf 'STATEMENT_LANGS=pt\n' >> "$C/conf"
+ESP="$FIX/resp"; CONTESTSDIR="$FIX" MOJ_PROBLEMS_DIR="$PKG" bash "$ROOT/score/report-gen.sh" rp "$ESP" >/dev/null 2>&1
+ck "STATEMENT_LANGS=pt: enunciados em PT mesmo com LOCALE=es"  'grep -q "<h1>Alfa</h1>" "$ESP/statements/A.html" && grep -q "Beta PT" "$ESP/statements/B.html"'
+sed -i '/^STATEMENT_LANGS=/d' "$C/conf"
 ck "ES: chrome traduzido"        'grep -q ">🏆 Marcador<" "$ES/index.html" && grep -q ">📊 Estadísticas<" "$ES/index.html"'
 ck "ES: índice traduzido"        'grep -q "<dt>Competencia</dt>" "$ES/index.html" && grep -q "<th>Autor</th>" "$ES/index.html"'
 ck "ES: placar traduzido"        'grep -q "<th>Equipo</th>" "$ES/index.html" && grep -q "<th>Pen.</th>" "$ES/index.html"'
@@ -259,6 +272,7 @@ ck "ES: sem PT vazando"          '! grep -qE "<dt>Competição</dt>|<th>Equipe</
 ck "ES: sem EN vazando"          '! grep -qE ">🏆 Scoreboard<|<th>Team</th>|Staff tasks|>Flag:|All submissions" "$ES/index.html" "$ES/staff-tasks.html" "$ES/runs.html"'
 ck "ES: estatística em espanhol" 'grep -q "const LANG=\"es\"" "$ES/statistics.html" && grep -q "function T(pt,en,es)" "$ES/statistics.html"'
 rm -f "$C/docs/contest.es.pdf"; jq -cn '{caderno_version:"v1.0",published:["contest.pt"]}' > "$C/docs/config.json"
+rm -f "$C/enunciados/col#pa.es.html" "$FIX/treino/var/jsons/col#pb.json"
 sed -i '/^LOCALE=es$/d' "$C/conf"
 
 # --- COORTES: um placar por visão (o build.sh gera um TXT por coorte) --------------------
