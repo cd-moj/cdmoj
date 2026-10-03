@@ -775,6 +775,21 @@ spool_done_gc() {
   return 0
 }
 
+# _recon_pending <c> -> _RPN (nº de pendentes do contest), pela MESMA regra de cache do count_pending
+# (lib/users.sh: var/.pending-count vale enquanto var/.score-dirty não for mais novo), mas por builtins:
+# cache válido = um `read`; sem users/ = 0; só o cache sujo/ausente paga o count_pending (que o refaz).
+_recon_pending() {
+  local c="$1" cache="$CONTESTSDIR/$1/var/.pending-count" v=""
+  _RPN=0
+  [[ -d "$CONTESTSDIR/$c/users" ]] || return 0
+  if [[ -f "$cache" && ! "$CONTESTSDIR/$c/var/.score-dirty" -nt "$cache" ]]; then
+    read -r v < "$cache" 2>/dev/null || true
+  else
+    v="$(count_pending "$c" 2>/dev/null)"
+  fi
+  v="${v//[^0-9]/}"; _RPN="${v:-0}"
+}
+
 reconcile_stale_pending() {
   local now="$EPOCHSECONDS"
   (( now - _RECONCILE_LAST >= RECONCILE_EVERY_S )) || return 0
@@ -789,9 +804,13 @@ reconcile_stale_pending() {
     # linha o reconciliador os varria 15 min depois (49 viraram Judge Error no zz-seed-teste em
     # 24/08) e o cliente ficava testando contra um placar que muda sozinho. Não há o que
     # reconciliar aqui: submissão sintética nunca teve job no pipeline.
+    # "tem pendente?" SEM PROCESSO quando o cache de pendentes vale (o caso de quase todos): eram um
+    # subshell + `cat` POR CONTEST — 1.517 contests × 2 shards a cada 10 min = ~27 s com o daemon a 110%,
+    # o "judged a 1 núcleo" das coletas do TCP 2026 (03/10/2026). Só recalcula (count_pending) com o cache
+    # sujo/ausente; e o DEMO (lê o conf inteiro) só p/ quem tem pendente.
+    _recon_pending "$c"
+    (( _RPN > 0 )) || continue
     contest_is_demo "$c" && continue
-    n="$(count_pending "$c" 2>/dev/null)"; n="${n//[^0-9]/}"
-    [[ -n "$n" && "$n" -gt 0 ]] || continue
     local hf login line tempo prob lang se id age
     for hf in "$cdir"users/*/history; do
       [[ -f "$hf" ]] || continue

@@ -164,6 +164,25 @@ BODY="$(grep ":$IDR$" "$C/users/aluno/history")"
 ck "em REVISÃO: pendente sobrevive"   'grep -q ":Not Answered Yet:" <<<"$BODY"'
 ck "em REVISÃO: não re-enfileirada"   '! compgen -G "$SPOOLDIR/*$IDR*" >/dev/null'
 
+echo "== reconciliador: contest SEM pendente não cria processo (TCP 2026: 1.517 contests × 2 shards) =="
+# 300 contests com o cache de pendentes válido e zerado: a varredura de 10 min lia cada um com um subshell +
+# `cat` — ~27 s a 110% na produção. Agora é um `read`. O `cat` FALSO do PATH conta as execuções.
+MANY="$(mktemp -d)"; SHIM="$(mktemp -d)"
+for i in $(seq 1 300); do mkdir -p "$MANY/c$i/users/x" "$MANY/c$i/var"; printf 'CONTEST_ID=c%s\n' "$i" > "$MANY/c$i/conf"
+  : > "$MANY/c$i/users/x/history"; touch "$MANY/c$i/var/.score-dirty"; sleep 0; printf '0\n' > "$MANY/c$i/var/.pending-count"; done
+printf '#!/bin/bash\necho x >> "%s/cat.log"\nexec /usr/bin/cat "$@"\n' "$SHIM" > "$SHIM/cat"; chmod +x "$SHIM/cat"
+( cd "$ROOT/daemons" && PATH="$SHIM:$PATH" SPOOLDIR="$SPOOLDIR" SPOOLDONEDIR="$SPOOLDONEDIR" CONTESTSDIR="$MANY" \
+    RUNDIR="$RUN" JUDGE_BACKEND=queue INTAKE_MODE=queue bash judged.sh --reconcile >/dev/null 2>&1 )
+ncat="$(wc -l < "$SHIM/cat.log" 2>/dev/null)"; ncat="${ncat//[^0-9]/}"; ncat="${ncat:-0}"
+ck "300 contests sem pendente: < 10 cat (era 300)" '(( ncat < 10 ))'
+# o cache SUJO ainda recalcula (e acha a pendente)
+printf '%s:col#pa:C:Not Answered Yet:%s:%s\n' "$OLD" "$OLD" "abababababababababababababababab" > "$MANY/c7/users/x/history"
+touch -d '+2 seconds' "$MANY/c7/var/.score-dirty"
+( cd "$ROOT/daemons" && SPOOLDIR="$SPOOLDIR" SPOOLDONEDIR="$SPOOLDONEDIR" CONTESTSDIR="$MANY" \
+    RUNDIR="$RUN" JUDGE_BACKEND=queue INTAKE_MODE=queue PENDING_TTL_MIN=1 bash judged.sh --reconcile >/dev/null 2>&1 )
+ck "cache sujo: recalcula e resolve a órfã" 'grep -q ":Judge Error:" "$MANY/c7/users/x/history"'
+rm -rf "$MANY" "$SHIM"
+
 echo "== a aba do admin: ver QUAIS são, dossiê e ações =="
 # fixture: um treino mínimo (o handler exige sessão do treino) + pendente órfã
 T="$FIX/treino"; mkdir -p "$T/var"
