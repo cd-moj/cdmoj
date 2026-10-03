@@ -1,5 +1,6 @@
 // shared/contest-config/judge-picker.js — seletor de MÁQUINAS de juiz (pool), a partir do
-// registro vivo (GET /problems/judges). Compartilhado: aba Configurações/Problemas do admin
+// registro vivo (GET /problems/judges; dentro de um contest, GET /contest/admin/judges — a mesma lista).
+// Compartilhado: aba Configurações/Problemas do admin
 // e o wizard de criação. Nenhuma marcada = sem pool (qualquer juiz online julga).
 // Host selecionado que sumiu do registro continua marcado (com aviso) — não se perde a
 // escolha por um agente reiniciando. Se a API falhar, degrada p/ input de texto livre.
@@ -23,7 +24,11 @@ export function makeJudgePicker(selectedHosts, apiCtx) {
 
   (async () => {
     try {
-      const js = (await apiGet('/problems/judges', apiCtx || {})).judges || [];
+      // dentro de um contest a rota é a DELE: no subdomínio do contest o roteador barra /problems/* (403
+      // contest_isolated) e o seletor caía no texto livre a cada abertura de Regras (TCP 2026, 03/10/2026)
+      const c = (apiCtx && apiCtx.contest) || '';
+      const path = c && c !== 'treino' ? '/contest/admin/judges?contest=' + encodeURIComponent(c) : '/problems/judges';
+      const js = (await apiGet(path, apiCtx || {})).judges || [];
       box.replaceChildren();
       js.forEach((j) => box.append(addBox(j.host,
         (j.cpu ? '(' + j.cpu + ')' : '') + (j.online ? '' : ' 🔴 offline'))));

@@ -5362,6 +5362,7 @@
         "description": "review_judges (1..5, default 2): quantos juízes humanos validam cada veredicto na correção manual. balloons_during_freeze (bool, default false): entregar balão com o placar CONGELADO. O default RETÉM — acerto feito no freeze não vira tarefa de entrega e não é entregue depois; ligar libera retroativamente os retidos (resposta traz balloons_released) e o GET traz balloons_frozen com quantos estão suprimidos."
       }
     },
+    "/contest/admin/judges": {"get": {"tags": ["contest-admin"], "summary": "Juízes do registro pull (o mesmo formato do /problems/judges) — a lista do seletor de pool de juízes em Regras; no subdomínio do contest /problems/* é barrado (403 contest_isolated). Admin ou juiz-chefe.", "parameters": [{"$ref": "#/components/parameters/contest"}], "responses": {"200": {"description": "{judges:[{host,cpu,arch,langs,cage_root,last_seen,online}]}"}, "403": {"description": "admin_required"}}}},
     "/contest/admin/seed": {
       "post": {
         "tags": ["contest-admin"],
