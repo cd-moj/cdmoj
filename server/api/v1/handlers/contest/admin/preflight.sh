@@ -32,7 +32,7 @@ add3(){
 }
 
 # conf num subshell-safe: só os campos que precisamos
-CONTEST_TYPE=""; CONTEST_START=0; CONTEST_END=0; FREEZE_TIME=""; LANGUAGES=""
+CONTEST_TYPE=""; CONTEST_START=0; CONTEST_END=0; FREEZE_TIME=""; LANGUAGES=""; LOGIN_START_TIME=""; LOGIN_ENABLED=""
 PRINT=""; MANUAL_VERDICT=""; REVIEW_JUDGES=""; PROBS=(); CONTEST_JUDGES=""; DEMO=""
 load_contest_conf "$contest"
 mode="$(contest_score_mode "$contest")"
@@ -80,6 +80,50 @@ else
   add3 window fail "Janela da prova" "CONTEST_START/CONTEST_END ausentes ou invertidos no conf" \
     "Contest window" "CONTEST_START/CONTEST_END missing or reversed in the conf" \
     "Ventana de la competencia" "CONTEST_START/CONTEST_END ausentes o invertidos en el conf"
+fi
+
+# --- abertura do login × janela da rodada ATIVA (03/10/2026) ----------------------------------
+# A abertura do login (LOGIN_START_TIME) NÃO acompanha a troca de rodada. No TCP 2026 ela ficou nas 10:50 — posta
+# p/ a prova oficial das 11:00 — com o warmup ativo das 10:15 às 10:40, e a API recusa time antes dela
+# (`login_not_open`): o warmup não teria nenhum time. Só olha rodada que ainda não acabou (prova encerrada não
+# precisa de aviso); conta de papel nunca é barrada e não entra na conta.
+_ls="${LOGIN_START_TIME:-}"; [[ "$_ls" =~ ^[0-9]+$ ]] || _ls=0
+if [[ "$CONTEST_START" =~ ^[0-9]+$ && "$CONTEST_END" =~ ^[0-9]+$ ]] \
+   && (( CONTEST_START > 0 && CONTEST_END > CONTEST_START && EPOCHSECONDS < CONTEST_END )); then
+  _ls_s="$(fmt_epoch "$_ls" '%d/%m %H:%M' "$contest")"
+  _st_s="$(fmt_epoch "$CONTEST_START" '%d/%m %H:%M' "$contest")"; _en_s="$(fmt_epoch "$CONTEST_END" '%d/%m %H:%M' "$contest")"
+  if [[ "${LOGIN_ENABLED:-}" == n ]]; then
+    add3 login_open warn "Login dos times fechado" \
+      "\"Login habilitado\" está desligado em Regras: nenhum time entra (quem já entrou continua; contas de organização entram)" \
+      "Team login closed" \
+      "\"Login enabled\" is off in Rules: no team can log in (teams already in stay; organization accounts can log in)" \
+      "Inicio de sesión de los equipos cerrado" \
+      "\"Inicio de sesión habilitado\" está desactivado en Reglas: ningún equipo entra (quien ya entró sigue; las cuentas de la organización entran)"
+  elif (( _ls == 0 )); then
+    add3 login_open ok "Abertura do login" "sem horário próprio: os times entram a partir do início ($_st_s)" \
+      "Login opening" "no time of its own: teams can log in from the start ($_st_s)" \
+      "Apertura del login" "sin horario propio: los equipos entran desde el inicio ($_st_s)"
+  elif (( _ls <= CONTEST_START )); then
+    _lm=$(( (CONTEST_START - _ls) / 60 ))
+    add3 login_open ok "Abertura do login" "$_ls_s, $_lm min antes do início ($_st_s)" \
+      "Login opening" "$_ls_s, $_lm min before the start ($_st_s)" \
+      "Apertura del login" "$_ls_s, $_lm min antes del inicio ($_st_s)"
+  elif (( _ls < CONTEST_END )); then
+    _lm=$(( (_ls - CONTEST_START + 59) / 60 ))
+    add3 login_open warn "Login abre DEPOIS do início" \
+      "a abertura do login é $_ls_s, $_lm min depois do início ($_st_s): os times perdem o começo. Trocar de rodada não muda a abertura — ajuste \"Abertura do login\" em Regras" \
+      "Login opens AFTER the start" \
+      "the login opening is $_ls_s, $_lm min after the start ($_st_s): teams miss the beginning. Changing the round does not change the opening — adjust \"Login opening\" in Rules" \
+      "El inicio de sesión abre DESPUÉS del inicio" \
+      "la apertura del login es $_ls_s, $_lm min después del inicio ($_st_s): los equipos pierden el comienzo. Cambiar de ronda no cambia la apertura — ajusta \"Apertura del login\" en Reglas"
+  else
+    add3 login_open fail "Login abre DEPOIS do fim" \
+      "a abertura do login é $_ls_s, depois do fim desta rodada ($_en_s): NENHUM time entra. Trocar de rodada não muda a abertura — ajuste \"Abertura do login\" em Regras" \
+      "Login opens AFTER the end" \
+      "the login opening is $_ls_s, after the end of this round ($_en_s): NO team can log in. Changing the round does not change the opening — adjust \"Login opening\" in Rules" \
+      "El inicio de sesión abre DESPUÉS del fin" \
+      "la apertura del login es $_ls_s, después del fin de esta ronda ($_en_s): NINGÚN equipo entra. Cambiar de ronda no cambia la apertura — ajusta \"Apertura del login\" en Reglas"
+  fi
 fi
 
 # --- anti-vazamento (icpc) ----------------------------------------------------

@@ -194,7 +194,7 @@ costume). Use em lista ou prova de disciplina, quando o esqueleto ajuda o aluno.
 
 - **Nome** — o título exibido; o *id* (que vira o subdomínio) não muda.
 - **Início / Fim** — a janela da prova. Antes do início: contagem regressiva; depois do fim: ninguém mais submete (exceto papéis de juiz). Prorrogação fina é na seção ⏱ (por regex de login — ex.: só uma sala que ficou sem luz).
-- **Abertura do login** — a partir de quando o aluno consegue LOGAR (antes disso, contagem regressiva na tela de login). Útil p/ liberar o login minutos antes da largada.
+- **Abertura do login** — a partir de quando o aluno consegue LOGAR (antes disso, contagem regressiva na tela de login). Útil p/ liberar o login minutos antes da largada. A API também barra o time antes desse horário (o organizador entra sempre). **Trocar de rodada não muda este campo**: com aquecimento e prova oficial, ponha a abertura antes do início do aquecimento. A **🏁 Central** avisa quando a abertura cai depois do início (aviso) ou depois do fim (crítico) da rodada no ar. Esvaziar o campo não apaga a abertura: escolha outro horário.
 - **Freeze** — congela o placar público a partir deste horário (estilo ICPC). Juízes e admin seguem vendo tudo; a revelação acontece na cerimônia.
 - **Idioma** — português, inglês ou espanhol. Fixa o idioma das telas de todo mundo no contest (sem seletor) e também o do **papel impresso** (folha de rosto da impressão e folha de balão), do **relatório** final e das mensagens de convite no Telegram (em inglês ou espanhol, a mensagem leva o português junto). Os enunciados e documentos têm idioma próprio (🌐 Idiomas do enunciado, Evento › Documentos).
 

@@ -1,4 +1,4 @@
-<!-- i18n-source: MANUAL-ADMIN.md blob:201f753bcf12d5edebab42de32897503d7530272 -->
+<!-- i18n-source: MANUAL-ADMIN.md blob:d66b5acf2b964007f3ce287d7e1f1e4d95bb5daa -->
 # MOJ: Manual del organizador (el panel .admin de la competencia)
 
 > **Nota de traducción.** Este manual es una traducción del original en portugués. Las herramientas de línea de comandos (`moj`, `moj-contest`, `moj-comp`) muestran sus mensajes en portugués, y los ejemplos de comandos son idénticos al original.
@@ -197,7 +197,7 @@ habituales). Úsalo en una lista o un examen de curso, cuando el esqueleto ayuda
 
 - **Nombre**: el título que se muestra; el *id* (que se convierte en el subdominio) no cambia.
 - **Inicio / Fin**: la ventana de la competencia. Antes del inicio: cuenta regresiva; después del fin: nadie más envía (excepto los roles de juez). La prórroga fina está en la sección ⏱ (por regex de login; ej.: solo una sala que se quedó sin luz).
-- **Apertura del login (pantalla de espera)**: desde cuándo el alumno puede INICIAR SESIÓN (antes de eso, cuenta regresiva en la pantalla de inicio de sesión). Sirve para liberar el inicio de sesión minutos antes del inicio.
+- **Apertura del login (pantalla de espera)**: desde cuándo el alumno puede INICIAR SESIÓN (antes de eso, cuenta regresiva en la pantalla de inicio de sesión). Sirve para liberar el inicio de sesión minutos antes del inicio. La API también bloquea al equipo antes de ese horario (la organización entra siempre). **Cambiar de ronda no cambia este campo**: con calentamiento y competencia oficial, pon la apertura antes del inicio del calentamiento. La **🏁 Central** avisa cuando la apertura cae después del inicio (aviso) o después del fin (crítico) de la ronda en curso. Vaciar el campo no borra la apertura: elige otro horario.
 - **Congelamiento del marcador**: congela el marcador público a partir de esta hora (estilo ICPC). Los jueces y el admin siguen viendo todo; la revelación ocurre en la ceremonia.
 - **Idioma**: portugués, inglés o español. Fija el idioma de las pantallas de todos en la competencia (sin selector) y también el del **papel impreso** (portada de la impresión y hoja del globo), del **informe** final y de los mensajes de invitación en Telegram (en inglés o español, el mensaje lleva también el portugués). Los enunciados y los documentos tienen su propio idioma (🌐 Idiomas del enunciado, Evento › Documentos).
 

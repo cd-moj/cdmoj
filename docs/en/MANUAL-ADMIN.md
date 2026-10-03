@@ -1,4 +1,4 @@
-<!-- i18n-source: MANUAL-ADMIN.md blob:201f753bcf12d5edebab42de32897503d7530272 -->
+<!-- i18n-source: MANUAL-ADMIN.md blob:d66b5acf2b964007f3ce287d7e1f1e4d95bb5daa -->
 # MOJ: Organizer manual (the contest .admin panel)
 
 > **Translation note.** This manual is a translation of the Portuguese original. The command-line tools (`moj`, `moj-contest`, `moj-comp`) print their messages in Portuguese, and the command examples below are identical to the original.
@@ -202,7 +202,7 @@ in a course list or a course exam, when the skeleton helps the student.
 
 - **Name**: the displayed title. The *id* (which becomes the subdomain) does not change.
 - **Start / End**: the contest window. Before the start: a countdown. After the end: nobody can submit (except judge roles). For a fine-grained extension, use the ⏱ section (by login regex, for example only one room that lost power).
-- **Login opening (waiting screen)**: the time from which the student can LOG IN (before it, the login screen shows a countdown). Use it to open the login some minutes before the start.
+- **Login opening (waiting screen)**: the time from which the student can LOG IN (before it, the login screen shows a countdown). Use it to open the login some minutes before the start. The API also blocks teams before this time (the organization can always log in). **Changing the round does not change this field**: with a warm-up and an official contest, set the opening before the start of the warm-up. The **🏁 Central** warns when the opening is after the start (warning) or after the end (critical) of the round on the air. Clearing the field does not remove the opening: select another time.
 - **Scoreboard freeze**: freezes the public scoreboard from this time (ICPC style). Judges and the admin continue to see all. The reveal occurs in the ceremony.
 - **Language**: Portuguese, English or Spanish. It sets the screen language of all persons in the contest (with no selector). It also sets the language of the **printed paper** (print cover sheet and balloon sheet), of the final **report** and of the invitation messages on Telegram (in English or Spanish, the message also includes the Portuguese text). The statements and documents have their own language (🌐 Statement languages, Event › Documents).
 

@@ -868,7 +868,9 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   `.seq`, balões, `time-overrides.json` e `resources.json`. Ao mexer, mantenha a fronteira
   CONFIG × DADO DE RODADA documentada no topo da lib. `CC_KEEP_STATEMENTS=1` (em
   `cc_build_probs`) existe para a troca não re-baixar o enunciado do banco por cima do que o
-  admin subiu à mão. **Problema na rodada** (2026-09-14): a guarda é `problems_denied_for
+  admin subiu à mão. ⚠ A **abertura do login (`LOGIN_START_TIME`) NÃO é dado de rodada**: a troca não a mexe, e
+  a API barra time antes dela — no TCP 2026 (03/10) ela ficou nas 10:50 da oficial com o warmup das 10:15–10:40
+  no ar. A Central avisa (`login_open`: warn depois do início, fail depois do fim da rodada ativa). **Problema na rodada** (2026-09-14): a guarda é `problems_denied_for
   <login> <ids>` (`lib/problems.sh`) com o **dono do contest** como sujeito — público, dono,
   colaborador ou membro da org — a MESMA função de `admin/problems.sh` (404) e do wizard
   (`SESSION_LOGIN`); nunca reescreva o predicado inline (a cópia das rodadas esquecia

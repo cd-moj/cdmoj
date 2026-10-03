@@ -255,6 +255,23 @@ check "conferência final => ok \"Telão validado\""                 '[[ "$(lvl 
 sed -i 's/,telao,/,/' "$C/conf"; run
 check "módulo telao desligado => checagem ausente"                   '[[ "$(lvl telao)" == "(ausente)" ]]'
 
+echo "== abertura do login × janela da rodada ativa (login_open; TCP 2026) =="
+run
+check "sem abertura própria => ok (entra no início)"           '[[ "$(lvl login_open)" == ok && "$(det login_open)" == *"a partir do início"* ]]'
+printf 'LOGIN_START_TIME=%s\n' "$((NOW-4200))" >> "$C/conf"; run
+check "abre 10 min antes do início => ok com os minutos"       '[[ "$(lvl login_open)" == ok && "$(det login_open)" == *"10 min antes do início"* ]]'
+sed -i '/^LOGIN_START_TIME=/d' "$C/conf"; printf 'LOGIN_START_TIME=%s\n' "$((NOW-1800))" >> "$C/conf"; run
+check "abre DEPOIS do início => warn (perdem o começo)"         '[[ "$(lvl login_open)" == warn && "$(det login_open)" == *"30 min depois do início"* && "$(det login_open)" == *"Trocar de rodada"* ]]'
+sed -i '/^LOGIN_START_TIME=/d' "$C/conf"; printf 'LOGIN_START_TIME=%s\n' "$((NOW+4200))" >> "$C/conf"; run
+check "abre DEPOIS do fim (o caso do warmup) => fail"           '[[ "$(lvl login_open)" == fail && "$(det login_open)" == *"NENHUM time entra"* ]]'
+printf 'LOGIN_ENABLED=n\n' >> "$C/conf"; run
+check "login desligado em Regras => warn (vence a abertura)"   '[[ "$(lvl login_open)" == warn && "$(det login_open)" == *"nenhum time entra"* ]]'
+sed -i '/^LOGIN_START_TIME=/d; /^LOGIN_ENABLED=/d' "$C/conf"
+cp "$C/conf" "$FIX/conf.bak"; sed -i "s/^CONTEST_START=.*/CONTEST_START=$((NOW-7200))/; s/^CONTEST_END=.*/CONTEST_END=$((NOW-3600))/" "$C/conf"
+printf 'LOGIN_START_TIME=%s\n' "$((NOW+4200))" >> "$C/conf"; run
+check "rodada já encerrada => sem o item (nada a avisar)"      '[[ "$(lvl login_open)" == "(ausente)" ]]'
+cp "$FIX/conf.bak" "$C/conf"
+
 echo "== envios na fila: a PRIORIDADE decide o teto (submit_cap) =="
 run
 check "icpc SEM prioridade (nunca escolhida) => warn com o teto 3"  '[[ "$(lvl submit_cap)" == warn && "$(det submit_cap)" == *"no máximo 3 envios"* && "$(det submit_cap)" == *"prioridade Prova em Regras"* ]]'
