@@ -143,6 +143,8 @@ sed -i "s/^CONTEST_END=.*/CONTEST_END=$((NOW-7200))/" "$C/conf"
 grep -q '^CONTEST_END=' "$C/conf" || printf 'CONTEST_END=%s\n' "$((NOW-7200))" >> "$C/conf"
 : > "$RUN/judged.alive"
 RD '{"action":"set","slug":"prova","colors":{"A":"AA0000","enableSonic":false}}'
+# o fluxo de verdade: a rodada no ar é o AQUECIMENTO (a janela dele aqui é degenerada, então vai direto ao conf)
+sed -i '/^ROUND_KIND=/d' "$C/conf"; printf 'ROUND_KIND=warmup\n' >> "$C/conf"
 mkdir -p "$C/docs"; printf '%%PDF-enviado' > "$C/docs/info-sheet.pt.uploaded.pdf"; printf '%%PDF-gerado' > "$C/docs/info-sheet.pt.pdf"
 RD '{"action":"promote","to":"prova"}'
 ck "promoveu"                      '[[ "$(J .promoted)" == true ]]'
@@ -154,12 +156,46 @@ ck "/contest/balloons serve a cor nova" '[[ "$(J .balloons.A)" == AA0000 && "$(J
 # terceira rodada, sem cores: herda
 RD "{\"action\":\"add\",\"slug\":\"extra\",\"name\":\"Extra\",\"kind\":\"extra\",\"start\":$((NOW+3600)),\"end\":$((NOW+7200))}"
 sed -i "s/^CONTEST_END=.*/CONTEST_END=$((NOW-7200))/" "$C/conf"
+# a prova teve atividade (é o que o desfazer tem de devolver)
+fx_user "$C" time1 x "Time 1"; printf '60:A:C:Accepted:%s:s1\n' "$((NOW-8000))" > "$C/users/time1/history"
+mkdir -p "$C/clarifications"; printf '{"id":"q1","answer":""}' > "$C/clarifications/q1.json"
+# TCP 2026 (03/10/2026): promover a partir da PROVA OFICIAL encerrada arquiva o resultado — vira aviso
+call /contest/admin/rounds GET '' cadm "$Q"
+ck "prova oficial encerrada no ar: bloqueador official_over, trilíngue" '[[ "$(J "[.promote_ready.blockers[] | select(.code==\"official_over\") | .detail_en, .detail_es] | map(select(length > 0)) | length")" == 2 && "$(J "$BLK_I18N")" == 0 ]]'
 RD '{"action":"promote","to":"extra"}'
+ck "…sem 'ignorar', a promoção é recusada (409 not_ready)" '[[ "$OUT" == *"Status: 409"* && "$(J .error.code)" == not_ready ]]'
+RD '{"action":"promote","to":"extra","force":true}'
 ck "promoveu p/ a extra"           '[[ "$(J .promoted)" == true ]]'
+ck "…a atividade da prova foi p/ o arquivo" '[[ ! -s "$C/users/time1/history" && -s "$C/rounds/prova/users/time1/history" && ! -e "$C/clarifications" ]]'
 ck "sem cores próprias: herdou"    '[[ "$(jq -r .A "$C/balloons.json")" == AA0000 ]]'
 call /contest/admin/rounds GET '' cadm "$Q"
 ck "ativa (extra) espelha as herdadas" '[[ "$(J ".rounds[] | select(.slug==\"extra\") | .colors.A")" == AA0000 ]]'
 ck "arquivada 'prova' mantém as cores no plano (auditoria)" '[[ "$(J ".rounds[] | select(.slug==\"prova\") | .colors.A")" == AA0000 ]]'
+
+echo "== DESFAZER a última promoção (TCP 2026) =="
+call /contest/admin/rounds GET '' cadm "$Q"
+ck "GET: dá p/ desfazer prova → extra" '[[ "$(J .undo.possible)" == true && "$(J .undo.from)" == prova && "$(J .undo.to)" == extra ]]'
+RD '{"action":"undo"}'
+ck "sem confirmar o id do contest: 422" '[[ "$OUT" == *"Status: 422"* && "$(J .error.code)" == confirm_required ]]'
+call /contest/admin/rounds POST '{"action":"undo","confirm":"rd-c"}' cjud "$Q"
+ck "juiz-chefe não desfaz (403)" '[[ "$OUT" == *"Status: 403"* ]]'
+RD '{"action":"undo","confirm":"rd-c"}'
+ck "desfez: prova de volta, extra planejada" '[[ "$(J .undone)" == true && "$(J .restored)" == prova && "$(J .pending)" == extra ]]'
+ck "history e clarification da prova de volta ao vivo" '[[ "$(cat "$C/users/time1/history")" == *Accepted* && -f "$C/clarifications/q1.json" ]]'
+ck "conf de volta na rodada da prova" '[[ "$(grep -m1 "^ROUND=" "$C/conf")" == "ROUND=prova" ]]'
+call /contest/admin/rounds GET '' cadm "$Q"
+ck "rounds.json: prova ativa, extra planejada (não sumiu)" '[[ "$(J .active)" == prova && "$(J ".rounds[] | select(.slug==\"extra\") | .state")" == pending && "$(J ".rounds[] | select(.slug==\"prova\") | .state")" == active ]]'
+ck "a sobra do arquivo saiu de rounds/prova (fica em rounds/.desfeitas/)" '[[ ! -e "$C/rounds/prova" ]] && ls -d "$C"/rounds/.desfeitas/extra-*/arquivo-prova >/dev/null 2>&1'
+ck "desfazer vai ao audit" 'grep -q "round-undo" "$C/var/admin-audit.log"'
+ck "nada mais a desfazer além do aquecimento (o oficial ainda arquivado)" '[[ "$(J .undo.from)" == oficial ]]'
+RD '{"action":"promote","to":"extra","force":true}'
+ck "dá p/ promover de novo (o arquivo de antes não trava)" '[[ "$(J .promoted)" == true ]]'
+printf '70:A:C:Wrong Answer:%s:s2\n' "$NOW" > "$C/users/time1/history"
+call /contest/admin/rounds GET '' cadm "$Q"
+ck "com atividade na rodada nova: não dá p/ desfazer (round_has_activity, trilíngue)" '[[ "$(J .undo.possible)" == false && "$(J "[.undo.blockers[] | select(.code==\"round_has_activity\") | .detail_en, .detail_es] | map(select(length > 0)) | length")" == 2 ]]'
+RD '{"action":"undo","confirm":"rd-c"}'
+ck "…e o POST é recusado (409 undo_blocked)" '[[ "$OUT" == *"Status: 409"* && "$(J .error.code)" == undo_blocked ]]'
+: > "$C/users/time1/history"
 
 echo "== export/create round-trip leva colors =="
 RD "{\"action\":\"add\",\"slug\":\"final\",\"name\":\"Final\",\"start\":$((NOW+9000)),\"end\":$((NOW+12000))}"

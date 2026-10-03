@@ -5691,7 +5691,7 @@
         ],
         "responses": {
           "200": {
-            "description": "{active, rounds[], next, promote_ready:{ok,blockers:[{code,detail,detail_en,detail_es}]}}"
+            "description": "{active, rounds[], next, promote_ready:{ok,blockers:[{code,detail,detail_en,detail_es}]}, undo:{from, to, possible, blockers[]}} — official_over = a rodada no ar é a prova oficial já encerrada (aviso; o force passa)"
           },
           "403": {
             "description": "admin_required"
@@ -5702,7 +5702,7 @@
         "tags": [
           "contest-admin"
         ],
-        "summary": "add | set | problems | remove | publish | promote (so admin)",
+        "summary": "add | set | problems | remove | publish | promote | undo (so admin) — undo {confirm:<id do contest>} desfaz a ÚLTIMA promoção se a rodada no ar não teve atividade (409 undo_blocked; 422 confirm_required)",
         "security": [
           {
             "bearerAuth": []

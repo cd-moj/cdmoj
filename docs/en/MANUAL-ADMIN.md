@@ -1,4 +1,4 @@
-<!-- i18n-source: MANUAL-ADMIN.md blob:d4391422eeb23c8618e34bae9680252d59d0ec00 -->
+<!-- i18n-source: MANUAL-ADMIN.md blob:045c0b4774bef400ce0448953dae02c270721ec0 -->
 # MOJ: Organizer manual (the contest .admin panel)
 
 > **Translation note.** This manual is a translation of the Portuguese original. The command-line tools (`moj`, `moj-contest`, `moj-comp`) print their messages in Portuguese, and the command examples below are identical to the original.
@@ -469,10 +469,19 @@ planned round that starts before the live round):
 | `review_pending` | there is a submission in the manual review without a released verdict: the judge vote would go to the contest scoreboard |
 | `judged_down` | the judging daemon is not alive, so the queue does not drain |
 | `no_next_round` | there is no planned round |
+| `official_over` | the live round is the **official contest** and it has ended: promoting archives its result and the visible scoreboard goes back to zero. To **show the result**, do not promote: turn the secret off in Rules and publish the report |
 
 There is a `--force` (the "ignore blockers" checkbox) for emergencies. It does **not** remove the
 risk: it only assumes that you know what you do. The only blocker that `--force` does **not**
 ignore is `no_next_round` (without a planned round, there is no round to promote to).
+
+**Did you promote by mistake? Undo it.** In Event › Rounds, the card **↩ Undo the last promotion**
+(or `moj-contest rounds undo`) brings the archived round back live with everything it had —
+submissions, verdicts, clarifications, prints, scoreboard — and the round that went live goes back
+to planned. It works only while the round that went live has had **no activity** (no submission,
+clarification, print or notice); if not, the card tells what happened in it. You type the contest
+id to confirm, and it goes to the audit. This was the case at TCP 2026: after the contest, the
+organizer created an extra round and promoted it, and the scoreboard went back to zero.
 
 > A contest that uses the accounts of another contest (`USERS_FROM`) **promotes normally**: the
 > archive changes only the local `users/`. This was a blocker before. It is not a blocker now,

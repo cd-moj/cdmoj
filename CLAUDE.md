@@ -880,7 +880,11 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   daemon lê o conf no CONSUMO do spool e o `ingest_result` recria a linha do history), e
   **preserva** `print-requests/staff-filters.json` e os templates de `docs/` enquanto zera
   `.seq`, balões, `time-overrides.json` e `resources.json`. Ao mexer, mantenha a fronteira
-  CONFIG × DADO DE RODADA documentada no topo da lib. `CC_KEEP_STATEMENTS=1` (em
+  CONFIG × DADO DE RODADA documentada no topo da lib. **Desfazer a ÚLTIMA promoção** (`rd_undo_info`/`rd_undo`, ação `undo`
+  `{confirm:<id>}`, cartão em Evento › Rodadas, `moj-contest rounds undo`; TCP 2026, 03/10/2026: promoveram uma rodada
+  extra depois da prova e o placar zerou) = o INVERSO do `rd_promote`, só com a rodada no ar SEM atividade; a desfeita
+  volta a `pending` e a sobra do arquivo vai p/ `rounds/.desfeitas/` (com `rounds/<slug>` no lugar a próxima promoção
+  seria recusada). Promover a partir da prova OFICIAL encerrada é o bloqueador `official_over` (aviso; o `force` passa). `CC_KEEP_STATEMENTS=1` (em
   `cc_build_probs`) existe para a troca não re-baixar o enunciado do banco por cima do que o
   admin subiu à mão. ⚠ A **abertura do login (`LOGIN_START_TIME`) NÃO é dado de rodada**: a troca não a mexe, e
   a API barra time antes dela — no TCP 2026 (03/10) ela ficou nas 10:50 da oficial com o warmup das 10:15–10:40

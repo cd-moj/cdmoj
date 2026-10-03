@@ -442,10 +442,19 @@ prova, vazia), e arquivo é imutável. O certo é **inverter editando as duas ro
 | `review_pending` | tem submissão na correção manual sem veredicto liberado — o voto do juiz cairia no placar da prova |
 | `judged_down` | o daemon de julgamento não está vivo, então a fila não drena |
 | `no_next_round` | não há rodada planejada |
+| `official_over` | a rodada no ar é a **prova oficial** e já terminou: promover arquiva o resultado dela e o placar visível volta a zero. Para **mostrar o resultado**, não promova: desligue o segredo em Regras e publique o relatório |
 
 Há um `--force` (checkbox "ignorar os bloqueadores"), para emergência: ele **não** desfaz o
 risco, só assume que você sabe o que está fazendo. O único que o `--force` **não** ignora é o
 `no_next_round` (sem rodada planejada não há para onde promover).
+
+**Promoveu sem querer? Desfaça.** Em Evento › Rodadas, o cartão **↩ Desfazer a última promoção**
+(ou `moj-contest rounds undo`) volta a rodada arquivada para o ar com tudo o que ela tinha —
+submissões, veredictos, clarifications, impressões, placar — e a rodada que entrou volta a
+planejada. Só funciona enquanto a rodada que entrou **não teve nenhuma atividade** (nenhuma
+submissão, clarification, impressão ou aviso); senão o cartão diz o que aconteceu nela. Você digita
+o id do contest para confirmar, e fica no audit. Foi o caso do TCP 2026: depois da prova, o
+organizador criou uma rodada extra e a promoveu, e o placar zerou.
 
 > Contest que usa as contas de outro (`USERS_FROM`) **promove normalmente** — o arquivamento só
 > mexe no `users/` local. Já foi bloqueador; deixou de ser, porque é justamente o caso de uso

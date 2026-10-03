@@ -14,6 +14,9 @@
 #   remove   {slug}            — só rodada planejada (arquivada é auditoria, nunca some)
 #   publish  {slug, on:bool}   — arquivo da rodada visível p/ os times
 #   promote  {to?, force?}     — arquiva a ativa e coloca a próxima no ar
+#   undo     {confirm:<id do contest>} — DESFAZ a última promoção (lib/contest-rounds.sh rd_undo): só se a
+#              rodada no ar não teve atividade nenhuma; a desfeita volta a planejada (TCP 2026, 03/10/2026)
+# GET também traz undo:{from, to, possible, blockers} — o painel só oferece o botão quando há o que desfazer
 require_auth_contest "$(param contest)"
 contest="$(param contest)"
 [[ -n "$contest" ]] || fail 400 "Missing contest" "contest_missing"
@@ -27,9 +30,10 @@ if [[ "$REQUEST_METHOD" == GET ]]; then
   j="$(rd_sync_active "$contest")"; [[ -n "$j" ]] || fail 500 "Falha ao ler as rodadas" "rounds_read"
   rd_save "$contest" "$j"                       # persiste o espelho conf→json
   bl="$(rd_promote_blockers "$contest")"; [[ -n "$bl" ]] || bl='[]'
-  body="$(jq -cn --argjson j "$j" --argjson bl "$bl" --arg next "$(rd_next "$contest")" '
+  un="$(rd_undo_info "$contest")"; [[ -n "$un" ]] || un='null'
+  body="$(jq -cn --argjson j "$j" --argjson bl "$bl" --arg next "$(rd_next "$contest")" --argjson un "$un" '
     {success:true, active:($j.active // ""), rounds:($j.rounds // []), next:$next,
-     promote_ready:{ok:(($bl|length) == 0), blockers:$bl}}')"
+     promote_ready:{ok:(($bl|length) == 0), blockers:$bl}, undo:$un}')"
   [[ -n "$body" ]] || fail 500 "Falha ao montar a resposta" "build_fail"
   emit_json 200 OK; printf '%s\n' "$body"; exit 0
 fi
@@ -234,6 +238,21 @@ case "$action" in
       "from=$(jq -r '.from' <<<"$res") to=$(jq -r '.to' <<<"$res") users=$(jq -r '.archived.users' <<<"$res") subs=$(jq -r '.archived.submissions' <<<"$res")"
     ok_json '$r + {promoted:true} + (if $sw == "" then {} else {swept:{sessions:($sw|split("\t")[0]|tonumber? // 0), dirs:($sw|split("\t")[1]|tonumber? // 0)}} end)' \
       --argjson r "$res" --arg sw "$swept"
+    ;;
+  undo)
+    [[ "$(jq -r '.confirm // ""' "$bodyf")" == "$contest" ]] || fail 422 "Confirme digitando o id do contest" "confirm_required"
+    mkdir -p "$CONTESTSDIR/$contest/var" 2>/dev/null
+    exec 9>"$CONTESTSDIR/$contest/var/.round.lock"
+    flock -n 9 || fail 429 "Promoção em andamento" "busy"
+    un="$(rd_undo_info "$contest")"
+    if [[ "$(jq -r '.possible' <<<"$un")" != true ]]; then
+      emit_json 409 Conflict
+      jq -cn --argjson u "$un" '{success:false, error:{message:"Não dá para desfazer a última promoção", code:"undo_blocked"}, blockers:$u.blockers}'
+      exit 0
+    fi
+    res="$(rd_undo "$contest" "${SESSION_LOGIN:-}")" || fail 500 "Falha ao desfazer (confira rounds/.desfeitas/)" "undo_failed"
+    audit_log_to "$contest" round-undo "restored=$(jq -r .restored <<<"$res") pending=$(jq -r .pending <<<"$res") users=$(jq -r .users <<<"$res") subs=$(jq -r .submissions <<<"$res") kept=$(jq -r .kept <<<"$res")"
+    ok_json '$r + {undone:true}' --argjson r "$res"
     ;;
   *) fail 400 "action inválida" "action_invalid";;
 esac

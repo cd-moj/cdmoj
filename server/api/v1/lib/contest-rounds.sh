@@ -143,6 +143,15 @@ rd_promote_blockers(){
       "the active round has not ended yet (including per-site extensions)" \
       "la ronda activa aún no terminó (incluidas las prórrogas por sede)"
   fi
+  # PROVA OFICIAL já encerrada no ar (TCP 2026, 03/10/2026): promover a partir dela ARQUIVA o resultado da
+  # prova e o placar visível volta a zero — o organizador queria só "mostrar o resultado" e promoveu uma
+  # rodada extra. AVISO (o `force` passa: prova em dois dias existe), e dá p/ desfazer (rd_undo).
+  local _rk; _rk="$(conf_value "$c" ROUND_KIND)"
+  if [[ "$_rk" == official || -z "$_rk" ]] && declare -F contest_over_for_all >/dev/null && contest_over_for_all "$c"; then
+    _add official_over "a rodada no ar é a PROVA OFICIAL e já terminou: promover arquiva o resultado dela e o placar visível volta a zero — para mostrar o resultado, não promova (desligue o segredo em Regras e publique o relatório); se é mesmo o que quer, marque \"ignorar os bloqueadores\"" \
+      "the live round is the OFFICIAL CONTEST and it has ended: promoting archives its result and the visible scoreboard goes back to zero — to show the result, do not promote (turn the secret off in Rules and publish the report); if this is really what you want, tick \"ignore blockers\"" \
+      "la ronda activa es la COMPETENCIA OFICIAL y ya terminó: promover archiva su resultado y el marcador visible vuelve a cero — para mostrar el resultado, no promuevas (desactiva el secreto en Reglas y publica el informe); si es realmente lo que quieres, marca \"ignorar los bloqueadores\""
+  fi
   # freeze em vigor: promover re-aponta/apaga o FREEZE_TIME = descongela. Só a partir do fim
   # geral + 1 min — e este é DURO (o `force` da promoção não passa por cima; ver rounds.sh).
   local _fz; _fz="$(conf_value "$c" FREEZE_TIME)"; _fz="${_fz//[^0-9]/}"
@@ -479,4 +488,119 @@ rd_promote(){
 
   jq -cn --arg f "$from" --arg t "$to" --argjson nu "${nusers:-0}" --argjson ns "${nsubs:-0}" \
     '{from:$f, to:$t, archived:{users:$nu, submissions:$ns}}'
+}
+
+# ---------- DESFAZER a última promoção ------------------------------------------------------
+# TCP 2026 (03/10/2026): o organizador criou uma rodada "extra" depois da prova oficial e a PROMOVEU — a
+# promoção arquivou o resultado da oficial e zerou o placar, e voltar exigiu o MOJ mexer à mão no servidor.
+# Desfazer é o INVERSO exato do rd_promote, para a ÚLTIMA promoção e só enquanto a rodada que entrou no ar
+# não teve NENHUMA atividade (submissão, clarification, impressão, aviso, revisão…): aí o arquivo é a
+# verdade inteira e nada se mistura. A rodada desfeita volta a PLANEJADA (não some do plano); o que sobra
+# do arquivo (relatório gerado, cópias de log, meta) e o que a rodada vazia tinha (placar zerado, docs
+# copiados) vão p/ rounds/.desfeitas/<rodada>-<quando>/ — o dot-dir fica fora dos globs `rounds/*` (o
+# arquivo da rodada com o mesmo slug impediria a PRÓXIMA promoção: o rd_promote nunca sobrescreve arquivo).
+
+# rd_undo_info <c> -> {from, to, possible, blockers:[{code,detail,detail_en,detail_es}]} — `from` = a
+# arquivada mais recente (maior promoted_at, com arquivo no disco); `to` = a ativa.
+rd_undo_info(){
+  local c="$1" cdir="$CONTESTSDIR/$1" j from to out='[]' n x
+  _uadd(){ out="$(jq -c --argjson o "$out" --arg k "$1" --arg d "$2" --arg de "$3" --arg ds "$4" \
+    '$o + [{code:$k, detail:$d, detail_en:$de, detail_es:$ds}]' <<<'null')"; }
+  j="$(rd_sync_active "$c")"; to="$(jq -r '.active // ""' <<<"$j")"
+  from="$(jq -r '[ (.rounds // [])[] | select(.state == "archived" and (.promoted_at // 0) > 0) ] | max_by(.promoted_at) | .slug // ""' <<<"$j")"
+  if [[ -z "$from" || ! -d "$(rd_archive_dir "$c" "$from")/users" ]]; then
+    _uadd no_promotion "nenhuma promoção para desfazer (nenhuma rodada arquivada com arquivo no disco)" \
+      "no promotion to undo (no archived round with an archive on disk)" \
+      "ninguna promoción que deshacer (ninguna ronda archivada con archivo en disco)"
+  else
+    # ATIVIDADE na rodada no ar: o store vivo tem de estar exatamente como a promoção o deixou
+    n="$(find "$cdir/users" -mindepth 2 -maxdepth 2 -name history -size +0 2>/dev/null | wc -l)"
+    n=$(( n + $(find "$cdir/users" -mindepth 3 -maxdepth 3 \( -path '*/submissions/*' -o -path '*/results/*' -o -path '*/mojlog/*' \) 2>/dev/null | wc -l) ))
+    local what=""
+    (( n > 0 )) && what="submissões"
+    for x in review clarifications news-files backups jplag news.json resources.json time-overrides.json; do
+      [[ -e "$cdir/$x" ]] && what="${what:+$what, }$x"
+    done
+    if [[ -d "$cdir/print-requests" ]] && find "$cdir/print-requests" -maxdepth 1 -type f \( -name '*.json' -o -name '*.src' -o -name '*.pdf' \) ! -name staff-filters.json 2>/dev/null | grep -q .; then
+      what="${what:+$what, }impressões/balões"
+    fi
+    if [[ -n "$what" ]]; then
+      _uadd round_has_activity "a rodada no ar ($to) já tem atividade ($what) — desfazer misturaria as duas rodadas" \
+        "the live round ($to) already has activity ($what) — undoing would mix the two rounds" \
+        "la ronda activa ($to) ya tiene actividad ($what) — deshacer mezclaría las dos rondas"
+    fi
+    n="$(rd_jobs_in_flight "$c")"
+    (( n > 0 )) && _uadd jobs_in_flight "$n job(s) deste contest no spool/fila do juiz — espere drenar" \
+      "$n job(s) of this contest in the spool/judge queue — wait for it to drain" \
+      "$n job(s) de esta competencia en el spool/cola del juez — espera a que se vacíe"
+  fi
+  jq -cn --arg f "$from" --arg t "$to" --argjson b "$out" '{from:$f, to:$t, possible:(($b | length) == 0), blockers:$b}'
+}
+
+# rd_undo <c> <quem> -> {restored, pending, users, submissions} ; rc 1 = recusado/falhou (nada mexido
+# antes das checagens). O chamador segura o .round.lock (o mesmo da promoção).
+rd_undo(){
+  local c="$1" by="${2:-}" cdir="$CONTESTSDIR/$1" info from to ad und robj ts
+  info="$(rd_undo_info "$c")"
+  [[ "$(jq -r .possible <<<"$info")" == true ]] || return 1
+  from="$(jq -r .from <<<"$info")"; to="$(jq -r .to <<<"$info")"
+  rd_valid_slug "$from" && rd_valid_slug "$to" || return 1
+  ad="$(rd_archive_dir "$c" "$from")"
+  robj="$(jq -c --arg s "$from" '(.rounds // [])[] | select(.slug == $s)' <<<"$(rd_get "$c")")"
+  [[ -n "$robj" ]] || return 1
+  ts="$(date +%Y%m%d-%H%M%S)"; und="$(rd_base "$c")/.desfeitas/$to-$ts"
+  mkdir -p "$und" || return 1
+
+  # 1. contas: o que a promoção MOVEU volta (o vivo está vazio — conferido no rd_undo_info)
+  local d u x nusers=0
+  ( set +o noglob; shopt -s nullglob
+    for d in "$ad"/users/*/; do
+      u="$(basename "$d")"; mkdir -p "$cdir/users/$u"
+      for x in history metrics.json submissions mojlog results; do
+        [[ -e "$d$x" ]] || continue
+        rm -rf "${cdir:?}/users/$u/$x"; mv -f "$d$x" "$cdir/users/$u/$x"
+      done
+    done ) || return 1
+  nusers="$( ( set +o noglob; shopt -s nullglob; for d in "$ad"/users/*/; do echo; done ) | wc -l | tr -d '[:space:]')"
+  # 2. dados da rodada (ausentes no vivo — conferido)
+  for x in review clarifications news-files backups jplag news.json resources.json time-overrides.json; do
+    [[ -e "$ad/$x" ]] && mv -f "$ad/$x" "$cdir/$x"
+  done
+  # docs: o vivo tem os templates que a promoção copiou de volta (config) — o arquivo é o completo
+  if [[ -d "$ad/docs" ]]; then
+    [[ -e "$cdir/docs" ]] && mv -f "$cdir/docs" "$und/docs-vivo"
+    mv -f "$ad/docs" "$cdir/docs"
+  fi
+  # print-requests: volta o do arquivo, mas o staff-filters VIVO (config: pode ter sido editado depois) vence
+  if [[ -d "$ad/print-requests" ]]; then
+    [[ -e "$cdir/print-requests" ]] && mv -f "$cdir/print-requests" "$und/print-requests-vivo"
+    mv -f "$ad/print-requests" "$cdir/print-requests"
+    [[ -f "$und/print-requests-vivo/staff-filters.json" ]] \
+      && cp -f "$und/print-requests-vivo/staff-filters.json" "$cdir/print-requests/staff-filters.json"
+  fi
+  # 3. placar/estatística da rodada vazia: fora (o build refaz a partir dos metrics devolvidos)
+  mkdir -p "$und/var"
+  ( set +o noglob; shopt -s nullglob
+    for f in "$cdir"/var/placar*.txt "$cdir"/var/placar*.txt.gz "$cdir"/var/statistics.cache.json; do mv -f "$f" "$und/var/" 2>/dev/null; done )
+  rm -f "$cdir/var/.metrics-stamp" "$cdir/var/.pending-count" 2>/dev/null
+  # 4. a rodada arquivada volta ao conf (janela, problemas, cores, ROUND*) — o mesmo caminho da promoção
+  rd_apply_obj "$c" "$robj" || return 1
+  touch "$cdir/var/.score-dirty" 2>/dev/null || true
+  # 5. rounds.json: a arquivada volta a ativa; a desfeita volta a planejada
+  local j; j="$(rd_get "$c")"
+  j="$(jq -c --arg f "$from" --arg t "$to" '
+        .active = $f
+        | .rounds = [ .rounds[]
+            | if .slug == $f then (.state = "active" | del(.promoted_at, .promoted_by, .stats) | .published = false)
+              elif .slug == $t then (.state = "pending")
+              else . end ]' <<<"$j")"
+  rd_save "$c" "$j"
+  # 6. a sobra do arquivo (relatório, cópias de log, meta, mapa de máquinas) sai de rounds/<slug>: com ela
+  #    no lugar a próxima promoção desta rodada seria recusada; o link publicado do relatório da rodada sai junto
+  mv -f "$ad" "$und/arquivo-$from"
+  [[ -L "$cdir/relatorio-rodadas/$from" ]] && rm -f "$cdir/relatorio-rodadas/$from"
+  bash "${SCOREDIR:-$_DIR/../../score}/build.sh" "$c" >/dev/null 2>&1 || true
+  local nsubs; nsubs="$( ( set +o noglob; shopt -s nullglob; cat "$cdir"/users/*/history 2>/dev/null ) | wc -l | tr -d '[:space:]')"
+  jq -cn --arg f "$from" --arg t "$to" --arg by "$by" --argjson nu "${nusers:-0}" --argjson ns "${nsubs:-0}" --arg und "${und##*/rounds/}" \
+    '{restored:$f, pending:$t, users:$nu, submissions:$ns, kept:$und}'
 }

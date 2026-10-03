@@ -1,4 +1,4 @@
-<!-- i18n-source: MANUAL-ADMIN.md blob:d4391422eeb23c8618e34bae9680252d59d0ec00 -->
+<!-- i18n-source: MANUAL-ADMIN.md blob:045c0b4774bef400ce0448953dae02c270721ec0 -->
 # MOJ: Manual del organizador (el panel .admin de la competencia)
 
 > **Nota de traducción.** Este manual es una traducción del original en portugués. Las herramientas de línea de comandos (`moj`, `moj-contest`, `moj-comp`) muestran sus mensajes en portugués, y los ejemplos de comandos son idénticos al original.
@@ -447,10 +447,19 @@ competencia, vacía), y el archivo es inmutable. Lo correcto es **invertir edita
 | `review_pending` | hay envíos en la corrección manual sin veredicto liberado: el voto del juez caería en el marcador de la competencia |
 | `judged_down` | el daemon de evaluación no está vivo, así que la cola no se vacía |
 | `no_next_round` | no hay ronda planificada |
+| `official_over` | la ronda en vivo es la **competencia oficial** y ya terminó: promover archiva su resultado y el marcador visible vuelve a cero. Para **mostrar el resultado**, no promuevas: desactiva el secreto en Reglas y publica el informe |
 
 Hay un `--force` (casilla "ignorar los bloqueadores"), para emergencias: **no** elimina el
 riesgo, solo asume que sabes lo que estás haciendo. El único que el `--force` **no** ignora es
 `no_next_round` (sin ronda planificada no hay adónde promover).
+
+**¿Promoviste sin querer? Deshazlo.** En Evento › Rondas, la tarjeta **↩ Deshacer la última promoción**
+(o `moj-contest rounds undo`) vuelve a poner en vigor la ronda archivada con todo lo que tenía —
+envíos, veredictos, clarifications, impresiones, marcador — y la ronda que entró vuelve a
+planificada. Solo funciona mientras la ronda que entró **no haya tenido ninguna actividad** (ningún
+envío, clarification, impresión o aviso); si no, la tarjeta dice qué pasó en ella. Escribes el id de
+la competencia para confirmar, y queda en el audit. Fue el caso del TCP 2026: después de la
+competencia, el organizador creó una ronda extra y la promovió, y el marcador volvió a cero.
 
 > Una competencia que usa las cuentas de otra (`USERS_FROM`) **promueve normalmente**: el archivado solo
 > toca el `users/` local. Antes era un bloqueador; dejó de serlo porque es justamente el caso de uso
