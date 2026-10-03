@@ -5983,7 +5983,7 @@
         ],
         "responses": {
           "200": {
-            "description": "{window, by_login[], by_ip[], uas[], ua_suggestion, totals}"
+            "description": "{window, by_login[], by_ip[], uas[], ua_suggestion, totals} — ua_suggestion: com todos os UAs do mlinux, o prefixo comum das imagens (MLinux/cl.tcp.2026.); senão a maior substring comum (≥ 8); vazia = navegadores diferentes"
           },
           "403": {
             "description": "admin_required"
