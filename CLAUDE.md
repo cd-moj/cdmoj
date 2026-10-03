@@ -1087,7 +1087,10 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   calculada UMA vez em variável e montada por idioma; `i18n-coverage.sh` barra a volta do helper só-PT).
   `action` põe um BOTÃO no item —
   hoje só `warm_judges` (`judges_warm`: juiz frio × problema, `lib/judge-warm.sh`, e o
-  `POST /contest/admin/warm-judges`; teste `smoke-judge-warm.sh` + caso `central` do
+  `POST /contest/admin/warm-judges`; núcleo `jw_warm`, o mesmo do `bin/warm-judges.sh` que roda SOZINHO na
+  promoção de rodada (destacado) e ~15 min antes do início (judged `prestart_warm_sweep`, um `grep` p/ todos os
+  confs, carimbo `var/.warm-prestart`; `AUTO_WARM_JUDGES=0` desliga e o `test/fixture.sh` o exporta — o processo
+  destacado usaria o run/ real; teste `smoke-warm-auto.sh`); botão fixo também na Situação; teste `smoke-judge-warm.sh` + caso `central` do
   `admin-inplace.gjs.sh`).
 - **MÓDULOS DO CONTEST (`lib/modules.sh`, 2026-09-05)** — grupos de recursos que o admin LIGA por
   contest (`CONTEST_MODULES=a,b` no conf, `%q` escapa a vírgula ⇒ `mod_raw` tira as barras; ausente

@@ -146,8 +146,11 @@ RD '{"action":"set","slug":"prova","colors":{"A":"AA0000","enableSonic":false}}'
 # o fluxo de verdade: a rodada no ar é o AQUECIMENTO (a janela dele aqui é degenerada, então vai direto ao conf)
 sed -i '/^ROUND_KIND=/d' "$C/conf"; printf 'ROUND_KIND=warmup\n' >> "$C/conf"
 mkdir -p "$C/docs"; printf '%%PDF-enviado' > "$C/docs/info-sheet.pt.uploaded.pdf"; printf '%%PDF-gerado' > "$C/docs/info-sheet.pt.pdf"
-RD '{"action":"promote","to":"prova"}'
+AUTO_WARM_JUDGES=1 RD '{"action":"promote","to":"prova"}'
 ck "promoveu"                      '[[ "$(J .promoted)" == true ]]'
+# AQUECIMENTO dos juízes p/ a rodada que entrou (TCP 2026): destacado — a resposta não espera; o audit chega depois
+for _w in 1 2 3 4 5 6 7 8 9 10; do grep -q "warm-judges.*by=promote:" "$C/var/admin-audit.log" 2>/dev/null && break; sleep 0.5; done
+ck "promoção dispara o aquecimento (destacado, auditado by=promote:<login>)" 'grep -q "	promote:boss.admin	warm-judges	sent=0 by=promote:boss.admin" "$C/var/admin-audit.log"'
 ck "PDF ENVIADO (config à mão) volta após a promoção; o gerado fica só no arquivo" '[[ -f "$C/docs/info-sheet.pt.uploaded.pdf" && ! -f "$C/docs/info-sheet.pt.pdf" && -f "$C/rounds/oficial/docs/info-sheet.pt.pdf" ]]'
 ck "balloons.json = cores da rodada que entrou" '[[ "$(jq -r .A "$C/balloons.json")" == AA0000 ]]'
 ck "arquivo da rodada que saiu guardou as cores dela" '[[ "$(jq -r .A "$C/rounds/oficial/balloons.json")" == 0000FF ]]'

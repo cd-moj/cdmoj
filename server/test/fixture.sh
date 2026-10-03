@@ -1,4 +1,8 @@
 # test/fixture.sh — helpers de fixture do store por-usuário (source nos smokes).
+# Aquecimento AUTOMÁTICO de juízes (promoção de rodada, judged antes do início) DESLIGADO nos testes: o processo
+# destacado usaria o run/ da máquina e mandaria calibrações de problemas de fixture aos juízes de verdade. Só o
+# smoke-warm-auto.sh o liga (com run/ isolado).
+export AUTO_WARM_JUDGES="${AUTO_WARM_JUDGES:-0}"
 # fx_user <contestdir> <login> <pass> [fullname] [email] — cria users/<login>/ completo.
 fx_user() {
   local cdir="$1" login="$2" pass="$3" name="${4:-$2}" email="${5:-}"

@@ -234,6 +234,12 @@ case "$action" in
       (( ${_sw_s:-0} + ${_sw_d:-0} > 0 )) \
         && audit_log_to "$contest" round-promote-sweep "sessoes=${_sw_s:-0} dirs=${_sw_d:-0}"
     fi
+    # AQUECER os juízes p/ os problemas da rodada que entrou (TCP 2026: a oficial começou com juízes frios) —
+    # DESTACADO (a promoção nunca espera nem falha por ele; o mesmo núcleo do botão, bin/warm-judges.sh).
+    # Redirecionamento FORA do bash -c: sob fcgiwrap o filho não pode herdar o socket (lição do setsid).
+    if [[ "${AUTO_WARM_JUDGES:-1}" != 0 ]]; then
+      ( setsid bash "$_DIR/../../bin/warm-judges.sh" "$contest" "promote:${SESSION_LOGIN:-}" </dev/null >/dev/null 2>&1 & ) 2>/dev/null
+    fi
     audit_log_to "$contest" "round-promote$([[ "$force" == true ]] && printf -- -forced)" \
       "from=$(jq -r '.from' <<<"$res") to=$(jq -r '.to' <<<"$res") users=$(jq -r '.archived.users' <<<"$res") subs=$(jq -r '.archived.submissions' <<<"$res")"
     ok_json '$r + {promoted:true} + (if $sw == "" then {} else {swept:{sessions:($sw|split("\t")[0]|tonumber? // 0), dirs:($sw|split("\t")[1]|tonumber? // 0)}} end)' \

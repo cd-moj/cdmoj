@@ -116,3 +116,27 @@ jw_group(){
   jq -r --arg k "$2" '[ .[$k] | group_by(.host)[] | "\(.[0].host): \([.[] | (if .letter != "" then .letter else .id end)] | join(", "))" ]
                       | join(" · ")' <<<"$1" 2>/dev/null
 }
+
+# jw_warm <contest> <quem> <arquivo-saida> -> o núcleo do "🔥 Aquecer juízes": manda um `calibrate` DIRIGIDO
+# (cmd_request, o mesmo do editor) a cada par juiz×problema FRIO do jw_matrix e escreve em <arquivo-saida> uma linha
+# por envio `host \t id \t letra \t cmdid`; no stdout, as contagens de ANTES ({warm,warming,cold}). Sob o flock do
+# contest em CMDDIR: dois pedidos não duplicam (o 2º espera e já vê os pares "aquecendo"). rc 2 = outro aquecimento
+# em andamento (lock); rc 1 = mapa falhou. Usado pela rota (botão), pelo bin/warm-judges.sh (promoção de rodada e o
+# aquecimento automático antes do início, do judged) — uma regra só.
+# Requer load_contest_conf (PROBS, CONTEST_JUDGES), sched-lib.sh (cmd_request, CMDDIR) e tl-store.sh.
+jw_warm(){
+  local c="$1" by="$2" out="$3" wm fd h id letter cid
+  : > "$out" || return 1
+  mkdir -p "$CMDDIR" 2>/dev/null
+  exec {fd}>"$CMDDIR/.warm-$c.lock" 2>/dev/null || return 1
+  flock -w 20 "$fd" 2>/dev/null || { eval "exec ${fd}>&-"; return 2; }
+  wm="$(jw_matrix "$c")"
+  if ! jq -e '.counts' >/dev/null 2>&1 <<<"$wm"; then eval "exec ${fd}>&-"; return 1; fi
+  while IFS=$'\t' read -r h id letter; do
+    valid_hostname "$h" && valid_id "$id" || continue
+    cid="$(cmd_request "$h" calibrate "$by" "$id")" || continue
+    [[ -n "$cid" ]] && printf '%s\t%s\t%s\t%s\n' "$h" "$id" "$letter" "$cid" >> "$out"
+  done < <(jq -r '.cold[] | [.host, .id, .letter] | @tsv' <<<"$wm")
+  eval "exec ${fd}>&-"
+  jq -c '.counts' <<<"$wm"
+}

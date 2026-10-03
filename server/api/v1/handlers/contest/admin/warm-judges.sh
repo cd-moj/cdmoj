@@ -10,6 +10,8 @@
 #   · cada calibração ocupa um slot do juiz por alguns minutos — é p/ ANTES do início (a UI avisa).
 # Não abre pacote nenhum (fronteira): quem baixa e calibra é o juiz.
 # body: {} (nada)  -> {sent:[{host,id,letter,cmdid}], before:{warm,warming,cold}}
+# O núcleo é jw_warm (lib/judge-warm.sh) — o mesmo do bin/warm-judges.sh (promoção de rodada e o aquecimento
+# automático ~15 min antes do início, que o judged dispara).
 require_method POST
 contest="$(param contest)"
 [[ -n "$contest" ]] || fail 400 "Missing contest" "contest_missing"
@@ -23,20 +25,12 @@ source "$_DIR/lib/judge-warm.sh"
 CONTEST_JUDGES=""; PROBS=()
 load_contest_conf "$contest"
 
-mkdir -p "$CMDDIR" 2>/dev/null
-exec {_wfd}>"$CMDDIR/.warm-$contest.lock" 2>/dev/null && flock -w 20 "$_wfd" 2>/dev/null \
-  || fail 409 "Outro pedido de aquecimento deste contest está em andamento" "warm_busy"
-wm="$(jw_matrix "$contest")"
-jq -e '.counts' >/dev/null 2>&1 <<<"$wm" || fail 500 "Falha ao montar o mapa de juízes" "warm_matrix_fail"
 SENT="$(mktemp)"; trap 'rm -f "$SENT"' EXIT
-while IFS=$'\t' read -r h id letter; do
-  valid_hostname "$h" && valid_id "$id" || continue
-  cid="$(cmd_request "$h" calibrate "$SESSION_LOGIN" "$id")" || continue
-  [[ -n "$cid" ]] && printf '%s\t%s\t%s\t%s\n' "$h" "$id" "$letter" "$cid" >> "$SENT"
-done < <(jq -r '.cold[] | [.host, .id, .letter] | @tsv' <<<"$wm")
-eval "exec ${_wfd}>&-"
+counts="$(jw_warm "$contest" "$SESSION_LOGIN" "$SENT")"; rc=$?
+(( rc == 2 )) && fail 409 "Outro pedido de aquecimento deste contest está em andamento" "warm_busy"
+(( rc == 0 )) && [[ -n "$counts" ]] || fail 500 "Falha ao montar o mapa de juízes" "warm_matrix_fail"
 n="$(grep -c . "$SENT" 2>/dev/null)"; n="${n//[^0-9]/}"; n="${n:-0}"
-audit_log_to "$contest" warm-judges "sent=$n $(jq -r '"cold=\(.counts.cold) warming=\(.counts.warming) warm=\(.counts.warm)"' <<<"$wm")"
+audit_log_to "$contest" warm-judges "sent=$n $(jq -r '"cold=\(.cold) warming=\(.warming) warm=\(.warm)"' <<<"$counts")"
 ok_json_slurp '{sent:$s[0], before:$b}' \
   s "$(jq -Rsc 'split("\n") | map(select(length > 0) | split("\t") | {host:.[0], id:.[1], letter:.[2], cmdid:.[3]})' < "$SENT")" \
-  --argjson b "$(jq -c '.counts' <<<"$wm")"
+  --argjson b "$counts"

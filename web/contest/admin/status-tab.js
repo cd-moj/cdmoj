@@ -8,7 +8,7 @@
 // refresh refazia o painel inteiro a cada 12 s — seleção de texto, scroll e botão "gerando…" iam
 // junto.
 import { el } from '/shared/ui.js';
-import { apiGet } from '/shared/api.js';
+import { apiGet, apiPost } from '/shared/api.js';
 import { fmtS, fmtClock, vClass, swap, swapIf, sigOf, everyVisible } from '/shared/admin-ui.js';
 import { T } from '/shared/i18n.js';
 
@@ -22,6 +22,34 @@ export function makeStatusTab(CONTEST, opts = {}) {
   const card = (label, val, warn) => el('div', { class: 'dash-card' + (warn ? ' warn' : '') },
     el('div', { class: 'dash-val' }, String(val)), el('div', { class: 'dash-lbl' }, label));
 
+  // --- 🔥 AQUECER JUÍZES (TCP 2026, 03/10/2026: o botão só existia dentro de um item da Central e sumia quando
+  // virava "aquecendo"; o organizador não o achou e a oficial começou com juízes frios). Mesmo POST da Central
+  // (/contest/admin/warm-judges, núcleo jw_warm): só os pares juiz×problema FRIOS recebem calibração. O aquecimento
+  // também roda sozinho ao promover uma rodada e ~15 min antes do início (o judged).
+  function warmRow() {
+    const msg = el('span', { class: 'small muted' }, T('calibra cada problema em cada juiz que ainda não o calibrou (também roda sozinho ao promover rodada e ~15 min antes do início)',
+      'calibrates each problem on each judge that has not calibrated it yet (it also runs by itself when a round is promoted and ~15 min before the start)',
+      'calibra cada problema en cada juez que todavía no lo calibró (también corre solo al promover una ronda y ~15 min antes del inicio)'));
+    const btn = el('button', { class: 'btn ghost' }, T('🔥 Aquecer juízes', '🔥 Warm up judges', '🔥 Calentar jueces'));
+    btn.addEventListener('click', async () => {
+      if (!confirm(T('Mandar cada juiz frio calibrar os problemas da prova? Cada calibração ocupa um slot do juiz por alguns minutos — melhor antes do início.',
+        'Ask each cold judge to calibrate the contest problems? Each calibration takes one judge slot for a few minutes — better before the start.',
+        '¿Pedir a cada juez frío que calibre los problemas de la competencia? Cada calibración ocupa un slot del juez por algunos minutos — mejor antes del inicio.'))) return;
+      btn.disabled = true; msg.className = 'small'; msg.textContent = T('⏳ pedindo…', '⏳ requesting…', '⏳ solicitando…');
+      try {
+        const r = await apiPost('/contest/admin/warm-judges?contest=' + encodeURIComponent(CONTEST), {}, G);
+        const n = (r.sent || []).length, b = r.before || {};
+        msg.textContent = n
+          ? T(`✓ ${n} calibração(ões) pedida(s) (${b.warm || 0} par(es) já quente(s)) — os juízes pegam no próximo heartbeat.`,
+              `✓ ${n} calibration(s) requested (${b.warm || 0} pair(s) already warm) — the judges pick them up on the next heartbeat.`,
+              `✓ ${n} calibración(es) solicitada(s) (${b.warm || 0} par(es) ya caliente(s)) — los jueces las recogen en el próximo heartbeat.`)
+          : T(`Nada a pedir: ${b.warm || 0} par(es) quente(s), ${b.warming || 0} aquecendo.`, `Nothing to request: ${b.warm || 0} warm pair(s), ${b.warming || 0} warming up.`, `Nada que pedir: ${b.warm || 0} par(es) caliente(s), ${b.warming || 0} calentándose.`);
+      } catch (e) { msg.textContent = T('Falhou: ', 'Failed: ', 'Falló: ') + ((e && e.message) || T('erro de rede', 'network error', 'error de red')); }
+      btn.disabled = false;
+    });
+    return el('div', { class: 'row', style: 'gap:.6rem;align-items:center;flex-wrap:wrap;margin:.8rem 0 .2rem' }, btn, msg);
+  }
+
   // --- esqueleto: um contêiner por seção, construído uma vez ---------------------------------
   const SK = {};
   function skeleton() {
@@ -30,8 +58,9 @@ export function makeStatusTab(CONTEST, opts = {}) {
     SK.err = el('div', {});
     for (const k of ['cards', 'routing', 'review', 'actions', 'judges', 'pending', 'perProblem', 'recent', 'timeline']) SK[k] = el('div', {});
     SK.foot = el('div', { class: 'small muted', style: 'margin-top:.6rem' });
+    SK.warm = warmRow();   // FIXO (não se refaz no auto-refresh: a mensagem do último pedido fica)
     panel.innerHTML = '';
-    panel.append(SK.h2, SK.err, SK.cards, SK.routing, SK.review, SK.actions, SK.judges, SK.pending, SK.perProblem, SK.recent, SK.timeline, SK.foot);
+    panel.append(SK.h2, SK.err, SK.cards, SK.routing, SK.review, SK.actions, SK.warm, SK.judges, SK.pending, SK.perProblem, SK.recent, SK.timeline, SK.foot);
   }
 
   // --- construtores de seção (puros: recebem o dado, devolvem o nó) ---------------------------
