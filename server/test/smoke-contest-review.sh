@@ -171,7 +171,7 @@ call /contest/review/list GET '' j1b 'contest=rv2'
 ck "arquivo truncado: 200 e os outros 40 itens (arquivo a arquivo), sem derrubar a lista" '[[ "$OUT" == *"Status: 200"* || "$OUT" != *"Status:"* ]] && [[ "$(jq ".items|length" <<<"$BODY")" == 40 && "$(jq -r .my_active <<<"$BODY")" == q07 ]]'
 
 echo "== conflicts: o alerta do chefe, pela mesma passada (rv_scan) =="
-# chamado pelo shared/chief-alert.js a cada 8–12 s em cada aba de chefe/admin; era um jq + um grep no conf
+# (era o poll do alerta global do chefe, hoje /contest/staff-alerts); era um jq + um grep no conf
 # POR ARQUIVO. A fila rv2 tem 40 abertos + o q99 truncado; entram 2 conflitos (q41 antes de q42).
 fx_user "$C2" cj.cjudge p Chefe >/dev/null
 printf 'CONTEST=rv2\nLOGIN=cj.cjudge\nUSERFULLNAME=x\nLOGINAT=1\n' > "$SESS/cjb"

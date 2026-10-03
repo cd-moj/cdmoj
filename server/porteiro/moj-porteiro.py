@@ -981,6 +981,19 @@ def selftest():
     ok &= r.startswith(b"DECLINE") or print("decline FALHOU: %r" % r[:80]) is not None
     r = req("/contest/score", "contest=../etc", "")
     ok &= r.startswith(b"DECLINE") or print("traversal FALHOU: %r" % r[:80]) is not None
+    # alerta da organização: juiz vê a clarification aberta; time é do bash (403)
+    os.makedirs(os.path.join(CONTESTSDIR, "st", "users", "j1.judge"))
+    with open(os.path.join(CONTESTSDIR, "st", "users", "j1.judge", "account.json"), "w") as f:
+        f.write('{"login":"j1.judge"}')
+    with open(os.path.join(SESSIONDIR, "tokj"), "w") as f:
+        f.write("CONTEST=st\nLOGIN=j1.judge\n")
+    os.makedirs(os.path.join(CONTESTSDIR, "st", "clarifications"))
+    with open(os.path.join(CONTESTSDIR, "st", "clarifications", "c1.json"), "w") as f:
+        f.write('{"id":"c1","time":5,"answer":""}')
+    r = req("/contest/staff-alerts", "contest=st", "Bearer tokj")
+    ok &= b'"open":1' in r or print("staff-alerts FALHOU: %r" % r[:120]) is not None
+    r = req("/contest/staff-alerts", "contest=st", "Bearer tok1")
+    ok &= r.startswith(b"DECLINE") or print("staff-alerts time FALHOU: %r" % r[:80]) is not None
     import shutil
     shutil.rmtree(tmp)
     if not ok:
