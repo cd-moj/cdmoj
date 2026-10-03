@@ -109,6 +109,12 @@ for pair in start:CONTEST_START end:CONTEST_END login_start:LOGIN_START_TIME fre
     # freeze -> 0 = DESCONGELAR (cerimônia, Central), ou freeze em vigor empurrado p/ o futuro:
     # só a partir do fim geral + 1 min (lib/contest-gate.sh, comparação numérica)
     [[ "$k" == freeze ]] && freeze_change_guard "$contest" "$v"
+    # login_start 0 = APAGAR a abertura própria (o login volta a abrir no início da rodada). Antes, esvaziar
+    # o campo na tela não mandava a chave e a abertura velha ficava (TCP 2026: 10:50 da oficial no warmup)
+    if [[ "$k" == login_start && "$v" == 0 ]]; then
+      [[ -n "$(conf_value "$contest" LOGIN_START_TIME)" ]] && delvar LOGIN_START_TIME
+      continue
+    fi
     setvar "$var" "$v"; }
 done
 has locale && { v="$(jq -r '.locale' <<<"$body")"; contest_locale_ok "$v" || fail 422 "locale inválido (pt, en ou es)" "locale_invalid"; setvar LOCALE "$v"; }

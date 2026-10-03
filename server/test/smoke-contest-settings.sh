@@ -38,6 +38,16 @@ call /contest/admin/settings GET '' adm 'contest=sc'
 ck "GET reflete login_enabled false/show_editor false" '[[ "$(jq -r .login_enabled <<<"$BODY")" == "false" && "$(jq -r .show_editor <<<"$BODY")" == "false" ]]'
 ck "auditoria settings" 'grep -q "	settings	" "$C/var/admin-audit.log"'
 
+echo "== abertura do login: login_start 0 APAGA (TCP 2026: esvaziar o campo não apagava) =="
+call /contest/admin/settings POST "{\"login_start\":$(( FUT-600 ))}" adm 'contest=sc'
+ck "login_start gravado"         'grep -q "^LOGIN_START_TIME=$(( FUT-600 ))$" "$C/conf"'
+call /contest/admin/settings POST '{"login_start":0}' adm 'contest=sc'
+ck "login_start 0 apaga a linha" '[[ "$(jq -r .saved <<<"$BODY")" == "true" ]] && ! grep -q "^LOGIN_START_TIME=" "$C/conf"'
+call /contest/admin/settings GET '' adm 'contest=sc'
+ck "GET login_start=0 (sem abertura própria)" '[[ "$(jq -r .login_start <<<"$BODY")" == 0 ]]'
+call /contest/admin/settings POST '{"login_start":0}' adm 'contest=sc'
+ck "0 de novo: nada a apagar, nada no audit" '[[ "$(grep -c "LOGIN_START_TIME=padrao" "$C/var/admin-audit.log")" == 1 ]]'
+
 echo "== idioma do contest (LOCALE pt|en|es) =="
 call /contest/admin/settings POST '{"locale":"es"}' adm 'contest=sc'
 ck "locale es aceito"         '[[ "$(jq -r .saved <<<"$BODY")" == "true" ]] && grep -q "^LOCALE=es$" "$C/conf"'

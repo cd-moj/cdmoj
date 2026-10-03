@@ -202,7 +202,10 @@ export function makeSettingsEditor({ value = {}, mode = 'admin', canSuper = fals
         ...(start.value ? { start: dtToEpoch(start.value) } : {}),
         ...(end.value ? { end: dtToEpoch(end.value) } : {}),
       }),
-      ...(loginStart.value ? { login_start: dtToEpoch(loginStart.value) } : {}),
+      // abertura VAZIA na edição = apagar (0): o login volta a abrir no início da rodada. Só manda o 0 se
+      // havia uma abertura — senão todo salvar gravaria "LOGIN_START_TIME=padrao" no audit
+      ...(loginStart.value ? { login_start: dtToEpoch(loginStart.value) }
+        : (!isCreate && s.login_start ? { login_start: 0 } : {})),
       // freeze VAZIO = sem congelamento -> 0 (e não "não mexe"): apagar o campo tem de
       // DESCONGELAR. Omitir a chave fazia o salvar responder ✓ sem tirar o freeze.
       freeze: freeze.value ? dtToEpoch(freeze.value) : 0,
