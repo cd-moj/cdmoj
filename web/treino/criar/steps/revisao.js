@@ -18,7 +18,8 @@ export function makeStepRevisao(ctx) {
     : (spec.users || []).length + T(' conta(s) própria(s)', ' own account(s)', ' cuenta(s) propia(s)');
   const optsBits = [];
   if (spec.secret) optsBits.push(T('🕵️ SUPER SECRETO (não listado; placar exige login)', '🕵️ SUPER SECRET (not listed; scoreboard requires login)', '🕵️ SUPER SECRETO (no listada; el marcador exige inicio de sesión)'));
-  if (spec.priority && spec.priority !== 'lista-publica') optsBits.push(T('prioridade ', 'priority ', 'prioridad ') + spec.priority);
+  // a prioridade sempre aparece (é obrigatória): sem ela, o aviso — o Criar recusa
+  optsBits.push(spec.priority ? T('prioridade ', 'priority ', 'prioridad ') + spec.priority : T('⚠ prioridade não escolhida (passo 5)', '⚠ priority not chosen (step 5)', '⚠ prioridad no elegida (paso 5)'));
   if ((spec.languages || []).length) optsBits.push(T('linguagens: ', 'languages: ', 'lenguajes: ') + spec.languages.join(' '));
   if (spec.score_anon) optsBits.push(T('placar anônimo', 'anonymous scoreboard', 'marcador anónimo'));
   if (spec.manual_verdict) optsBits.push(T('veredicto manual', 'manual verdict', 'veredicto manual'));

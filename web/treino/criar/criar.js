@@ -55,7 +55,8 @@ function newDraft(perm) {
     userMode: 'own', users: [], usersFrom: 'treino', sharedAck: false,
     admin: { login: me ? (me.endsWith('.admin') ? me : me + '.admin') : '', password: '', fullname: perm.name || '' },
     // opts alimenta o settings-editor (shape do GET /contest/admin/settings + priority do create)
-    opts: { locale: 'pt', login_enabled: true, priority: 'lista-publica' },
+    // sem `priority`: o assistente EXIGE a escolha (TCP 2026 — a prova nasceu lista-publica sem ninguém escolher)
+    opts: { locale: 'pt', login_enabled: true },
     visual: { colors: {}, regions: [], teams_meta: [] },
     // módulos ligados (ids do catálogo) + seções cruas herdadas de template/export (ua_gate,
     // cohorts, rounds…): o wizard não tem editor p/ elas, mas não pode PERDÊ-LAS no create
@@ -159,7 +160,7 @@ async function boot() {
     const teamsV = ctx.editors.teams ? ctx.editors.teams.getValue() : (d.visual.teams_meta || []);
     return {
       id: (d.id || '').trim() || undefined, name: (d.name || '').trim(), mode: d.mode,
-      priority: o.priority || 'lista-publica',
+      ...(o.priority ? { priority: o.priority } : {}),
       start: d.start, end: d.end,
       allow_empty: !!allowEmpty,
       admin: {
@@ -282,6 +283,7 @@ async function boot() {
     if (!(d.name || '').trim()) { msg.className = 'small error-box'; msg.textContent = T('Informe o nome (passo 1).', 'Enter the name (step 1).', 'Ingresa el nombre (paso 1).'); return; }
     if (!(d.admin.login || '').trim()) { msg.className = 'small error-box'; msg.textContent = T('Defina o login do admin (passo 4).', 'Set the admin login (step 4).', 'Define el usuario del admin (paso 4).'); return; }
     if (!allowEmpty && !d.problems.length) { msg.className = 'small error-box'; msg.textContent = T('Adicione problemas (passo 2), ou use "Criar vazio".', 'Add problems (step 2), or use "Create empty".', 'Agrega problemas (paso 2), o usa "Crear vacía".'); return; }
+    if (!optsValue().priority) { msg.className = 'small error-box'; msg.textContent = T('Escolha a prioridade no julgamento (passo 5 · Opções): Prova para ICPC/OBI de verdade, Lista para aula/exercício.', 'Choose the judging priority (step 5 · Options): Contest for a real ICPC/OBI contest, List for a class/exercise.', 'Elige la prioridad en la evaluación (paso 5 · Opciones): Competencia para un ICPC/OBI de verdad, Lista para clase/ejercicio.'); return; }
     if (d.userMode === 'shared' && !d.sharedAck) { msg.className = 'small error-box'; msg.textContent = T('Usuários compartilhados (passo 3): leia as consequências e marque "Entendi".', 'Shared users (step 3): read the consequences and tick "I understand".', 'Usuarios compartidos (paso 3): lee las consecuencias y marca "Entendido".'); return; }
     const rbad = ctx.editors.regions && ctx.editors.regions.validate ? ctx.editors.regions.validate() : '';
     if (rbad) { msg.className = 'small error-box'; msg.textContent = T('Sedes (passo 6 · Visual): ', 'Sites (step 6 · Appearance): ', 'Sedes (paso 6 · Apariencia): ') + rbad; return; }

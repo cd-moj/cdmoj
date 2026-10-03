@@ -82,6 +82,12 @@ ck('admin em Super: campo travado, só Super, aviso do super-admin', sup && sup.
 ck('admin em Super: o getValue() nunca leva prioridade', !('priority' in e2.getValue()));
 const cr=(cs)=>prioSel(makeSettingsEditor({ value:{}, mode:'create', contestMode:'icpc', canSuper:cs }));
 ck('criação: Super só com canSuper (super-admin do treino)', !opts(cr(false)).includes('super') && opts(cr(true)).includes('super'));
+// TCP 2026 (03/10/2026): na CRIAÇÃO não há padrão — "— escolha —" e o assistente não cria sem escolher
+const ec=makeSettingsEditor({ value:{}, mode:'create', contestMode:'icpc' }); const pc=prioSel(ec);
+ck('criação: começa em "— escolha —" (sem padrão)', pc && opts(pc)[0]==='' && pc.value==='' && ec.getValue().priority==='', pc && JSON.stringify(opts(pc)));
+ck('criação: escolher Prova vai no getValue()', (pc.value='prova', ec.getValue().priority==='prova'));
+const ed2=makeSettingsEditor({ value:{ priority:'prova' }, mode:'create', contestMode:'icpc' });
+ck('criação a partir de template/duplicação: a prioridade da origem vem marcada', prioSel(ed2).value==='prova' && ed2.getValue().priority==='prova');
 // FUSO (03/10/2026): sugestões = todos os fusos do navegador, o do próprio navegador em 1º (gjs roda com TZ=America/Santiago)
 const tzs=tzSuggestions('America/Belem');
 ck('fuso: o do navegador vem em 1º (America/Santiago)', tzs[0]==='America/Santiago', tzs.slice(0,3).join(','));

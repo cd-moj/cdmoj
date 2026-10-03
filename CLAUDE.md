@@ -1973,7 +1973,8 @@ mexa na outra. O índice separa as coleções por `\u001f` (nome é texto livre:
   `priority_locked`) e Painel do treino › Contests (`/treino/admin/contest-priority`, só `is_superadmin` — inclui
   Super). ⚠ Super NUNCA se decide numa sessão de contest: lá a conta `.admin` é LOCAL e o NOME não prova que é o
   super-admin do treino (qualquer admin cria uma conta local com o nome que quiser) — só sessão do TREINO. Criação:
-  Super só com `superadmin_login "$creator"`; `duplicate` de contest Super por outra conta nasce `prova`; o
+  o ASSISTENTE não tem padrão ("— escolha —" e não cria sem escolher; TCP 2026: a oficial nasceu `lista-publica`
+  sem ninguém escolher) — a API/CLI sem o campo seguem `lista-publica`; Super só com `superadmin_login "$creator"`; `duplicate` de contest Super por outra conta nasce `prova`; o
   nascimento entra na trilha (`via=criação`). A banda muda só p/ os envios seguintes. Clientes: bloco no FIM do
   `settings-editor.js` (índices 35–37 no GROUPS; vai no `getValue()` só quando MUDA), coluna no painel do treino,
   `moj-contest settings set priority=…` e `moj-contest priority <cid> <p>`. Testes: `smoke-contest-priority.sh`,

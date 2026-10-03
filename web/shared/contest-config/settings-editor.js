@@ -16,7 +16,7 @@ const field = (l, inp) => el('div', { class: 'field' }, el('label', {}, l), inp)
 const chk = (l, c) => el('div', { class: 'field' }, el('label', { style: 'font-weight:400' }, c, ' ' + l));
 const mkBool = (v) => { const c = el('input', { type: 'checkbox' }); c.checked = !!v; return c; };
 const PRIORITY_LABEL = () => ({
-  'lista-publica': T('Lista pública (padrão)', 'Public list (default)', 'Lista pública (por defecto)'), 'lista-privada': T('Lista privada', 'Private list', 'Lista privada'),
+  'lista-publica': T('Lista pública', 'Public list', 'Lista pública'), 'lista-privada': T('Lista privada', 'Private list', 'Lista privada'),
   prova: T('Prova (julga antes das listas)', 'Contest (judged before lists)', 'Competencia (se evalúa antes que las listas)'), super: T('Super (super-admin do treino; fura toda fila)', 'Super (training super-admin; jumps the whole queue)', 'Super (superadministrador del entrenamiento; salta toda la cola)'),
 });
 
@@ -57,8 +57,16 @@ export function makeSettingsEditor({ value = {}, mode = 'admin', canSuper = fals
   locale.value = s.locale || 'pt';
   const prios = ['lista-publica', 'lista-privada', 'prova', ...(canSuper ? ['super'] : [])];
   const PL = PRIORITY_LABEL();
-  const priority = el('select', {}, ...prios.map((p) => el('option', { value: p }, PL[p] || p)));
-  priority.value = prios.includes(s.priority) ? s.priority : 'lista-publica';
+  // na CRIAÇÃO a prioridade não tem padrão (TCP 2026, 03/10/2026: a prova oficial nasceu `lista-publica` sem ninguém
+  // escolher — banda das listas e, com o teto de envios, 3 na fila por time). Começa em "— escolha —" e o assistente
+  // não cria sem ela; template/duplicação trazem a da origem (já foi uma escolha).
+  const priority = el('select', {}, ...(isCreate ? [el('option', { value: '' }, T('— escolha —', '— choose —', '— elige —'))] : []),
+    ...prios.map((p) => el('option', { value: p }, PL[p] || p)));
+  priority.value = prios.includes(s.priority) ? s.priority : (isCreate ? '' : 'lista-publica');
+  const prioHint = el('div', { class: 'small muted' },
+    T('Prova = ICPC/OBI de verdade: julgada antes das listas e sem teto de envios. Lista (pública ou privada) = aula/exercício: no máx. 3 envios esperando veredicto por aluno.',
+      'Contest = a real ICPC/OBI contest: judged before the lists and with no cap on submissions. List (public or private) = class/exercise: at most 3 submissions waiting for a verdict per student.',
+      'Competencia = ICPC/OBI de verdad: se evalúa antes que las listas y sin tope de envíos. Lista (pública o privada) = clase/ejercicio: como máx. 3 envíos esperando veredicto por alumno.'));
   const loginEnabled = mkBool(s.login_enabled !== false),
     showLog = mkBool(s.show_log !== false), showEditor = mkBool(s.show_editor !== false),
     scoreAnon = mkBool(s.score_anon),
@@ -134,7 +142,7 @@ export function makeSettingsEditor({ value = {}, mode = 'admin', canSuper = fals
   }
   box.append(
     el('div', { class: 'grid2' }, field(T('Abertura do login (tela de espera)', 'Login opening (waiting screen)', 'Apertura del login (pantalla de espera)'), loginStart), field(T('Freeze do placar', 'Scoreboard freeze', 'Congelamiento del marcador'), freeze)),
-    isCreate ? el('div', { class: 'grid2' }, field(T('Idioma', 'Language', 'Idioma'), locale), field(T('Prioridade no julgamento', 'Judging priority', 'Prioridad en la evaluación'), priority)) : field(T('Idioma', 'Language', 'Idioma'), locale),
+    isCreate ? el('div', { class: 'grid2' }, field(T('Idioma', 'Language', 'Idioma'), locale), field(T('Prioridade no julgamento (obrigatória)', 'Judging priority (required)', 'Prioridad en la evaluación (obligatoria)'), el('div', {}, priority, prioHint))) : field(T('Idioma', 'Language', 'Idioma'), locale),
     chk(T('Login habilitado', 'Login enabled', 'Inicio de sesión habilitado'), loginEnabled),
     chk(T('Usuário pode ver o log de julgamento', 'User can see the judging log', 'El usuario puede ver el registro de evaluación'), showLog),
     showLogHint,
