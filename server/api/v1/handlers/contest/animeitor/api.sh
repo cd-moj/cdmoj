@@ -75,7 +75,18 @@ if [[ "${REQUEST_METHOD:-GET}" == GET ]]; then
     else state="$(jq -c '. + {proposal: null}' <<<"$state")"; fi
   fi
   if [[ "$(param links)" == 1 ]] && an_configured "$contest"; then
-    state="$(jq -c --argjson l "$(an_links "$contest" || true)" '. + {links: $l}' <<<"$state")"
+    # links ao vivo + a PRÉVIA de quem os receberia (sem liberar): `links.sites` = [{contest, site, whole,
+    # recipients}] — a sede de todos os times (`whole`) só vai à organização central. O link é credencial:
+    # quem os viu vai ao audit, como a leitura do staff no /reveal.
+    lk="$(an_links "$contest" || true)"; [[ -n "$lk" ]] || lk='{"public":[],"revelation":[]}'
+    lf="$(mktemp)"; rcf="$(mktemp)"; trap 'rm -f "${pf:-}" "$lf" "$rcf"' EXIT
+    printf '[]' > "$rcf"
+    if an_resolved "$contest" "$lf" 2>/dev/null; then
+      source "$_LIBDIR/print.sh"
+      an_link_recipients "$contest" "$lf" > "$rcf" 2>/dev/null && [[ -s "$rcf" ]] || printf '[]' > "$rcf"
+    fi
+    state="$(jq -c --argjson l "$lk" --slurpfile s "$rcf" '. + {links: ($l + {sites: $s[0]})}' <<<"$state")"
+    audit_log_to "$contest" animeitor-links-read "by=$SESSION_LOGIN links=$(jq '(.revelation // []) | length' <<<"$lk" 2>/dev/null)"
   fi
   ok_json_slurp '$s[0]' s "$state"
   exit 0
@@ -155,6 +166,10 @@ save)
       || fail 422 "Nome de placar ou de sede repetido" "name_duplicate"
     jq -e 'all(.[]; (.source.kind != "manual" or .codes != null) and all(.sites[]; .source.kind != "manual" or .codes != null))' >/dev/null 2>&1 <<<"$norm" \
       || fail 422 "Placar ou sede manual precisa de regex" "codes_missing"
+    # regex VAZIA (o "+ sede" com a caixa em branco gravava `codes:[]`): a sede ia ao telão sem time nenhum e o
+    # link revelava um placar vazio. Lista vazia ≠ automático (null): recusa.
+    jq -e 'all(.[]; (.codes == null or (.codes | length) > 0) and all(.sites[]; .codes == null or (.codes | length) > 0))' >/dev/null 2>&1 <<<"$norm" \
+      || fail 422 "Placar ou sede sem times: escreva a regex (ou volte ao automático)" "codes_empty"
     cfg="$(jq -c --argjson n "$norm" '.contests = $n' <<<"$cfg")"
   fi
   an_cfg_save "$contest" "$cfg" || fail 500 "Não consegui gravar" "save_failed"

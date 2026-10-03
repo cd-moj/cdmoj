@@ -999,6 +999,14 @@ if mod_on "$contest" telao; then
         "Pantalla sin clave del Animeitor" \
         "guarda usuario y token en la página de la pantalla (/contest/animeitor/)"
     fi
+  elif [[ "$_anst" == no_sites ]]; then
+    add3 telao warn "Telão: nenhuma sede do reveleitor casa os times" \
+      "a última conferência não achou sede com times — sem sede o Animeitor não gera link de revelação; confira os placares e as sedes na mesa do telão" \
+      "Big screen: no reveal site matches the teams" \
+      "the last check found no site with teams — without a site the Animeitor makes no reveal link; check the scoreboards and the sites on the big-screen page" \
+      "Pantalla: ninguna sede del revelador coincide con los equipos" \
+      "la última verificación no encontró sede con equipos — sin sede el Animeitor no genera enlace de revelación; revisa los marcadores y las sedes en la página de la pantalla" \
+      open_telao
   elif [[ "$_anst" == diverge || "$_anst" == error ]]; then
     add3 telao warn "Telão: o Animeitor não tem todas as submissões" \
       "na última conferência: $(jq -r '"\(.missing // 0) faltando, \(.wrong // 0) diferentes, \(.extra // 0) a mais\(if .error then " — " + .error else "" end)"' <<<"$_anv") — o alimentador já reenviou; confira de novo na mesa do telão" \
@@ -1026,6 +1034,68 @@ if mod_on "$contest" telao; then
     add3 telao ok "Telão com chave $_ank_pt" "$_and_pt" \
       "Big screen with $_ank_en" "$_and_en" \
       "Pantalla con $_ank_es" "$_and_es"
+  fi
+  # PLACARES E SEDES do reveleitor (TCP 2026, 03/10/2026: sem a sede "Geral" não há link do RESULTADO GERAL —
+  # o organizador tinha de criá-la à mão e esqueceu). Sem rede e sem derivar a proposta (custa ~1 s com 2000
+  # times): a configuração gravada (null = a proposta, que hoje sempre traz a Geral) × o que o MOJ PUBLICOU
+  # (var/animeitor-managed.json). Placar "geral" = o da visão pública/todos (source view public|all).
+  _ansr="$(jq -c --argjson man "$(an_managed "$contest")" '
+    def isgen: ((.source.kind // "") == "view" and ((.source.id // "") | IN("public", "all")));
+    def iswhole: ((.source.kind // "") == "whole" or (.codes == [".*"]));
+    (.contests) as $C
+    | (if $C == null then [ {name: "Geral", wn: ["Geral", "Geral (todos)"], cfg_ok: true} ]
+       else [ $C[] | select(isgen) | {name, wn: [ (.sites // [])[] | select(iswhole) | .name ], cfg_ok: any((.sites // [])[]; iswhole)} ] end) as $G
+    | { missing_cfg: [ $G[] | select(.cfg_ok | not) | .name ],
+        missing_pub: (if $man.event == "" then [] else
+                        [ $G[] | select(.cfg_ok) | .name as $n | .wn as $w
+                          | select($man.contests | has($n)) | select(any($w[]; . as $x | $man.contests[$n].sites | has($x)) | not) | $n ] end),
+        empty: (if $C == null then [] else
+                  [ $C[] | .name as $cn | (select(.codes == []) | $cn), ((.sites // [])[] | select(.codes == []) | $cn + " › " + .name) ] end),
+        published: ($man.event != ""), boards: ($man.contests | length),
+        sites: ([ $man.contests[] | (.sites // {}) | length ] | add // 0) }' <<<"$(an_cfg "$contest")" 2>/dev/null)"
+  if [[ -n "$_ansr" ]]; then
+    _anmc="$(jq -r '.missing_cfg | join(", ")' <<<"$_ansr")"; _anmp="$(jq -r '.missing_pub | join(", ")' <<<"$_ansr")"
+    _anem="$(jq -r '.empty | join(", ")' <<<"$_ansr")"
+    _anbs="$(jq -r '"\(.boards)\t\(.sites)\t\(.published)"' <<<"$_ansr")"; IFS=$'\t' read -r _anb _ans2 _anpub <<<"$_anbs"
+    if [[ -n "$_anmc" ]]; then
+      add3 telao_sites warn "Reveleitor sem resultado geral" \
+        "o placar $_anmc não tem a sede de TODOS os times — sem ela o reveleitor não tem link do resultado geral; na mesa do telão, use \"+ sede Geral\" no placar (ou volte à proposta automática)" \
+        "Reveal tool without the overall result" \
+        "the scoreboard $_anmc has no site with ALL the teams — without it the reveal tool has no link for the overall result; on the big-screen page, use \"+ Overall site\" on the scoreboard (or go back to the automatic proposal)" \
+        "Revelador sin resultado general" \
+        "el marcador $_anmc no tiene la sede de TODOS los equipos — sin ella el revelador no tiene enlace del resultado general; en la página de la pantalla, usa \"+ sede General\" en el marcador (o vuelve a la propuesta automática)" \
+        open_telao
+    elif [[ -n "$_anmp" ]]; then
+      add3 telao_sites warn "Reveleitor publicado sem a sede Geral" \
+        "a configuração já tem a sede de todos os times no placar $_anmp, mas o que está no Animeitor foi publicado antes — publique de novo na mesa do telão" \
+        "Reveal tool published without the overall site" \
+        "the configuration already has the site with all the teams on the scoreboard $_anmp, but the Animeitor has an older publication — publish again on the big-screen page" \
+        "Revelador publicado sin la sede General" \
+        "la configuración ya tiene la sede con todos los equipos en el marcador $_anmp, pero lo que está en el Animeitor se publicó antes — publica de nuevo en la página de la pantalla" \
+        open_telao
+    elif [[ -n "$_anem" ]]; then
+      add3 telao_sites warn "Reveleitor: placar ou sede sem times" \
+        "$_anem não casa time nenhum (regex vazia) — o link revelaria um placar vazio; escreva a regex ou volte ao automático na mesa do telão" \
+        "Reveal tool: scoreboard or site without teams" \
+        "$_anem matches no team (empty regex) — the link would reveal an empty scoreboard; write the regex or go back to automatic on the big-screen page" \
+        "Revelador: marcador o sede sin equipos" \
+        "$_anem no coincide con ningún equipo (regex vacía) — el enlace revelaría un marcador vacío; escribe la regex o vuelve al automático en la página de la pantalla" \
+        open_telao
+    elif [[ "$_anpub" == true ]]; then
+      add3 telao_sites ok "Reveleitor com resultado geral" \
+        "$_anb placar(es) e $_ans2 sede(s) publicados no Animeitor, com a sede de todos os times no placar geral" \
+        "Reveal tool with the overall result" \
+        "$_anb scoreboard(s) and $_ans2 site(s) published on the Animeitor, with the site of all the teams on the overall scoreboard" \
+        "Revelador con resultado general" \
+        "$_anb marcador(es) y $_ans2 sede(s) publicados en el Animeitor, con la sede de todos los equipos en el marcador general"
+    else
+      add3 telao_sites ok "Reveleitor configurado com resultado geral" \
+        "o placar geral tem a sede de todos os times; ainda não publicado — publique na mesa do telão" \
+        "Reveal tool configured with the overall result" \
+        "the overall scoreboard has the site of all the teams; not published yet — publish on the big-screen page" \
+        "Revelador configurado con resultado general" \
+        "el marcador general tiene la sede de todos los equipos; aún no publicado — publica en la página de la pantalla"
+    fi
   fi
 fi
 

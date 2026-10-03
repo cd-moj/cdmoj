@@ -154,7 +154,10 @@ echo "== reveleitor: a sede vê a conferência DELA =="
 mkdir -p "$C/print-requests"; jq -n '{"sede.cstaff":["region:Geral"]}' > "$C/print-requests/staff-filters.json"
 call va $A POST '{"action":"reveal-release"}'
 call va /contest/animeitor/reveal GET '' cst
-ck ".cstaff: os links da sede + validado (final) só das sedes dele" '[[ "$(J .verify.final)" == true && "$(J .verify.ok)" == true && "$(J "[.verify.sites[].site] | join(\",\")")" == Geral && "$(J .verify.runs)" == null ]]'
+ck ".cstaff com region:Geral NÃO recebe a sede de todos os times (o resultado geral é só da organização)" '[[ "$(J ".links | length")" == 0 ]]'
+jq -n '{"sede.cstaff":["region:Toda"]}' > "$C/print-requests/staff-filters.json"
+call va /contest/animeitor/reveal GET '' cst
+ck ".cstaff: os links da sede + validado (final) só das sedes dele" '[[ "$(J .verify.final)" == true && "$(J .verify.ok)" == true && "$(J "[.verify.sites[].site] | join(\",\")")" == Toda && "$(J .verify.runs)" == null ]]'
 call va /contest/animeitor/reveal GET '' ani
 ck ".animeitor: o resumo do evento (7: as 6 do MOJ + a fantasma, que lá ficou como X)" '[[ "$(J .verify.final)" == true && "$(J .verify.runs)" == 7 ]]'
 mock PATCH "va/$I1" '{"answer":"N"}' >/dev/null

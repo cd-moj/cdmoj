@@ -4748,7 +4748,7 @@
           "contest"
         ],
         "summary": "API do Animeitor (telão): estado da integração, proposta de placares/sedes (?proposal=1) e links (?links=1) — só .animeitor/admin",
-        "description": "O MOJ EMPURRA o contest para a API do Animeitor 2.1.0 (docs/ANIMEITOR.md). `{configured, has_cred, cred_source (contest|moj|none), moj_cred, default_url, user, url, event, moj_base_url, enabled, feed{clock_s, runs_s, verify_s}, secret_contest, contests, managed, status, clock, verify (a última conferência, sem ids), feeder_alive_at, now}`; o token nunca volta. A CHAVE DO MOJ (run/secrets/animeitor.cred) vale p/ todo contest sem chave própria, só no servidor padrão (`default_url`), e nem o usuário dela volta (`user` = o da chave própria). `proposal=1` acrescenta `proposal{teams_total, contests:[{name, source, n, codes, kind, sites}]}`; `links=1` acrescenta `links{public, revelation}` buscados ao vivo (os de revelação são credencial).",
+        "description": "O MOJ EMPURRA o contest para a API do Animeitor 2.1.0 (docs/ANIMEITOR.md). `{configured, has_cred, cred_source (contest|moj|none), moj_cred, default_url, user, url, event, moj_base_url, enabled, feed{clock_s, runs_s, verify_s}, secret_contest, contests, managed, status, clock, verify (a última conferência, sem ids), feeder_alive_at, now}`; o token nunca volta. A CHAVE DO MOJ (run/secrets/animeitor.cred) vale p/ todo contest sem chave própria, só no servidor padrão (`default_url`), e nem o usuário dela volta (`user` = o da chave própria). `proposal=1` acrescenta `proposal{teams_total, contests:[{name, source, n, codes, kind, sites}]}`; `links=1` acrescenta `links{public, revelation, sites:[{contest, site, whole, recipients}]}` buscados ao vivo (os de revelação são credencial; `sites` = a prévia de quem recebe cada link quando liberar; `whole` = a sede de todos os times, só da organização; a leitura vai ao audit).",
         "parameters": [
           {
             "name": "contest",
@@ -4815,7 +4815,7 @@
             "description": "not_configured / not_published / feeding / event_exists / event_taken / adopt_forbidden / not_managed"
           },
           "422": {
-            "description": "url_invalid / token_invalid / user_invalid / event_invalid / base_url_invalid / contests_invalid / name_duplicate / codes_missing / confirm_required"
+            "description": "url_invalid / token_invalid / user_invalid / event_invalid / base_url_invalid / contests_invalid / name_duplicate / codes_missing / codes_empty / confirm_required"
           },
           "502": {
             "description": "upstream_unauthorized / upstream_error"
@@ -4828,7 +4828,7 @@
         "tags": [
           "contest"
         ],
-        "summary": "Reveleitor da sede: os links de revelação do Animeitor que cabem a esta conta (.cstaff/.staff; .animeitor/admin veem todos)",
+        "summary": "Reveleitor da sede: os links de revelação do Animeitor que cabem a esta conta (.cstaff/.staff, só depois da liberação e nunca o da sede de todos os times; .animeitor/admin veem todos, liberado ou não)",
         "description": "`{released, scoped, sites[], links:[{contest, site, url}], verify}` — `verify` = a última CONFERÊNCIA (o Animeitor tem todas as runs?): p/ .animeitor/admin o resumo do evento; p/ .cstaff/.staff só o das sedes dele, `{at, state, final, final_at, ok, sites:[{contest, site, ok}]}` (o \"validado\"). Só depois que o .animeitor libera (`POST /contest/animeitor/api {action:\"reveal-release\"}`). Cada conta recebe só os links da sede dela (staff-filters), em todos os placares em que a sede aparece; sem sede definida = `scoped:false` e zero links (fail-closed). O link é credencial: buscado ao vivo, nunca gravado, leitura auditada.",
         "parameters": [
           {

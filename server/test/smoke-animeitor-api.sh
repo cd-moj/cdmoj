@@ -84,7 +84,7 @@ ck "coorte COM regex que reproduz o recorte ⇒ vai o regex" '[[ "$(P Convidados
 ck "coorte SEM regex (default) ⇒ lista exata dos 4 oficiais" '[[ "$(P Oficiais .kind)" == list && "$(P Oficiais ".codes[0]")" == "^(teambr001|teambr002|teammx001|zeta)$" ]]'
 ck "sede por CAMPO da conta ⇒ lista exata (zeta e o convidado são de Brasília)" '[[ "$(P Brasil ".sites[] | select(.name==\"Brasília\") | .codes[0]")" == "^(conv001|teambr001|zeta)$" ]]'
 ck "sede por regex ⇒ o regex"          '[[ "$(P México ".sites[0].codes[0]")" == "^teammx" ]]'
-ck "o Geral leva TODAS as sedes-folha (revelação por sede no placar geral)" '[[ "$(P Geral "[.sites[].name] | join(\",\")")" == "Brasília,Goiânia,CDMX" ]]'
+ck "o Geral leva a sede Geral (todos os times) + TODAS as sedes-folha (TCP 2026: sem ela não há resultado geral)" '[[ "$(P Geral "[.sites[].name] | join(\",\")")" == "Geral,Brasília,Goiânia,CDMX" && "$(P Geral ".sites[0].source.kind")" == whole && "$(P Geral ".sites[0].codes[0]")" == ".*" ]]'
 
 echo "== publicar =="
 call $A POST '{"action":"publish"}'
@@ -271,6 +271,14 @@ n0="$(wc -l < "$MOCKD/requests.log")"
 call $RV GET '' cst
 ck "ANTES de liberar: released=false, zero links — e o servidor do telão nem é consultado" '[[ "$(J .released)" == false && "$(J ".links|length")" == 0 && "$(wc -l < "$MOCKD/requests.log")" == "$n0" ]]'
 nav cst; ck "…e a barra do .cstaff não tem o botão" '[[ "$BODY" != *Reveleitor* ]]'
+# a PRÉVIA da organização (03/10/2026): admin/.animeitor veem os links ANTES de liberar, e quem os receberia
+call $RV GET '' ani
+ck ".animeitor ANTES de liberar: todos os links (prévia), released=false" '[[ "$(J .released)" == false && "$(J .all)" == true && "$(J ".links|length")" -ge 5 ]]'
+call $A GET '' ani 'links=1'
+ck "?links=1: quem RECEBE cada link quando liberar (sede de Brasília → o .cstaff dela)" '[[ "$(J "[.links.sites[] | select(.contest==\"Geral\" and .site==\"Brasília\") | .recipients[]] | join(\",\")")" == "sede.cstaff" ]]'
+ck "…a sede Geral (todos os times) não vai a staff nenhum" '[[ "$(J "first(.links.sites[] | select(.contest==\"Geral\" and .site==\"Geral\")) | (.whole == true and (.recipients | length) == 0)")" == true ]]'
+ck "…escopo por REGEX de login também resolvido (CDMX → mx.cstaff)" '[[ "$(J "[.links.sites[] | select(.site==\"CDMX\") | .recipients[]] | unique | join(\",\")")" == "mx.cstaff" ]]'
+ck "…e quem viu os links vai ao audit (link é credencial)" 'grep -rq "animeitor-links-read" "$C/var" 2>/dev/null'
 call $A POST '{"action":"reveal-release"}' cst
 ck "só o .animeitor/admin libera (.cstaff → 403)" '[[ "$OUT" == *"Status: 403"* ]]'
 call $A POST '{"action":"reveal-release"}'
@@ -279,6 +287,7 @@ call $RV GET '' cst
 ck ".cstaff de Brasília: os links da sede dele em TODOS os placares em que ela aparece (Geral e Brasil)" \
    '[[ "$(J "[.links[] | .contest + \"/\" + .site] | sort | join(\",\")")" == "Brasil/Brasília,Geral/Brasília" && "$(J ".links[0].url")" == *"secret="* && "$(J .scoped)" == true ]]'
 ck "…e NENHUM de outra sede" '[[ "$BODY" != *Goi* && "$BODY" != *CDMX* ]]'
+ck "…nem o da sede Geral (todos os times: só a organização)" '[[ "$(J "[.links[] | select(.site==\"Geral\")] | length")" == 0 ]]'
 call $RV GET '' gst
 ck ".staff de Goiânia (region: em outra caixa): só Goiânia" '[[ "$(J "[.links[].site] | unique | join(\",\")")" == "Goiânia" && "$(J ".links|length")" == 2 ]]'
 call $RV GET '' mxc
@@ -310,6 +319,10 @@ ck "reset confirmado: evento apagado LÁ, estado local limpo, o alheio continua"
    '[[ "$(J .reset)" == true && ! -e "$C/var/animeitor-reveal.released" && "$(ST ".events | has(\"ap-2026\")")" == false && "$(ST ".events | has(\"regional-2026\")")" == true && ! -e "$C/var/animeitor-sent.tsv" ]]'
 ck "o mapa de ids FICA (id é da submissão, não do evento)" '[[ -s "$C/var/animeitor-ids.tsv" ]]'
 
+echo "== regex vazia é recusada (o \"+ sede\" em branco revelava um placar vazio) =="
+call $A POST '{"action":"save","contests":[{"name":"Geral","source":{"kind":"view","id":"public"},"codes":null,"sites":[{"name":"Nova","source":{"kind":"manual","id":""},"codes":[]}]}]}'
+ck "sede com codes [] → 422 codes_empty" '[[ "$OUT" == *"Status: 422"* && "$(J .error.code)" == codes_empty ]]'
+
 echo "== sede única (sem regions.json): o Geral leva UMA sede — sem sede não há link de revelação =="
 # XIV Maratona UnB (25/09/2026): prova numa sede só, sem regions.json ⇒ o Geral saía SEM sede, o Animeitor não
 # gerava link de revelação e liberar o reveleitor não liberava nada ("0 links de revelação").
@@ -319,6 +332,6 @@ ck "sem regions: o Geral tem 1 sede \"Geral\" com os mesmos times do placar (.*)
 ck "…e os outros placares (coortes) continuam sem sede" '[[ "$(J "[.proposal.contests[] | select(.name != \"Geral\") | .sites | length] | add // 0")" == 0 ]]'
 mv "$C/regions.json.fora" "$C/regions.json"
 call $A GET '' ani 'proposal=1'
-ck "com regions: as sedes voltam a ser as folhas (nenhuma sede \"Geral\")" '[[ "$(P Geral "[.sites[].name] | join(\",\")")" == "Brasília,Goiânia,CDMX" ]]'
+ck "com regions: a sede Geral (todos) + as folhas" '[[ "$(P Geral "[.sites[].name] | join(\",\")")" == "Geral,Brasília,Goiânia,CDMX" ]]'
 
 echo ""; echo "RESULT: $pass passed, $fail failed"; exit $(( fail>0?1:0 ))

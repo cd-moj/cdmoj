@@ -1,4 +1,4 @@
-<!-- i18n-source: MANUAL-ANIMEITOR.md blob:cc164fe430e20209a05f71d7e2a12ed0dc81e3a0 -->
+<!-- i18n-source: MANUAL-ANIMEITOR.md blob:e8fdb199a09b1d527a35c522e877f55d889f1cff -->
 # MOJ: Manual de la pantalla (`.animeitor`)
 
 > **Nota de traducción.** Este manual es una traducción del original en portugués. Las herramientas de línea de comandos (`moj`, `moj-contest`, `moj-comp`) muestran sus mensajes en portugués, y los ejemplos de comandos son idénticos al original.
@@ -54,7 +54,10 @@ remontada y mantiene el congelamiento hasta la hora de la revelación.
    "eliminarla y usar la clave del MOJ" deshace el cambio. La clave del MOJ solo vale en el servidor predeterminado.
 2. **URL pública del MOJ.** Es de donde la pantalla obtiene la foto y la música de cada equipo; revísala.
 3. **Marcadores y sedes.** El MOJ propone el general, uno por cohorte y uno por país, con las sedes; ajusta nombres y
-   medallas y guarda. Una competencia de una sola sede recibe la sede `Geral` (sin sede no hay enlace de revelación).
+   medallas y guarda. El marcador general siempre trae la sede **`Geral`**, con todos los equipos: es la que da el enlace del
+   **resultado general** (sin sede no hay enlace de revelación). Si desapareció de una configuración guardada, usa
+   **+ sede General (todos los equipos)** en el marcador. Su enlace es solo tuyo y del admin: ningún jefe de sede lo recibe.
+   La Central del admin avisa cuando el marcador general no la tiene o cuando una sede quedó sin equipos.
 4. **📡 publicar en la pantalla** e **▶ iniciar el alimentador** (reloj cada segundo y envíos cada 2 s). El nombre
    del evento es el id de la competencia; un nombre que ya pertenece a otra competencia del MOJ se rechaza.
 5. **Verificación.** El MOJ le pregunta al Animeitor, sede por sede, si tiene **todos** los envíos, con la respuesta
@@ -65,6 +68,9 @@ remontada y mantiene el congelamiento hasta la hora de la revelación.
 6. **🎬 liberar los enlaces de revelación a las sedes.** Antes de liberar, la mesa verifica y muestra el resultado en la
    pregunta de confirmación. Cada jefe de sede (y cada miembro del staff) pasa a ver el enlace de su sede, **con el sello de la verificación**
    ("✓ Validado", "Verificado" o "⚠"). El enlace muestra las respuestas después del congelamiento: trátalo como una contraseña.
+   **Antes de liberar**, "mostrar los enlaces de la pantalla" ya te lista todos los enlaces, con **abrir**, **copiar** y la
+   columna **Lo recibe al liberar** (qué jefe de sede o staff recibirá cada uno). Úsalo para revisar los marcadores y las
+   sedes sin entregar nada a las sedes. Quien ve los enlaces queda registrado.
 
 ## 🎥 Claves de streaming (legado)
 

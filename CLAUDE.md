@@ -1168,7 +1168,10 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   `GET /contest/animeitor/reveal` dá a cada `.cstaff`/`.staff` SÓ os links da sede dele (`staff_regions`, agora na
   `lib/print.sh` — fonte única com os comandos do mlinux), em todos os placares; **fail-closed** sem sede (link é
   credencial — diverge de propósito do "sem filtro = vê tudo" das telas de leitura); botão `Reveleitor` na barra
-  via marcador sem fork; (8) **prorrogação por sede é MASCARADA p/ o telão**: o relógio enviado tem teto no
+  via marcador sem fork; o placar Geral SEMPRE leva a sede de TODOS os times (`whole`, "Geral") e o link dela
+  NUNCA vai ao staff (só admin/`.animeitor`); a organização vê os links ANTES de liberar, com quem receberá cada um
+  (`?links=1` → `links.sites[].recipients`, `an_link_recipients`; leitura auditada); a Central confere placares × sedes
+  publicados (`telao_sites`, sem rede — TCP 2026, 03/10/2026: esqueceram a sede Geral) e o `save` recusa regex vazia; (8) **prorrogação por sede é MASCARADA p/ o telão**: o relógio enviado tem teto no
   `contest_end_all` (fim da ÚLTIMA sede), só p/ o Animeitor — o resto do MOJ não muda (memo de 5 s devolvido por
   VARIÁVEL: por `$(…)` o memo morre no subshell e vira um jq por segundo). **Custo medido** (2.000 times): 4 % de um
   núcleo por contest ocioso, 22 % em rajada de 10 veredictos/s, ZERO efeito na latência das rotas (processo à parte);

@@ -118,6 +118,10 @@ export function makeCentralTab(CONTEST, opts = {}) {
       const btn = el('button', { class: 'btn' }, T('🔥 Aquecer juízes', '🔥 Warm up judges', '🔥 Calentar jueces'));
       btn.onclick = () => warmJudges(btn, msg);
       act = el('div', { class: 'row', style: 'gap:.35rem;flex-wrap:wrap;align-items:center;margin-top:.35rem' }, btn, msg);
+    } else if (c.action === 'open_telao') {
+      // a mesa do telão é página AVULSA (não é um painel daqui): o "resolver" vira link p/ ela
+      act = el('div', { style: 'margin-top:.35rem' }, el('a', { class: 'btn ghost', href: '/contest/animeitor/?c=' + enc(CONTEST) },
+        T('abrir a mesa do telão →', 'open the big-screen page →', 'abrir la página de la pantalla →')));
     }
     return el('div', { class: 'ck' },
       el('span', { class: 'ico' }, ICON[c.level] || '•'),

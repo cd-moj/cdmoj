@@ -252,8 +252,26 @@ jq -cn --argjson t "$NOW" '{at:$t, state:"diverge", ok:false, final:false, missi
 check "última conferência com divergência => warn com as contagens" '[[ "$(lvl telao)" == warn && "$(det telao)" == *"2 faltando, 0 diferentes, 1 a mais"* ]]'
 jq -cn --argjson t "$NOW" '{at:$t, state:"ok", ok:true, final:true, final_at:$t}' > "$C/var/animeitor-verify.json"; run
 check "conferência final => ok \"Telão validado\""                 '[[ "$(lvl telao)" == ok && "$(printf "%s" "$BODY" | jq -r "first(.checks[]|select(.id==\"telao\")|.label)")" == "Telão validado" ]]'
+jq -cn --argjson t "$NOW" '{at:$t, state:"no_sites", ok:false, final:false}' > "$C/var/animeitor-verify.json"; run
+check "conferência sem sede nenhuma => warn (era verde)"            '[[ "$(lvl telao)" == warn && "$(det telao)" == *"não achou sede"* ]]'
+check "…com o atalho p/ a mesa do telão"                            '[[ "$(printf "%s" "$BODY" | jq -r "first(.checks[]|select(.id==\"telao\")|.action)")" == open_telao ]]'
+rm -f "$C/var/animeitor-verify.json"
+echo "== reveleitor: placares e sedes (telao_sites; TCP 2026 — esqueceram a sede Geral) =="
+run
+check "proposta (sem config) e nada publicado => ok, configurado com resultado geral" '[[ "$(lvl telao_sites)" == ok && "$(det telao_sites)" == *"ainda não publicado"* ]]'
+GB='{"name":"Geral","source":{"kind":"view","id":"public"},"codes":null'
+printf '{"contests":[%s,"sites":[{"name":"Sede A","source":{"kind":"region","id":"Sede A"},"codes":null}]}]}' "$GB" > "$C/animeitor.json"; run
+check "config gravada sem a sede de todos os times => warn com o placar" '[[ "$(lvl telao_sites)" == warn && "$(det telao_sites)" == *"placar Geral"* && "$(det telao_sites)" == *"+ sede Geral"* ]]'
+printf '{"contests":[%s,"sites":[{"name":"Geral","source":{"kind":"whole","id":"public"},"codes":null},{"name":"Sede A","source":{"kind":"region","id":"Sede A"},"codes":null}]}]}' "$GB" > "$C/animeitor.json"
+jq -cn '{event:"ev", event_hash:"h", contests:{Geral:{hash:"x", sites:{"Sede A":"y"}}}}' > "$C/var/animeitor-managed.json"; run
+check "config certa mas o publicado (managed) é antigo, sem a Geral => warn publique de novo" '[[ "$(lvl telao_sites)" == warn && "$(det telao_sites)" == *"publique de novo"* ]]'
+jq -cn '{event:"ev", event_hash:"h", contests:{Geral:{hash:"x", sites:{"Geral":"z","Sede A":"y"}}}}' > "$C/var/animeitor-managed.json"; run
+check "publicado com a Geral => ok com as contagens do reveleitor" '[[ "$(lvl telao_sites)" == ok && "$(det telao_sites)" == *"1 placar(es) e 2 sede(s)"* ]]'
+printf '{"contests":[%s,"sites":[{"name":"Geral","source":{"kind":"whole","id":"public"},"codes":null},{"name":"Vazia","source":{"kind":"manual","id":""},"codes":[]}]}]}' "$GB" > "$C/animeitor.json"; run
+check "sede com regex vazia na config antiga => warn sem times" '[[ "$(lvl telao_sites)" == warn && "$(det telao_sites)" == *"Geral › Vazia"* ]]'
+rm -f "$C/animeitor.json" "$C/var/animeitor-managed.json"
 sed -i 's/,telao,/,/' "$C/conf"; run
-check "módulo telao desligado => checagem ausente"                   '[[ "$(lvl telao)" == "(ausente)" ]]'
+check "módulo telao desligado => checagem ausente"                   '[[ "$(lvl telao)" == "(ausente)" && "$(lvl telao_sites)" == "(ausente)" ]]'
 
 echo "== abertura do login × janela da rodada ativa (login_open; TCP 2026) =="
 run

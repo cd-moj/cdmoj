@@ -154,8 +154,18 @@ export function makeApiSection(CONTEST, G) {
         sitesBox.innerHTML = '';
         c.sites.forEach((s, si) => sitesBox.append(el('div', { class: 'row', style: 'gap:.4rem;align-items:flex-start;margin:.15rem 0' },
           nameInp(s), codesCell(s, true, c.source),
+          (s.source || {}).kind === 'whole' ? el('span', { class: 'small muted', style: 'align-self:center' },
+            T('todos os times · link só da organização', 'all teams · link for the organization only', 'todos los equipos · enlace solo de la organización')) : null,
           el('button', { class: 'btn ghost', title: T('remover sede', 'remove site', 'quitar sede'), onclick: () => { c.sites.splice(si, 1); touch(); drawSites(); } }, '×'))));
         sitesBox.append(el('button', { class: 'btn ghost', onclick: () => { c.sites.push({ name: '', source: { kind: 'manual', id: '' }, codes: [] }); touch(); drawSites(); } }, T('+ sede', '+ site', '+ sede')));
+        // placar GERAL (visão pública/todos) sem a sede de TODOS os times = reveleitor sem resultado geral (TCP 2026)
+        const src = c.source || {};
+        if (src.kind === 'view' && (src.id === 'public' || src.id === 'all') && !c.sites.some((s) => (s.source || {}).kind === 'whole')) {
+          sitesBox.append(' ', el('button', { class: 'btn', onclick: () => {
+            const nm = c.sites.some((s) => (s.name || '').toLowerCase() === 'geral') ? 'Geral (todos)' : 'Geral';
+            c.sites.unshift({ name: nm, source: { kind: 'whole', id: src.id }, codes: null }); touch(); drawSites();
+          } }, T('+ sede Geral (todos os times)', '+ Overall site (all teams)', '+ sede General (todos los equipos)')));
+        }
       };
       drawSites();
       tb.append(el('tr', {},
@@ -266,14 +276,30 @@ export function makeApiSection(CONTEST, G) {
       el('p', { class: 'note' }, '⚠ ', T('Os links de REVELAÇÃO mostram as respostas depois do congelamento. Cada sede tem o seu. Trate como senha: entregue só ao responsável da sede.',
         'The REVEAL links show the answers after the freeze. Each site has its own. Treat them as passwords: give each one only to the person in charge of that site.',
         'Los enlaces de REVELACIÓN muestran las respuestas después del congelamiento. Cada sede tiene el suyo. Trátalos como contraseñas: entrégalos solo al responsable de cada sede.')),
-      el('details', {}, el('summary', {}, T(`${(L.revelation || []).length} links de revelação`, `${(L.revelation || []).length} reveal links`, `${(L.revelation || []).length} enlaces de revelación`)),
-        tbl((L.revelation || []).map((x) => el('tr', {}, el('td', {}, x.contest), el('td', {}, x.site), el('td', { class: 'small' }, el('code', {}, x.url.replace(/secret=[^&]+/, 'secret=…'))), el('td', {}, copy(x.url)))))));
+      el('details', {}, el('summary', {}, T(`${(L.revelation || []).length} links de revelação`, `${(L.revelation || []).length} reveal links`, `${(L.revelation || []).length} enlaces de revelación`),
+          (S.reveal || {}).released ? null : el('span', { class: 'small muted' }, ' — ', T('prévia: ainda NÃO liberados às sedes', 'preview: NOT released to the sites yet', 'vista previa: todavía NO liberados a las sedes'))),
+        // PRÉVIA (pedido do Ribas, 03/10/2026): abrir/copiar cada link e ver QUEM o receberá quando o reveleitor
+        // for liberado — sem liberar nada. `L.sites` vem do servidor com a mesma regra do /reveal.
+        el('table', { class: 'moj' },
+          el('thead', {}, el('tr', {}, el('th', {}, T('Placar', 'Scoreboard', 'Marcador')), el('th', {}, T('Sede', 'Site', 'Sede')),
+            el('th', {}, T('Recebe quando liberar', 'Gets it on release', 'Lo recibe al liberar')), el('th', {}, 'URL'), el('th', {}, ''))),
+          el('tbody', {}, ...(L.revelation || []).map((x) => {
+            const info = (L.sites || []).find((s) => s.contest === x.contest && s.site === x.site);
+            const who = !info ? el('span', { class: 'small muted' }, '?')
+              : info.whole ? el('span', { class: 'small' }, T('só admin e .animeitor (todos os times)', 'admin and .animeitor only (all teams)', 'solo admin y .animeitor (todos los equipos)'))
+              : (info.recipients || []).length ? el('span', { class: 'small' }, info.recipients.join(', '))
+              : el('span', { class: 'small error' }, T('ninguém — nenhum .cstaff/.staff com esta sede no escopo', 'nobody — no .cstaff/.staff with this site in scope', 'nadie — ningún .cstaff/.staff con esta sede en el alcance'));
+            return el('tr', {}, el('td', {}, x.contest), el('td', {}, x.site), el('td', {}, who),
+              el('td', { class: 'small' }, el('code', {}, x.url.replace(/secret=[^&]+/, 'secret=…'))),
+              el('td', {}, el('div', { class: 'row', style: 'gap:.3rem;flex-wrap:nowrap' },
+                el('a', { class: 'btn ghost', href: x.url, target: '_blank', rel: 'noopener' }, T('abrir', 'open', 'abrir')), copy(x.url))));
+          })))));
     // ZERO links: o link de revelação do Animeitor é POR SEDE — placar publicado sem sede não gera link, e
     // liberar o reveleitor não tem o que liberar (XIV Maratona UnB, 25/09/2026, prova de sede única).
     if (!(L.revelation || []).length) {
-      linksBox.append(el('p', { class: 'error-box' }, T('Nenhum link de revelação: os placares publicados não têm SEDE, e o link de revelação é por sede. Numa prova de sede única, abra "Placares e sedes", use "+ sede" no placar Geral (nome, ex.: Geral; códigos: .*) e publique de novo.',
-        'No reveal links: the published scoreboards have no SITE, and reveal links are per site. In a single-site contest, open "Scoreboards and sites", use "+ site" on the Geral scoreboard (name, e.g. Geral; codes: .*) and publish again.',
-        'Ningún enlace de revelación: los marcadores publicados no tienen SEDE, y el enlace de revelación es por sede. En una competencia de sede única, abre "Marcadores y sedes", usa "+ sede" en el marcador Geral (nombre, ej.: Geral; códigos: .*) y publica de nuevo.')));
+      linksBox.append(el('p', { class: 'error-box' }, T('Nenhum link de revelação: os placares publicados não têm SEDE, e o link de revelação é por sede. Abra "Placares e sedes", use "+ sede Geral (todos os times)" no placar Geral (ou "voltar à proposta", que já a traz) e publique de novo.',
+        'No reveal links: the published scoreboards have no SITE, and reveal links are per site. Open "Scoreboards and sites", use "+ Overall site (all teams)" on the Geral scoreboard (or "back to the proposal", which already has it) and publish again.',
+        'Ningún enlace de revelación: los marcadores publicados no tienen SEDE, y el enlace de revelación es por sede. Abre "Marcadores y sedes", usa "+ sede General (todos los equipos)" en el marcador Geral (o "volver a la propuesta", que ya la trae) y publica de nuevo.')));
     }
   }
   // o interruptor ÚNICO: liberar/recolher os links do reveleitor p/ as sedes (.cstaff/.staff veem só os da sede deles)

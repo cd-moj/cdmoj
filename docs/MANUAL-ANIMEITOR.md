@@ -51,7 +51,10 @@ virada e segura o congelamento até a hora da revelação.
    "apagar e usar a chave do MOJ" volta atrás. A chave do MOJ só vale no servidor padrão.
 2. **URL pública do MOJ.** É de onde o telão busca a foto e a música de cada time; confira.
 3. **Placares e sedes.** O MOJ propõe o geral, um por coorte e um por país, com as sedes; ajuste nomes e
-   medalhas e salve. Prova de uma sede só ganha a sede "Geral" (sem sede não há link de revelação).
+   medalhas e salve. O placar geral sempre traz a sede **"Geral"**, com todos os times: é ela que dá o link do
+   **resultado geral** (sem sede não há link de revelação). Se ela sumiu de uma configuração salva, use
+   **+ sede Geral (todos os times)** no placar. O link dela é só seu e do admin: nenhum chefe de sede o recebe.
+   A Central do admin avisa quando o placar geral está sem ela ou quando uma sede ficou sem times.
 4. **📡 publicar no telão** e **▶ ligar o alimentador** (relógio a cada segundo e submissões a cada 2 s). O nome
    do evento é o id do contest; um nome que já é de outro contest do MOJ é recusado.
 5. **Conferência.** O MOJ pergunta ao Animeitor, sede a sede, se ele tem **todas** as submissões, com a resposta
@@ -62,6 +65,9 @@ virada e segura o congelamento até a hora da revelação.
 6. **🎬 Liberar os links de revelação para as sedes.** Antes de liberar, a mesa confere e mostra o resultado na
    pergunta. Cada chefe de sede (e cada staff) passa a ver o link da sede dele, **com o selo da conferência**
    ("✓ Validado", "Conferido" ou "⚠"). O link mostra as respostas depois do congelamento: trate como senha.
+   **Antes de liberar**, "mostrar os links do telão" já lista todos os links para você, com **abrir**, **copiar**
+   e a coluna **Recebe quando liberar** (qual chefe de sede ou staff vai receber cada um). Use para conferir os
+   placares e as sedes sem entregar nada às sedes. Quem vê os links fica registrado.
 
 ## 🎥 Chaves de streaming (legado)
 

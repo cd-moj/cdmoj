@@ -259,12 +259,15 @@ an_derive(){
         | pick(($co.regex // ""); $s) as $p
         | { name: ((if $id == "public" then "Geral" elif $id == "all" then "Geral com convidados" else ($co.name // $id) end) | clean),
             source: {kind: "view", id: $id}, n: ($s | unique | length), codes: $p.codes, kind: $p.kind,
-            # SEDE ÚNICA (sem regions.json/folhas): uma sede "Geral" com os times do placar — o link de revelação
-            # do Animeitor é POR SEDE, e sem sede nenhuma não há link (XIV Maratona UnB, 25/09/2026: o .animeitor
-            # liberou o reveleitor e a tela mostrou "0 links de revelação").
+            # SEDE "GERAL" (todos os times do placar) SEMPRE, antes das folhas: o link de revelação do Animeitor é
+            # POR SEDE — sem ela não há link nenhum numa prova sem árvore (XIV Maratona UnB, 25/09/2026: "0 links
+            # de revelação") e não há RESULTADO GERAL numa prova com sedes (TCP 2026, 03/10/2026: o organizador
+            # tinha de lembrar do "+ sede" e esqueceu). O link dela é só da organização central: nunca vai a
+            # .cstaff/.staff (an_reveal_links pula `whole`). Folha que já se chama "Geral" ⇒ "Geral (todos)".
             sites: (if ($id == "public" or $id == "all") then
-                      (if ($LV | length) > 0 then sites($LV; $s)
-                       else [ {name: "Geral", source: {kind: "whole", id: $id}, n: ($s | unique | length), codes: $p.codes, kind: $p.kind} ] end)
+                      ((if ($LV | length) > 0 then sites($LV; $s) else [] end) as $ls
+                       | (if any($ls[]; (.name | ascii_downcase) == "geral") then "Geral (todos)" else "Geral" end) as $wn
+                       | [ {name: $wn, source: {kind: "whole", id: $id}, n: ($s | unique | length), codes: $p.codes, kind: $p.kind} ] + $ls)
                     else [] end) } ]
       + [ $T[] | select(((.subregions // []) | length) > 0) | . as $n
           | (nodeset($n) - (nodeset($n) - $base)) as $s | select(($s | length) > 0)
@@ -303,8 +306,10 @@ an_resolved(){
                                        else ((autosite($x.source // {}; $s.source // {}) // {codes: []}).codes) end) } ] } ] end) as $cs
     | {contests: [ $cs[] | {name, codes, ouro, prata, bronze, style: (.style // null),
                             # `region` = a sede do MOJ de onde o site saiu (NÃO vai ao serviço — o an_publish manda
-                            # só {name, codes}); é o que casa o link de revelação com o escopo do staff
-                            sites: [ (.sites // [])[] | {name, codes, region: (if (.source.kind // "") == "region" then (.source.id // "") else "" end)} ]} ]}' > "$out"
+                            # só {name, codes}); é o que casa o link de revelação com o escopo do staff. `whole` = a sede
+                            # de TODOS os times do placar: o link dela é só de admin/.animeitor (an_reveal_links)
+                            sites: [ (.sites // [])[] | {name, codes, region: (if (.source.kind // "") == "region" then (.source.id // "") else "" end),
+                                                         whole: ((.source.kind // "") == "whole")} ]} ]}' > "$out"
   local rc=$?; rm -f "$pf"; return $rc
 }
 
@@ -554,6 +559,36 @@ an_links(){
         public: [ ($man.contests | keys[]) | {contest: ., url: ($origin + "/animeitor/" + ($ev | @uri) + "/" + (. | @uri) + "/")} ] }'
 }
 
+# an_link_recipients <c> <arquivo do an_resolved> -> [{contest, site, whole, recipients:[logins]}] — QUEM receberia
+# cada link de revelação quando o reveleitor for liberado: a PRÉVIA do admin/.animeitor (pedido do Ribas,
+# 03/10/2026: ver os links e p/ onde vão SEM liberar às sedes). Os .cstaff/.staff com escopo explícito no
+# staff-filters, pela MESMA regra do an_reveal_links (região de origem ou nome, sem caixa; `whole` nunca).
+# Escopo só de `region:` sai direto (um jq); escopo com regex passa pelo staff_regions (lib/print.sh, que o
+# chamador sourceia), login a login — é o caso raro.
+an_link_recipients(){
+  local c="$1" rf="$2" ff="$CONTESTSDIR/$1/print-requests/staff-filters.json" W ln l
+  W="$(mktemp)" || { printf '[]'; return 1; }
+  if [[ -s "$ff" ]]; then
+    jq -r 'to_entries[] | select((.key | test("\\.c?staff$")) and (.value | type) == "array" and (.value | length) > 0)
+           | .key as $l
+           | if any(.value[]; (tostring | startswith("region:")) | not) then "\u0001" + $l
+             else (.value[] | tostring | .[7:] | gsub("^ +| +$"; "") | select(length > 0) | $l + "\t" + .) end' "$ff" 2>/dev/null \
+      | while IFS= read -r ln; do
+          if [[ "$ln" == $'\x01'* ]]; then
+            l="${ln#$'\x01'}"; valid_id "$l" || continue
+            ( SESSION_LOGIN="$l"; staff_regions "$c" 2>/dev/null ) | awk -v l="$l" 'NF { print l "\t" $0 }'
+          else printf '%s\n' "$ln"; fi
+        done > "$W"
+  fi
+  jq -R -s -c --slurpfile r "$rf" '
+    [ split("\n")[] | select(length > 0) | split("\t") | {l: .[0], k: ((.[1] // "") | ascii_downcase)} ] as $S
+    | [ $r[0].contests[] | .name as $cn | .sites[]
+        | ((if (.region // "") != "" then .region else .name end) | ascii_downcase) as $k
+        | {contest: $cn, site: .name, whole: (.whole // false),
+           recipients: (if (.whole // false) then [] else ([ $S[] | select(.k == $k) | .l ] | unique) end)} ]' "$W"
+  local rc=$?; rm -f "$W"; return $rc
+}
+
 # --- CONFERÊNCIA: o Animeitor tem TODAS as runs? -------------------------------------------------
 # an_curl_site <c> <caminho /api/…> <chave da sede> -> corpo + "HTTP <code>". GET na API PÚBLICA com
 # `Authorization: Bearer <chave>`; a chave vai por `-K <(printf …)` como a credencial (nunca argv/log).
@@ -730,13 +765,15 @@ an_reveal_set(){ # <c> <on|off> <quem>
 # an_reveal_links <c> <arquivo com as sedes do staff, 1/linha> -> [{contest, site, url}] — TODOS os placares
 # em que a sede aparece (o Geral e o do país). O casamento é pela REGIÃO de origem do site (o operador
 # pode ter renomeado a sede no telão); site manual casa pelo nome. Comparação sem caixa, como o staff-filters.
+# A sede de TODOS os times (`whole`, a "Geral") nunca vai ao staff — é o resultado do evento inteiro, da
+# organização central (decisão do Ribas, 03/10/2026), mesmo p/ quem tem `region:Geral` no escopo.
 an_reveal_links(){
   local c="$1" regf="$2" rf lk; rf="$(mktemp)"
   an_resolved "$c" "$rf" || { rm -f "$rf"; printf '[]'; return 1; }
   lk="$(an_links "$c")" || { rm -f "$rf"; printf '[]'; return 1; }
   jq -c --slurpfile r "$rf" --rawfile regs "$regf" '
     ($regs | split("\n") | map(gsub("^ +| +$"; "") | ascii_downcase | select(length > 0))) as $mine
-    | ([ $r[0].contests[] | .name as $cn | .sites[]
+    | ([ $r[0].contests[] | .name as $cn | .sites[] | select((.whole // false) | not)
          | select(((if (.region // "") != "" then .region else .name end) | ascii_downcase) as $k | $mine | index($k))
          | {contest: $cn, site: .name} ]) as $ok
     | [ (.revelation // [])[] | . as $x | select($ok | index({contest: $x.contest, site: $x.site})) ]' <<<"$lk"

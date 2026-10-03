@@ -23,15 +23,21 @@ require_auth_contest "$contest"
 source "$_LIBDIR/cohorts.sh"
 source "$_LIBDIR/animeitor.sh"
 
+# .animeitor/admin veem TODOS os links, liberado ou não (é a prévia deles antes de liberar às sedes; o
+# cabeçalho acima sempre disse isso, e a ordem dos testes dizia o contrário) — e a leitura vai ao audit
+if is_animeitor || is_admin; then
+  rel="$(an_reveal_released "$contest" && echo true || echo false)"
+  an_configured "$contest" || { ok_json '{released:$r, scoped:false, all:true, sites:[], links:[], error:"not_configured"}' --argjson r "$rel"; exit 0; }
+  vs="$(an_verify_summary "$contest")"
+  lk="$(an_links "$contest")" || fail 502 "Animeitor inacessível" "upstream_error"
+  audit_log_to "$contest" animeitor-links-read "by=$SESSION_LOGIN links=$(jq '(.revelation // []) | length' <<<"$lk" 2>/dev/null) via=reveal"
+  ok_json_slurp '{released:$r, scoped:false, all:true, sites:[], links:($l[0].revelation // []), verify:$v}' l "$lk" --argjson v "$vs" --argjson r "$rel"
+  exit 0
+fi
 if ! an_reveal_released "$contest"; then ok_json '{released:false, scoped:true, sites:[], links:[]}'; exit 0; fi
 an_configured "$contest" || { ok_json '{released:true, scoped:true, sites:[], links:[], error:"not_configured"}'; exit 0; }
 
 vs="$(an_verify_summary "$contest")"
-if is_animeitor || is_admin; then
-  lk="$(an_links "$contest")" || fail 502 "Animeitor inacessível" "upstream_error"
-  ok_json_slurp '{released:true, scoped:false, all:true, sites:[], links:($l[0].revelation // []), verify:$v}' l "$lk" --argjson v "$vs"
-  exit 0
-fi
 
 source "$_LIBDIR/print.sh"
 rf="$(mktemp)"; trap 'rm -f "$rf"' EXIT
