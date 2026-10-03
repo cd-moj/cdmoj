@@ -219,8 +219,11 @@ chega ao `.cstaff`/`.staff` assim (decisões do Ribas, 21/09/2026):
 - **Fail-closed**: conta sem sede definida recebe `scoped:false` e ZERO links (nas telas de leitura "sem filtro =
   vê tudo"; aqui seria a revelação do evento inteiro). Antes da liberação: `released:false`, sem nem consultar
   o servidor do telão. Cada leitura atendida vai ao audit (`animeitor-reveal-read`).
-- **A sede de todos os times (`whole`) nunca vai ao staff** (decisão do Ribas, 03/10/2026): é o resultado do
-  evento inteiro, da cerimônia principal — o `an_reveal_links` a pula mesmo p/ quem tem `region:Geral`.
+- **A sede de todos os times (`whole`, a AUTOMÁTICA) nunca vai ao staff** (decisão do Ribas, 03/10/2026): é o
+  resultado do evento inteiro, da cerimônia principal — o `an_reveal_links` a pula mesmo p/ quem tem
+  `region:Geral`. Uma sede MANUAL com `.*` segue a regra de sempre (casa pelo nome). Consequência: numa prova de
+  sede única (sem árvore) nenhum `.cstaff`/`.staff` recebe link; se um chefe de sede deve conduzir a revelação,
+  crie uma sede manual para ele (a prévia mostra quem a recebe).
 - **Prévia da organização, sem liberar** (03/10/2026): admin/`.animeitor` veem todos os links liberado ou não
   (no `/reveal` e no `?links=1` da mesa), e o `?links=1` traz `links.sites:[{contest, site, whole, recipients}]`
   = **quem receberá** cada link quando liberar (`an_link_recipients`: a mesma regra do `an_reveal_links` sobre

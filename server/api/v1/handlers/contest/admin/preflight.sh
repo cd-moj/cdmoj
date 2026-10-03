@@ -1043,7 +1043,8 @@ if mod_on "$contest" telao; then
     def isgen: ((.source.kind // "") == "view" and ((.source.id // "") | IN("public", "all")));
     def iswhole: ((.source.kind // "") == "whole" or (.codes == [".*"]));
     (.contests) as $C
-    | (if $C == null then [ {name: "Geral", wn: ["Geral", "Geral (todos)"], cfg_ok: true} ]
+    | (if $C == null then [ {name: "Geral", wn: ["Geral", "Geral (todos)"], cfg_ok: true},
+                            {name: "Geral com convidados", wn: ["Geral", "Geral (todos)"], cfg_ok: true} ]
        else [ $C[] | select(isgen) | {name, wn: [ (.sites // [])[] | select(iswhole) | .name ], cfg_ok: any((.sites // [])[]; iswhole)} ] end) as $G
     | { missing_cfg: [ $G[] | select(.cfg_ok | not) | .name ],
         missing_pub: (if $man.event == "" then [] else
