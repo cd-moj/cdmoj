@@ -136,8 +136,10 @@ echo "== escalonador: ordem pelo nome, carência pela idade REAL, famintos pelo 
   r="$(claim hf '{}' 2)"; [[ "$r" == "velho " ]] && echo "OK2" || echo "XX2 $r"
   # famintos (STARVE_SECS=300) pelo NOME: o adiantado com 310 s reais ainda não é promovido; o normal é
   rm -rf "$QUEUEDIR" "$ASSIGNEDDIR"; sched_init_dirs
-  q_enqueue fn prova "$(job fn $((now-310)))"; mv "$QUEUEDIR/020-prova/${now}_fn.json" "$QUEUEDIR/020-prova/$((now-310))_fn.json"
-  q_enqueue fa prova "$(job fa $((now-310)))" 120; mv "$QUEUEDIR/020-prova/$((now+120))_fa.json" "$QUEUEDIR/020-prova/$((now-190))_fa.json"
+  # o nome leva o EPOCHSECONDS da chamada (pode ter virado o segundo desde `now`): acha o arquivo, não adivinha
+  qf(){ find "$QUEUEDIR/020-prova" -maxdepth 1 -name "*_$1.json" -print -quit; }
+  q_enqueue fn prova "$(job fn $((now-310)))"; mv "$(qf fn)" "$QUEUEDIR/020-prova/$((now-310))_fn.json"
+  q_enqueue fa prova "$(job fa $((now-310)))" 120; mv "$(qf fa)" "$QUEUEDIR/020-prova/$((now-190))_fa.json"
   rm -f "$QUEUEDIR/.starve-stamp"; q_promote_starved
   [[ -n "$(find "$QUEUEDIR/000-super" -name '*_fn.json')" && -n "$(find "$QUEUEDIR/020-prova" -name '*_fa.json')" ]] \
     && echo "OK3" || echo "XX3 $(find "$QUEUEDIR" -name '*.json' | sed "s|$QUEUEDIR/||" | tr '\n' ' ')"
