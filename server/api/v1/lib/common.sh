@@ -34,11 +34,27 @@ export CONTESTSDIR SCOREDIR   # herdados por sub-processos (ex.: server/score/bu
 : "${MOJ_TZ:=America/Sao_Paulo}"
 export TZ="$MOJ_TZ"
 
+# Diretório do zoneinfo que VALIDA nomes de fuso (testes apontam p/ uma árvore falsa).
+: "${MOJ_ZONEINFO:=/usr/share/zoneinfo}"
+# tz_canon <nome> — ecoa o nome IANA ATUAL do fuso, ou rc 1 se não existe. Aceita o nome ANTIGO
+# (`America/Buenos_Aires`, `Asia/Calcutta`, `Europe/Kiev`): o Chrome os usa até no fuso do próprio
+# navegador, e a imagem (Debian trixie, sem tzdata-legacy) não tem esses arquivos — o mapa antigo→atual
+# vem das linhas `L <atual> <antigo>` do tzdata.zi. Quem grava CONTEST_TZ grava SEMPRE o nome que o
+# zoneinfo da imagem tem (o `date` com nome desconhecido cai mudo em UTC).
+tz_canon(){
+  local v="$1" t
+  [[ "$v" =~ ^[A-Za-z][A-Za-z0-9_+-]*(/[A-Za-z0-9_+-]+){0,2}$ ]] || return 1
+  [[ -f "$MOJ_ZONEINFO/$v" ]] && { printf '%s' "$v"; return 0; }
+  [[ -r "$MOJ_ZONEINFO/tzdata.zi" ]] || return 1
+  t="$(awk -v a="$v" '$1 == "L" && $3 == a { print $2; exit }' "$MOJ_ZONEINFO/tzdata.zi" 2>/dev/null)"
+  [[ -n "$t" && "$t" =~ ^[A-Za-z][A-Za-z0-9_+-]*(/[A-Za-z0-9_+-]+){0,2}$ && -f "$MOJ_ZONEINFO/$t" ]] || return 1
+  printf '%s' "$t"
+}
 # contest_tz <c> — fuso DO CONTEST (CONTEST_TZ no conf), com fallback p/ o MOJ_TZ.
 # Validado contra o zoneinfo: nome inválido faria `date` cair mudo em UTC.
 contest_tz(){
   local v; v="$( ( CONTEST_TZ=""; source "$CONTESTSDIR/$1/conf" 2>/dev/null; printf '%s' "${CONTEST_TZ:-}" ) )"
-  if [[ -n "$v" && "$v" =~ ^[A-Za-z][A-Za-z0-9_+-]*(/[A-Za-z0-9_+-]+){0,2}$ && -f "/usr/share/zoneinfo/$v" ]]
+  if [[ -n "$v" && "$v" =~ ^[A-Za-z][A-Za-z0-9_+-]*(/[A-Za-z0-9_+-]+){0,2}$ && -f "$MOJ_ZONEINFO/$v" ]]
     then printf '%s' "$v"; else printf '%s' "$MOJ_TZ"; fi
 }
 # contest_locale_ok <v> — idioma de INTERFACE que um contest pode fixar (LOCALE do conf). Fonte única dos

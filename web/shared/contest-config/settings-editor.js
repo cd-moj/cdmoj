@@ -20,6 +20,22 @@ const PRIORITY_LABEL = () => ({
   prova: T('Prova (julga antes das listas)', 'Contest (judged before lists)', 'Competencia (se evalúa antes que las listas)'), super: T('Super (super-admin do treino; fura toda fila)', 'Super (training super-admin; jumps the whole queue)', 'Super (superadministrador del entrenamiento; salta toda la cola)'),
 });
 
+// tzSuggestions(atual) — fusos p/ o <datalist>: o do navegador, o salvo, e todos os que o navegador conhece
+// (Intl.supportedValuesOf; navegador antigo = uma lista curta das Américas + Europa). Exportada p/ o teste.
+const TZ_FALLBACK = ['America/Sao_Paulo', 'America/Manaus', 'America/Belem', 'America/Fortaleza', 'America/Cuiaba',
+  'America/Rio_Branco', 'America/Noronha', 'America/Santiago', 'America/Punta_Arenas', 'America/Argentina/Buenos_Aires',
+  'America/Montevideo', 'America/Asuncion', 'America/La_Paz', 'America/Lima', 'America/Bogota', 'America/Guayaquil',
+  'America/Caracas', 'America/Panama', 'America/Costa_Rica', 'America/El_Salvador', 'America/Guatemala',
+  'America/Tegucigalpa', 'America/Managua', 'America/Mexico_City', 'America/Havana', 'America/Santo_Domingo',
+  'America/Puerto_Rico', 'Europe/Lisbon', 'Europe/Madrid', 'UTC'];
+export function tzSuggestions(current) {
+  let mine = '', all = [];
+  try { mine = Intl.DateTimeFormat().resolvedOptions().timeZone || ''; } catch { /* */ }
+  try { all = typeof Intl.supportedValuesOf === 'function' ? Intl.supportedValuesOf('timeZone') : []; } catch { all = []; }
+  if (!all.length) all = TZ_FALLBACK;
+  return [...new Set([mine, current || '', ...all].filter(Boolean))];
+}
+
 const PENALTY_OPTS = [
   ['wa', 'Wrong Answer'], ['tle', 'Time Limit Exceeded'], ['mle', 'Memory Limit Exceeded'],
   ['rte', 'Runtime Error'], ['ce', 'Compilation Error'],
@@ -69,10 +85,11 @@ export function makeSettingsEditor({ value = {}, mode = 'admin', canSuper = fals
   const fullUsers = el('input', { value: (s.score_full_users || []).join(' '), placeholder: T('logins (espaço) — além de .admin/.judge/.cjudge', 'logins (space) — besides .admin/.judge/.cjudge', 'usuarios (espacio) — además de .admin/.judge/.cjudge'), style: 'width:100%' });
   // FUSO da prova: governa as horas que o SERVIDOR escreve para gente (DM do mojinho, checklist
   // pré-prova, caderno, relatório). Os campos de data desta tela seguem no relógio do navegador.
-  const TZS = ['America/Sao_Paulo', 'America/Manaus', 'America/Belem', 'America/Fortaleza',
-    'America/Cuiaba', 'America/Rio_Branco', 'America/Noronha', 'America/Argentina/Buenos_Aires',
-    'America/Bogota', 'Europe/Lisbon', 'UTC'];
-  const tzList = el('datalist', { id: 'tzlist' }, ...TZS.map((z) => el('option', { value: z })));
+  // Sugestões = TODOS os fusos que o navegador conhece, com o do PRÓPRIO navegador em 1º (um admin no Chile vê
+  // America/Santiago no topo). A lista antiga tinha 11 fusos, quase todos do Brasil, e o organizador do Chile
+  // achou que o MOJ não tinha o dele (03/10/2026). O campo aceita qualquer nome digitado; o servidor valida e
+  // troca nome antigo pelo atual (tz_canon).
+  const tzList = el('datalist', { id: 'tzlist' }, ...tzSuggestions(s.tz).map((z) => el('option', { value: z })));
   const tz = el('input', { value: s.tz || '', list: 'tzlist', placeholder: 'America/Sao_Paulo', style: 'width:16rem' });
 
   // PRIORIDADE no modo admin: "não definida" (vale Lista pública) é um estado próprio — escolher QUALQUER uma,
@@ -147,9 +164,9 @@ export function makeSettingsEditor({ value = {}, mode = 'admin', canSuper = fals
     // inserir no meio deslocaria todos os seguintes p/ a seção errada.
     el('h3', { style: 'margin:1rem 0 .3rem' }, T('🌎 Fuso horário da prova', '🌎 Contest timezone', '🌎 Zona horaria de la competencia')),
     el('p', { class: 'muted small' },
-      T('Em que relógio o MOJ escreve as horas desta prova para as pessoas: mensagem do mojinho, checklist pré-prova, caderno e relatório. Vazio = padrão da instalação (America/Sao_Paulo). Os campos de data desta tela continuam no relógio do SEU navegador.',
-        'Which clock the MOJ uses when writing this contest’s times for people: mojinho message, pre-contest checklist, problem set and report. Empty = installation default (America/Sao_Paulo). The date fields on this screen still follow YOUR browser’s clock.',
-        'En qué reloj escribe el MOJ los horarios de esta competencia para las personas: mensaje del mojinho, checklist previo a la competencia, cuadernillo e informe. Vacío = valor por defecto de la instalación (America/Sao_Paulo). Los campos de fecha de esta pantalla siguen el reloj de TU navegador.')),
+      T('Em que relógio o MOJ escreve as horas desta prova para as pessoas: mensagem do mojinho, checklist pré-prova, caderno e relatório. Vazio = padrão da instalação (America/Sao_Paulo). Os campos de data desta tela continuam no relógio do SEU navegador. Digite qualquer fuso (ex.: America/Santiago, America/Mexico_City); a lista sugere todos, começando pelo do seu navegador. Prefira o fuso da sua cidade a outro com a mesma hora hoje: o horário de verão muda em datas diferentes.',
+        'Which clock the MOJ uses when writing this contest’s times for people: mojinho message, pre-contest checklist, problem set and report. Empty = installation default (America/Sao_Paulo). The date fields on this screen still follow YOUR browser’s clock. Type any timezone (e.g. America/Santiago, America/Mexico_City); the list suggests all of them, starting with your browser’s. Prefer your own city’s timezone to another one with the same time today: daylight saving time changes on different dates.',
+        'En qué reloj escribe el MOJ los horarios de esta competencia para las personas: mensaje del mojinho, checklist previo a la competencia, cuadernillo e informe. Vacío = valor por defecto de la instalación (America/Sao_Paulo). Los campos de fecha de esta pantalla siguen el reloj de TU navegador. Escribe cualquier zona horaria (ej.: America/Santiago, America/Mexico_City); la lista sugiere todas, empezando por la de tu navegador. Prefiere la zona de tu ciudad a otra con la misma hora hoy: el horario de verano cambia en fechas distintas.')),
     el('div', {}, tzList, field(T('Fuso (IANA)', 'Timezone (IANA)', 'Zona horaria (IANA)'), tz)),
     // idem: no FIM (índice novo entra no GROUPS do settings-tab.js, seção do freeze)
     el('h3', { style: 'margin:1rem 0 .3rem' }, T('🎈 Balões durante o freeze', '🎈 Balloons during the freeze', '🎈 Globos durante el congelamiento')),

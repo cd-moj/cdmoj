@@ -193,6 +193,10 @@ cc_create(){
   (( ${#ua_sub} <= 200 )) || fail 422 "login_ua_substring muito longa" "ua_long"
   local loc_in; loc_in="$(jq -r '.locale // empty' <<<"$spec")"
   [[ -z "$loc_in" ]] || contest_locale_ok "$loc_in" || fail 422 "locale inválido (pt, en ou es)" "locale_invalid"
+  # FUSO da prova (o mesmo campo de Central › Regras): o assistente sempre o mostrou e a criação o JOGAVA
+  # FORA calada (03/10/2026). Vazio = o padrão da instalação; nome antigo vira o atual (tz_canon).
+  local tz_in="" tz_raw; tz_raw="$(jq -r '.tz // empty' <<<"$spec")"
+  if [[ -n "$tz_raw" ]]; then tz_in="$(tz_canon "$tz_raw")" || fail 422 "fuso horário desconhecido (ex.: America/Santiago)" "tz_invalid"; fi
   # penalidade do placar ICPC (opcional; só válida em conjunto — a gravação fica no conf_lines)
   local pmin; pmin="$(jq -r '.penalty_minutes // empty' <<<"$spec")"
   if [[ -n "$pmin" ]]; then
@@ -394,6 +398,7 @@ cc_create(){
     [[ -n "$shared" ]] && printf 'USERS_FROM=%q\n' "$shared"
     [[ -n "$shared" && "$admin_reused" == true ]] && printf 'SHARED_ADMIN=%q\n' "$adminlogin"
     [[ -n "$b_locale" ]] && contest_locale_ok "$b_locale" && printf 'LOCALE=%q\n' "$b_locale"
+    [[ -n "$tz_in" ]] && printf 'CONTEST_TZ=%q\n' "$tz_in"
     [[ "$b_lstart" =~ ^[0-9]+$ ]] && printf 'LOGIN_START_TIME=%q\n' "$b_lstart"
     [[ "$b_lenabled" == n ]] && printf 'LOGIN_ENABLED=%q\n' "n"
     [[ "$b_freeze" =~ ^[0-9]+$ ]] && printf 'FREEZE_TIME=%q\n' "$b_freeze"
@@ -1032,7 +1037,7 @@ cc_tpl_relativize(){
     | (.login_start|tonumber? // 0) as $ls | (.freeze|tonumber? // 0) as $fz
     | pick(["mode","priority","languages","show_log","show_editor","show_tl",
             "allow_backup","allow_print","score_anon","manual_verdict","secret",
-            "login_ua_substring","score_full_users","locale","login_enabled",
+            "login_ua_substring","score_full_users","locale","tz","login_enabled",
             "penalty_minutes","penalty_verdicts",
             "colors","regions","teams_meta","modules"])
     + (if $st > 0 and $en > $st then {duration:($en-$st)} else {} end)
@@ -1055,7 +1060,7 @@ cc_export_spec(){
   local confjson
   confjson="$(
     CONTEST_NAME=""; CONTEST_TYPE=""; CONTEST_PRIORITY=""; CONTEST_START=""; CONTEST_END=""
-    LANGUAGES=""; USERS_FROM=""; LOCALE=""; LOGIN_START_TIME=""; LOGIN_ENABLED=""
+    LANGUAGES=""; USERS_FROM=""; LOCALE=""; LOGIN_START_TIME=""; LOGIN_ENABLED=""; CONTEST_TZ=""
     FREEZE_TIME=""; SHOWLOG=""; SHOWEDITOR=""; SHOWTL=""; SCORE_ANON=""
     BACKUP=""; PRINT=""; MANUAL_VERDICT=""; LOGIN_UA_SUBSTRING=""; SCORE_FULL_USERS=""; SECRET=""
     PENALTY_MINUTES=""; PENALTY_VERDICTS="__unset"; CONTEST_JUDGES=""; CONTEST_MODULES=""
@@ -1063,7 +1068,7 @@ cc_export_spec(){
     jq -cn \
       --arg name "$CONTEST_NAME" --arg mode "$CONTEST_TYPE" --arg prio "$CONTEST_PRIORITY" \
       --arg start "$CONTEST_START" --arg end "$CONTEST_END" --arg langs "$LANGUAGES" \
-      --arg users_from "$USERS_FROM" --arg locale "$LOCALE" \
+      --arg users_from "$USERS_FROM" --arg locale "$LOCALE" --arg tz "$CONTEST_TZ" \
       --arg lstart "$LOGIN_START_TIME" --arg lenabled "$LOGIN_ENABLED" --arg freeze "$FREEZE_TIME" \
       --arg showlog "$SHOWLOG" --arg showeditor "$SHOWEDITOR" \
       --arg showtl "$SHOWTL" --arg anon "$SCORE_ANON" --arg backup "$BACKUP" --arg prnt "$PRINT" \
@@ -1077,6 +1082,7 @@ cc_export_spec(){
       + (if $langs != "" then {languages:($langs|split(" ")|map(select(length>0)))} else {} end)
       + (if $users_from != "" then {users_from:$users_from} else {} end)
       + (if $locale != "" then {locale:$locale} else {} end)
+      + (if $tz != "" then {tz:$tz} else {} end)
       + (if (($lstart|tonumber?) // 0) > 0 then {login_start:($lstart|tonumber)} else {} end)
       + (if $lenabled == "n" then {login_enabled:false} else {} end)
       + (if (($freeze|tonumber?) // 0) > 0 then {freeze:($freeze|tonumber)} else {} end)

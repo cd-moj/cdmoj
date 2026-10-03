@@ -114,13 +114,13 @@ done
 has locale && { v="$(jq -r '.locale' <<<"$body")"; contest_locale_ok "$v" || fail 422 "locale inválido (pt, en ou es)" "locale_invalid"; setvar LOCALE "$v"; }
 # FUSO da prova: governa TODA hora que o servidor escreve p/ gente sobre este contest (DM do
 # convite, checklist pré-prova, caderno, relatório). Vazio = volta ao padrão da instalação
-# (MOJ_TZ). Validado contra o zoneinfo: nome errado faria o `date` cair mudo em UTC.
+# (MOJ_TZ). Validado contra o zoneinfo (tz_canon): nome errado faria o `date` cair mudo em UTC; nome
+# ANTIGO (o que o Chrome sugere, ex. America/Buenos_Aires) é aceito e gravado com o nome atual.
 if has tz; then
   v="$(jq -r '.tz // ""' <<<"$body")"
   if [[ -z "$v" || "$v" == null ]]; then delvar CONTEST_TZ
   else
-    [[ "$v" =~ ^[A-Za-z][A-Za-z0-9_+-]*(/[A-Za-z0-9_+-]+){0,2}$ && -f "/usr/share/zoneinfo/$v" ]] \
-      || fail 422 "fuso horário desconhecido (ex.: America/Sao_Paulo)" "tz_invalid"
+    v="$(tz_canon "$v")" || fail 422 "fuso horário desconhecido (ex.: America/Santiago)" "tz_invalid"
     setvar CONTEST_TZ "$v"
   fi
 fi

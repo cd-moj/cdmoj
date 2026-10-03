@@ -1110,7 +1110,14 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   o que fala DE um contest usa **`fmt_epoch <epoch> <fmt> <contest>`** + **`contest_tz`**
   (`CONTEST_TZ` no conf, validado contra o zoneinfo — nome inválido faria o `date` cair mudo em
   UTC). Epoch nunca muda: o fuso é só renderização. Script standalone (`score/report-gen.sh`) não
-  herda o common ⇒ exporta o TZ ele mesmo.
+  herda o common ⇒ exporta o TZ ele mesmo. **Quem GRAVA `CONTEST_TZ` passa por `tz_canon`** (03/10/2026:
+  Regras e criação — que antes descartava calada o fuso do assistente; export/duplicate/template o levam): a
+  imagem é Debian trixie SEM `tzdata-legacy`, e o Chrome sugere nomes antigos (`America/Buenos_Aires`,
+  `Asia/Calcutta`), até p/ o fuso do próprio navegador — o `tz_canon` os troca pelo atual pelas linhas `L` do
+  `tzdata.zi`. `MOJ_ZONEINFO` (default `/usr/share/zoneinfo`) é a árvore que valida (o teste usa uma falsa).
+  Na tela, as sugestões são `tzSuggestions()` (`settings-editor.js`): todos os fusos do navegador, o dele em
+  1º — a lista fixa de 11 fusos do Brasil fez o organizador do Chile (TCP 2026) usar `America/Belem`. Testes:
+  `smoke-contest-tz.sh`, `smoke-settings-groups.gjs.sh`.
 - `contests/<c>/conf` é *sourced* → criação/edição escreve com `printf %q`.
 - **Contest de DEMONSTRAÇÃO (`DEMO=1`) e o `/contest/admin/seed`** (2026-08-24): quem desenvolve
   cliente de placar (o **Animeitor**) precisava de uma prova acontecendo p/ ter dado — o juiz mock

@@ -8,7 +8,8 @@
 #     veredicto manual/linguagens/pool no julgamento, anônimo/penalidade/balões no placar, fuso na janela);
 #   • o "auto-cadastro (late users)" não existe mais;
 #   • PRIORIDADE (01/10/2026): editável no admin sem Super, travada quando é Super, só vai ao servidor quando muda;
-#     na criação, Super só p/ o super-admin do treino.
+#     na criação, Super só p/ o super-admin do treino;
+#   • FUSO: as sugestões são todos os fusos do navegador, o dele em 1º (o organizador do Chile não achava o dele).
 set -u
 command -v gjs >/dev/null 2>&1 || { echo "settings-groups: gjs ausente — pulando"; exit 0; }
 WEB="$(cd "$(dirname "$(readlink -f "$0")")/../../web" && pwd)"
@@ -81,8 +82,20 @@ ck('admin em Super: campo travado, só Super, aviso do super-admin', sup && sup.
 ck('admin em Super: o getValue() nunca leva prioridade', !('priority' in e2.getValue()));
 const cr=(cs)=>prioSel(makeSettingsEditor({ value:{}, mode:'create', contestMode:'icpc', canSuper:cs }));
 ck('criação: Super só com canSuper (super-admin do treino)', !opts(cr(false)).includes('super') && opts(cr(true)).includes('super'));
+// FUSO (03/10/2026): sugestões = todos os fusos do navegador, o do próprio navegador em 1º (gjs roda com TZ=America/Santiago)
+const tzs=tzSuggestions('America/Belem');
+ck('fuso: o do navegador vem em 1º (America/Santiago)', tzs[0]==='America/Santiago', tzs.slice(0,3).join(','));
+ck('fuso: o salvo vem logo depois e sem repetir', tzs[1]==='America/Belem' && tzs.filter((z)=>z==='America/Belem').length===1);
+ck('fuso: a lista traz todos (centenas, com Mexico_City e Lima)', tzs.length>300 && tzs.includes('America/Mexico_City') && tzs.includes('America/Lima'), String(tzs.length));
+const dl=(e)=>{ let f=null; const walk=(n)=>{ for (const c of (n.children||[])) { if (c.tagName==='datalist') f=c; walk(c); } }; walk(e.el); return f; };
+const d1=dl(makeSettingsEditor({ value:{ tz:'America/Belem' }, mode:'admin', contestMode:'icpc' }));
+ck('editor: o datalist usa essas sugestões', d1 && d1.children[0].attrs.value==='America/Santiago' && d1.children.length===tzs.length);
+const sv=Intl.supportedValuesOf; Intl.supportedValuesOf=undefined;
+const old=tzSuggestions('');
+ck('navegador sem Intl.supportedValuesOf: lista curta das Américas, com Santiago', old.includes('America/Santiago') && old.includes('America/Mexico_City') && old.length<60, String(old.length));
+Intl.supportedValuesOf=sv;
 print(''); print('RESULT: '+pass+' passed, '+fail+' failed');
 imports.system.exit(fail>0?1:0);
 EOF
 } > "$JS"
-gjs "$JS"
+TZ=America/Santiago gjs "$JS"

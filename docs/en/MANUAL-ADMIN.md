@@ -1,4 +1,4 @@
-<!-- i18n-source: MANUAL-ADMIN.md blob:cc8f99e72a456cc4c275c892aa432ff9dabf25fa -->
+<!-- i18n-source: MANUAL-ADMIN.md blob:201f753bcf12d5edebab42de32897503d7530272 -->
 # MOJ: Organizer manual (the contest .admin panel)
 
 > **Translation note.** This manual is a translation of the Portuguese original. The command-line tools (`moj`, `moj-contest`, `moj-comp`) print their messages in Portuguese, and the command examples below are identical to the original.
@@ -827,7 +827,11 @@ below. But the times that **MOJ writes for people** (the mojinho DM, the pre-con
 the date of the problem set, the final report) use the **contest timezone**. You set it in
 *Home › Rules → 🕒 Identity and window → 🌎 Contest timezone* (empty = `America/Sao_Paulo`). When
 the two clocks are different, the window box also shows the time in the contest timezone, so
-there is no doubt.
+there is no doubt. Type the name of any timezone (`America/Santiago`, `America/Mexico_City`…). The list
+suggests all of them, starting with your browser's. Use your own city's timezone, not another one that has the
+same time today: daylight saving time changes on different dates in each country, and the texts would be 1 h
+off after the change. You can also select the timezone in the creation wizard, and it goes with the contest
+when you export, duplicate or save a template. From the CLI: `moj-contest -c <cid> settings set tz=America/Santiago`.
 
 **Scoreboard:** registration creates the `individual` and `times` cohorts, each with **its own
 scoreboard**. The "Board: Overall | Times | Individual" selector appears automatically on the

@@ -773,6 +773,11 @@ abaixo. Já as horas que o **MOJ escreve para as pessoas** (a DM do mojinho, o c
 pré-prova, a data do caderno, o relatório final) saem no **fuso da prova**, que você define em
 *Central › Regras → 🕒 Identidade e janela → Fuso horário da prova* (vazio = `America/Sao_Paulo`). Quando os dois relógios
 diferem, a caixa da janela mostra também o horário no fuso da prova, para não haver dúvida.
+Digite o nome de qualquer fuso (`America/Santiago`, `America/Mexico_City`…). A lista sugere todos, começando
+pelo do seu navegador. Use o fuso da sua cidade, e não outro que tenha a mesma hora hoje: o horário de verão
+muda em datas diferentes em cada país, e os textos sairiam com 1 h de diferença depois da troca. O fuso também
+pode ser escolhido no assistente de criação, e vai junto ao exportar, duplicar ou salvar um template. Pela CLI:
+`moj-contest -c <cid> settings set tz=America/Santiago`.
 
 **Placar:** a inscrição semeia as coortes `individual` e `times`, cada uma com **placar próprio**
 — o seletor "Placar: Geral | Times | Individual" aparece sozinho na página do placar. Se o

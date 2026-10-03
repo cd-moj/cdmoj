@@ -5304,7 +5304,7 @@
         "tags": [
           "contest-admin"
         ],
-        "summary": "Configurações do contest (inclui statement_langs/statement_langs_mode/default_statement_lang só leitura — muda-se em /contest/admin/statement-langs; mode read-only, tz = fuso IANA da prova (CONTEST_TZ; vazio = MOJ_TZ da instalação), judges[] = pool de juízes do contest, e a penalidade ICPC: penalty_minutes, penalty_verdicts; show_log é o valor EFETIVO — em modo icpc, SHOWLOG ausente = false; freeze_release_at = quando pode descongelar; POST freeze:0 antes disso = 409 freeze_locked; guest_numbering = convidados numerados na sequência própria, flag g no TXT; priority = prioridade efetiva (ausente = lista-publica), priority_set = definida no conf, priority_locked = está em super)",
+        "summary": "Configurações do contest (inclui statement_langs/statement_langs_mode/default_statement_lang só leitura — muda-se em /contest/admin/statement-langs; mode read-only, tz = fuso IANA da prova (CONTEST_TZ; vazio = MOJ_TZ da instalação; nome antigo, ex. America/Buenos_Aires, é gravado com o atual; desconhecido = 422 tz_invalid), judges[] = pool de juízes do contest, e a penalidade ICPC: penalty_minutes, penalty_verdicts; show_log é o valor EFETIVO — em modo icpc, SHOWLOG ausente = false; freeze_release_at = quando pode descongelar; POST freeze:0 antes disso = 409 freeze_locked; guest_numbering = convidados numerados na sequência própria, flag g no TXT; priority = prioridade efetiva (ausente = lista-publica), priority_set = definida no conf, priority_locked = está em super)",
         "parameters": [
           {
             "$ref": "#/components/parameters/contest"

@@ -1,4 +1,4 @@
-<!-- i18n-source: MANUAL-ADMIN.md blob:cc8f99e72a456cc4c275c892aa432ff9dabf25fa -->
+<!-- i18n-source: MANUAL-ADMIN.md blob:201f753bcf12d5edebab42de32897503d7530272 -->
 # MOJ: Manual del organizador (el panel .admin de la competencia)
 
 > **Nota de traducción.** Este manual es una traducción del original en portugués. Las herramientas de línea de comandos (`moj`, `moj-contest`, `moj-comp`) muestran sus mensajes en portugués, y los ejemplos de comandos son idénticos al original.
@@ -782,6 +782,11 @@ debajo. En cambio, las horas que el **MOJ escribe para las personas** (el DM del
 previo a la competencia, la fecha del cuadernillo, el informe final) salen en la **zona horaria de la competencia**, que defines en
 *Central › Reglas → 🕒 Identidad y ventana → 🌎 Zona horaria de la competencia* (vacío = `America/Sao_Paulo`). Cuando los dos relojes
 difieren, la caja de la ventana muestra también la hora en la zona horaria de la competencia, para que no haya dudas.
+Escribe el nombre de cualquier zona horaria (`America/Santiago`, `America/Mexico_City`…). La lista sugiere todas,
+empezando por la de tu navegador. Usa la zona de tu ciudad, y no otra que tenga la misma hora hoy: el horario de
+verano cambia en fechas distintas en cada país, y los textos saldrían con 1 h de diferencia después del cambio. La
+zona horaria también se puede elegir en el asistente de creación, y va con la competencia al exportar, duplicar o
+guardar un template. Por la CLI: `moj-contest -c <cid> settings set tz=America/Santiago`.
 
 **Marcador:** la inscripción siembra las cohortes `individual` y `times`, cada una con **su propio marcador**:
 el selector "Marcador: General | Equipos | Individual" aparece solo en la página del marcador. Si la
