@@ -53,8 +53,9 @@ function renderNav(buttons, contest) {
 }
 document.addEventListener('moj:lang', () => { if (lastNav) renderNav(lastNav.buttons, lastNav.contest); });
 
-// initContestShell(contest) -> {basic, isAuth, st}. Preenche título, countdown, nav.
-export async function initContestShell(contest) {
+// initContestShell(contest, opts) -> {basic, isAuth, st}. Preenche título, countdown, nav.
+// opts.alerts:false = sem o alerta global da organização (página projetada — ver auth.js status).
+export async function initContestShell(contest, opts = {}) {
   let basic = null;
   try { basic = await apiGet('/contest/basic?contest=' + encodeURIComponent(contest), {}); } catch { /* segue */ }
   if (basic && basic.locale) setLang(basic.locale, { persist: false });  // LOCALE do contest impõe o idioma
@@ -63,7 +64,7 @@ export async function initContestShell(contest) {
   document.title = ((basic && basic.contest_name) || 'Contest') + ' — MOJ';
   const back = document.getElementById('backBtn'); if (back) back.href = '/contest/?c=' + encodeURIComponent(contest);
   if (basic) startCountdown(basic);
-  const st = await status(contest);
+  const st = await status(contest, opts);
   const isAuth = !!st.logged_in;
   mountContestUserChip(st);
   try {

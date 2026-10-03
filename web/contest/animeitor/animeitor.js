@@ -576,7 +576,7 @@ function render() {
 
 async function boot() {
   if (!CONTEST) { app.innerHTML = '<div class="error-box">' + T('Contest não informado.', 'No contest given.', 'No se indicó ninguna competencia.') + '</div>'; return; }
-  const { st } = await initContestShell(CONTEST);
+  const { st } = await initContestShell(CONTEST, { alerts: false });   // a mesa do telão: sem banner
   if (!st || !st.logged_in) { location.replace('/contest/?c=' + enc(CONTEST)); return; }
   if (!(st.is_animeitor || st.is_admin || st.is_cstaff || st.is_staff)) {
     app.innerHTML = '<div class="error-box">' + T('Esta área é da conta de placar (.animeitor).',

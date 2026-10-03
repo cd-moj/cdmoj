@@ -600,8 +600,7 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   0,11 s e 0,05 s (500), saída idêntica. Guarda no `smoke-contest-review.sh` (nº de jq por chamada).
   `set-verdict` legado só aceita label/classe
   da lista. Teste: `smoke-contest-review.sh`. O **voto é permanente e libera o juiz**
-  (pega outra na hora); o **alerta de conflito é global** (`web/shared/chief-alert.js`, disparado pelo
-  `auth.status` → segue o chief/admin em qualquer página); o painel **Operação › Situação** traz estatística por juiz
+  (pega outra na hora); o **alerta é global** (ver "Alerta da organização" abaixo); o painel **Operação › Situação** traz estatística por juiz
   (`review/stats`, derivada do `admin-audit.log`). **Watch do spool = `inotifywait -m`
   PERSISTENTE (coproc) + `read -t`** (03/09/2026): nunca volte ao `inotifywait` de um evento por
   giro — o `.in.*` do escritor atômico acordava o laço e o `mv` caía no buraco do rearme (~15 %
@@ -636,6 +635,21 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   nunca (403 `role_forbidden`), admin/juiz/chefe sempre. Rota nova de escrita do competidor chama
   a guarda. Leitura (listar/baixar backup, ler clarifications) segue livre. Testes:
   `smoke-contest-backup.sh`, seção "janela" do `smoke-contest-clar.sh`.
+- **ALERTA DA ORGANIZAÇÃO em qualquer página** (`web/shared/staff-alert.js` + `GET /contest/staff-alerts`, 03/10/2026;
+  pedido do juiz-chefe do TCP 2026): faixa no topo + som + `(N)` no título p/ clarification sem resposta
+  (juiz/chefe/admin/`.mon`), voto pendente do PRÓPRIO login (juiz/chefe/admin, só com `MANUAL_VERDICT=1`) e conflito
+  (chefe/admin). Ligado pelo `auth.status` (como o antigo alerta de conflito — `chief-alert.js` é só um apelido);
+  `status(c, {alerts:false})`/`initContestShell(c, {alerts:false})` p/ página PROJETADA (revelação, Animeitor, janela
+  de editor); treino nunca. **Custo**: UMA aba por navegador consulta (líder por Web Locks; as outras recebem por
+  BroadcastChannel; sem os dois, cada aba pola sozinha), 8–12 s com alguma aba visível e 30–40 s com todas ocultas;
+  401/403 PARA o poll. A rota só devolve contagens (nenhum login: o anonimato do review/list vale) e tem espelho no
+  porteiro (`r_staff_alerts`, zero fork; declina papel de conta só da fonte — o `_shared_role_ok` é do bash) —
+  mexeu numa, mexa na outra: `smoke-staff-alerts.sh` compara as duas papel a papel. Som: o navegador só toca depois
+  de um gesto na página (o banner mostra "🔇 ativar som"); mudo por contest no localStorage; lembrete a cada 2 min
+  enquanto houver pendência; notificação do sistema opt-in, só quando nenhuma aba está visível; toca UMA vez por
+  navegador (a aba visível, ou a líder). Ação que muda a pendência (responder/reservar/votar) chama
+  `pokeStaffAlert()`. Teste da tela: `smoke-staff-alert.gjs.sh` (inclui duas abas). Ligar no nginx:
+  `molde-route.sh add contest/staff-alerts`.
 - Clarifications: o **asker é anônimo** p/ `.judge`/`.mon` (handler corta `.login`); o
   **juiz-chefe/admin veem `login` + `asker_name`** (mapa login→fullname em UMA varredura, por
   `--slurpfile`; 2026-09-14) e o relatório público segue anônimo. Responder exige **reserva**

@@ -326,7 +326,7 @@
         ],
         "responses": {
           "200": {
-            "description": "{logged_in, login, name, is_admin, is_judge, is_staff, is_cstaff, is_chief, has_photo} (.cstaff = chefe de sede, não herda is_staff; has_photo evita que o avatar peça uma foto inexistente)"
+            "description": "{logged_in, login, name, is_admin, is_judge, is_staff, is_cstaff, is_chief, is_animeitor, is_mon, has_photo} (.cstaff = chefe de sede, não herda is_staff; has_photo evita que o avatar peça uma foto inexistente)"
           }
         }
       }
@@ -3080,7 +3080,7 @@
         "tags": [
           "contest"
         ],
-        "summary": "Sumário de conflitos de veredicto p/ o juiz-chefe (admin/chief); n alimenta o alerta global",
+        "summary": "Sumário de conflitos de veredicto p/ o juiz-chefe (admin/chief) — a aba de Conflitos",
         "security": [
           {
             "bearerAuth": []
@@ -3094,6 +3094,33 @@
         "responses": {
           "200": {
             "description": "{conflicts:[{id,login,problem_id,lang,sub_epoch,computed_verdict,votes}], n, options}"
+          }
+        }
+      }
+    },
+    "/contest/staff-alerts": {
+      "get": {
+        "tags": [
+          "contest"
+        ],
+        "summary": "Contagens p/ o alerta global da organização (clarifications sem resposta, voto pendente, conflitos)",
+        "description": "judge/chief/admin/.mon. Só números (nenhum login). review=null p/ .mon; conflicts=null p/ o juiz comum; needing/mine_todo só com MANUAL_VERDICT=1. Servida pelo porteiro; consultada pela aba líder de cada navegador.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{now, clar:{open, unclaimed, last}, review:{manual, quorum, needing, mine_todo, mine_last, conflicts}|null}"
+          },
+          "403": {
+            "description": "staff_alerts_forbidden (time, staff, telão)"
           }
         }
       }

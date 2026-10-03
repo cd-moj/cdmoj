@@ -482,8 +482,12 @@ na aba Configurações do admin e por `moj-contest extend --group`, auditado). T
   avaliação usa o **mesmo board** da aba "Tarefas do judge" do admin (`shared/review-board.js`:
   cards, fila completa com idade/quem pegou/votos, ação Decidir/Resolver e desempenho por juiz,
   via `review/{list,stats,resolve}`), **Conflitos** e a config do veredicto manual (opções +
-  matriz). O **alerta de conflito** (banner + bip) é **global** (`shared/chief-alert.js`): segue o
-  chief/admin em **qualquer página** do contest e abre a fila já filtrada em conflitos.
+  matriz). O **alerta da organização** é **global** (`shared/staff-alert.js`, 03/10/2026; o
+  `chief-alert.js` virou apelido dele): faixa no topo + som + `(N)` no título, em **qualquer página** do
+  contest, p/ clarification sem resposta (juiz/chefe/admin/`.mon`), veredicto esperando o voto do login
+  (juiz/chefe/admin, com `MANUAL_VERDICT`) e conflito (chefe/admin — abre a fila já filtrada em conflitos).
+  Uma aba por navegador consulta `/contest/staff-alerts` (só contagens, servida pelo porteiro) e conta às
+  outras por BroadcastChannel.
 
 ### Telão: o MOJ alimenta o Animeitor pela API (`docs/ANIMEITOR.md`)
 O sistema do telão (Animeitor 2.1.0) deixou de puxar o zip no protocolo do BOCA (`docs/WEBCAST.md`, legado): agora

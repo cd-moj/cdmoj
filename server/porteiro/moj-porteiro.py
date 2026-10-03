@@ -679,7 +679,89 @@ def r_summary(contest, q, params):
     return cgi(b"{}\n")
 
 
+def r_staff_alerts(contest, q, params):
+    """Espelho COMPUTADO de handlers/contest/staff-alerts.sh (o alerta global de juiz/chefe/admin/.mon):
+    contagens de clarifications abertas e da fila de revisão, lidas cruas dos dois diretórios.
+    Declina (o bash decide) com JSON inválido em qualquer arquivo — o bash refaz arquivo a arquivo e
+    avisa no error.log — e com conta de PAPEL que não seja local: o porteiro aceita conta só da fonte
+    (USERS_FROM) sem o _shared_role_ok do bash, e esta rota é gated por papel."""
+    sess = load_session(params)
+    if not (sess and sess[0] == contest):
+        raise Decline("staff-alerts exige sessão do contest")
+    login = sess[1]
+    judge = is_judge(login)
+    if not (judge or login.endswith(".mon")):
+        raise Decline("papel sem alerta: o 403 é do bash")
+    if not os.path.isfile(os.path.join(CONTESTSDIR, contest, "users", login, "account.json")):
+        raise Decline("papel de conta não-local: _shared_role_ok é do bash")
+    now = int(time.time())
+
+    def _num(x):
+        return x if isinstance(x, (int, float)) and not isinstance(x, bool) else 0
+
+    def _items(sub):
+        d = os.path.join(CONTESTSDIR, contest, sub)
+        try:
+            names = sorted(f for f in os.listdir(d) if f.endswith(".json") and not f.startswith("."))
+        except OSError:
+            return []
+        out = []
+        for fn in names:
+            v = read_json(os.path.join(d, fn))
+            if v is None:
+                raise Decline(sub + " com JSON inválido")
+            out.append(v)
+        return out
+
+    opn = unc = last = 0
+    for c in _items("clarifications"):
+        if not isinstance(c, dict) or (c.get("answer") or "") != "":
+            continue
+        opn += 1
+        last = max(last, _num(c.get("time")))
+        cl = c.get("answer_claim")
+        if cl is None or _num((cl or {}).get("expires_at") if isinstance(cl, dict) else 0) < now:
+            unc += 1
+    clar = {"open": opn, "unclaimed": unc, "last": last}
+
+    review = None
+    if judge:
+        manual = conf_value(contest, "MANUAL_VERDICT") == "1"
+        qv = "".join(ch for ch in conf_value(contest, "REVIEW_JUDGES") if ch.isdigit())
+        quorum = int(qv) if qv in ("1", "2", "3", "4", "5") else 2
+        chief = login.endswith((".admin", ".cjudge"))
+        need = mine = conf = mlast = 0
+        for it in _items("review"):
+            if not isinstance(it, dict):
+                continue
+            votes = it.get("votes") or []
+            claim = [c for c in (it.get("claimants") or []) if _num(c.get("expires_at")) > now]
+            status = it.get("status") or "open"
+            # rv_recompute: liberado mantém o conflict gravado; o resto recalcula pelos votos
+            if status == "released":
+                conflict = it.get("conflict") is True
+            else:
+                conflict = len(votes) >= quorum and len({v.get("verdict") for v in votes}) > 1
+            if conflict:
+                conf += 1
+            n = status != "released" and not conflict and len(votes) < quorum
+            if n:
+                need += 1
+                if (not any(v.get("by") == login for v in votes)
+                        and (any(c.get("by") == login for c in claim) or len(claim) < quorum)):
+                    mine += 1
+                    mlast = max(mlast, _num(it.get("created_at")))
+        review = {"manual": manual, "quorum": quorum,
+                  "needing": need if manual else 0, "mine_todo": mine if manual else 0,
+                  "mine_last": mlast if manual else 0, "conflicts": conf if chief else None}
+
+    body = json.dumps({"success": True, "now": now, "clar": clar, "review": review},
+                      separators=(",", ":")) + "\n"
+    return cgi(body.encode())
+
+
 ROUTES = {
+    "/contest/staff-alerts": r_staff_alerts,
     "/contest/score": r_score,
     "/contest/updates": r_updates,
     "/contest/basic": r_basic,

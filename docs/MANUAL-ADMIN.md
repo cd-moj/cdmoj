@@ -240,6 +240,14 @@ operações em massa (reset de senha, desabilitar) **pulam** contas privilegiada
 Regra de ouro: **nenhuma conta com sufixo de papel entra no placar ou nas estatísticas** —
 crie quantas precisar sem medo de sujar o resultado.
 
+**Aviso da organização em qualquer página.** Admin, juiz-chefe, juiz e `.mon` recebem, em qualquer
+página do contest, uma faixa no topo com som: **💬 clarification sem resposta** (todos esses papéis),
+**⚖ veredicto esperando o seu voto** (admin, chefe e juiz, com a correção manual ligada) e **⚠ conflito**
+(admin e chefe). A contagem aparece também no título da aba. O som se repete a cada 2 minutos enquanto houver
+pendência; a faixa tem os botões para ativar ou silenciar o som e para pedir a notificação do sistema. A
+revelação do placar, o telão do Animeitor e a janela de editor não mostram a faixa. Detalhes em
+`MANUAL-JUIZ.md`.
+
 > Contest com usuários **compartilhados do Treino Livre**: uma conta de papel do treino **não**
 > entra com o papel aqui. Só entram o `.admin` de quem criou o contest e os superadmins do treino.
 > Juiz, staff e co-organizador = conta criada **neste** contest (seção 8¾).

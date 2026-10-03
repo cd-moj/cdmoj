@@ -1,4 +1,4 @@
-<!-- i18n-source: MANUAL-JUIZ.md blob:17310ea67a9d6457fc517972c95e60ee3a96dfcb -->
+<!-- i18n-source: MANUAL-JUIZ.md blob:b8d6e4b9f0f66d79dfe606653a03c20461fdb725 -->
 # MOJ: Manual de los jueces (.judge y .cjudge)
 
 > **Nota de traducción.** Este manual es una traducción del original en portugués. Las herramientas de línea de comandos (`moj`, `moj-contest`, `moj-comp`) muestran sus mensajes en portugués, y los ejemplos de comandos son idénticos al original.
@@ -86,6 +86,21 @@ Cuando la ronda se promueve, todo lo del calentamiento se archiva: la cola, los 
 el marcador. La competencia oficial empieza con el historial vacío — nada de lo que evaluaste ahí cuenta ni
 se filtra a la competencia.
 
+### Aviso en cualquier página (franja arriba y sonido)
+
+No necesitas quedarte en la pestaña correcta para saber que tienes trabajo. En **cualquier página de la competencia**, una franja arriba de la pantalla te avisa, con sonido:
+
+- **💬 clarification sin respuesta**: una pregunta que nadie reservó (o cuya reserva venció). Haz clic para ir a la pestaña **Clarification**.
+- **⚖ veredicto esperando tu voto**: un envío en revisión que todavía puedes votar. Haz clic para ir a la pestaña **Evaluar**.
+
+La cantidad de pendientes también aparece en el **título de la pestaña** del navegador, por ejemplo "(2) …". El sonido toca cuando llega algo nuevo y se repite cada 2 minutos mientras haya pendientes.
+
+- **Activa el sonido.** El navegador solo toca sonido después de que haces clic en la página. Si la franja muestra **🔇 activar sonido**, haz clic en ella (o en cualquier lugar de la página).
+- **Silencia** con el botón **🔊 sonido activado** de la franja. Vale para esta competencia, en este navegador.
+- **Fuera del navegador:** el botón **🔔 avisar fuera del navegador** pide el permiso del sistema. Con él, la novedad aparece como notificación de la computadora, aun con el navegador minimizado.
+
+Con varias pestañas de la competencia abiertas, solo una consulta al servidor y avisa a las demás. Abrir más pestañas no pesa en la competencia.
+
 ### Resumen de lo que puede el juez
 
 | Puede | No puede |
@@ -96,6 +111,7 @@ se filtra a la competencia.
 | Pedir +5 min o desistir. | Ver el panel del juez principal. |
 | Ver el texto crudo del veredicto. | Entrar a la administración, los equipos o los usuarios. |
 | Ver el resultado del **jplag** (pares solo con el usuario; sin el nombre del equipo). | Ejecutar el jplag. |
+| Recibir en la franja de aviso, con sonido, las clarifications sin respuesta y los votos pendientes, en cualquier página. | |
 
 ## Parte 2: `.cjudge` (juez principal)
 
@@ -122,7 +138,7 @@ El panel está en `/contest/chief/` y tiene estas pestañas:
 
 ### Alerta de conflicto
 
-En **cualquier página de la competencia**, el juez principal recibe un **aviso rojo parpadeante (con sonido)** cada vez que surge un conflicto nuevo. Al hacer clic en el aviso vas directo a la pestaña **⚖️ Conflictos**. Así notas el conflicto aunque estés en otra pantalla.
+La franja de aviso de la Parte 1 también avisa al juez principal de cada **conflicto** nuevo: un ítem **⚠ rojo**, con un sonido de alarma distinto. Al hacer clic en el ítem vas directo a la pestaña **⚖️ Conflictos**. Así notas el conflicto aunque estés en otra pantalla.
 
 ### Otros poderes del juez principal
 
@@ -171,7 +187,7 @@ Sus poderes se limitan a: evaluación, veredictos, noticias/respuestas, estadís
 | Ver **Todos los envíos** con usuario/equipo y veredicto crudo. | |
 | Responder aclaraciones. Resérvalas antes. Ves quién preguntó (usuario y nombre). | Reservar una pregunta que otro juez ya reservó. |
 | Editar respuestas y noticias. | |
-| Recibir la alerta parpadeante de conflicto en cualquier página. | |
+| Recibir en la franja de aviso también los **conflictos**, en cualquier página. | |
 
 ## Para saber más
 

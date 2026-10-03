@@ -163,7 +163,7 @@ async function main() {
   try { basic = await apiGet('/contest/basic?contest=' + enc(CONTEST), G); } catch { basic = null; }
   if (basic && basic.locale) setLang(basic.locale, { persist: false });
   let st = {};
-  try { st = await status(CONTEST) || {}; } catch { st = {}; }
+  try { st = await status(CONTEST, { alerts: false }) || {}; } catch { st = {}; }   // tela projetada: sem banner
   const CSTAFF = !!(st.logged_in && st.is_cstaff && !st.is_judge && !st.is_admin);
   const scopeQ = CSTAFF ? '&scope=mine' : '';
   let frozenTxt, fullTxt;

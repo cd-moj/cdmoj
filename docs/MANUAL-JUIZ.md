@@ -83,6 +83,21 @@ Quando a rodada é promovida, tudo do aquecimento é arquivado: fila, submissõe
 placar. A prova oficial começa com o histórico vazio — nada do que você julgou ali conta, nem
 vaza, para a prova.
 
+### Aviso em qualquer página (faixa no topo e som)
+
+Você não precisa ficar na aba certa para saber que tem trabalho. Em **qualquer página do contest**, uma faixa no topo da tela avisa, com som:
+
+- **💬 clarification sem resposta**: uma pergunta que ninguém reservou (ou cuja reserva venceu). Clique para ir à aba **Clarification**.
+- **⚖ veredicto esperando o seu voto**: uma submissão em revisão que você ainda pode votar. Clique para ir à aba **Avaliar**.
+
+O número de pendências também aparece no **título da aba** do navegador, por exemplo "(2) …". O som toca quando chega algo novo e se repete a cada 2 minutos enquanto houver pendência.
+
+- **Ative o som.** O navegador só toca som depois que você clica na página. Se a faixa mostrar **🔇 ativar som**, clique nela (ou em qualquer lugar da página).
+- **Silencie** no botão **🔊 som ligado** da faixa. Vale para este contest, neste navegador.
+- **Fora do navegador:** o botão **🔔 avisar fora do navegador** pede a permissão do sistema. Com ela, a novidade aparece como notificação do computador, mesmo com o navegador minimizado.
+
+Com várias abas do contest abertas, só uma consulta o servidor e avisa as outras. Abrir mais abas não pesa na prova.
+
 ### Resumo do que o juiz pode
 
 | Pode | Não pode |
@@ -93,6 +108,7 @@ vaza, para a prova.
 | Pedir +5 min ou desistir. | Ver o painel de chefia. |
 | Ver o texto cru do veredicto. | Acessar administração, times, usuários. |
 | Ver o resultado do **jplag** (pares só com o login; sem nome do time). | Rodar o jplag. |
+| Receber na faixa de aviso, com som, as clarifications sem resposta e os votos pendentes, em qualquer página. | |
 
 ## Parte 2: `.cjudge` (juiz-chefe)
 
@@ -119,7 +135,7 @@ O painel fica em `/contest/chief/` e tem estas abas:
 
 ### Alerta de conflito
 
-Em **qualquer página do contest**, o juiz-chefe recebe um **aviso vermelho piscando (com som)** toda vez que surge um novo conflito. Clicar no aviso leva direto à aba **⚖️ Conflitos**. Assim você percebe o conflito mesmo que esteja em outra tela.
+A faixa de aviso da Parte 1 também avisa o juiz-chefe de cada **conflito** novo: um item **⚠ vermelho**, com um som de alarme diferente. Clicar no item leva direto à aba **⚖️ Conflitos**. Assim você percebe o conflito mesmo que esteja em outra tela.
 
 ### Outros poderes do chefe
 
@@ -168,7 +184,7 @@ Os poderes dele se limitam a: julgamento, veredictos, notícias/respostas, estat
 | Ver **Todas as Submissões** com usuário/time e veredicto cru. | |
 | Responder clarifications. Reserve antes. Você vê quem perguntou (login e nome). | Reservar uma pergunta que outro juiz já reservou. |
 | Editar respostas e notícias. | |
-| Receber o alerta piscante de conflito em qualquer página. | |
+| Receber na faixa de aviso também os **conflitos**, em qualquer página. | |
 
 ## Para saber mais
 

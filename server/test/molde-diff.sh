@@ -9,7 +9,7 @@
 set -u
 ACT="${1:?uso: molde-diff.sh capture|compare ...}"
 ROTAS_DEFAULT=(contest/updates contest/score contest/basic contest/problems contest/rounds
-               contest/navbuttons contest/balloons contest/staff/queue)
+               contest/navbuttons contest/balloons contest/staff/queue contest/staff-alerts)
 
 norm(){ # normaliza voláteis: epochs de 10 dígitos "de agora" viram E10 (json continua diffável)
   sed -E 's/17[0-9]{8}/E10/g'

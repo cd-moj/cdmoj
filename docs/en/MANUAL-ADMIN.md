@@ -1,4 +1,4 @@
-<!-- i18n-source: MANUAL-ADMIN.md blob:d66b5acf2b964007f3ce287d7e1f1e4d95bb5daa -->
+<!-- i18n-source: MANUAL-ADMIN.md blob:d4391422eeb23c8618e34bae9680252d59d0ec00 -->
 # MOJ: Organizer manual (the contest .admin panel)
 
 > **Translation note.** This manual is a translation of the Portuguese original. The command-line tools (`moj`, `moj-contest`, `moj-comp`) print their messages in Portuguese, and the command examples below are identical to the original.
@@ -249,6 +249,14 @@ privileged accounts on purpose.
 
 Golden rule: **no account with a role suffix goes to the scoreboard or to the statistics**. Create
 as many as you need: they do not change the result.
+
+**Alert for the organization on any page.** Admin, chief judge, judge and `.mon` get, on any page of the
+contest, a bar at the top with a sound: **💬 unanswered clarification** (all these roles), **⚖ verdict
+awaiting your vote** (admin, chief and judge, when manual verdict is on) and **⚠ conflict** (admin and
+chief). The count also shows in the title of the tab. The sound plays again every 2 minutes while items are
+pending. The bar has the buttons to enable or mute the sound and to ask for the system notification. The
+scoreboard reveal, the Animeitor big screen and the editor window do not show the bar. More information in
+`MANUAL-JUIZ.md`.
 
 > Contest with users **shared with Free Training**: a role account of the training site does **not**
 > get in with its role here. Only the `.admin` of the person who created the contest and the

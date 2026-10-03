@@ -18,6 +18,7 @@ import { fileToBase64 } from '/shared/auth.js';
 import { initContestShell } from '/shared/contest-shell.js';
 import { fmtDate, sigOf, everyVisible } from '/shared/admin-ui.js';
 import { T } from '/shared/i18n.js';
+import { pokeStaffAlert } from '/shared/staff-alert.js';
 
 const qs = new URLSearchParams(location.search);
 const CONTEST = (window.__MOJ_CONTEST || qs.get('c') || '');
@@ -29,7 +30,8 @@ let canAnswer = false, canEdit = false, myLogin = '', problems = [];
 let CLARS = [];                                 // último GET
 let filterProb = '';                            // '' = todos
 
-const post = (path, body) => apiPost('/contest/' + path + '?contest=' + enc(CONTEST), body, G);
+// reservar/responder/avisar atualiza o alerta global na hora (o banner não espera o próximo poll)
+const post = async (path, body) => { const r = await apiPost('/contest/' + path + '?contest=' + enc(CONTEST), body, G); pokeStaffAlert(); return r; };
 const probLabel = (p) => (p === 'general' ? T('Geral', 'General', 'General') : T('Problema ', 'Problem ', 'Problema ') + p);
 
 // ---------- formulários -----------------------------------------------------------------

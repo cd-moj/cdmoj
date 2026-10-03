@@ -1,4 +1,4 @@
-<!-- i18n-source: MANUAL-ADMIN.md blob:d66b5acf2b964007f3ce287d7e1f1e4d95bb5daa -->
+<!-- i18n-source: MANUAL-ADMIN.md blob:d4391422eeb23c8618e34bae9680252d59d0ec00 -->
 # MOJ: Manual del organizador (el panel .admin de la competencia)
 
 > **Nota de traducción.** Este manual es una traducción del original en portugués. Las herramientas de línea de comandos (`moj`, `moj-contest`, `moj-comp`) muestran sus mensajes en portugués, y los ejemplos de comandos son idénticos al original.
@@ -243,6 +243,14 @@ operaciones en masa (restablecer contraseña, deshabilitar) **se saltan** las cu
 
 Regla de oro: **ninguna cuenta con sufijo de rol entra en el marcador ni en las estadísticas**:
 crea todas las que necesites sin miedo de ensuciar el resultado.
+
+**Aviso de la organización en cualquier página.** Admin, juez principal, juez y `.mon` reciben, en cualquier
+página de la competencia, una franja arriba con sonido: **💬 clarification sin respuesta** (todos esos roles),
+**⚖ veredicto esperando tu voto** (admin, juez principal y juez, con la corrección manual activada) y **⚠
+conflicto** (admin y juez principal). La cantidad aparece también en el título de la pestaña. El sonido se
+repite cada 2 minutos mientras haya pendientes; la franja tiene los botones para activar o silenciar el sonido
+y para pedir la notificación del sistema. La revelación del marcador, la pantalla del Animeitor y la ventana de
+editor no muestran la franja. Detalles en `MANUAL-JUIZ.md`.
 
 > Competencia con usuarios **compartidos con Entrenamiento libre**: una cuenta de rol del
 > entrenamiento **no** entra con el rol aquí. Solo entran el `.admin` de quien creó la competencia y

@@ -11,6 +11,7 @@ import { el, verdictClass, isPending, fmtDate } from '/shared/ui.js';
 import { mountChrome } from '/lib/contest-chrome.js';
 import { logLink as _logLink, srcLink as _srcLink } from '/shared/submission-links.js';
 import { T } from '/shared/i18n.js';
+import { pokeStaffAlert } from '/shared/staff-alert.js';
 import { langLabel } from '/shared/languages.js';
 
 const qs = new URLSearchParams(location.search);
@@ -28,7 +29,8 @@ const logLink = (s) => _logLink(CONTEST, s);
 const srcLink = (s) => _srcLink(CONTEST, s);
 
 // ===================== MODO MANUAL (fila de revisão) =====================
-async function rvAct(path, body) { return apiPost('/contest/review/' + path + '?contest=' + enc(CONTEST), body, G); }
+// toda ação na fila (pegar/votar/desistir) atualiza o alerta global na hora — o banner não espera o próximo poll
+async function rvAct(path, body) { const r = await apiPost('/contest/review/' + path + '?contest=' + enc(CONTEST), body, G); pokeStaffAlert(); return r; }
 
 // estado do item de revisão (lib/review.sh) — o cru ia para a tela ("open", "voting"…) em qualquer idioma
 function stLabel(st) {

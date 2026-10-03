@@ -1,4 +1,4 @@
-<!-- i18n-source: MANUAL-JUIZ.md blob:17310ea67a9d6457fc517972c95e60ee3a96dfcb -->
+<!-- i18n-source: MANUAL-JUIZ.md blob:b8d6e4b9f0f66d79dfe606653a03c20461fdb725 -->
 # MOJ: Manual for judges (.judge and .cjudge)
 
 > **Translation note.** This manual is a translation of the Portuguese original. The command-line tools (`moj`, `moj-contest`, `moj-comp`) print their messages in Portuguese, and the command examples below are identical to the original.
@@ -87,6 +87,21 @@ When the organization promotes the round, the system archives all of the warm-up
 clarifications and scoreboard. The official contest starts with an empty history. Nothing that you judged
 in the warm-up counts in the contest, and nothing leaks into it.
 
+### Alert on any page (bar at the top and sound)
+
+You do not have to stay on the correct tab to know that there is work to do. On **any page of the contest**, a bar at the top of the screen tells you, with a sound:
+
+- **💬 unanswered clarification**: a question that nobody reserved (or with an expired reservation). Click it to go to the **Clarification** tab.
+- **⚖ verdict awaiting your vote**: a submission in review that you can still vote on. Click it to go to the **Judge** tab.
+
+The number of pending items also shows in the **title of the browser tab**, for example "(2) …". The sound plays when a new item arrives and plays again every 2 minutes while items are pending.
+
+- **Enable the sound.** The browser plays sound only after you click on the page. If the bar shows **🔇 enable sound**, click it (or click anywhere on the page).
+- **Mute** with the **🔊 sound on** button on the bar. This applies to this contest, in this browser.
+- **Outside the browser:** the **🔔 notify outside the browser** button asks for the system permission. With it, a new item shows as a notification of the computer, also when the browser is minimized.
+
+When you have many tabs of the contest open, only one tab asks the server and tells the others. More open tabs do not put more load on the contest.
+
 ### Summary of the judge permissions
 
 | Can | Cannot |
@@ -97,6 +112,7 @@ in the warm-up counts in the contest, and nothing leaks into it.
 | Ask for +5 min or give up. | See the chief judge panel. |
 | See the raw text of the verdict. | Open administration, teams, users. |
 | See the **jplag** result (pairs with the login only; no team name). | Run jplag. |
+| Get the unanswered clarifications and the pending votes on the alert bar, with sound, on any page. | |
 
 ## Part 2: `.cjudge` (chief judge)
 
@@ -123,7 +139,7 @@ The panel is at `/contest/chief/`. It has these tabs:
 
 ### Conflict alert
 
-On **any page of the contest**, the chief judge gets a **flashing red alert (with sound)** each time a new conflict occurs. Click the alert to go directly to the **⚖️ Conflicts** tab. Thus, you see the conflict even when you are on a different screen.
+The alert bar from Part 1 also tells the chief judge about each new **conflict**: a **red ⚠** item, with a different alarm sound. Click the item to go directly to the **⚖️ Conflicts** tab. Thus, you see the conflict even when you are on a different screen.
 
 ### Other chief powers
 
@@ -172,7 +188,7 @@ The chief judge powers are limited to: judging, verdicts, news/answers, statisti
 | See **All Submissions** with user/team and the raw verdict. | |
 | Answer clarifications. Reserve first. You see who asked (login and name). | Reserve a question that another judge reserved. |
 | Edit answers and news. | |
-| Get the flashing conflict alert on any page. | |
+| Get the **conflicts** on the alert bar too, on any page. | |
 
 ## More information
 

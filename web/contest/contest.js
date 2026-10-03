@@ -1135,7 +1135,7 @@ async function boot() {
   if (basic.locale) setLang(basic.locale, { persist: false });
   LANGS = resolveLangs(basic.languages);   // whitelist do contest (conf LANGUAGES=); vazio = todas
 
-  const st = await status(CONTEST);
+  const st = await status(CONTEST, { alerts: !EDITOR_ONLY });   // a janela de editor não leva o banner
   // .staff/.cstaff não participam do contest (não submetem / não veem problemas): vão
   // direto à área da fila (o .cstaff a vê em modo somente leitura).
   if (st.logged_in && (st.is_staff || st.is_cstaff) && !st.is_admin) {
