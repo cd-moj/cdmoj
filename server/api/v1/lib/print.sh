@@ -246,6 +246,102 @@ pr_resolve_univ() {  # <c> <login>
   printf '%s' "$un"
 }
 
+# --- CUSTO DO PAPEL: o ImageMagick desta lib -------------------------------------------------
+# Medido no TCP 2026 (cl-tcp, 03/10/2026): cada folha custava ~3,6 s de servidor, e os picos de
+# load da prova acompanhavam as rajadas de impressão (21 pedidos num minuto ⇒ load 2,4). Perfil
+# de uma folha de código: magick = 2,3 s dos 2,5 s, e quase tudo era `caption:` com CORPO
+# AUTOMÁTICO — o IM procura o maior corpo que cabe renderizando o texto várias vezes. Os mais
+# caros eram os RÓTULOS FIXOS, iguais em toda folha: "TAREA N.º (verifícala con el sistema)"
+# 0,55 s, a linha de páginas 0,50 s, "Firma de quien entregó:" 0,24 s (~1,6 s por folha).
+# Três consertos, todos sem mudar um pixel do papel:
+#
+# 1. **Letreiro cacheado (`_pr_cap_tile`).** Cada `caption:` vira um PNG em
+#    $RUNDIR/print-cap/<md5>.png, chave = (caixa, cor, fonte, peso, gravidade, texto, versão do
+#    IM); a folha só COMPÕE os PNGs. Rótulo fixo acerta sempre; nome/sede/login do time acertam
+#    da 2ª folha dele em diante (o mesmo time imprime várias vezes, e a folha do balão repete os
+#    três); a linha de páginas, por N. Fora do print-requests/ de propósito: o arquivamento de
+#    rodada MOVE aquele dir (contest-rounds.sh), e a chave é o conteúdo — o tile serve a todo
+#    contest. Falhou o tile (disco, permissão) ⇒ o letreiro sai inline como antes: o cache nunca
+#    custa uma folha. PR_CAP_CACHE=0 desliga (o smoke compara as duas vias pixel a pixel).
+# 2. **Uma thread (`_pr_magick`).** O IM abre até nproc-1 threads OpenMP por comando (Thread=47
+#    na produção). Numa folha A4 isso não encurta nada — mesmo tempo de parede, medido — e gasta
+#    ~20% a mais de CPU, com rajadas de threads que inflam o load. Só nos renders desta lib (nada
+#    de export global: foto de time e logo são de outros handlers). PR_MAGICK_THREADS muda.
+# 3. **Fontes resolvidas uma vez por processo (`_pr_fonts_load`).** Eram 5 `magick -list font`
+#    por folha (~15 ms cada na produção) — marginal, mas de graça.
+_pr_magick() { MAGICK_THREAD_LIMIT="${PR_MAGICK_THREADS:-1}" magick "$@"; }
+: "${PR_CAP_CACHE:=1}"
+_PR_FONTS_OK=0; _PR_FB=""; _PR_FR=""; _PR_F1=""; _PR_IMV=""
+# _pr_fonts_load — preenche _PR_FB (DejaVu-Sans-Bold), _PR_FR (DejaVu-Sans) e _PR_F1 (a 1ª fonte
+# que o IM conhece: o reserva de cada um). Chamar no shell CORRENTE, nunca dentro de $(...).
+_pr_fonts_load() {
+  (( _PR_FONTS_OK )) && return 0
+  local l; l="$(magick -list font 2>/dev/null)"
+  _PR_FB="$(awk -F': ' '/Font: DejaVu-Sans-Bold$/{print $2; exit}' <<<"$l")"
+  _PR_FR="$(awk -F': ' '/Font: DejaVu-Sans$/{print $2; exit}' <<<"$l")"
+  _PR_F1="$(awk -F': ' '/Font: /{print $2; exit}' <<<"$l")"
+  _PR_IMV="$(magick -version 2>/dev/null | head -1)"
+  _PR_FONTS_OK=1
+}
+# _pr_cap_tile <w> <h> <fill> <fonte> <peso> <stroke> <strokewidth> <gravidade> <texto> -> ecoa o
+# PNG do letreiro (rc!=0 = sem cache: o chamador faz o letreiro inline). O texto já chega pelo
+# cap_esc (o `%` e o `@` do caption); o md5 protege o NOME do arquivo. Escrita tmp+mv: renders
+# correm em paralelo (PR_RENDER_SLOTS) e dois podem criar o mesmo tile.
+_pr_cap_tile() {
+  (( PR_CAP_CACHE )) || return 1
+  local d="${RUNDIR:-/tmp}/print-cap" k f t
+  k="$(printf '%s\n' "$_PR_IMV" "$@" | md5sum)"; k="${k%% *}"; f="$d/$k.png"
+  if [[ ! -s "$f" ]]; then
+    mkdir -p "$d" 2>/dev/null || return 1
+    t="$(mktemp "$d/.t.XXXXXX" 2>/dev/null)" || return 1
+    local -a a=( -size "${1}x${2}" -background white -fill "$3" )
+    [[ -n "$4" ]] && a+=( -font "$4" )
+    [[ -n "$5" ]] && a+=( -weight "$5" )
+    [[ -n "$6" ]] && a+=( -stroke "$6" )
+    [[ -n "$7" ]] && a+=( -strokewidth "$7" )
+    a+=( -gravity "$8" "caption:$9" )
+    if _pr_magick "${a[@]}" "png:$t" 2>/dev/null && [[ -s "$t" ]]; then mv -f "$t" "$f" 2>/dev/null || { rm -f "$t"; return 1; }
+    else rm -f "$t"; return 1; fi
+    # poda de vez em quando (1 em 256 tiles NOVOS): sobra de tmp e tile de 30+ dias sem recriar
+    (( RANDOM % 256 )) || find "$d" -maxdepth 1 \( -name '.t.*' -mmin +60 -o -name '*.png' -mtime +30 \) -delete 2>/dev/null
+  fi
+  printf '%s' "$f"
+}
+# _pr_cap_init / _pr_addcap — o `addcap` das folhas (capa e balão). Acumula no array `cov` do
+# chamador (escopo dinâmico do bash). ⚠ No IM7 os settings NÃO param nos parênteses: o que um
+# letreiro ou um traço define vale para os seguintes. Dois deles mudam o letreiro:
+#   - o `-weight` do letreiro anterior (o rótulo regular logo depois do nome do time é feito com
+#     o peso 700 em vigor) — só o addcap o define: _pr_cw/_pr_cf = peso/fonte EM VIGOR;
+#   - o `-stroke`/`-strokewidth` das LINHAS da folha (`-strokewidth 2 -draw line…`): o corpo
+#     automático do caption mede o texto com o traço em vigor, e o "TAREA N.º…" logo abaixo da
+#     linha saía em outro corpo (o smoke pegou: 5.455 pixels de diferença só naquela faixa) — só o
+#     chamador os define: lidos do próprio `cov` (o último valor de cada um).
+# O tile reproduz esse estado; sem isso o PNG cacheado sairia diferente do papel de sempre.
+_pr_cap_init() { _pr_cw=""; _pr_cf=""; }
+_pr_addcap() { # w h x y fill font weight gravity text
+  [[ -n "$6" ]] && _pr_cf="$6"
+  [[ -n "$7" ]] && _pr_cw="$7"
+  local tile i sk="" sw=""   # `work` = o workdir do chamador (_pr_render/_pr_render_balloon)
+  for ((i=${#cov[@]}-2; i>=0; i--)); do
+    [[ -z "$sk" && "${cov[i]}" == -stroke ]] && sk="${cov[i+1]}"
+    [[ -z "$sw" && "${cov[i]}" == -strokewidth ]] && sw="${cov[i+1]}"
+    [[ -n "$sk" && -n "$sw" ]] && break
+  done
+  # o tile é PRESO no workdir da folha (hardlink; cópia se for outro sistema de arquivos) antes de
+  # entrar no comando: a poda de 30 dias pode apagar o do cache entre agora e o magick ler — e capa
+  # que falha vira um pedido cacheado SEM folha de rosto. Preso, o arquivo não some no meio.
+  local pin="$work/cap-${#cov[@]}.png"
+  if tile="$(_pr_cap_tile "$1" "$2" "$5" "$_pr_cf" "$_pr_cw" "$sk" "$sw" "$8" "$9")" \
+     && { ln -f "$tile" "$pin" 2>/dev/null || cp -f "$tile" "$pin" 2>/dev/null; }; then
+    cov+=( "$pin" -gravity northwest -geometry "+${3}+${4}" -composite )
+  else
+    cov+=( '(' -size "${1}x${2}" -background white -fill "$5" )
+    [[ -n "$_pr_cf" ]] && cov+=( -font "$_pr_cf" )
+    [[ -n "$_pr_cw" ]] && cov+=( -weight "$_pr_cw" )
+    cov+=( -gravity "$8" "caption:$9" ')' -gravity northwest -geometry "+${3}+${4}" -composite )
+  fi
+}
+
 # --- TEXTO -> PDF: o caminho que a sala mais usa (código-fonte) ------------------------------
 # _pr_text2pdf <src> <out.pdf> <nome-visível> <workdir> <arquivo-de-erro> -> 0/1
 #
@@ -297,9 +393,8 @@ _pr_text2pdf() {  # <src> <out.pdf> <nome-do-arquivo> <rodapé> <workdir> [<err>
   # identificado — nunca deixar de imprimir por causa do carimbo.
   foot="$(printf '%s' "$foot" | tr -cd 'A-Za-z0-9._ #-' | tr -s ' ' | cut -c1-120)"
   [[ -n "$foot" ]] || return 0
-  fr="$(magick -list font 2>/dev/null | awk -F': ' '/Font: DejaVu-Sans$/{print $2; exit}')"
-  [[ -n "$fr" ]] || fr="$(magick -list font 2>/dev/null | awk -F': ' '/Font: /{print $2; exit}')"
-  local -a st=( magick -size 1240x1754 xc:none -gravity south -pointsize 26 -fill '#333' )
+  _pr_fonts_load; fr="${_PR_FR:-$_PR_F1}"
+  local -a st=( _pr_magick -size 1240x1754 xc:none -gravity south -pointsize 26 -fill '#333' )
   [[ -n "$fr" ]] && st+=( -font "$fr" )
   st+=( -annotate +0+40 "$foot" -units PixelsPerInch -density 150 "$work/stamp.pdf" )
   "${st[@]}" 2>>"$err" && [[ -s "$work/stamp.pdf" ]] \
@@ -400,7 +495,7 @@ _pr_render() {  # <c> <id> <src> <meta> <cache>
       elif gs -q -dNOPAUSE -dBATCH -sDEVICE=pdfwrite -sOutputFile="$doc" "$src" 2>/dev/null && pdfinfo "$doc" >/dev/null 2>&1; then docok=1
       fi ;;
     image/*)
-      magick "$src" -resize 1240x1754\> -background white -gravity center -extent 1240x1754 \
+      _pr_magick "$src" -resize 1240x1754\> -background white -gravity center -extent 1240x1754 \
         -units PixelsPerInch -density 150 "$doc" 2>/dev/null && [[ -s "$doc" ]] && docok=1 ;;
     text/*)
       # o caso mais comum da sala: .c .cpp .py .java .kt .txt — ver _pr_text2pdf
@@ -438,18 +533,12 @@ _pr_render() {  # <c> <id> <src> <meta> <cache>
   team="$(cap_esc "$team")"; univ="$(cap_esc "$univ")"; login="$(cap_esc "$login")"
   if (( docok )); then pagesline="$(_pr_t "$L" pages "$pages")"
   else pagesline="$(_pr_t "$L" convfail)"; fi
-  FB="$(magick -list font 2>/dev/null | awk -F': ' '/Font: DejaVu-Sans-Bold$/{print $2; exit}')"
-  [[ -n "$FB" ]] || FB="$(magick -list font 2>/dev/null | awk -F': ' '/Font: /{print $2; exit}')"
-  FR="$(magick -list font 2>/dev/null | awk -F': ' '/Font: DejaVu-Sans$/{print $2; exit}')"
-  [[ -n "$FR" ]] || FR="$FB"
+  _pr_fonts_load; FB="${_PR_FB:-$_PR_F1}"; FR="${_PR_FR:-$FB}"
 
-  local -a cov=( magick -size 1240x1754 xc:white )
-  addcap(){ # w h x y fill font weight gravity text
-    cov+=( '(' -size "${1}x${2}" -background white -fill "$5" )
-    [[ -n "$6" ]] && cov+=( -font "$6" )
-    [[ -n "$7" ]] && cov+=( -weight "$7" )
-    cov+=( -gravity "$8" "caption:$9" ')' -gravity northwest -geometry "+${3}+${4}" -composite )
-  }
+  # letreiros cacheados (ver _pr_cap_tile) — a folha só compõe os PNGs
+  local -a cov=( _pr_magick -size 1240x1754 xc:white )
+  local _pr_cw _pr_cf; _pr_cap_init
+  addcap(){ _pr_addcap "$@"; }   # w h x y fill font weight gravity text
   addcap 1080  46  80   78 '#555' "$FR" ''   center "$(_pr_t "$L" team)"
   addcap 1080 210  80  130 black  "$FB" 700  center "$team"
   [[ -n "$univ" ]] && addcap 1080 64 80 352 '#333' "$FR" '' center "$univ"
@@ -642,12 +731,11 @@ _pr_render_balloon() {
   [[ -n "$colorname" ]] || colorname="$(pr_color_name "$colorhex" "$L")"
   cap_esc(){ local s="${1//%/%%}"; [[ "$s" == @* ]] && s=" $s"; printf '%s' "$s"; }
   team="$(cap_esc "$team")"; univ="$(cap_esc "$univ")"; login="$(cap_esc "$login")"; colorname="$(cap_esc "$colorname")"; short="$(cap_esc "$short")"
-  FB="$(magick -list font 2>/dev/null | awk -F': ' '/Font: DejaVu-Sans-Bold$/{print $2; exit}')"
-  [[ -n "$FB" ]] || FB="$(magick -list font 2>/dev/null | awk -F': ' '/Font: /{print $2; exit}')"
-  FR="$(magick -list font 2>/dev/null | awk -F': ' '/Font: DejaVu-Sans$/{print $2; exit}')"; [[ -n "$FR" ]] || FR="$FB"
+  _pr_fonts_load; FB="${_PR_FB:-$_PR_F1}"; FR="${_PR_FR:-$FB}"
 
-  local -a cov=( magick -size 1240x1754 xc:white )
-  addcap(){ cov+=( '(' -size "${1}x${2}" -background white -fill "$5" ); [[ -n "$6" ]] && cov+=( -font "$6" ); [[ -n "$7" ]] && cov+=( -weight "$7" ); cov+=( -gravity "$8" "caption:$9" ')' -gravity northwest -geometry "+${3}+${4}" -composite ); }
+  local -a cov=( _pr_magick -size 1240x1754 xc:white )
+  local _pr_cw _pr_cf; _pr_cap_init
+  addcap(){ _pr_addcap "$@"; }   # letreiros cacheados (ver _pr_cap_tile)
   addcap 1080  46  80   66 '#555' "$FR" ''   center "$(_pr_t "$L" balloon)"
   addcap 1080 150  80  120 black  "$FB" 700  center "$team"
   [[ -n "$univ" ]] && addcap 1080 54 80 280 '#333' "$FR" '' center "$univ"

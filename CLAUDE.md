@@ -1964,6 +1964,18 @@ mexa na outra. O índice separa as coleções por `\u001f` (nome é texto livre:
   E o caminho quente da impressão tem teste próprio (`server/test/smoke-print-render.sh`), que
   cobre ASCII, UTF-8 e **ISO-8859-1** (o `.cpp` do Dev-C++ com `// solução` fazia o paps abortar:
   ele só lê UTF-8 ⇒ hoje passa por `iconv -c`).
+- **CUSTO DA FOLHA = o `caption:` do ImageMagick, e ele é CACHEADO** (03/10/2026, TCP 2026: ~3,6 s por
+  folha no servidor e os picos de load da prova acompanhando as rajadas de impressão). O corpo
+  automático do `caption:` renderiza o texto várias vezes para achar o tamanho, e os RÓTULOS FIXOS
+  ("TAREA N.º…", a linha de páginas, "Firma…") eram ~1,6 s dos 2,3 s de magick. Hoje cada letreiro
+  da capa e do balão vira um PNG em `run/print-cap/<md5>.png` (`_pr_cap_tile`/`_pr_addcap`, `lib/print.sh`)
+  e a folha só compõe: 2,5 s → 0,46 s (0,74 s na 1ª folha de um time). O magick desta lib roda com
+  `MAGICK_THREAD_LIMIT=1` (`_pr_magick`; −20% de CPU, mesmo tempo). ⚠ No IM7 os settings vazam
+  entre letreiros (parênteses NÃO isolam): o `-weight` do letreiro anterior e o `-strokewidth` das
+  linhas da folha mudam o corpo calculado, e o tile tem de reproduzir esse estado — letreiro novo
+  ou traço novo na folha ⇒ rode o `smoke-print-captions.sh`, que compara PIXEL A PIXEL com a via
+  inline (`PR_CAP_CACHE=0`). Deploy que mexe no `print.sh` refaz os PDFs em cache (`_pr_cache_ok`
+  usa a lib como entrada): não faça no meio de uma rajada de impressão.
 - **Armadilha `jq 1.7` (imagem) × `jq 1.8` (dev) — causou outage silencioso da listagem inteira:**
   no **jq 1.7** (Debian, o da imagem de produção) o **valor de um campo de objeto NÃO aceita operador
   binário solto** — `{a: X + Y}`, `{a: .x // 0}`, `{a: .x == 1}`, `{a: .x and .y}` são **erro de
