@@ -502,7 +502,10 @@ done
 # passou a sair do próprio `?hide=` — ver a captura dela lá embaixo. Enquadramento que só existe
 # fora do script é enquadramento que a próxima rodada sobrescreve em silêncio.)
 
-# shot <arquivo.png> <papel> <caminho-da-página> [altura]
+# shot <arquivo.webp> <papel> <caminho-da-página> [altura]
+# A captura do Firefox sai em PNG e vira WEBP SEM PERDA (TCP 2026, 03/10/2026: as 38 telas eram 5,7 MB de PNG e as
+# sedes do Chile, numa rede com perda de pacote, levavam até 42 s p/ abrir o tutorial; em webp sem perda são 2,2 MB,
+# pixel a pixel as mesmas, e as páginas as pedem com loading="lazy").
 # O `sess=` diz ao servidor de captura QUAL sessão usar ao chamar o router (é o papel logado).
 # aceita `--only judge` e `--only s_judge`: o comentário de uso sempre disse "papel", mas a
 # comparação era com o nome da SESSÃO — quem lia a ajuda não capturava nada e nem sabia por quê
@@ -512,28 +515,32 @@ shot(){
   # `#aba` no caminho: a query vai ANTES do hash (chief.js abre a aba pelo location.hash)
   local hash=""; [[ "$path" == *#* ]] && { hash="#${path#*#}"; path="${path%%#*}"; }
   local out="$OUT/$name" sep='?'; [[ "$path" == *\?* ]] && sep='&'
+  local png="${out%.webp}.png"
   rm -rf "$PROF"; mkdir -p "$PROF"   # perfil limpo: sem --profile o firefox serve do CACHE
   MOZ_HEADLESS=1 timeout 120 firefox --headless --profile "$PROF" \
-    --window-size "$SHOT_W,$h" --screenshot "$out" \
+    --window-size "$SHOT_W,$h" --screenshot "$png" \
     "http://127.0.0.1:$PORT${path}${sep}c=demo&sess=$role${hash}" >/dev/null 2>&1
+  local psz; psz="$(stat -c%s "$png" 2>/dev/null || echo 0)"
+  (( psz > 8000 )) || echo "    ⚠ $name: pequena demais — a tela provavelmente não renderizou"
+  magick "$png" -define webp:lossless=true -define webp:method=6 "$out" 2>/dev/null && rm -f "$png" \
+    || echo "    ⚠ $name: a conversão p/ webp falhou (ficou o PNG)"
   local sz; sz="$(stat -c%s "$out" 2>/dev/null || echo 0)"
   printf '  %-32s %8s bytes\n' "$name" "$sz"
-  (( sz > 8000 )) || echo "    ⚠ pequena demais — a tela provavelmente não renderizou"
 }
 
 echo ">> capturando (porta $PORT, delay ${SHOT_DELAY_MS}ms)"
 # ---- competidor -----------------------------------------------------------------------
 # A sanfona é um <span class="prob-left"> com listener de clique: por TEXTO o ?click= não a
 # acha (ele só varre button/.btn/a/summary), por isso o ?clickcss=.
-shot comp-contest.png      s_comp    /contest/                                    2130
+shot comp-contest.webp      s_comp    /contest/                                    2130
 # a PRIMEIRA tela que o competidor vê. O "papel" é uma sessão que NÃO EXISTE: o token não
 # resolve, a API responde 401 e o app cai no formulário de login — que é o que se quer fotografar.
-shot comp-login.png        s_comp_deslogado /contest/                              760
+shot comp-login.webp        s_comp_deslogado /contest/                              760
 OCULTA='%23newsSection,%23resourcesSection,%23userSection,%23mySubsSection'
 # só a FAIXA de notificação (banner + topbar + nav com o badge de clarification): esconde o
 # conteúdo todo e corta na altura da nav. É a ilustração de "como é uma notificação" — recortar
 # a foto da página inteira daria o mesmo pixel, mas exigiria um editor de imagem no caminho.
-shot comp-notify.png       s_comp    "/contest/?hide=$OCULTA,%23problemsSection"   215
+shot comp-notify.webp       s_comp    "/contest/?hide=$OCULTA,%23problemsSection"   215
 # nas fotos de DETALHE o topo (faixa de notificação + topbar + nav) só rouba altura: o leitor
 # já viu a página inteira na seção 2 e aqui o que importa é a seção fotografada.
 CROMO='.notify-banner,.topbar,.quicknav'
@@ -543,64 +550,64 @@ CROMO='.notify-banner,.topbar,.quicknav'
 SO_A='%23problemList%20.prob-item%3Anth-child(n%2B2)'
 SO_H='%23problemList%20.prob-item%3Anth-child(-n%2B7)'
 CLICK_H='%23problemList%20.prob-item%3Anth-child(8)%20.prob-left'
-shot comp-problemas.png    s_comp    "/contest/?hide=$OCULTA,$CROMO"               720
-shot comp-sanfona.png      s_comp    "/contest/?clickcss=.prob-left&times=1&hide=$OCULTA,$CROMO,$SO_A" 840
+shot comp-problemas.webp    s_comp    "/contest/?hide=$OCULTA,$CROMO"               720
+shot comp-sanfona.webp      s_comp    "/contest/?clickcss=.prob-left&times=1&hide=$OCULTA,$CROMO,$SO_A" 840
 # o A tem tradução EN/ES no fixture: a sanfona abre em EN (LOCALE) com os chips PT · EN · ES em
 # cima do enunciado — recorte mais baixo, só p/ mostrar os chips (a tela inteira é a de cima)
-shot comp-idiomas.png      s_comp    "/contest/?clickcss=.prob-left&times=1&hide=$OCULTA,$CROMO,$SO_A" 520
+shot comp-idiomas.webp      s_comp    "/contest/?clickcss=.prob-left&times=1&hide=$OCULTA,$CROMO,$SO_A" 520
 # a MESMA sanfona num problema que só tem PDF (o H): abre com o tempo limite e o editor, e o
 # enunciado sai pelo link PDF. É a prova que distribui só o caderno — a maioria das maratonas.
-shot comp-sanfona-pdf.png  s_comp    "/contest/?clickcss=$CLICK_H&times=1&hide=$OCULTA,$CROMO,$SO_H" 640
-shot comp-submissoes.png   s_comp    "/contest/?hide=%23newsSection,%23resourcesSection,%23problemsSection,%23userSection,$CROMO" 740
+shot comp-sanfona-pdf.webp  s_comp    "/contest/?clickcss=$CLICK_H&times=1&hide=$OCULTA,$CROMO,$SO_H" 640
+shot comp-submissoes.webp   s_comp    "/contest/?hide=%23newsSection,%23resourcesSection,%23problemsSection,%23userSection,$CROMO" 740
 # a página própria "My submissions" (issue #26): a mesma tabela do fim da página da prova
-shot comp-minhas-submissoes.png s_comp /contest/submissions/                        700
-shot comp-placar.png       s_comp    /contest/score/                               700
-shot comp-clarification.png s_comp   /contest/clarification/                       960
+shot comp-minhas-submissoes.webp s_comp /contest/submissions/                        700
+shot comp-placar.webp       s_comp    /contest/score/                               700
+shot comp-clarification.webp s_comp   /contest/clarification/                       960
 # as duas telas de serviço do competidor: pedir impressão do código e guardar arquivo no servidor
-shot comp-impressao.png    s_comp    /contest/print/                               720
-shot comp-backup.png       s_comp    /contest/backup/                              700
+shot comp-impressao.webp    s_comp    /contest/print/                               720
+shot comp-backup.webp       s_comp    /contest/backup/                              700
 # a MESMA sanfona com o editor DESLIGADO (SHOWEDITOR=0) — é o caso da Maratona SBC, em que a
 # prova roda em máquina controlada e o time compila no ambiente dela, não no navegador
 if [[ -z "$ONLY" || "s_$ONLY" == s_comp || "$ONLY" == s_comp ]]; then
   cp "$C/conf" "$C/conf.bak"; printf 'SHOWEDITOR=0
 ' >> "$C/conf"
-  shot comp-sem-editor.png s_comp "/contest/?clickcss=.prob-left&times=1&hide=$OCULTA,$CROMO,$SO_A" 620
+  shot comp-sem-editor.webp s_comp "/contest/?clickcss=.prob-left&times=1&hide=$OCULTA,$CROMO,$SO_A" 620
   mv -f "$C/conf.bak" "$C/conf"
 fi
-shot staff-fila.png        s_staff   /contest/staff/
+shot staff-fila.webp        s_staff   /contest/staff/
 # só as LINHAS da fila (sem topbar, título e intro): é a foto do "peguei a tarefa", e a
 # tela inteira não cabe nela sem virar ilustração de outra coisa
 FILA_SO='.topbar,.quicknav,h1,.container%20%3E%20p.muted,.container%20%3E%20a.btn,.pr-auto'
-shot staff-pega.png        s_staff   "/contest/staff/?hide=$FILA_SO"           300
-shot staff-telao.png       s_staff   /contest/animeitor/       1100
-shot cstaff-fila.png       s_cstaff  /contest/staff/
-shot cstaff-etiquetas.png  s_cstaff  /contest/badges/          1100
-shot cstaff-telao.png      s_cstaff  /contest/animeitor/       1100
-shot cstaff-placar.png     s_cstaff  /contest/score/
-shot animeitor-telao.png   s_anim    /contest/animeitor/       2300
-shot animeitor-api.png     s_anim    "/contest/animeitor/?click=${SHOT_CLICK_LINKS:-show%20the%20big-screen%20links}" 1700
-shot cstaff-reveleitor.png s_cstaff  "/contest/animeitor/?reveleitor=1" 700
-shot animeitor-placar.png  s_anim    /contest/score/
-shot animeitor-cerimonia.png s_anim  "/contest/score/reveal.html?click=Step&times=4" 1000
-shot judge-fila.png        s_judge   /contest/judge/
+shot staff-pega.webp        s_staff   "/contest/staff/?hide=$FILA_SO"           300
+shot staff-telao.webp       s_staff   /contest/animeitor/       1100
+shot cstaff-fila.webp       s_cstaff  /contest/staff/
+shot cstaff-etiquetas.webp  s_cstaff  /contest/badges/          1100
+shot cstaff-telao.webp      s_cstaff  /contest/animeitor/       1100
+shot cstaff-placar.webp     s_cstaff  /contest/score/
+shot animeitor-telao.webp   s_anim    /contest/animeitor/       2300
+shot animeitor-api.webp     s_anim    "/contest/animeitor/?click=${SHOT_CLICK_LINKS:-show%20the%20big-screen%20links}" 1700
+shot cstaff-reveleitor.webp s_cstaff  "/contest/animeitor/?reveleitor=1" 700
+shot animeitor-placar.webp  s_anim    /contest/score/
+shot animeitor-cerimonia.webp s_anim  "/contest/score/reveal.html?click=Step&times=4" 1000
+shot judge-fila.webp        s_judge   /contest/judge/
 # agora o juri.judge RESERVA a r5: a mesma URL abre o painel de avaliação em vez da fila
 [[ -z "$ONLY" || "s_$ONLY" == s_judge || "$ONLY" == s_judge ]] && claim_r5
-shot judge-avaliando.png   s_judge   /contest/judge/
-shot judge-todas.png       s_judge   /contest/allsubmissions/  1000
-shot judge-clarification.png s_judge /contest/clarification/   1250
-shot cjudge-todas.png      s_cjudge  /contest/allsubmissions/  1000
+shot judge-avaliando.webp   s_judge   /contest/judge/
+shot judge-todas.webp       s_judge   /contest/allsubmissions/  1000
+shot judge-clarification.webp s_judge /contest/clarification/   1250
+shot cjudge-todas.webp      s_cjudge  /contest/allsubmissions/  1000
 # ⚠ o ?click= casa por TEXTO do botão, e a interface do fixture está em INGLÊS (LOCALE=en):
 # rótulo em português aqui = clique que não acontece e foto da tela errada, em silêncio.
-shot cjudge-clarification.png s_cjudge "/contest/clarification/?click=edit answer&times=1" 1500
-shot cjudge-painel.png     s_cjudge  /contest/chief/           1100
+shot cjudge-clarification.webp s_cjudge "/contest/clarification/?click=edit answer&times=1" 1500
+shot cjudge-painel.webp     s_cjudge  /contest/chief/           1100
 # abas do chefe pelo HASH nativo (chief.js lê location.hash) — não depende do texto do botão
-shot cjudge-docs.png       s_cjudge  "/contest/chief/#docs"    1000
-shot cjudge-idiomas.png    s_cjudge  "/contest/chief/#langs"   900
-shot rodadas.png           s_staff   /contest/rounds/                              560
+shot cjudge-docs.webp       s_cjudge  "/contest/chief/#docs"    1000
+shot cjudge-idiomas.webp    s_cjudge  "/contest/chief/#langs"   900
+shot rodadas.webp           s_staff   /contest/rounds/                              560
 
 # ---------------------------------------------------------------- PDFs de exemplo
 # O que SAI NA IMPRESSORA: a folha de rosto do pedido (página 1) e a folha do balão. As duas
-# são geradas pelas funções REAIS do lib/print.sh sobre o fixture; a página 1 vira PNG p/ o
+# são geradas pelas funções REAIS do lib/print.sh sobre o fixture; a página 1 vira webp p/ o
 # tutorial mostrar o papel de verdade (paps/magick/soffice/pdfunite/pdftoppm no host).
 if [[ -z "$ONLY" ]] && command -v pdftoppm >/dev/null; then
   echo ">> PDFs de exemplo"
@@ -613,7 +620,8 @@ if [[ -z "$ONLY" ]] && command -v pdftoppm >/dev/null; then
       else pdf="$(pr_build_pdf demo "$id" 2>/dev/null)"; fi
       if [[ -s "$pdf" ]]; then
         pdftoppm -png -r 100 -f 1 -l 1 -singlefile "$pdf" "$OUT/$name" 2>/dev/null
-        printf '  %-32s %8s bytes\n' "$name.png" "$(stat -c%s "$OUT/$name.png" 2>/dev/null || echo 0)"
+        magick "$OUT/$name.png" -define webp:lossless=true -define webp:method=6 "$OUT/$name.webp" 2>/dev/null && rm -f "$OUT/$name.png"
+        printf '  %-32s %8s bytes\n' "$name.webp" "$(stat -c%s "$OUT/$name.webp" 2>/dev/null || echo 0)"
       else echo "  ⚠ $name: PDF não foi gerado (falta paps/magick/soffice?)"; fi
     done )
 fi

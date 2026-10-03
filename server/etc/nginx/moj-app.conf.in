@@ -178,3 +178,14 @@ location ~ ^/relatorio/([a-z0-9][a-z0-9._-]*)/(.*)$ {
 # score-icpc.js em cache mostrou "1/17029" como minutos (issue #22). Só aqui: /docs/ e
 # /relatorio/ têm location própria e a API já é dinâmica.
 location / { try_files $uri $uri/ =404; add_header Cache-Control "no-cache, must-revalidate"; }
+# IMAGENS que mudam pouco (TCP 2026, 03/10/2026): o no-cache acima vale p/ o JS/CSS/HTML (issue #22), mas fazia cada
+# imagem REVALIDAR a cada uso — numa rede com perda de pacote (as sedes do Chile) cada ida e volta custa, e o placar
+# pede uma bandeira por linha. Estas guardam por 7 dias: as telas dos tutoriais, as bandeiras (só os SVGs de
+# country/ e br/ — o index.json fica revalidando) e os ícones do site. Imagem velha por uns dias é inofensiva; JS
+# velho não, e por isso NADA de JS aqui. `^~`: prefixo que encerra a busca — uma regex (`~* \.png$`) passaria na
+# frente das locations do /relatorio/ (alias) e serviria a imagem errada. Sem add_header no nível do server, o desta
+# location não derruba nenhum outro cabeçalho (a regra do nginx: add_header de location ANULA o do pai).
+location ^~ /contest/ajuda/img/   { try_files $uri =404; add_header Cache-Control "public, max-age=604800"; }
+location ^~ /shared/flags/country/ { try_files $uri =404; add_header Cache-Control "public, max-age=604800"; }
+location ^~ /shared/flags/br/     { try_files $uri =404; add_header Cache-Control "public, max-age=604800"; }
+location ^~ /shared/assets/       { try_files $uri =404; add_header Cache-Control "public, max-age=604800"; }

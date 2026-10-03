@@ -12,7 +12,7 @@
 #   moj contest -c <cid> docs publish info --lang pt
 #
 # ⚠ AS IMAGENS: o importador de HTML do LibreOffice resolve `src` RELATIVO ao arquivo. Por isso
-# o script monta uma árvore temporária que repete o caminho `ensaio/<lang>.html` + `img/*.png` —
+# o script monta uma árvore temporária que repete o caminho `ensaio/<lang>.html` + `img/*.webp` —
 # copiar só o HTML dá um PDF sem nenhuma figura, e em silêncio.
 #
 # ⚠ NADA de PDF versionado: `server/var/` não é gitignorado. Sem argumento, a saída é um temp.
@@ -42,7 +42,16 @@ for l in "${LANGS[@]}"; do
   n=0
   while IFS= read -r img; do
     [[ -f "$IMGDIR/$img" ]] || { echo "  $l: imagem citada e ausente: $img" >&2; rc=1; continue; }
-    cp -f "$IMGDIR/$img" "$WORK/img/$img"; n=$((n+1))
+    # ⚠ WEBP vira PNG AQUI (as telas do tutorial são webp sem perda desde 03/10/2026): o pandoc 3.7 lê errado o
+    # tamanho de webp sem perda (VP8L — 6,25 × 44,5 pol p/ uma tela 1280×1100) e a figura saía espremida no PDF.
+    # Em PNG o PDF sai idêntico ao de antes; a página e o HTML do tutorial seguem em webp.
+    if [[ "$img" == *.webp ]] && command -v magick >/dev/null 2>&1 \
+       && magick "$IMGDIR/$img" "$WORK/img/${img%.webp}.png" 2>/dev/null; then
+      sed -i "s|\.\./img/$img|../img/${img%.webp}.png|g" "$WORK/ensaio/$l.html"
+    else
+      cp -f "$IMGDIR/$img" "$WORK/img/$img"
+    fi
+    n=$((n+1))
   done < <(grep -oE '\.\./img/[A-Za-z0-9._-]+' "$src" | sed 's|\.\./img/||' | sort -u)
 
   # ROTA PREFERIDA: pandoc html→odt (com o reference-doc do caderno) e soffice odt→pdf. O
