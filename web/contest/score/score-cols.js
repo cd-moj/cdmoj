@@ -52,17 +52,23 @@ export function scoreCols(table, nProbs, opts = {}) {
 
 // cellTitle(short, value) -> texto do title da célula ("A: 1 tentativa, 28 min").
 // No celular o número sai da tela (vira ✓/✗), então o title é o que resta para consultar.
+// `tries/-?` = placar CONGELADO com tentativa de resultado escondido (updatescore-icpc.sh):
+// "sem resolver" ali seria mentira — o AC pós-freeze sai com essa mesma cara.
 export function cellTitle(short, value, t) {
   const tr = t || ((pt) => pt);
-  const m = String(value || '').match(/^(\d+)\/(\d+|-)/);
+  const m = String(value || '').match(/^(\d+)\/(\d+|-)(\?)?/);
   if (!m) return short;
   const tries = Number(m[1]);
   const when = m[2];
-  const attempts = tries + ' ' + (tries === 1 ? tr('tentativa', 'attempt') : tr('tentativas', 'attempts'));
+  const attempts = tries + ' ' + (tries === 1 ? tr('tentativa', 'attempt', 'intento') : tr('tentativas', 'attempts', 'intentos'));
+  if (when === '-' && m[3]) return short + ': ' + attempts + tr(', resultado oculto pelo congelamento', ', result hidden by the freeze', ', resultado oculto por el congelamiento');
   return when === '-'
-    ? short + ': ' + attempts + tr(', sem resolver', ', unsolved')
+    ? short + ': ' + attempts + tr(', sem resolver', ', unsolved', ', sin resolver')
     : short + ': ' + attempts + ', ' + when + ' min';
 }
+
+// cellFrozen(value) -> a célula congelada tem resultado escondido (`tries/-?`)?
+export function cellFrozen(value) { return /^\d+\/-\?$/.test(String(value || '')); }
 
 // scoreColsGeneric(table, header, {iFlag,iUser,iTeam}) — placar de colunas livres
 // (treino/heurístico/outro): as de texto (login/time) são largas, as demais dividem o resto.

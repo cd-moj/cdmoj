@@ -426,8 +426,11 @@ def r_navbuttons(contest, q, params):
         raise Decline("nav exige sessão do contest")
     role = role_of(sess[1])
     cf = os.path.join(CONTESTSDIR, contest, "var", f"nav-cache.{role}.json")
+    # as MESMAS entradas do resp_cache_fresh do navbuttons.sh: o interruptor da revelação às sedes
+    # grava o animeitor.json e o evento publicado mora no managed (botão Revelação do .cstaff)
     inputs = [os.path.join(CONTESTSDIR, contest, p) for p in
-              ("conf", "users", "time-overrides.json")]
+              ("conf", "users", "time-overrides.json", "animeitor.json",
+               "var/animeitor-managed.json")]
     if not cache_fresh(cf, TTL_NAV, inputs):
         raise Decline("nav-cache frio")
     with open(cf, "rb") as f:

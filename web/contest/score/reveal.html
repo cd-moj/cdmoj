@@ -17,6 +17,9 @@
        Na tabela vale a cor herdada, então as regras de célula (td.place, .u) seguem valendo. */
     #app { color:#e2e8f0; }
     #app table.score { color:var(--ink); }
+    /* resolver do ICPC: amarelo "?" = ainda vai ser revelado; vermelho = errou (já revelado ou
+       antes do congelamento). O amarelo do ui.css (td.c-try) fica só p/ o pendente. */
+    #app table.score td.c-fail { background:var(--err-bg); color:var(--err); }
     .muted { color:#94a3b8; }
     /* placar: CSS único em /shared/ui.css (não rola para o lado, colunas por colgroup) */
     tr.placing-up td { animation:flash-up 1.1s ease; }

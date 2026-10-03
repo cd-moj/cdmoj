@@ -1,4 +1,4 @@
-<!-- i18n-source: MANUAL-ANIMEITOR.md blob:e8fdb199a09b1d527a35c522e877f55d889f1cff -->
+<!-- i18n-source: MANUAL-ANIMEITOR.md blob:983b0a1581d7ed57e48341070bf52de1c5cda3c2 -->
 # MOJ: Big-screen manual (`.animeitor`)
 
 > **Translation note.** This manual is a translation of the Portuguese original. The command-line tools (`moj`, `moj-contest`, `moj-comp`) print their messages in Portuguese, and the command examples below are identical to the original.
@@ -78,6 +78,9 @@ comes from there. The Animeitor animates the comeback and keeps the freeze until
    **Before the release**, "show the big-screen links" already lists all the links for you, with **open**,
    **copy** and the column **Gets it on release** (which site chief or staff member gets each link). Use it to
    check the scoreboards and the sites without giving anything to the sites. Each look at the links is recorded.
+   The same button also releases the MOJ built-in **Reveal** (`/contest/score/reveal.html`) to the site chiefs:
+   when the event is published on the Animeitor, it opens for them only after this release (and after the
+   contest ends for all sites). **take the links back from the sites** closes both again.
 
 ## 🎥 Streaming keys (legacy)
 

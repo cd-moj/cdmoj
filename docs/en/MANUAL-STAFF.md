@@ -1,4 +1,4 @@
-<!-- i18n-source: MANUAL-STAFF.md blob:016b73d234918e33061a6d4c6e244f75a31bea40 -->
+<!-- i18n-source: MANUAL-STAFF.md blob:462066f6d4fb062a338f0d30ce083a54f9c6d4d3 -->
 # MOJ: Room staff manual (.staff and .cstaff)
 
 > **Translation note.** This manual is a translation of the Portuguese original. The command-line tools (`moj`, `moj-contest`, `moj-comp`) print their messages in Portuguese, and the command examples below are identical to the original.
@@ -139,7 +139,7 @@ You supervise one site. You follow the queue of your site, you print the labels 
 | **Documents** | The published contest documents, to download and print at the site. |
 | **Rounds** | The scoreboard and the submissions of the finished rounds. |
 | **Logout** | Ends your session. |
-| **Reveal** | The reveal ceremony of your site. It shows only **after the contest ends for all sites**. |
+| **Reveal** | The reveal ceremony of your site. It shows only **after the contest ends for all sites** and, when the event uses the Animeitor big screen, **after the big-screen operator releases the reveal**. |
 
 ### Print queue, read-only (`/contest/staff/`)
 
@@ -184,8 +184,12 @@ Your scoreboard is the **frozen** one, as for a regular user. An administrator c
 You run the reveal ceremony of your site, in ICPC style (from the bottom to the top).
 
 1. The screen filters to the teams that you can see (your site).
-2. It unlocks only **after the contest ends for all sites** (the base time plus the extensions).
+2. It unlocks only **after the contest ends for all sites** (the base time plus the extensions). When the
+   event uses the **Animeitor big screen**, it also waits for the big-screen operator to **release the reveal**
+   (the same button that releases the **Reveleitor**). Before that, the screen tells you that the reveal is not released yet.
 3. You reveal position by position, from the last to the first.
+4. Each cell with an attempt after the freeze shows **?** (accepted or not), until you reveal it. After the
+   reveal, a wrong answer is **red** and an accepted answer gets the balloon color.
 
 To unfreeze everything and publish the global scoreboard are **administrator** actions, not yours. The administrator uses the **🏁 Finish event** button, in the panel's Home (see `MANUAL-ADMIN.md` §6½).
 
@@ -238,7 +242,7 @@ while nobody is under pressure.
 | See labels with passwords (Badges) | No (access denied) | Yes (only your site) |
 | Download the published documents (Documents) | Yes | Yes |
 | Generate/publish documents | No (admin/chief judge only) | No (admin/chief judge only) |
-| Run the reveal of your site (🏆) | No | Yes (after the contest ends for all sites) |
+| Run the reveal of your site (🏆) | No | Yes (after the contest ends for all sites and, with the Animeitor big screen, after the release) |
 | See the big-screen desk (Animeitor) of your site | Yes (look/listen only) | Yes |
 | Upload/replace the photo and song of the site teams | No (access denied) | Yes (only your site) |
 | Download the big-screen .zip package | No | Yes (cut to the site) |

@@ -1,4 +1,4 @@
-<!-- i18n-source: MANUAL-ANIMEITOR.md blob:e8fdb199a09b1d527a35c522e877f55d889f1cff -->
+<!-- i18n-source: MANUAL-ANIMEITOR.md blob:983b0a1581d7ed57e48341070bf52de1c5cda3c2 -->
 # MOJ: Manual de la pantalla (`.animeitor`)
 
 > **Nota de traducción.** Este manual es una traducción del original en portugués. Las herramientas de línea de comandos (`moj`, `moj-contest`, `moj-comp`) muestran sus mensajes en portugués, y los ejemplos de comandos son idénticos al original.
@@ -71,6 +71,9 @@ remontada y mantiene el congelamiento hasta la hora de la revelación.
    **Antes de liberar**, "mostrar los enlaces de la pantalla" ya te lista todos los enlaces, con **abrir**, **copiar** y la
    columna **Lo recibe al liberar** (qué jefe de sede o staff recibirá cada uno). Úsalo para revisar los marcadores y las
    sedes sin entregar nada a las sedes. Quien ve los enlaces queda registrado.
+   El mismo botón libera también la **Revelación** integrada del MOJ (`/contest/score/reveal.html`) para los jefes
+   de sede: con el evento publicado en el Animeitor, solo se abre para ellos después de esta liberación (y del fin
+   de la competencia para todas las sedes). **recoger los enlaces de las sedes** cierra las dos de nuevo.
 
 ## 🎥 Claves de streaming (legado)
 

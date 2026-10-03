@@ -166,7 +166,8 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   uma sede (`is_cstaff`, **não** herda `is_staff`): VÊ mas não AGE — etiquetas de credenciais com
   senha (o `.staff` perdeu), fila do staff em leitura (ações/PDF 403), placar congelado como
   usuário comum (admin libera o full via `SCORE_FULL_USERS`) e a **cerimônia de revelação POR
-  SEDE** (`/contest/score` `&scope=mine`, full só pós `contest_over_for_all`); escopo pelo mesmo
+  SEDE** (`/contest/score` `&scope=mine`, full só com `site_reveal_open` = `contest_over_for_all` E, com o
+  telão do Animeitor em uso, a liberação do `.animeitor` — `lib/contest-gate.sh`); escopo pelo mesmo
   `staff-filters.json`. Ao mexer em papel, lembre das **quatro** listas de sufixo canônicas —
   `lib/auth.sh`, `score/score-common.sh`, `score/stats-gen.sh`, `handlers/auth/login.sh` (+ guard
   `treino/profile/username.sh`) — **e das réplicas** em `handlers/contest/teams.sh`,
@@ -413,6 +414,12 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   minutos achando que é o placar de verdade, no momento mais tenso da prova. O aviso é o
   `#freezeNotice` do `web/contest/score/index.html` (bilíngue, como toda tela) e quem o liga é o
   `pollScore` via `apiGetTextMeta` (o `apiGetText` passou a delegar nele — uma implementação só).
+  **A CÉLULA também se anuncia** (03/10/2026): com o freeze em vigor, a visão congelada escreve
+  `tentativas/-?` na célula não resolvida que tem resultado escondido (`updatescore-icpc.sh`; o `pend` da
+  visão congelada = em julgamento ∨ `hidden`). É o que a cerimônia de revelação revela — sem a marca o WA
+  pós-freeze saía IGUAL nas duas visões e só os ACs ganhavam "?" (TCP 2026: a plateia sabia quem NÃO tinha
+  acertado). Leitores do TXT casam o PREFIXO `tentativas/-` (report-gen, `cellWait`, `cellTitle`,
+  `sc_board_rows`); o `c-frz` faz o celular mostrar "?" em vez de ✗. Teste: `smoke-score-reveal.sh`.
 - **O PLACAR É SERVIDO PRÉ-COMPRIMIDO**: o `build.sh` grava um `.gz` ao lado de cada
   `placar*.txt` (mesma receita do `/contest/problems`) e o handler o serve direto — 175 KB por
   requisição, no corpo mais servido do dia, é 7% da vazão da rota em recompressão do MESMO
@@ -1172,7 +1179,9 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   `GET /contest/animeitor/reveal` dá a cada `.cstaff`/`.staff` SÓ os links da sede dele (`staff_regions`, agora na
   `lib/print.sh` — fonte única com os comandos do mlinux), em todos os placares; **fail-closed** sem sede (link é
   credencial — diverge de propósito do "sem filtro = vê tudo" das telas de leitura); botão `Reveleitor` na barra
-  via marcador sem fork; o placar Geral SEMPRE leva a sede de TODOS os times (`whole`, "Geral") e o link dela
+  via marcador sem fork; o MESMO interruptor tranca a revelação EMBUTIDA da sede (`site_reveal_open`: com evento
+  publicado, full `scope=mine` + botão Revelação do `.cstaff` só depois dele — TCP 2026, 03/10/2026, a sede abriu a
+  cerimônia do MOJ antes do Reveleitor); o placar Geral SEMPRE leva a sede de TODOS os times (`whole`, "Geral") e o link dela
   NUNCA vai ao staff (só admin/`.animeitor`); a organização vê os links ANTES de liberar, com quem receberá cada um
   (`?links=1` → `links.sites[].recipients`, `an_link_recipients`; leitura auditada); a Central confere placares × sedes
   publicados (`telao_sites`, sem rede — TCP 2026, 03/10/2026: esqueceram a sede Geral) e o `save` recusa regex vazia; (8) **prorrogação por sede é MASCARADA p/ o telão**: o relógio enviado tem teto no

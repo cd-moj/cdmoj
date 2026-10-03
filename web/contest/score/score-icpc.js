@@ -15,7 +15,7 @@ import { flagEl } from '/shared/flags.js';
 import { sonicEnabled, sonicImgHTML } from '/shared/sonic.js';
 import { setMediaSrc, mediaLink } from '/shared/media-auth.js';
 import { balloonColorHex, balloonSVG, balloonDot, paintSolvedCell } from './score-colors.js';
-import { scoreCols, cellTitle } from './score-cols.js';
+import { scoreCols, cellTitle, cellFrozen } from './score-cols.js';
 
 const SYS = ['flag', 'username', 'univ short', 'team name', 'univ full', 'total', 'penalty', 'lastac', 'guest'];
 
@@ -275,7 +275,8 @@ export function renderICPC(parsed, opts) {
         }
         tr.append(td);
       } else if (cellWait(v)) {
-        tr.append(el('td', { class: 'cell c-try prob-wait-cell', title: cellTitle(sn, v, T) },
+        // `tries/-?` (c-frz) = congelado com resultado escondido: no celular vira "?", não ✗
+        tr.append(el('td', { class: 'cell c-try prob-wait-cell' + (cellFrozen(v) ? ' c-frz' : ''), title: cellTitle(sn, v, T) },
           el('span', { class: 'pv' }, v)));
       } else {
         tr.append(el('td', { class: 'cell', title: sn }, el('span', { class: 'pv' }, v)));

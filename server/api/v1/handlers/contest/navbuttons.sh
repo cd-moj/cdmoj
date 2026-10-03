@@ -21,11 +21,14 @@ elif is_chief;     then NBROLE=chief
 elif is_judge;     then NBROLE=judge
 elif is_mon;       then NBROLE=mon
 else                    NBROLE=time; fi
-# O cstaff ganha o botão da cerimônia quando a prova acaba p/ TODAS as sedes, e o competidor perde
-# a impressão quando o staff some: as duas dependem do RELÓGIO/do disco, então o TTL é curto.
+# O cstaff ganha o botão da cerimônia quando a prova acaba p/ TODAS as sedes (e o .animeitor libera,
+# com o telão em uso), e o competidor perde a impressão quando o staff some: dependem do RELÓGIO/do
+# disco, então o TTL é curto. O interruptor da revelação grava o animeitor.json (entrada do cache).
+# ⚠ As entradas são as MESMAS do r_navbuttons do porteiro — mexeu aqui, mexa lá.
 NBF="$CONTESTSDIR/$contest/var/nav-cache.$NBROLE.json"
 if resp_cache_fresh "$NBF" "${NAV_CACHE_TTL:-20}" "$CONTESTSDIR/$contest/conf" \
-     "$CONTESTSDIR/$contest/users" "$CONTESTSDIR/$contest/time-overrides.json" "$CONTESTSDIR/$contest/animeitor.json"; then
+     "$CONTESTSDIR/$contest/users" "$CONTESTSDIR/$contest/time-overrides.json" "$CONTESTSDIR/$contest/animeitor.json" \
+     "$CONTESTSDIR/$contest/var/animeitor-managed.json"; then
   emit_json 200 OK; printf '%s' "$(<"$NBF")"; exit 0
 fi
 
@@ -43,14 +46,15 @@ cstaff)
   # fila de impressão em modo leitura, as ETIQUETAS de credenciais da sede e o TELÃO com as
   # fotos/músicas DA SEDE dele (o mesmo recorte do staff-filters; ele não gere chaves de webcast
   # nem o padrão do contest). O botão da cerimônia (🏆) só aparece quando o contest terminou p/
-  # TODAS as sedes — mesmo gate que libera o placar full na API (a UI é só conveniência).
+  # TODAS as sedes e, com o telão do Animeitor em uso, o .animeitor liberou a revelação —
+  # site_reveal_open, o mesmo gate que libera o placar full na API (a UI é só conveniência).
   buttons='[{label:"Score", url:"/contest/score/"},
             {label:"Impressão", url:"/contest/staff/"},
             {label:"Etiquetas", url:"/contest/badges/"},
             {label:"Animeitor", url:"/contest/animeitor/"},
             {label:"Documentos", url:"/contest/docs/"},
             {label:"Rodadas", url:"/contest/rounds/"}]'
-  if contest_over_for_all "$contest"; then
+  if site_reveal_open "$contest"; then
     buttons="$buttons + [{label:\"Revelação\", url:\"/contest/score/reveal.html\"}]"
   fi
   # REVELEITOR (a revelação do Animeitor): só depois que o .animeitor LIBERA os links p/ as sedes. O botão

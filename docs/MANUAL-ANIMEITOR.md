@@ -68,6 +68,9 @@ virada e segura o congelamento até a hora da revelação.
    **Antes de liberar**, "mostrar os links do telão" já lista todos os links para você, com **abrir**, **copiar**
    e a coluna **Recebe quando liberar** (qual chefe de sede ou staff vai receber cada um). Use para conferir os
    placares e as sedes sem entregar nada às sedes. Quem vê os links fica registrado.
+   O mesmo botão libera também a **Revelação** embutida do MOJ (`/contest/score/reveal.html`) para os chefes de
+   sede: com o evento publicado no Animeitor, ela só abre para eles depois desta liberação (e do fim da prova
+   para todas as sedes). **recolher os links das sedes** fecha as duas de novo.
 
 ## 🎥 Chaves de streaming (legado)
 

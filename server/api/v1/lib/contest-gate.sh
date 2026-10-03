@@ -61,6 +61,26 @@ contest_over_for_all() {
   [[ "$e" =~ ^[0-9]+$ ]] && (( e > 0 && EPOCHSECONDS > e ))
 }
 
+# site_reveal_open <contest> : 0 se a REVELAÇÃO POR SEDE (a cerimônia embutida do .cstaff — placar
+# full com `scope=mine` + o botão Revelação) pode abrir. Duas condições:
+#   1. a prova acabou p/ TODAS as sedes (contest_over_for_all);
+#   2. se o telão do Animeitor está EM USO — este contest publicou um evento lá
+#      (var/animeitor-managed.json com `event`) —, o `.animeitor` já LIBEROU a revelação às sedes
+#      (var/animeitor-reveal.released: o MESMO interruptor do Reveleitor). Sem isso a sede abria a
+#      cerimônia embutida antes de a organização liberar o Reveleitor (TCP 2026, 03/10/2026).
+# "Em uso" é o evento PUBLICADO, não o módulo nem a URL gravada: o interruptor só liga com evento
+# publicado (409 not_published), então módulo ligado sem Animeitor trancaria a sede p/ sempre.
+# Leitura por builtins (navbuttons e score são rotas quentes; animeitor.sh não é sourceado aqui).
+site_reveal_open() {
+  contest_over_for_all "$1" || return 1
+  local d="$CONTESTSDIR/$1/var" m=""
+  [[ -e "$d/animeitor-reveal.released" ]] && return 0
+  [[ -s "$d/animeitor-managed.json" ]] || return 0
+  IFS= read -r -d '' m < "$d/animeitor-managed.json" || true
+  [[ "$m" =~ \"event\"[[:space:]]*:[[:space:]]*\"[^\"] ]] && return 1
+  return 0
+}
+
 # --- DESCONGELAR o placar: só a partir do fim geral + 1 min (pedido do Ribas, 2026-09-14) ---
 # "Destravar" o freeze = FREEZE_TIME passar de >0 para 0/apagado. Quatro caminhos fazem isso
 # (Encerrar evento, promoção de rodada, "Descongelar tudo" da cerimônia, edição do freeze na

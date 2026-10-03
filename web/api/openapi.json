@@ -1850,7 +1850,7 @@
         "tags": [
           "contest"
         ],
-        "summary": "Botões de navegação por papel (.admin/.judge/.staff/.cstaff/.mon; .cstaff ganha Etiquetas e — pós-fim p/ todas as sedes — Revelação; .staff sem Etiquetas)",
+        "summary": "Botões de navegação por papel (.admin/.judge/.staff/.cstaff/.mon; .cstaff ganha Etiquetas e — pós-fim p/ todas as sedes e, com o telão do Animeitor em uso, pós-liberação — Revelação; .staff sem Etiquetas)",
         "security": [
           {
             "bearerAuth": []
@@ -2852,7 +2852,7 @@
                 "mine"
               ]
             },
-            "description": "mine (honrado só p/ .cstaff) = recorta o placar servido (frozen e full) aos usuários do escopo dele (staff-filters); fora da allowlist SCORE_FULL_USERS, o full só sai quando o contest terminou p/ TODAS as sedes (fim do conf + maior end de time-overrides.json) — cerimônia por sede"
+            "description": "mine (honrado só p/ .cstaff) = recorta o placar servido (frozen e full) aos usuários do escopo dele (staff-filters); fora da allowlist SCORE_FULL_USERS, o full só sai quando o contest terminou p/ TODAS as sedes (fim do conf + maior end de time-overrides.json) e, com o telão do Animeitor em uso, o .animeitor liberou a revelação (senão: congelado, X-MOJ-Frozen: 1) — cerimônia por sede"
           }
         ],
         "responses": {

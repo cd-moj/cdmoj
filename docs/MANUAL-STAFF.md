@@ -135,7 +135,7 @@ Você supervisiona uma sede. Você acompanha a fila da sua sede, imprime as etiq
 | **Documentos** | Os documentos publicados da prova, para baixar e imprimir na sede. |
 | **Rodadas** | O placar e as submissões das rodadas já encerradas. |
 | **Logout** | Encerra a sua sessão. |
-| **Revelação** | A cerimônia de revelação da sua sede. Só aparece **depois que a prova encerra para todas as sedes**. |
+| **Revelação** | A cerimônia de revelação da sua sede. Só aparece **depois que a prova encerra para todas as sedes** e, quando o evento usa o telão do Animeitor, **depois que o operador do telão libera a revelação**. |
 
 ### Impressão, somente leitura (`/contest/staff/`)
 
@@ -180,8 +180,12 @@ O seu placar é o **congelado**, como um usuário comum. Um administrador pode l
 Você conduz a cerimônia de revelação da sua sede, no estilo ICPC (de baixo para cima).
 
 1. A tela filtra para os times que você enxerga (a sua sede).
-2. Ela só destrava **depois que a prova encerra para todas as sedes** (o horário base mais as prorrogações).
+2. Ela só destrava **depois que a prova encerra para todas as sedes** (o horário base mais as prorrogações). Quando o
+   evento usa o **telão do Animeitor**, ela também espera o operador do telão **liberar a revelação** (o mesmo botão
+   que libera o **Reveleitor**). Antes disso a tela diz que a revelação ainda não foi liberada.
 3. Você revela posição por posição, do último para o primeiro.
+4. Toda célula com tentativa depois do congelamento aparece com **?** (acerto ou erro), até você a revelar. Depois
+   de revelada, o erro fica **vermelho** e o acerto ganha a cor do balão.
 
 Descongelar tudo e publicar o placar global são ações do **administrador**, não suas (ele faz isso pelo botão **🏁 Encerrar evento**, na Central do painel — ver `MANUAL-ADMIN.md` §6½).
 
@@ -234,7 +238,7 @@ enquanto ninguém está sob pressão.
 | Ver etiquetas com senha (Etiquetas) | Não (acesso negado) | Sim (só a sua sede) |
 | Baixar os documentos publicados (Documentos) | Sim | Sim |
 | Gerar/publicar documentos | Não (é do admin/juiz-chefe) | Não (é do admin/juiz-chefe) |
-| Conduzir a revelação da sua sede (🏆) | Não | Sim (após encerrar todas as sedes) |
+| Conduzir a revelação da sua sede (🏆) | Não | Sim (após encerrar todas as sedes e, com o telão do Animeitor, após a liberação) |
 | Ver a mesa do telão (Animeitor) da sua sede | Sim (só olhar/ouvir) | Sim |
 | Enviar/trocar foto e música dos times da sede | Não (acesso negado) | Sim (só a sua sede) |
 | Baixar o pacote .zip do telão | Não | Sim (recortado na sede) |

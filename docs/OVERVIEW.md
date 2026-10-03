@@ -312,7 +312,10 @@ só admin; o placar aceita `&view=public` p/ o privilegiado obter a visão conge
 do admin). O **`.cstaff`** conduz a **cerimônia POR SEDE**: a mesma página com `&scope=mine` — a API
 recorta frozen+full aos usuários do escopo dele (staff-filters) e só libera o full quando o contest
 terminou p/ **todas** as sedes (`contest_over_for_all`: fim do conf + o maior `end` de
-`time-overrides.json`; admin pode antecipar via allowlist `SCORE_FULL_USERS`),
+`time-overrides.json`; admin pode antecipar via allowlist `SCORE_FULL_USERS`) e, com o telão do
+Animeitor em uso, depois que o `.animeitor` libera a revelação (`site_reveal_open`, `ANIMEITOR.md`). O
+congelado marca `tentativas/-?` em toda célula com resultado escondido, então a cerimônia põe "?" no
+erro pós-freeze também (antes só o AC difere entre as visões),
 tempo de solução **relativo ao início** (não EPOCH), e nav por papel. Contest **🕵️ SUPER
 SECRETO** (conf `SECRET=1`, marcável na criação e no admin): **fora** das listagens públicas (home,
 arquivo `/contests/`, `/status/`) e o **placar deixa de ser público** — `score`/`balloons`/`regions`/
@@ -597,8 +600,9 @@ auto-verdicts-set`, `review-claim/extend/giveup/vote/agree/conflict/resolve`, `v
     `print-action`/`print-pdf`/`print-file` com 403) e é o **único papel além do admin** que vê as
     **Etiquetas de credenciais** (`/contest/badges`, senha **sempre** presente — o `.staff`
     perdeu o acesso e o antigo toggle `staff_password` foi extinto). Vê o placar **congelado** como
-    usuário normal (admin libera o completo via `SCORE_FULL_USERS`) e, pós-fim p/ todas as sedes,
-    abre a **cerimônia de revelação da sede** (navbutton 🏆). O escopo (mesmo `staff-filters.json`,
+    usuário normal (admin libera o completo via `SCORE_FULL_USERS`) e, pós-fim p/ todas as sedes
+    (e, com o telão do Animeitor em uso, depois da liberação do `.animeitor`), abre a **cerimônia de
+    revelação da sede** (navbutton 🏆). O escopo (mesmo `staff-filters.json`,
     entradas `region:<nome>`/regex) governa fila, etiquetas e cerimônia — **configure-o sempre**
     (vazio = vê tudo, inclusive todas as senhas). Baixa também os **Documentos publicados**
     da prova (`/contest/docs/`) para imprimir na sede.

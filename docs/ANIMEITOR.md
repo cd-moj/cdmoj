@@ -219,6 +219,13 @@ chega ao `.cstaff`/`.staff` assim (decisões do Ribas, 21/09/2026):
 - **Fail-closed**: conta sem sede definida recebe `scoped:false` e ZERO links (nas telas de leitura "sem filtro =
   vê tudo"; aqui seria a revelação do evento inteiro). Antes da liberação: `released:false`, sem nem consultar
   o servidor do telão. Cada leitura atendida vai ao audit (`animeitor-reveal-read`).
+- **O MESMO interruptor tranca a revelação EMBUTIDA da sede** (`/contest/score/reveal.html` do `.cstaff`, TCP
+  2026, 03/10/2026 — a sede abriu a cerimônia do MOJ antes de o Reveleitor ser liberado): com o telão em uso
+  (evento publicado = `var/animeitor-managed.json` com `event`), o placar full com `scope=mine` e o botão
+  **Revelação** esperam `var/animeitor-reveal.released` além do `contest_over_for_all` — `site_reveal_open`
+  (`lib/contest-gate.sh`, por builtins). "Em uso" é o evento PUBLICADO, não o módulo nem a URL: o interruptor só
+  liga com evento publicado, então módulo ligado sem Animeitor não tranca a sede p/ sempre. Sem a liberação o
+  `/contest/score` serve o congelado (`X-MOJ-Frozen: 1`) e a página diz que a revelação ainda não foi liberada.
 - **A sede de todos os times (`whole`, a AUTOMÁTICA) nunca vai ao staff** (decisão do Ribas, 03/10/2026): é o
   resultado do evento inteiro, da cerimônia principal — o `an_reveal_links` a pula mesmo p/ quem tem
   `region:Geral`. Uma sede MANUAL com `.*` segue a regra de sempre (casa pelo nome). Consequência: numa prova de

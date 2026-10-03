@@ -574,6 +574,8 @@ tr.qual-row.draft .qual-sub { color:#8a7420; }
      que não depende de enxergar cor — e a cor de cada problema segue no balão do cabeçalho. */
   table.score td.cell .bdot { display:none; }
   table.score.m-icpc td.cell:not(.tot):not(.pen).c-try::before { content:"✗"; }
+  /* congelado com resultado escondido (`tries/-?`): "?" e não ✗ — pode ser o AC pós-freeze */
+  table.score.m-icpc td.cell:not(.tot):not(.pen).c-try.c-frz::before { content:"?"; }
   table.score td.cell.pen .pv { font-size:.72em; }
   table.score td.team .u, table.score td.team .pill { display:none; }
 }

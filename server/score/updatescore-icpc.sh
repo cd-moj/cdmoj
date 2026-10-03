@@ -27,6 +27,13 @@
 #   tries/seconds*  solved FIRST-TO-SOLVE (menor first_ac_epoch do problema ENTRE os
 #                   times do placar, na MESMA visão frozen/full — o front destaca com ★)
 #   tries/-         tried but unsolved
+#   tries/-?        (SÓ na visão CONGELADA, com o freeze em vigor) tentou e há tentativa cujo
+#                   resultado esta visão NÃO mostra — submetida depois do FREEZE_TIME (ou ainda em
+#                   julgamento). É o "?" do placar congelado do ICPC, e é o que a cerimônia de
+#                   revelação usa p/ saber quais células revelar: sem ele, o WA pós-freeze saía
+#                   IGUAL no congelado e no completo e a cerimônia só punha "?" nos ACs — quem
+#                   assistia sabia de antemão quem NÃO tinha acertado (TCP 2026, 03/10/2026). Os
+#                   leitores casam o PREFIXO `tries/-`; a visão completa nunca leva o `?`.
 #
 # Penalty = sum over solved problems of (tries-1)*PENALTYCOST + accepted-minute.
 # PENALTYCOST comes from the conf (PENALTY_MINUTES, default 20); which verdicts count a
@@ -43,6 +50,12 @@ sc_load "${1:-}"
 PENALTYCOST="${PENALTY_MINUTES:-20}"
 [[ "$PENALTYCOST" =~ ^[0-9]+$ ]] || PENALTYCOST=20
 START="${CONTEST_START:-0}"; [[ "$START" =~ ^[0-9]+$ ]] || START=0
+# a visão CONGELADA com o freeze já em vigor marca a célula não resolvida que tem resultado
+# escondido (`tries/-?`, ver o cabeçalho). Antes do FREEZE_TIME nada muda: o `pend` lá é só a run
+# em julgamento, que o placar nunca marcou.
+# (`set -u`: conf SEM a linha FREEZE_TIME é o caso comum — nunca leia a variável crua aqui)
+FRZMARK=0; _fz="${FREEZE_TIME:-0}"
+if [[ "${MOJ_NOFREEZE:-0}" != 1 && "$_fz" =~ ^[0-9]+$ ]] && (( _fz > 0 && EPOCHSECONDS >= _fz )); then FRZMARK=1; fi
 
 # --- header ----------------------------------------------------------------
 {
@@ -137,6 +150,8 @@ done
         fts=""
         [[ -n "${FTSMIN[${SC_CANON[p]}]:-}" ]] && (( fac == FTSMIN[${SC_CANON[p]}] )) && fts="*"
         cells+=":${tent}/${sec}${fts}"   # solved em SEGUNDOS (* = first to solve)
+      elif (( FRZMARK && pend )); then
+        cells+=":${tent}/-?"             # tried, unsolved, resultado escondido pelo freeze
       else
         cells+=":${tent}/-"              # tried, unsolved
       fi

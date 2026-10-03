@@ -1,6 +1,7 @@
 #!/bin/bash
 # Papel .cstaff (chefe de sede): placar congelado por padrão; full escopado (scope=mine)
-# só quando o contest terminou PARA TODOS (time-overrides seguram a revelação); allowlist
+# só quando o contest terminou PARA TODOS (time-overrides seguram a revelação) e, com o telão do
+# Animeitor em uso, depois que o .animeitor libera a revelação às sedes; allowlist
 # SCORE_FULL_USERS libera o full; etiquetas com senha são dele (.staff 403; toggle extinto
 # → POST 405); fila em modo leitura (ações/PDF/arquivo 403); fora do placar; sem submit;
 # navbuttons próprios (staff perde Etiquetas); isento do UA-gate.
@@ -56,6 +57,33 @@ ck "frozen recortado: sem aluno2"     '[[ "$BODY" != *":aluno2:"* && "$BODY" == 
 ck "modo+header intactos"             '[[ "$(head -1 <<<"$BODY")" == "icpc s" && "$(sed -n 2p <<<"$BODY")" == *username* ]]'
 call /contest/score GET cst 'contest=cs&scope=mine'
 ck "pós-fim: full recortado (1/3660 s)"   '[[ "$(a1cells)" == *"1/3660"* && "$BODY" != *":aluno2:"* ]]'
+
+# TCP 2026 (03/10/2026): a sede abriu a cerimônia embutida ANTES de o .animeitor liberar o
+# Reveleitor. Com o telão em uso (evento publicado = var/animeitor-managed.json com `event`), o
+# full por sede e o botão Revelação esperam o MESMO interruptor (var/animeitor-reveal.released).
+echo "== telão do Animeitor em uso: o full da sede espera a liberação =="
+printf '{"event":"cs-telao","event_hash":"x","contests":{}}\n' > "$C/var/animeitor-managed.json"
+call /contest/score GET cst 'contest=cs&scope=mine'
+ck "publicado, não liberado: frozen"  '[[ -n "$(a1cells)" && "$(a1cells)" != *"1/3660"* ]]'
+ck "e o servidor diz X-MOJ-Frozen: 1" '[[ "$OUT" == *"X-MOJ-Frozen: 1"* ]]'
+call /contest/navbuttons GET cst 'contest=cs'
+ck "nav: sem Revelação nem Reveleitor" '[[ "$BODY" == *Etiquetas* && "$BODY" != *"Revela"* && "$BODY" != *Reveleitor* ]]'
+printf '{"reveal":{"released":true,"at":1,"by":"cs.admin"}}\n' > "$C/animeitor.json"; : > "$C/var/animeitor-reveal.released"
+call /contest/score GET cst 'contest=cs&scope=mine'
+ck "liberado: full recortado"         '[[ "$(a1cells)" == *"1/3660"* && "$BODY" != *":aluno2:"* ]]'
+ck "e X-MOJ-Frozen: 0"                '[[ "$OUT" == *"X-MOJ-Frozen: 0"* ]]'
+call /contest/navbuttons GET cst 'contest=cs'
+ck "nav: Revelação + Reveleitor"      '[[ "$BODY" == *"Revelação"* && "$BODY" == *Reveleitor* ]]'
+rm -f "$C/var/animeitor-reveal.released"
+printf '{"event":"","event_hash":"","contests":{}}\n' > "$C/var/animeitor-managed.json"
+call /contest/score GET cst 'contest=cs&scope=mine'
+ck "evento apagado (sem event): full" '[[ "$(a1cells)" == *"1/3660"* ]]'
+printf '{"event":"cs-telao","event_hash":"x","contests":{}}\n' > "$C/var/animeitor-managed.json"
+printf '[{"regex":"^aluno2","end":%s,"reason":"sede atrasada"}]' $(( NOW + 1800 )) > "$C/time-overrides.json"
+: > "$C/var/animeitor-reveal.released"
+call /contest/score GET cst 'contest=cs&scope=mine'
+ck "liberado mas sede prorrogada: frozen" '[[ -n "$(a1cells)" && "$(a1cells)" != *"1/3660"* ]]'
+rm -f "$C/time-overrides.json" "$C/var/animeitor-managed.json" "$C/var/animeitor-reveal.released" "$C/animeitor.json" "$C"/var/nav-cache.*
 
 echo "== prorrogação segura o full; allowlist SCORE_FULL_USERS libera =="
 printf '[{"regex":"^aluno2","end":%s,"reason":"queda de energia"}]' $(( NOW + 1800 )) > "$C/time-overrides.json"

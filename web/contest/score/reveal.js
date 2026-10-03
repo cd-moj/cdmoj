@@ -6,10 +6,14 @@
 // (settings freeze=0; só admin). Só faz sentido em modo icpc com FREEZE_TIME configurado.
 // .cstaff (chefe de sede): as mesmas duas chamadas levam &scope=mine — a API recorta as
 // DUAS visões aos usuários da sede dele (staff-filters) e só libera o full depois que o
-// contest termina para TODAS as sedes; a cerimônia local revela só a sede.
+// contest termina para TODAS as sedes e, com o telão do Animeitor em uso, depois que o
+// .animeitor LIBERA a revelação (site_reveal_open); a cerimônia local revela só a sede.
+// PENDENTE = célula que difere entre as duas visões. O congelado marca `tries/-?` em toda célula
+// não resolvida com resultado escondido (updatescore-icpc.sh), então o WA pós-freeze também vira
+// "?" — antes ele saía igual nas duas visões e só os ACs ganhavam "?" (TCP 2026, 03/10/2026).
 import { el } from '/shared/ui.js';
 import { T, setLang } from '/shared/i18n.js';
-import { apiGet, apiGetText, apiPost, getToken } from '/shared/api.js';
+import { apiGet, apiGetText, apiGetTextMeta, apiPost, getToken } from '/shared/api.js';
 import { status } from '/shared/auth.js';
 import { parseICPC } from './score-icpc.js';
 import { balloonColorHex, balloonDot, paintSolvedCell } from './score-colors.js';
@@ -32,6 +36,7 @@ let finished = false;
 let timer = null;
 
 const cellSolvedRe = /^(\d+)\/(\d+)\/?\*?$/;
+const cellFailedRe = /^\d+\/-$/;          // tentou e não resolveu (visão completa, já revelada)
 function cellPenalty(v) {
   const m = cellSolvedRe.exec(v || ''); if (!m) return null;
   return { tries: +m[1], min: +m[2], pen: (+m[1] - 1) * PEN + +m[2] };
@@ -105,9 +110,16 @@ function render(highlight) {
         // contorno de 2px no modo 'fill': aqui é PROJETOR, 1px some da plateia
         paintSolvedCell(td, color, { style: BSTYLE, fts, ring: 2 });
       } else if (pend) {
-        td.className = 'cell c-try prob-wait-cell';
-        td.title = sn;
-        shownIn((v && v !== ':' ? v.replace(/\/-$/, '') + ' ' : '') + '?');
+        // c-frz: no celular a célula vira "?" (e não o ✗ das tentativas)
+        td.className = 'cell c-try prob-wait-cell c-frz';
+        td.title = sn + T(': resultado ainda não revelado', ': result not revealed yet', ': resultado aún no revelado');
+        shownIn((v && v !== ':' ? v.replace(/\/-\??$/, '') + ' ' : '') + '?');
+      } else if (cellFailedRe.test(v)) {
+        // errou (já revelado ou anterior ao congelamento): vermelho, como no resolver do ICPC —
+        // o amarelo fica só p/ o que ainda vai ser revelado
+        td.className = 'cell c-try c-fail';
+        td.title = cellTitle(sn, v, T);
+        shownIn(v.replace(/\/-$/, ''));
       } else { td.title = sn; shownIn(v); }
       tr.append(td);
     });
@@ -166,12 +178,17 @@ async function main() {
   try { st = await status(CONTEST, { alerts: false }) || {}; } catch { st = {}; }   // tela projetada: sem banner
   const CSTAFF = !!(st.logged_in && st.is_cstaff && !st.is_judge && !st.is_admin);
   const scopeQ = CSTAFF ? '&scope=mine' : '';
-  let frozenTxt, fullTxt;
+  let frozenTxt, fullTxt, fullFrozen = false;
   try {
-    [frozenTxt, fullTxt] = await Promise.all([
+    let fullMeta;
+    [frozenTxt, fullMeta] = await Promise.all([
       apiGetText('/contest/score?contest=' + enc(CONTEST) + '&view=public' + scopeQ, G),
-      apiGetText('/contest/score?contest=' + enc(CONTEST) + scopeQ, G),
+      apiGetTextMeta('/contest/score?contest=' + enc(CONTEST) + scopeQ, G),
     ]);
+    fullTxt = fullMeta.text;
+    // quem decide qual placar foi servido é o SERVIDOR (X-MOJ-Frozen): 1 na chamada "completa" =
+    // a API não liberou o full p/ este login (o .cstaff antes do fim geral ou da liberação)
+    fullFrozen = (fullMeta.headers && fullMeta.headers.get('X-MOJ-Frozen')) === '1';
   } catch (e) { app.textContent = T('Falha ao carregar o placar: ', 'Failed to load the scoreboard: ', 'Error al cargar el marcador: ') + (e.message || T('erro', 'error', 'error')); return; }
   const fl = frozenTxt.split('\n'), ul = fullTxt.split('\n');
   // linha 1 pode trazer a flag `s` (célula em SEGUNDOS, R6) — o parseICPC converte a
@@ -212,14 +229,14 @@ async function main() {
   teams.forEach(recompute);
   const totalPend = teams.reduce((n, t) => n + pendingCells(t).length, 0);
 
-  // cstaff antes do fim-para-todos: a API serviu frozen nas duas chamadas (0 pendências).
-  // Conveniência de UX — a garantia é o gate do /contest/score.
-  if (CSTAFF && totalPend === 0) {
-    // sem basic: segue (0 pendências com contest encerrado é cerimônia vazia legítima)
-    if (basic && (basic.end_time || 0) > Math.floor(Date.now() / 1000)) {
-      app.textContent = T('A revelação da sua sede abre quando o contest termina para todas as sedes.', "Your site's reveal opens when the contest ends for all sites.", "La revelación de tu sede se abre cuando la competencia termina para todas las sedes.");
-      return;
-    }
+  // cstaff sem o full: a API serviu o congelado nas duas chamadas (X-MOJ-Frozen: 1). Montar a
+  // cerimônia assim mostraria um placar parado, com "?" que nunca se revelam. Conveniência de UX —
+  // a garantia é o gate do /contest/score (site_reveal_open).
+  if (CSTAFF && fullFrozen) {
+    app.textContent = (basic && (basic.end_time || 0) > Math.floor(Date.now() / 1000))
+      ? T('A revelação da sua sede abre quando o contest termina para todas as sedes.', "Your site's reveal opens when the contest ends for all sites.", 'La revelación de tu sede se abre cuando la competencia termina para todas las sedes.')
+      : T('A revelação da sua sede ainda não foi liberada: ela abre quando a organização liberar a revelação às sedes.', "Your site's reveal has not been released yet: it opens when the organizers release the reveal to the sites.", 'La revelación de tu sede todavía no fue liberada: se abre cuando la organización libere la revelación a las sedes.');
+    return;
   }
 
   app.innerHTML = '';

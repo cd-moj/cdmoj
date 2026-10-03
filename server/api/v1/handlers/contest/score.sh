@@ -110,7 +110,9 @@ fi
 # `scope=mine` (honrado SÓ p/ .cstaff): recorta o placar servido (frozen E full) aos
 # usuários que o cstaff enxerga (staff-filters) — é a cerimônia POR SEDE. Fora da
 # allowlist, o cstaff só recebe o full quando o contest terminou PARA TODOS
-# (contest_over_for_all: fim base + a prorrogação mais tardia de time-overrides.json).
+# (contest_over_for_all: fim base + a prorrogação mais tardia de time-overrides.json) E,
+# com o telão do Animeitor em uso, depois que o .animeitor LIBERA a revelação às sedes
+# (site_reveal_open, lib/contest-gate.sh — o mesmo interruptor do Reveleitor).
 ff="$(ch_view_file "$contest" "$CH_VIEW" full)"
 if [[ "$(param view)" != public && -f "$ff" && "$sess" == 1 ]]; then
   # .animeitor SEMPRE recebe o descongelado: é a conta do TELÃO, que conduz a revelação
@@ -122,7 +124,7 @@ if [[ "$(param view)" != public && -f "$ff" && "$sess" == 1 ]]; then
   fi
   if [[ "$priv" == 0 && "$(param scope)" == mine ]] && is_cstaff; then
     source "$_LIBDIR/contest-gate.sh"
-    contest_over_for_all "$contest" && priv=1
+    site_reveal_open "$contest" && priv=1
   fi
   [[ "$priv" == 1 ]] && f="$ff"
 fi
