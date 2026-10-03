@@ -146,6 +146,7 @@ RD '{"action":"set","slug":"prova","colors":{"A":"AA0000","enableSonic":false}}'
 # o fluxo de verdade: a rodada no ar é o AQUECIMENTO (a janela dele aqui é degenerada, então vai direto ao conf)
 sed -i '/^ROUND_KIND=/d' "$C/conf"; printf 'ROUND_KIND=warmup\n' >> "$C/conf"
 mkdir -p "$C/docs"; printf '%%PDF-enviado' > "$C/docs/info-sheet.pt.uploaded.pdf"; printf '%%PDF-gerado' > "$C/docs/info-sheet.pt.pdf"
+sed -i '/^CONTEST_PRIORITY=/d' "$C/conf"; printf 'CONTEST_PRIORITY=prova\n' >> "$C/conf"   # o automático é só de PROVA
 AUTO_WARM_JUDGES=1 RD '{"action":"promote","to":"prova"}'
 ck "promoveu"                      '[[ "$(J .promoted)" == true ]]'
 # AQUECIMENTO dos juízes p/ a rodada que entrou (TCP 2026): destacado — a resposta não espera; o audit chega depois
@@ -167,8 +168,11 @@ call /contest/admin/rounds GET '' cadm "$Q"
 ck "prova oficial encerrada no ar: bloqueador official_over, trilíngue" '[[ "$(J "[.promote_ready.blockers[] | select(.code==\"official_over\") | .detail_en, .detail_es] | map(select(length > 0)) | length")" == 2 && "$(J "$BLK_I18N")" == 0 ]]'
 RD '{"action":"promote","to":"extra"}'
 ck "…sem 'ignorar', a promoção é recusada (409 not_ready)" '[[ "$OUT" == *"Status: 409"* && "$(J .error.code)" == not_ready ]]'
-RD '{"action":"promote","to":"extra","force":true}'
+sed -i 's/^CONTEST_PRIORITY=.*/CONTEST_PRIORITY=lista-publica/' "$C/conf"   # LISTA: o automático não roda
+AUTO_WARM_JUDGES=1 RD '{"action":"promote","to":"extra","force":true}'
 ck "promoveu p/ a extra"           '[[ "$(J .promoted)" == true ]]'
+sleep 1
+ck "contest de LISTA: a promoção NÃO aquece sozinha (fica com o botão)" '[[ "$(grep -c "warm-judges.*by=promote:" "$C/var/admin-audit.log")" == 1 ]]'
 ck "…a atividade da prova foi p/ o arquivo" '[[ ! -s "$C/users/time1/history" && -s "$C/rounds/prova/users/time1/history" && ! -e "$C/clarifications" ]]'
 ck "sem cores próprias: herdou"    '[[ "$(jq -r .A "$C/balloons.json")" == AA0000 ]]'
 call /contest/admin/rounds GET '' cadm "$Q"

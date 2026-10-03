@@ -779,12 +779,22 @@ spool_done_gc() {
 # A oficial começou com juízes FRIOS (problema que um juiz nunca calibrou espera a calibração na 1ª submissão) e o
 # organizador não achou o botão. ~WARM_LEAD_S antes do CONTEST_START (default 15 min) o shard 0 dispara o
 # bin/warm-judges.sh (o MESMO núcleo do botão, jw_warm) UMA vez por início (carimbo var/.warm-prestart = o epoch
-# do início; rodada nova = início novo = aquece de novo). Custo: UM `grep` sobre todos os confs a cada
+# do início; rodada nova = início novo = aquece de novo). SÓ contest de PROVA (CONTEST_PRIORITY prova/super). Custo: UM `grep` sobre todos os confs a cada
 # WARM_SWEEP_EVERY_S — nunca um processo por contest (a lição do reconciliador). AUTO_WARM_JUDGES=0 desliga.
 : "${WARM_LEAD_S:=900}"
 : "${WARM_SWEEP_EVERY_S:=120}"
 _WARM_LAST=0
 WARM_SH="$SERVER_DIR/bin/warm-judges.sh"
+# _warm_priority_ok <c> — o contest é PROVA (CONTEST_PRIORITY prova ou super)? Leitura BUILTIN do conf, como o
+# contest_is_demo (o daemon não carrega o common.sh); ausente = lista-publica = não.
+_warm_priority_ok() {
+  local f="$CONTESTSDIR/$1/conf" line v=""
+  [[ -r "$f" ]] || return 1
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    [[ "$line" == CONTEST_PRIORITY=* ]] && { v="${line#CONTEST_PRIORITY=}"; v="${v//[\'\"]/}"; }
+  done < "$f"
+  [[ "$v" == prova || "$v" == super ]]
+}
 prestart_warm_sweep() {
   [[ "${AUTO_WARM_JUDGES:-1}" == 0 ]] && return 0
   [[ "${JUDGED_SHARD:-0}" == 0 && -f "$WARM_SH" ]] || return 0
@@ -800,6 +810,9 @@ prestart_warm_sweep() {
     st=""; [[ -f "$CONTESTSDIR/$c/var/.warm-prestart" ]] && read -r st < "$CONTESTSDIR/$c/var/.warm-prestart"
     [[ "$st" == "$v" ]] && continue
     contest_is_demo "$c" && continue
+    # SÓ PROVA (decisão do Ribas, 03/10/2026): lista de aula fica com o botão — dez listas às 8h mandariam uma
+    # calibração por par juiz×problema de todas elas às 7h45, cada uma ocupando um slot
+    _warm_priority_ok "$c" || continue
     mkdir -p "$CONTESTSDIR/$c/var" 2>/dev/null
     printf '%s\n' "$v" > "$CONTESTSDIR/$c/var/.warm-prestart" 2>/dev/null || continue
     log "aquecimento automático: $c começa em $(( (v - now) / 60 )) min — aquecendo os juízes"

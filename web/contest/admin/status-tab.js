@@ -27,9 +27,9 @@ export function makeStatusTab(CONTEST, opts = {}) {
   // (/contest/admin/warm-judges, núcleo jw_warm): só os pares juiz×problema FRIOS recebem calibração. O aquecimento
   // também roda sozinho ao promover uma rodada e ~15 min antes do início (o judged).
   function warmRow() {
-    const msg = el('span', { class: 'small muted' }, T('calibra cada problema em cada juiz que ainda não o calibrou (também roda sozinho ao promover rodada e ~15 min antes do início)',
-      'calibrates each problem on each judge that has not calibrated it yet (it also runs by itself when a round is promoted and ~15 min before the start)',
-      'calibra cada problema en cada juez que todavía no lo calibró (también corre solo al promover una ronda y ~15 min antes del inicio)'));
+    const msg = el('span', { class: 'small muted' }, T('calibra cada problema em cada juiz que ainda não o calibrou (em contest de Prova também roda sozinho ao promover rodada e ~15 min antes do início)',
+      'calibrates each problem on each judge that has not calibrated it yet (in a Contest-priority contest it also runs by itself when a round is promoted and ~15 min before the start)',
+      'calibra cada problema en cada juez que todavía no lo calibró (en una competencia con prioridad Competencia también corre solo al promover una ronda y ~15 min antes del inicio)'));
     const btn = el('button', { class: 'btn ghost' }, T('🔥 Aquecer juízes', '🔥 Warm up judges', '🔥 Calentar jueces'));
     btn.addEventListener('click', async () => {
       if (!confirm(T('Mandar cada juiz frio calibrar os problemas da prova? Cada calibração ocupa um slot do juiz por alguns minutos — melhor antes do início.',

@@ -237,7 +237,9 @@ case "$action" in
     # AQUECER os juízes p/ os problemas da rodada que entrou (TCP 2026: a oficial começou com juízes frios) —
     # DESTACADO (a promoção nunca espera nem falha por ele; o mesmo núcleo do botão, bin/warm-judges.sh).
     # Redirecionamento FORA do bash -c: sob fcgiwrap o filho não pode herdar o socket (lição do setsid).
-    if [[ "${AUTO_WARM_JUDGES:-1}" != 0 ]]; then
+    # só em contest de PROVA (prova/super): lista de aula fica com o botão (decisão do Ribas, 03/10/2026)
+    _wprio="$(conf_value "$contest" CONTEST_PRIORITY)"; _wprio="${_wprio//\\/}"
+    if [[ "${AUTO_WARM_JUDGES:-1}" != 0 && ( "$_wprio" == prova || "$_wprio" == super ) ]]; then
       ( setsid bash "$_DIR/../../bin/warm-judges.sh" "$contest" "promote:${SESSION_LOGIN:-}" </dev/null >/dev/null 2>&1 & ) 2>/dev/null
     fi
     audit_log_to "$contest" "round-promote$([[ "$force" == true ]] && printf -- -forced)" \
