@@ -70,6 +70,11 @@ jq -n '{mode:"enforce", fallback:"MOJBOX", single_session:false}' > "$C/ua-gate.
 call /auth/login POST '{"username":"alice","password":"a"}' '' 'contest=lc' 'Mozilla MOJBOX-7 X' 8.8.8.8
 ck "single_session:false ⇒ login em outra máquina NÃO revoga" '[[ "$(jq -r .revoked <<<"$BODY")" == 0 && "$(grep -c . "$SESS/.idx/lc/alice")" -ge 2 ]]'
 TOKF="$(jq -r .token <<<"$BODY")"
+# modo OBSERVAR (TCP 2026): resolve o esperado (painel/anomalias), mas o login NÃO barra e NÃO derruba sessão
+jq -n '{mode:"observe", fallback:"MOJBOX"}' > "$C/ua-gate.json"
+call /auth/login POST '{"username":"alice","password":"a"}' '' 'contest=lc' 'Mozilla de casa' 4.4.4.4
+ck "observe: UA errado ENTRA (não barra)"           '[[ "$(jq -r .logged_in <<<"$BODY")" == "true" ]]'
+ck "observe: login em outra máquina NÃO revoga"     '[[ "$(jq -r .revoked <<<"$BODY")" == 0 && -f "$SESS/$TOKF" ]]'
 rm -f "$C/ua-gate.json"
 call /auth/login POST '{"username":"alice","password":"a"}' '' 'contest=lc' 'Mozilla outro'
 ck "alice com UA errado 403"   '[[ "$OUT" == *"Status: 403"* ]] && [[ "$(jq -r .error.code <<<"$BODY")" == "ua_gate" ]]'

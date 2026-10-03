@@ -5241,13 +5241,13 @@
     "/contest/admin/anomalies": {
       "get": {
         "tags": ["contest"],
-        "summary": "Anomalias de uso de máquina durante a prova (admin ou juiz-chefe): 2 sessões vivas, máquina compartilhada, submissão de outra máquina, UA fora da sede, sede sem máquina por time, trocas, trilha da sessão única — só com gate de UA ligado",
+        "summary": "Anomalias de uso de máquina durante a prova (admin ou juiz-chefe): 2 sessões vivas, máquina compartilhada, submissão de outra máquina, UA fora da sede, sede sem máquina por time, trocas, trilha da sessão única — as de máquina valem sempre que o UA do mlinux identifica a máquina (machines_identified); o ua_mismatch precisa do gate (enforce ou observe). POST {action:explain|unexplain, id, note} marca um caso como explicado (sai das contagens)",
         "parameters": [
           {"name": "contest", "in": "query", "required": true, "schema": {"type": "string"}},
           {"name": "round", "in": "query", "required": false, "schema": {"type": "string"}}
         ],
         "responses": {
-          "200": {"description": "{gate:{mode,single_session,active}, round, window, computed_at, session_classes:{competitors,staff,privileged}, counts, anomalies[], events[], teams[], machines[], sites[], nutella_at} — ver docs/API.md"},
+          "200": {"description": "{gate:{mode,single_session,active,enforcing}, machines_identified, round, window, computed_at, session_classes:{competitors,staff,privileged}, counts, anomalies[], events[], teams[], machines[], sites[], nutella_at} — ver docs/API.md"},
           "400": {"description": "round_invalid"},
           "403": {"description": "admin_required"},
           "404": {"description": "round_notfound"}
@@ -5860,7 +5860,7 @@
         ],
         "responses": {
           "200": {
-            "description": "{gate, legacy, regions, check}"
+            "description": "{gate, legacy, configured, has_rule, regions, check} — configured = existe ua-gate.json; has_rule:false = ninguém tem esperado (ninguém é barrado)"
           },
           "403": {
             "description": "admin_required"
@@ -5900,8 +5900,10 @@
                     "type": "string",
                     "enum": [
                       "enforce",
+                      "observe",
                       "off"
-                    ]
+                    ],
+                    "description": "observe = resolve o esperado (painel, anomalias) sem barrar nem derrubar sessão; enforce/observe sem nenhuma regra = 422 gate_no_rule"
                   },
                   "from_login": {
                     "type": "object",
@@ -5950,7 +5952,7 @@
             "description": "admin_required"
           },
           "422": {
-            "description": "mode_invalid | regex_invalid | rule_long | too_many"
+            "description": "mode_invalid | gate_no_rule | regex_invalid | rule_long | too_many"
           }
         }
       }

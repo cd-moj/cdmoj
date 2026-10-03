@@ -1,4 +1,4 @@
-<!-- i18n-source: MANUAL-ADMIN.md blob:7d3cb553895bd6a7433e254a8aab334e53636b80 -->
+<!-- i18n-source: MANUAL-ADMIN.md blob:2bcd141c1bdbb4ac1e5964b23a89857f3c08f0fc -->
 # MOJ: Organizer manual (the contest .admin panel)
 
 > **Translation note.** This manual is a translation of the Portuguese original. The command-line tools (`moj`, `moj-contest`, `moj-comp`) print their messages in Portuguese, and the command examples below are identical to the original.
@@ -112,7 +112,7 @@ the **🌐 Languages** tab of the chief judge panel) has two modes:
 | Panel | What it does |
 |---|---|
 | **Gate & lock** | Where each team logged in from (IP and browser) in each round, with CSV. The configuration of the **browser gate by site** (expected × seen per team) and the **per-site IP lock** (pinned IPs, blocks, pin/release). Section 7 explains it. |
-| **Anomalies** | What is wrong in the use of the machines **during the contest** (only with the UA gate on): a team with 2 live sessions, a machine shared by 2 teams, a submission from another machine, a UA outside the site, a site with fewer machines than teams, machine changes, the **single session** trail and the lock blocks. Timeline, table per team, CSV, logout, **log out mismatched UA**. Section 7½ explains it. |
+| **Anomalies** | What is wrong in the use of the machines **during the contest** (when the MLinux browser identifies the machine, with or without the gate; "UA off-site" needs the gate in Block or Observe): a team with 2 live sessions, a machine shared by 2 teams, a submission from another machine, a UA outside the site, a site with fewer machines than teams, machine changes, the **single session** trail and the lock blocks. Timeline, table per team, CSV, logout, **log out mismatched UA** and **explain** a case. Section 7½ explains it. |
 | **mlinux** | The overview of the machines per site that nutellaboot collects: hardware and equipment model, RAM, editors, memory pressure with PSI, health during the contest (restarts, processes killed for lack of memory, wrong clock, idle time). It also has the collection and the remote commands. The health and PSI data appear only for machines with the new mlinux agent; the screen tells how many there are. The **Machine-team link** card shows how many machines MOJ has already linked to a team in nutellaboot. This occurs automatically when the team logs in, with the new mlinux agent. The card has the **send roster** and **republish links** buttons. Use the two, in this order, when the card says "team not in the image roster". The **Real-time machine alerts** card installs the nutellaboot notification. When a machine raises an alert (USB drive, mobile phone, network over USB, repeated identity), the alert appears in Machines › Anomalies. During the contest, the contest owner also gets it on Telegram. To install or remove it, the saved key must be the nutellaboot administration key. `docs/NUTELLABOOT.md` explains it. |
 
 > **Balloons and the freeze.** By default, an accepted submission made while the scoreboard is
@@ -604,11 +604,16 @@ When each site runs **its own** image, the UA of each machine contains a part of
 `teambrspso001` (Brazil/BR, `São Paulo`/SP, Sorocaba/SO) runs on an image whose UA contains
 `brspso`. One substring is not sufficient, so MOJ **derives the expected value from the login**.
 
-**On the web** (🔒 section of Machines › Gate & lock): the **"Block anyone not coming from the site
-image"** switch turns it on/off. Below it are the **login regex (with capture)** and the **expected
-UA** (`\1`), with a **live tester** ("test with login" → *UA must contain `brspso` · site
-Sorocaba*), and three collapsible lists: **per-site overrides**, **login regex rules** and
-**exempt**. When you save, it applies from the next login.
+**On the web** (🔒 section of Machines › Gate & lock): the **mode** is **Off**, **Observe** or **Block**.
+**Observe** shows the expected × seen UA and "UA off-site" in Anomalies, **without blocking anyone or ending
+a session**: you can turn it on during the contest to check the room. **Block** makes the login return 403.
+Below are the **login regex (with capture)** and the **expected UA** (`\1`), with a **live tester**
+("test with login" → *UA must contain `brspso` · site Sorocaba*), and three collapsible lists:
+**per-site overrides**, **login regex rules** and **exempt**. When you save, it applies from the next
+login. **With no rule, the gate does nothing**: the panel says "no rule: nobody is blocked or observed",
+MOJ refuses to save Block or Observe without a rule, and the 🏁 Home warns when the `maquinas` module is on
+with no saved gate (save **Off** if this is intentional). This occurred in TCP 2026: the old panel showed
+"active" with no rule at all.
 
 **In the CLI**, the same:
 
@@ -616,6 +621,7 @@ Sorocaba*), and three collapsible lists: **per-site overrides**, **login regex r
 moj contest -c <cid> ua-gate set --from-login '^team([a-z]{6})[0-9]{3}$' --expect '\1'
 moj contest -c <cid> ua-gate set --region 'Sorocaba=brspso-v2'     # site outside the pattern
 moj contest -c <cid> ua-gate set --exempt '^ccl' --exempt time-reserva-07
+moj contest -c <cid> ua-gate set --mode observe                     # look without blocking (enforce = block, off = turn off)
 moj contest -c <cid> ua-gate check teambrspso001                   # what MOJ expects from it
 moj contest -c <cid> ua-gate show
 ```
@@ -624,9 +630,10 @@ One rule covers **all sites at one time**. The resolution order is: **exempt** �
 (always gets in) › regex rule › **site override** › capture in the login › single substring (the
 usual `login_ua_substring`, which continues to apply as the last option).
 
-- A login that does not match is **blocked at login** (403). The decision was to block, with the
-  **exempt** list as the margin. `--mode off` turns off the gate without deleting the
-  configuration.
+- In **Block** mode, a login that does not match is **blocked at login** (403), with the **exempt**
+  list as the margin. In **Observe** mode nobody is blocked: a login outside the pattern shows up in
+  Machines › Anomalies. A safe procedure is **Observe during the warm-up** (check the room) and **Block
+  during the contest**. `--mode off` turns off the gate without deleting the configuration.
 - The Machines › Gate & lock panel shows the **expected UA × seen UA** per team, and counts how
   many are outside the site image. This is how you fix the room **in the warm-up**, before the
   gate blocks a team in the contest.
@@ -643,7 +650,7 @@ usual `login_ua_substring`, which continues to apply as the last option).
   the contest). An accepted side effect: during the window, all persons behind that public IP
   lose access to the training.
 - **Single session per team** (switch in the same 🔒 section, on by default): with the gate in
-  effect, a new login on **another machine ends the previous session** of the team. A change of
+  **Block** mode, a new login on **another machine ends the previous session** of the team. A change of
   machine because of a defect continues to work (the team logs in on the new machine, and the old
   one loses the session). A page reload on the same machine ends nothing. Each ended session
   becomes an event in Machines › Anomalies.
@@ -693,11 +700,12 @@ In the CLI: `moj-contest -c <id> regions show|who|assign|set|map`.
 In the Maratona 2026, the question "did a team use two machines?" had an answer only after the
 contest, with a manual cross-check of logs. The **Machines › Anomalies** panel answers it
 **during** the contest (the active sessions, the mass logout and the access log, which apply to
-ANY contest, are in **People › Sessions**). It applies only with the **UA gate on**: the browser of
-the mlinux image identifies the machine (`machine_id/boot_id`). A login from a common browser has
-only the IP, and behind NAT the IP is the full site. These logins stay out of the machine
-anomalies (they appear only in "UA off-site" and in the session list). With the gate off, the
-panel shows a warning and shows only the sessions and the access log.
+ANY contest, are in **People › Sessions**). The **browser of the mlinux image** identifies the
+machine (`machine_id/boot_id`), **with or without the gate**. A login from a common browser has only
+the IP, and behind NAT the IP is the full site. These logins stay out of the machine anomalies (they
+appear only in "UA off-site" and in the session list). **"UA off-site"** needs the expected UA of each
+team, that is, the gate in **Block** or **Observe** mode. When no machine is identified, the panel shows
+a warning and shows only the sessions and the access log.
 
 - **Cards** (click = filter): active sessions, 👥 **2 live sessions** (the same team on two
   machines; with single session on, this occurs only with a copied token), 🖥 **shared machine**
@@ -708,6 +716,10 @@ panel shows a warning and shows only the sessions and the access log.
   machine** (info: normal when a machine fails) and the **revocations** of the single session.
 - **Timeline**: each event with time, type, team, machine and detail; filters by type and text;
   CSV; a **log out** button for the team.
+- **Explain** (admin and chief judge): a case that is already clear (e.g. "switched machine after a
+  failure, confirmed by the site") gets the reason, **leaves the counts** and stays in the list, dimmed,
+  with who explained it, when and why (**✓ explained** card; **undo** counts it again). If the case
+  changes (the team goes to a third machine), it comes back. Each mark goes to the audit.
 - **Teams**: only the teams with an anomaly (or all with a session): live sessions and on how many
   machines, the machines used in the contest in order, the last submission (✓ came from the
   machine of the session; ✗ did not) and the anomalies as tags.

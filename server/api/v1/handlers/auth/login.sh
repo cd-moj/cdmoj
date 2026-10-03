@@ -26,9 +26,16 @@ _mexp="$(account_field "$contest" "$u" '.managed.expires_at')"; _mexp="${_mexp//
 source "$_LIBDIR/ua-gate.sh"
 # o esperado é capturado UMA vez: é o teste do gate (ug_ok inline) e, depois do alias, o critério
 # "este login está sujeito ao gate" da sessão única (vazio = sem gate p/ ele: off, isento, papel
-# ou sem regra — NUNCA use o `mode`, que é enforce por default sem arquivo)
+# ou sem regra). O `mode` sozinho NUNCA decide (é enforce por default sem arquivo, p/ o legado valer):
+# ele só separa, entre quem TEM esperado, barrar (enforce) de apenas observar (observe).
 _ugexp="$(ug_expected "$contest" "$u")"
+# modo e sessão única num jq só (só p/ quem tem esperado). `observe` resolve o esperado mas NÃO barra nem
+# derruba sessão — é o modo de olhar (painel e anomalias) sem risco.
+_ugmode=off; _ugsingle=false
 if [[ -n "$_ugexp" ]]; then
+  IFS=$'\x01' read -r _ugmode _ugsingle <<<"$(jq -r '"\(.mode)\u0001\(.single_session != false)"' <<<"$(ug_get "$contest")")"
+fi
+if [[ -n "$_ugexp" && "$_ugmode" == enforce ]]; then
   _ua="${HTTP_USER_AGENT:-}"
   [[ "${_ua,,}" == *"${_ugexp,,}"* ]] \
     || fail 403 "Login bloqueado: este navegador/máquina não está autorizado para o contest (sede errada?)" "ua_gate"
@@ -77,8 +84,8 @@ name="$(user_fullname "$contest" "$u")"
 # vale semeado; sem marcador, a 1ª vez semeia (flock -n: quem não pegar segue sem revogar).
 _revoked=0; _sfd=""
 _single=0
-if [[ -n "$_ugexp" ]] && ! is_reserved_role_login "$u"; then
-  jq -e '.single_session != false' <<<"$(ug_get "$contest")" >/dev/null 2>&1 && _single=1
+if [[ -n "$_ugexp" && "$_ugmode" == enforce && "$_ugsingle" == true ]] && ! is_reserved_role_login "$u"; then
+  _single=1
 fi
 if (( _single )); then
   sess_index_seeded "$contest" || sess_seed_index "$contest" || _single=0

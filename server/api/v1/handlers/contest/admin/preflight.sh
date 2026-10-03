@@ -738,18 +738,31 @@ ugj="$(ug_get "$contest")"
 # LOGIN_UA_SUBSTRING legado seguir valendo sem arquivo), mas enforce com ZERO regras deixa
 # todo mundo entrar (esperado vazio) — tratar isso como "armado sem regra" era um FAIL falso
 # em TODO contest que nunca configurou gate (pego no esquenta 2026-08-04).
-ug_has_rules="$(jq -r '((.from_login != null) or ((.by_regex // []) | length > 0)
-                        or ((.by_region // {}) | length > 0) or ((.fallback // "") != "")) | tostring' <<<"$ugj")"
-[[ -n "$(ug_legacy "$contest")" ]] && ug_has_rules=true
-if [[ "$(jq -r '.mode // "off"' <<<"$ugj")" != enforce || "$ug_has_rules" != true ]]; then
-  if [[ -n "$(ug_legacy "$contest")" ]]; then
+# TCP 2026 (03/10/2026): módulo maquinas ligado e NENHUM ua-gate.json — o painel dizia "ativo" e esta linha dizia
+# "desligado" (ok); ninguém era barrado e a sessão única não valia. Agora: sem arquivo = AVISO (nada foi
+# decidido); `mode:off` gravado = OK (escolha — a doutrina: configuração deliberada nunca vira aviso eterno);
+# `observe` = linha própria (resolve o esperado, não barra).
+_uglg="$(ug_legacy "$contest")"
+ug_has_rules=false; ug_has_rule "$ugj" "$_uglg" && ug_has_rules=true
+_ugmode="$(jq -r '.mode // "off"' <<<"$ugj")"
+_ugcf=0; [[ -s "$(ug_file "$contest")" ]] && _ugcf=1
+if [[ "$_ugmode" == off ]] || [[ "$ug_has_rules" != true ]] || [[ -n "$_uglg" && "$_ugcf" == 0 ]]; then
+  if [[ -n "$_uglg" && "$_ugmode" != off ]]; then
     add3 ua_gate warn "Gate de navegador só no LOGIN_UA_SUBSTRING legado" "configure a regra por sede em Pessoas → Máquinas & gate" \
       "Browser gate only on the legacy LOGIN_UA_SUBSTRING" "set up the per-site rule in People → Machines & gate" \
       "Gate de navegador solo en el LOGIN_UA_SUBSTRING heredado" "configura la regla por sede en Personas → Máquinas y gate"
+  elif (( _ugcf == 0 )); then
+    add3 ua_gate warn "Módulo Máquinas ligado SEM gate de navegador" "nenhuma regra foi gravada: qualquer navegador entra, a sessão única não vale e o painel não tem o esperado × visto — escolha Barrar ou Observar em Máquinas › Gate & trava (ou grave Desligado, se for de propósito)" \
+      "Machines module on WITHOUT a browser gate" "no rule was saved: any browser gets in, single session does not apply and the panel has no expected × seen — choose Block or Observe in Machines › Gate & lock (or save Off, if this is intentional)" \
+      "Módulo Máquinas activado SIN gate de navegador" "no se guardó ninguna regla: cualquier navegador entra, la sesión única no vale y el panel no tiene el esperado × visto — elige Bloquear u Observar en Máquinas › Gate y bloqueo (o guarda Desactivado, si es a propósito)"
+  elif [[ "$_ugmode" != off ]]; then
+    add3 ua_gate warn "Gate ligado SEM regra" "modo $_ugmode e nenhuma regra (regex do login, sede, regex ou fallback): ninguém é barrado nem observado" \
+      "Gate on WITHOUT a rule" "mode $_ugmode and no rule (login regex, site, regex or fallback): nobody is blocked or observed" \
+      "Gate activado SIN regla" "modo $_ugmode y ninguna regla (regex del login, sede, regex o fallback): nadie es bloqueado ni observado"
   else
-    add3 ua_gate ok "Gate de navegador desligado" "qualquer navegador entra (confira a sala no aquecimento)" \
-      "Browser gate off" "any browser gets in (check the room during the warm-up)" \
-      "Gate de navegador desactivado" "cualquier navegador entra (revisa la sala en el calentamiento)"
+    add3 ua_gate ok "Gate de navegador desligado" "escolha gravada: qualquer navegador entra (confira a sala no aquecimento)" \
+      "Browser gate off" "saved choice: any browser gets in (check the room during the warm-up)" \
+      "Gate de navegador desactivado" "elección guardada: cualquier navegador entra (revisa la sala en el calentamiento)"
   fi
 else
   # quem está DENTRO do gate e quem ficou sem regra: o time sem esperado entra de qualquer
@@ -773,7 +786,11 @@ else
   nx="$(jq -r '.exempt' <<<"$cnt")"; nx="${nx//[^0-9]/}"; nx="${nx:-0}"
   nt="$(jq -r '.total' <<<"$cnt")"; nt="${nt//[^0-9]/}"; nt="${nt:-0}"
   nu=$(( nt - ng - nx )); (( nu < 0 )) && nu=0
-  if (( ng == 0 )); then
+  if [[ "$_ugmode" == observe ]]; then
+    add3 ua_gate ok "Gate em modo OBSERVAR" "ninguém é barrado: $ng time(s) com UA esperado$( (( nu > 0 )) && echo ", $nu sem regra"); quem entra fora do padrão aparece em Máquinas › Anomalias (troque para Barrar quando a sala estiver conferida)" \
+      "Gate in OBSERVE mode" "nobody is blocked: $ng team(s) with an expected UA$( (( nu > 0 )) && echo ", $nu without a rule"); anyone logging in off-pattern shows up in Machines › Anomalies (switch to Block once the room is checked)" \
+      "Gate en modo OBSERVAR" "nadie es bloqueado: $ng equipo(s) con UA esperado$( (( nu > 0 )) && echo ", $nu sin regla"); quien entra fuera del patrón aparece en Máquinas › Anomalías (cambia a Bloquear cuando la sala esté revisada)"
+  elif (( ng == 0 )); then
     add3 ua_gate fail "Gate armado mas SEM regra que casa" "modo enforce e nenhum time tem UA esperado — ou a regex não casa os logins, ou todos estão isentos" \
       "Gate armed but WITHOUT a matching rule" "enforce mode and no team has an expected UA — either the regex does not match the logins, or everyone is exempt" \
       "Gate armado pero SIN regla que coincida" "modo enforce y ningún equipo tiene UA esperado — o la regex no coincide con los logins, o todos están exentos"
@@ -800,7 +817,11 @@ else
   fi
   # sessão única por time (lib/session-index.sh): com gate ligado, login em outra máquina
   # derruba a anterior — desligar isso é escolha, mas merece aviso (time em 2 máquinas passa)
-  if [[ "$(jq -r '.single_session' <<<"$ugj")" == false ]]; then
+  if [[ "$_ugmode" == observe ]]; then
+    add3 session_single ok "Sessão única: só no modo Barrar" "no modo Observar o login em outra máquina NÃO derruba a sessão anterior; as sessões em 2 máquinas aparecem em Máquinas › Anomalias" \
+      "Single session: Block mode only" "in Observe mode a login on another machine does NOT end the previous session; sessions on 2 machines show up in Machines › Anomalies" \
+      "Sesión única: solo en el modo Bloquear" "en el modo Observar un login en otra máquina NO termina la sesión anterior; las sesiones en 2 máquinas aparecen en Máquinas › Anomalías"
+  elif [[ "$(jq -r '.single_session' <<<"$ugj")" == false ]]; then
     add3 session_single warn "Sessão única por time DESLIGADA" "com o gate ligado, o time pode ficar logado em várias máquinas — ligue em Pessoas → Máquinas & gate; as anomalias aparecem em Pessoas → Sessões & anomalias" \
       "Single session per team OFF" "with the gate on, a team can stay logged in on several machines — turn it on in People → Machines & gate; anomalies show up in People → Sessions & anomalies" \
       "Sesión única por equipo DESACTIVADA" "con el gate activado, el equipo puede quedar conectado en varias máquinas — actívala en Personas → Máquinas y gate; las anomalías aparecen en Personas → Sesiones y anomalías"

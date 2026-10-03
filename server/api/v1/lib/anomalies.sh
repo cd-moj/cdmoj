@@ -1,6 +1,13 @@
 # lib/anomalies.sh — MOTOR de anomalias de uso de máquina DURANTE a prova (painel Pessoas ›
-# Sessões & anomalias; rota GET /contest/admin/anomalies). Só faz sentido com o gate de UA
-# ligado: sem ele o navegador não identifica a máquina e nada disto vale (gate.active:false).
+# Sessões & anomalias; rota GET /contest/admin/anomalies).
+# QUEM IDENTIFICA A MÁQUINA É O UA DO MLINUX (chave "m:"), não o gate (03/10/2026, TCP 2026: sem gate o
+# painel ficava VAZIO com times em 2–3 máquinas e um adaptador de rede USB espetado). As anomalias de
+# MÁQUINA (multi_session, machine_shared, sub_other_machine, switched, site_short) valem sempre que há chave
+# "m:" (`machines_identified`); só o ua_mismatch precisa do gate (enforce OU observe: o esperado por time).
+# O gate decide BARRAR; ver não depende dele.
+# MARCAS "explicada" (var/anomalies-explained.json, {<id>: {by, at, note}}; id = kind|login|machine): a
+# organização explica um caso (troca por defeito, confirmada) e ele sai das contagens, sem sumir da lista.
+# Mudou o caso (outra máquina entra no `machine`), muda o id: volta a aparecer.
 #
 # Entradas (todas append-only, do próprio contest, recortadas pela janela da rodada):
 #   var/access.log         epoch \t login \t ip \t ua_b64            (login.sh)
@@ -138,7 +145,7 @@ an_build(){
   local gj mode single; gj="$(ug_get "$c")"
   mode="$(jq -r '.mode' <<<"$gj")"; single="$(jq -r '.single_session' <<<"$gj")"
   printf '{}' > "$W/exp.json"
-  if [[ "$mode" == enforce ]]; then
+  if [[ "$mode" == enforce || "$mode" == observe ]]; then
     local ecache="$cdir/var/.an-exp.json"
     if resp_cache_fresh "$ecache" 300 "$cdir/ua-gate.json" "$cdir/regions.json" "$cdir/var/access.log"; then cp -f "$ecache" "$W/exp.json"
     else
@@ -161,10 +168,17 @@ an_build(){
     [[ -s "$W/nut.json" ]] || printf 'null' > "$W/nut.json"
   fi
 
+  # --- marcas "explicada" (POST /contest/admin/anomalies {action:"explain"}) --------------------
+  printf '{}' > "$W/expl.json"
+  [[ -s "$cdir/var/anomalies-explained.json" ]] && jq -c 'if type == "object" then . else {} end' \
+    "$cdir/var/anomalies-explained.json" > "$W/expl.json" 2>/dev/null
+  [[ -s "$W/expl.json" ]] || printf '{}' > "$W/expl.json"
+
   # --- o jq único ----------------------------------------------------------------------------
   jq -n --slurpfile acc "$W/acc.json" --slurpfile sess "$W/sess.json" --slurpfile sub "$W/sub.json" \
         --slurpfile ev "$W/ev.json" --slurpfile users "$W/users.json" --slurpfile exp "$W/exp.json" \
         --slurpfile nut "$W/nut.json" --slurpfile sl "$W/sl.json" --slurpfile nbev "$W/nbev.json" \
+        --slurpfile expl "$W/expl.json" \
         --arg mode "$mode" --arg single "$single" --arg round "$s" \
         --argjson cs "$cs" --argjson ce "$ce" --argjson ws "$ws" --argjson now "$EPOCHSECONDS" '
     # sem regex nos caminhos quentes: jq recompila a regex a CADA chamada (test ≈ 6 µs, capture
@@ -208,7 +222,10 @@ an_build(){
     | ([ $sub[] | . + {ua:($DEC[.ua64] // ""), key:(mk(.ip; .ua64))}
          | . + {skey:(if (.smkey // "") != "" then .smkey
                       elif (.sua64 // "") != "" then (mk(.sip; .sua64)) else "" end)} ]) as $B
-    | (($mode == "enforce") and (([ $E | to_entries[] | select((.value // "") != "") ] | length) > 0)) as $active
+    | ((($mode == "enforce") or ($mode == "observe")) and (([ $E | to_entries[] | select((.value // "") != "") ] | length) > 0)) as $active
+    # a máquina IDENTIFICADA (UA do mlinux) é o que dá sentido às anomalias de máquina — com ou sem gate
+    | ((([ $A[] | select(ism(.key)) ] | length) > 0) or (([ $S[] | select(ism(.key)) ] | length) > 0)) as $identified
+    | ($expl[0] // {}) as $X
     # canais na janela da PROVA: logins (access.log) e submissões (submit-origin; offline = sessão vazia)
     | { logins: (reduce ($A[] | select(.in) | chan(.ua)) as $c ({web:0, cli:0, other:0}; .[$c] += 1)),
         submissions: (reduce ($B[] | (if (.sua64 // "") == "" and (.smkey // "") == "" then "offline" else chan(.ua) end)) as $c
@@ -273,14 +290,19 @@ an_build(){
            | {kind:"machine_event", severity:(if .event == "machine.offline" then "warn" else "info" end),
               at:.t, login:(.team // ""), name:(nm(.team // "")), region:(rg(.team // "")), machine:(.mkey // ""),
               detail:({event:.event, image:(.image // ""), mac:(.mac // ""), boot_id:(.boot_id // "")} + (.extra // {}))} ]) as $EV
-    | (if $active then ($MS + $SH + $SO + $UM + $SW + $SS) else [] end) as $AN
+    | ((if ($active or $identified) then ($MS + $SH + $SO + $SW) else [] end) + $SS + (if $active then $UM else [] end)
+       | map(. + {id: (.kind + "|" + (.login // "") + "|" + (.machine // ""))}
+             | . + (($X[.id] // null) as $m | if $m == null then {} else {explained: {by: ($m.by // ""), at: ($m.at // 0), note: ($m.note // "")}} end))) as $ANALL
+    # contagens e flags só do que NÃO foi explicado (o explicado segue na lista, apagado)
+    | [ $ANALL[] | select(has("explained") | not) ] as $AN
     | (($AN | map(.login) | map(split(", ")[]) | unique) + ($SESS | keys)) as $TL
     # --- última submissão por login ----------------------------------------------------------
     | ($B | group_by(.login) | map({key: .[0].login, value: (max_by(.t))}) | from_entries) as $LASTSUB
     | {
-        gate: {mode:$mode, single_session:($single == "true"), active:$active},
+        gate: {mode:$mode, single_session:($single == "true"), active:$active, enforcing:($mode == "enforce")},
+        machines_identified: $identified,
         round: $round, window: {start:$cs, end:$ce, since:$ws}, computed_at: $now,
-        # contagens saem de $AN: com o gate inativo tudo zera (as sessões e a trilha ficam)
+        # contagens saem de $AN (sem os EXPLICADOS): sem máquina identificada nem gate, as de máquina zeram (as sessões e a trilha ficam)
         # sessões por CLASSE (todas as do contest, papéis inclusos): é o que a caixa "sair em
         # massa" mostra — sem varrer o diretório global de sessões (20 mil arquivos na produção)
         session_classes: { competitors: ([ $sess[] | select(role(.login) | not) ] | length),
@@ -298,11 +320,12 @@ an_build(){
                   site_lock_blocks: ([ $sl[] | select(.action == "site-lock-block") ] | length),
                   site_lock_claims: ([ $sl[] | select(.action == "site-lock-claim") ] | length),
                   machine_alerts: ([ $nbev[] | select(.event == "alert.raised") ] | length),
-                  machine_events: ([ $nbev[] | select((.event // "") | startswith("machine.")) ] | length) },
-        anomalies: ($AN | sort_by(-.at)),
+                  machine_events: ([ $nbev[] | select((.event // "") | startswith("machine.")) ] | length),
+                  explained: ([ $ANALL[] | select(has("explained")) ] | length) },
+        anomalies: ($ANALL | sort_by(-.at)),
         events: ($EV | sort_by(-.at) | .[0:500]),
-        # sem gate o painel esconde a tabela de times: não mandar 1.900 linhas (1,3 MB na LATAM)
-        teams: (if ($active | not) then [] else [ $TL | unique[] | select(. != "" and (role(.) | not)) | . as $l
+        # sem máquina identificada (UA do mlinux) nem gate, a tabela de times não diz nada: não mandar 1.900 linhas (1,3 MB na LATAM, Chrome comum)
+        teams: (if (($active or $identified) | not) then [] else [ $TL | unique[] | select(. != "" and (role(.) | not)) | . as $l
                   | ($LASTSUB[$l] // null) as $ls
                   | ([ ($MACH[$l] // [])[] | select(.in > 0) | .key ] | last) as $curkey
                   | { login:$l, name:(nm($l)), region:(rg($l)),

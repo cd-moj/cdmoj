@@ -1,4 +1,4 @@
-<!-- i18n-source: MANUAL-ADMIN.md blob:7d3cb553895bd6a7433e254a8aab334e53636b80 -->
+<!-- i18n-source: MANUAL-ADMIN.md blob:2bcd141c1bdbb4ac1e5964b23a89857f3c08f0fc -->
 # MOJ: Manual del organizador (el panel .admin de la competencia)
 
 > **Nota de traducción.** Este manual es una traducción del original en portugués. Las herramientas de línea de comandos (`moj`, `moj-contest`, `moj-comp`) muestran sus mensajes en portugués, y los ejemplos de comandos son idénticos al original.
@@ -110,7 +110,7 @@ su panel) tiene dos modos:
 | Panel | Qué hace |
 |---|---|
 | **Gate y bloqueo** | Desde dónde inició sesión cada equipo (IP y navegador) en cada ronda, con CSV; la configuración del **gate de navegador por sede** (esperado × visto por equipo) y el **bloqueo de sede por IP** (IP fijados, bloqueos, fijar/soltar). La sección 7 lo explica. |
-| **Anomalías** | Lo que no está bien en el uso de las máquinas **durante la competencia** (solo con el gate de UA activado): equipo con 2 sesiones activas, máquina compartida por 2 equipos, envío desde otra máquina, UA fuera de la sede, sede con menos máquinas que equipos, cambios de máquina, el rastro de la **sesión única** y los bloqueos del bloqueo de sede. Línea de tiempo, tabla por equipo, CSV, cerrar sesión, **desconectar UA divergente**. La sección 7½ lo explica. |
+| **Anomalías** | Lo que no está bien en el uso de las máquinas **durante la competencia** (con el navegador del MLinux identificando la máquina, con o sin gate; el "UA fuera de la sede" necesita el gate en Bloquear u Observar): equipo con 2 sesiones activas, máquina compartida por 2 equipos, envío desde otra máquina, UA fuera de la sede, sede con menos máquinas que equipos, cambios de máquina, el rastro de la **sesión única** y los bloqueos del bloqueo de sede. Línea de tiempo, tabla por equipo, CSV, cerrar sesión, **desconectar UA divergente** y **explicar** un caso. La sección 7½ lo explica. |
 | **mlinux** | El panorama de las máquinas por sede que recoge el nutellaboot (hardware y modelo del equipo, RAM, editores, presión de memoria con PSI, salud en la competencia: reinicios, procesos terminados por falta de memoria, reloj desfasado, inactividad), con la recolección y los comandos remotos. Los datos de salud y PSI solo aparecen para las máquinas con el agente nuevo del mlinux; la pantalla dice cuántas son. La tarjeta **Vínculo máquina-equipo** muestra cuántas máquinas el MOJ ya vinculó a un equipo en el nutellaboot (ocurre solo, en el inicio de sesión del equipo, con el agente nuevo del mlinux), y tiene los botones **enviar roster** y **republicar vínculos**: usa los dos, en este orden, cuando la tarjeta diga "equipo fuera del roster de la imagen". La tarjeta **Alertas de máquinas en tiempo real** instala el aviso del nutellaboot: cuando una máquina levanta una alerta (pendrive, celular, red por USB, identidad repetida), aparece en Máquinas › Anomalías y, durante la competencia, el dueño de la competencia la recibe en Telegram. Para instalarlo o quitarlo, la clave guardada tiene que ser la de administración del nutellaboot. `docs/NUTELLABOOT.md` lo explica. |
 
 > **Globo y congelamiento.** Por defecto, un acierto logrado con el marcador **congelado no genera tarea de
@@ -574,11 +574,16 @@ Cuando cada sede corre **su propia** imagen, el UA de cada máquina lleva un ped
 del equipo: `teambrspso001` (Brasil/BR, `São Paulo`/SP, Sorocaba/SO) corre en una imagen cuyo UA contiene
 `brspso`. Una substring única no sirve, así que el MOJ **deriva lo esperado del login**.
 
-**En la web** (sección 🔒 de Máquinas › Gate y bloqueo): el interruptor **"Bloquear a quien no venga de la imagen de la
-sede"** lo activa/desactiva; debajo van la **regex del login (con captura)** y el **UA esperado** (`\1`),
+**En la web** (sección 🔒 de Máquinas › Gate y bloqueo): el **modo** — **Desactivado**, **Observar** (muestra el
+esperado × visto y el "UA fuera de la sede" en las Anomalías, **sin bloquear a nadie ni cerrar sesiones**: se puede
+activar en medio de la competencia para revisar la sala) o **Bloquear** (el inicio de sesión devuelve 403); debajo van la
+**regex del login (con captura)** y el **UA esperado** (`\1`),
 con un **probador en vivo** ("probar con el login" → *UA debe contener `brspso` · sede Sorocaba*),
 y tres listas plegables: **overrides por sede**, **reglas regex de login** y **exentos**.
-Guardar ya vale para el próximo inicio de sesión.
+Guardar ya vale para el próximo inicio de sesión. **Sin ninguna regla el gate no hace nada**: el panel dice
+"ninguna regla: nadie es bloqueado ni observado", guardar Bloquear u Observar sin regla se rechaza, y la 🏁 Central
+avisa cuando el módulo `maquinas` está activado sin ningún gate guardado (guarda **Desactivado** si es a propósito).
+Fue lo que pasó en el TCP 2026: el panel antiguo marcaba "activo" sin ninguna regla.
 
 **En la CLI**, lo mismo:
 
@@ -586,6 +591,7 @@ Guardar ya vale para el próximo inicio de sesión.
 moj contest -c <cid> ua-gate set --from-login '^team([a-z]{6})[0-9]{3}$' --expect '\1'
 moj contest -c <cid> ua-gate set --region 'Sorocaba=brspso-v2'     # sede fuera del patrón
 moj contest -c <cid> ua-gate set --exempt '^ccl' --exempt time-reserva-07
+moj contest -c <cid> ua-gate set --mode observe                     # mirar sin bloquear (enforce = bloquear, off = desactivar)
 moj contest -c <cid> ua-gate check teambrspso001                   # lo que se espera de él
 moj contest -c <cid> ua-gate show
 ```
@@ -594,8 +600,10 @@ Una regla cubre **todas las sedes de una vez**. El orden de resolución es: **ex
 rol (siempre entra) › regla por regex › **override de la sede** › captura en el login › substring
 única (el `login_ua_substring` de siempre, que sigue valiendo como último recurso).
 
-- Quien no coincide queda **bloqueado en el inicio de sesión** (403): la decisión fue bloquear, con la lista de **exentos**
-  como margen. `--mode off` desactiva el gate sin borrar la configuración.
+- En el modo **Bloquear**, quien no coincide queda **bloqueado en el inicio de sesión** (403), con la lista de **exentos**
+  como margen. En el modo **Observar** nadie es bloqueado: quien entra fuera del patrón aparece en Máquinas › Anomalías.
+  Un camino seguro es **Observar en el calentamiento** (revisar la sala) y **Bloquear en la competencia**. `--mode off`
+  desactiva el gate sin borrar la configuración.
 - El panel Máquinas › Gate y bloqueo muestra **UA esperado × UA visto** por equipo y cuenta cuántos están fuera de la
   imagen de la sede: así se arregla la sala **en el calentamiento**, antes de que el gate bloquee
   a alguien en la competencia.
@@ -610,7 +618,7 @@ rol (siempre entra) › regla por regex › **override de la sede** › captura 
   `site-lock-block`) y aparecen en Máquinas › Gate y bloqueo (bloqueo de sede), con "soltar" por IP y "🔒 Fijar IPs
   ya vistos" (útil en la mañana de la competencia). Efecto secundario aceptado: durante la ventana, todos los que estén detrás
   de ese IP público pierden el entrenamiento.
-- **Sesión única por equipo** (interruptor en la misma sección 🔒, activado por defecto): con el gate vigente, un
+- **Sesión única por equipo** (interruptor en la misma sección 🔒, activado por defecto): con el gate en **Bloquear**, un
   nuevo inicio de sesión en **otra máquina cierra la sesión anterior** del equipo. Cambiar de máquina por una falla
   sigue funcionando (el equipo inicia sesión en la nueva y la vieja pierde la sesión); recargar la página en la misma
   máquina no cierra nada. Cada cierre se convierte en un evento en Máquinas › Anomalías.
@@ -658,11 +666,12 @@ En la CLI: `moj-contest -c <id> regions show|who|assign|set|map`.
 ## 7½. Anomalías de máquina (Máquinas › Anomalías) y Sesiones (Personas › Sesiones)
 
 En la Maratona 2026 solo se pudo responder "¿algún equipo usó dos máquinas?" después de la competencia, cruzando
-registros a mano. El panel **Máquinas › Anomalías** responde **durante** la competencia (las sesiones activas, la salida en masa y el registro de accesos, que valen para CUALQUIER competencia, están en **Personas › Sesiones**). Solo vale con el **gate de UA activado**: es el
-navegador de la imagen del mlinux el que identifica la máquina (`machine_id/boot_id`). El inicio de sesión desde un navegador
-común solo tiene el IP, y detrás de un NAT el IP es la sede entera: esos inicios de sesión quedan fuera de las anomalías de
-máquina (solo aparecen en "UA fuera de la sede" y en la lista de sesiones). Con el gate desactivado el panel
-avisa y muestra solo las sesiones y el registro de accesos.
+registros a mano. El panel **Máquinas › Anomalías** responde **durante** la competencia (las sesiones activas, la salida en masa y el registro de accesos, que valen para CUALQUIER competencia, están en **Personas › Sesiones**). Quien identifica la
+máquina es el **navegador de la imagen del mlinux** (`machine_id/boot_id`) — **con o sin gate**. El inicio de sesión desde un
+navegador común solo tiene el IP, y detrás de un NAT el IP es la sede entera: esos inicios de sesión quedan fuera de las
+anomalías de máquina (solo aparecen en "UA fuera de la sede" y en la lista de sesiones). El **"UA fuera de la sede"**
+necesita el esperado de cada equipo, es decir, el gate en **Bloquear** u **Observar**. Sin ninguna máquina identificada el
+panel avisa y muestra solo las sesiones y el registro de accesos.
 
 - **Tarjetas** (clic = filtro): sesiones activas, 👥 **2 sesiones activas** (el mismo equipo en dos
   máquinas; con la sesión única activada esto solo ocurre por un token copiado), 🖥 **máquina
@@ -673,6 +682,10 @@ avisa y muestra solo las sesiones y el registro de accesos.
   falla) y las **revocaciones** de la sesión única.
 - **Línea de tiempo**: cada evento con hora, tipo, equipo, máquina y detalle; filtros por tipo y texto;
   CSV; botón para **cerrar sesión** del equipo.
+- **Explicar** (admin y juez jefe): un caso ya aclarado (ej.: "cambió de máquina por una falla, confirmado por la
+  sede") recibe el motivo, **sale de los conteos** y queda en la lista, atenuado, con quién lo explicó, cuándo y por qué
+  (tarjeta **✓ explicadas**; **deshacer** vuelve a contarlo). Si el caso cambia (el equipo pasa a una tercera máquina),
+  vuelve. Cada marca va al audit.
 - **Equipos**: solo los que tienen alguna anomalía (o todos los que tienen sesión): sesiones activas y en cuántas máquinas,
   las máquinas usadas en la competencia en orden, el último envío (✓ vino de la máquina de la sesión; ✗ no) y las
   anomalías como etiquetas.

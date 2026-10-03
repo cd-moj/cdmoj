@@ -91,6 +91,7 @@ run(){ OUT="$(PATH_INFO="/contest/admin/preflight" REQUEST_METHOD=GET QUERY_STRI
   BODY="$(printf '%s' "$OUT" | awk 'f{print} /^\r?$/{f=1}')"; i18n_scan; }
 lvl(){ printf '%s' "$BODY" | jq -r --arg i "$1" 'first(.checks[]|select(.id==$i)|.level) // "(ausente)"'; }
 det(){ printf '%s' "$BODY" | jq -r --arg i "$1" 'first(.checks[]|select(.id==$i)|.detail) // ""'; }
+lbl(){ printf '%s' "$BODY" | jq -r --arg i "$1" 'first(.checks[]|select(.id==$i)|.label) // ""'; }
 
 run
 echo "== resposta =="
@@ -131,6 +132,9 @@ check "detalhe conta quem ficou fora"  '[[ "$(det ua_gate)" == *"1 sem regra"* ]
 jq -c '.mode="off"' "$C/ua-gate.json" > "$C/x" && mv "$C/x" "$C/ua-gate.json"; run
 check "mode:off => ok"                 '[[ "$(lvl ua_gate)" == ok ]]'
 check "mode:off => sessão única nem aparece" '[[ "$(lvl session_single)" == "(ausente)" ]]'
+jq -c '.mode="observe" | .from_login.regex="^team([a-z]{6})[0-9]{3}$" | .from_login.expect="\\1"' "$C/ua-gate.json" > "$C/x" && mv "$C/x" "$C/ua-gate.json"; run
+check "mode:observe => ok com linha própria"  '[[ "$(lvl ua_gate)" == ok && "$(lbl ua_gate)" == *OBSERVAR* && "$(det ua_gate)" == *"ninguém é barrado"* ]]'
+check "observe: sessão única diz que não vale" '[[ "$(lbl session_single)" == *"só no modo Barrar"* ]]'
 
 echo "== sessão única por time (com gate ligado) =="
 jq -c '.mode="enforce" | .from_login.regex="^team([a-z]{6})[0-9]{3}$" | .from_login.expect="\\1"' "$C/ua-gate.json" > "$C/x" && mv "$C/x" "$C/ua-gate.json"; run
@@ -183,9 +187,13 @@ printf 'BALLOONS_DURING_FREEZE=1\n' >> "$C/conf"; run
 check "permissão ligada => warn"           '[[ "$(lvl balloons_freeze)" == warn ]]'
 sed -i '/^BALLOONS_DURING_FREEZE=/d' "$C/conf"; run
 
-echo "== gate sem NENHUMA configuração = desligado (não é fail falso) =="
+echo "== gate sem NENHUMA configuração: aviso (nada decidido), nunca fail falso =="
 mv "$C/ua-gate.json" "$C/ua-gate.json.bak"; run
-check "sem ua-gate.json => ok"           '[[ "$(lvl ua_gate)" == ok ]]'
+# TCP 2026: módulo maquinas ligado e nenhuma regra gravada = AVISO (o painel dizia "ativo"); Desligado gravado = ok
+check "sem ua-gate.json (maquinas ligado) => warn" '[[ "$(lvl ua_gate)" == warn && "$(det ua_gate)" == *"Observar"* ]]'
+printf '{"mode":"off"}' > "$C/ua-gate.json"; run
+check "Desligado GRAVADO => ok (escolha)"  '[[ "$(lvl ua_gate)" == ok ]]'
+rm -f "$C/ua-gate.json"
 mv "$C/ua-gate.json.bak" "$C/ua-gate.json"; run
 
 echo "== inscrição (roster + janela) =="

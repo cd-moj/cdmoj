@@ -3,10 +3,14 @@
 # próprio login do time (teambrspso001 -> "brspso"); aqui se configura essa regra, os overrides
 # por sede e os ISENTOS. Motor: lib/ua-gate.sh. Leitura: admin ou juiz-chefe. Escrita: só admin.
 #
-# GET  [?login=<l>]  -> {gate:{…}, legacy, regions:[…], check?:{login,expected,region}}
+# GET  [?login=<l>]  -> {gate:{…}, legacy, configured, has_rule, regions:[…], check?:{login,expected,region}}
+#                       (`configured` = existe ua-gate.json; sem ele o modo vem `enforce` só p/ o LOGIN_UA_SUBSTRING
+#                       legado valer — `has_rule:false` = ninguém tem esperado: ninguém é barrado)
 #                       (`login` = dry-run: o que se espera daquele time, sem ele precisar logar)
 # POST {action}:
 #   set     {mode?, from_login?:{regex,expect}, by_region?:{}, by_regex?:[], exempt?:[], fallback?}
+#           mode = enforce (barra) | observe (só mostra esperado × visto e anomalias; não barra, sem sessão única)
+#           | off. enforce/observe SEM nenhuma regra = 422 gate_no_rule (não barraria nem observaria ninguém).
 #   check   {login}    — igual ao GET com ?login=
 require_auth_contest "$(param contest)"
 contest="$(param contest)"
@@ -36,9 +40,12 @@ if [[ "$REQUEST_METHOD" == GET ]]; then
   source "$_LIBDIR/regions.sh"
   regions="$(rg_flatten "$CONTESTSDIR/$contest/regions.json" | jq -c '[.[] | select((.view | not) and .name != "") | {name, regex}]' 2>/dev/null)"
   [[ -n "$regions" ]] || regions='[]'
-  body="$(jq -cn --argjson g "$(ug_get "$contest")" --arg legacy "$(ug_legacy "$contest")" \
-     --argjson r "$regions" --argjson chk "$chk" \
-     '{success:true, gate:$g, legacy:$legacy, regions:$r, check:$chk}')"
+  _g="$(ug_get "$contest")"; _lg="$(ug_legacy "$contest")"
+  _hr=false; ug_has_rule "$_g" "$_lg" && _hr=true
+  _cf=false; [[ -s "$(ug_file "$contest")" ]] && _cf=true
+  body="$(jq -cn --argjson g "$_g" --arg legacy "$_lg" \
+     --argjson r "$regions" --argjson chk "$chk" --argjson hr "$_hr" --argjson cf "$_cf" \
+     '{success:true, gate:$g, legacy:$legacy, configured:$cf, has_rule:$hr, regions:$r, check:$chk}')"
   [[ -n "$body" ]] || fail 500 "Falha ao montar a resposta" "build_fail"
   emit_json 200 OK; printf '%s\n' "$body"; exit 0
 fi
@@ -66,7 +73,7 @@ _rx_ok(){ [[ -z "$1" ]] && return 0; jq -n --arg r "$1" '"x" | test($r)' >/dev/n
 g="$(ug_get "$contest")"
 if jq -e 'has("mode")' "$bodyf" >/dev/null 2>&1; then
   m="$(jq -r '.mode' "$bodyf")"
-  case "$m" in enforce|off) ;; *) fail 422 "mode deve ser enforce|off" "mode_invalid";; esac
+  case "$m" in enforce|observe|off) ;; *) fail 422 "mode deve ser enforce|observe|off" "mode_invalid";; esac
   g="$(jq -c --arg m "$m" '.mode=$m' <<<"$g")"
 fi
 if jq -e 'has("from_login")' "$bodyf" >/dev/null 2>&1; then
@@ -116,6 +123,11 @@ if jq -e 'has("single_session")' "$bodyf" >/dev/null 2>&1; then
   fi
 fi
 
+# ligado (barrar ou observar) SEM nenhuma regra não faz nada — recusar antes de gravar (TCP 2026: o painel
+# dizia "ativo" e ninguém era barrado nem a sessão única valia)
+if [[ "$(jq -r '.mode' <<<"$g")" != off ]] && ! ug_has_rule "$g" "$(ug_legacy "$contest")"; then
+  fail 422 "Sem regra o gate não barra nem observa ninguém: preencha a regex do login, uma sede, uma regra por regex ou o fallback (ou deixe desligado)" "gate_no_rule"
+fi
 ug_save "$contest" "$g"
 [[ "$(jq -r '.mode' <<<"$g")" == off ]] || mod_enable "$contest" maquinas   # gate armado = módulo maquinas
 audit_log_to "$contest" ua-gate-set "mode=$(jq -r '.mode' <<<"$g") single_session=$(jq -r '.single_session' <<<"$g") sedes=$(jq -r '.by_region|length' <<<"$g") isentos=$(jq -r '.exempt|length' <<<"$g")"

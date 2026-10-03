@@ -200,6 +200,7 @@ async function apiGet(p){ const d=JSON.parse(JSON.stringify(D)); d.computed_at=D
   D.counts.multi_session=2; D.anomalies.push({kind:"multi_session",severity:"bad",at:6,login:"t2",machine:"m:c/3",detail:{sessions:2,keys:["m:c/3","m:d/4"]}}); await tab.load(); const k2=[...tab.panel.children];
   print("cards_rebuilt="+(k2[0].children[3].children[0]!==cards0)); print("skeleton_stable="+k0.every((n,i)=>n===k2[i]));
   D.gate.active=false; await tab.load(); const k3=[...tab.panel.children]; print("tl_hidden_without_gate="+k3[1].hidden); print("skeleton_stable2="+k0.every((n,i)=>n===k3[i]));
+  D.machines_identified=true; await tab.load(); const k4=[...tab.panel.children]; print("tl_visible_identified_no_gate="+!k4[1].hidden);
 })().catch(e=>print("ERRO "+e+"\n"+e.stack));' sessions-common.js > "$T/anomalies.out"
 check "$(kv anomalies same_skeleton)" true "anomalies: esqueleto idêntico no 2º load"
 check "$(kv anomalies state_kept)" true "anomalies: barra de estado não refeita (computed_at fora da assinatura)"
@@ -211,6 +212,7 @@ check "$(kv anomalies cards_rebuilt)" true "anomalies: cards trocaram com anomal
 check "$(kv anomalies skeleton_stable)" true "anomalies: esqueleto idêntico após dado novo"
 check "$(kv anomalies tl_hidden_without_gate)" true "anomalies: linha do tempo escondida sem gate"
 check "$(kv anomalies skeleton_stable2)" true "anomalies: esqueleto idêntico ao desligar o gate"
+check "$(kv anomalies tl_visible_identified_no_gate)" true "anomalies: sem gate mas com máquina identificada (MLinux), a linha do tempo aparece"
 
 # ------------------------------------------------------------ Clarifications (página) ------------
 run clar contest/clarification/clarification.js '

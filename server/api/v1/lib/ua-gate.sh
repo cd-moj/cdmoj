@@ -7,7 +7,7 @@
 # reserva, time que chegou de outro jeito).
 #
 #   contests/<c>/ua-gate.json   (ausente ⇒ cai no LOGIN_UA_SUBSTRING de sempre)
-#   { "mode": "enforce",                                  // enforce | off
+#   { "mode": "enforce",                                  // enforce | observe | off
 #     "single_session": true,                             // login em outra máquina derruba a anterior
 #     "from_login": {"regex":"^team([a-z]{6})[0-9]{3}$", "expect":"\\1"},
 #     "by_region":  {"Sorocaba":"brspso", "Campinas":"brspcp"},
@@ -28,6 +28,9 @@
 # O match é SUBSTRING case-insensitive (UA de imagem é estável; ser tolerante aqui evita barrar
 # time por causa de maiúscula). `mode:off` responde sempre "sem gate" — o painel de Máquinas
 # continua mostrando quem estaria fora do padrão.
+# `mode:observe` (03/10/2026, TCP 2026) resolve o esperado como o enforce, mas o LOGIN não barra e a
+# sessão única não vale: mostra esperado × visto e as anomalias sem risco — dá p/ ligar no meio da prova.
+# Quem decide BARRAR é `ug_enforcing` (o login), nunca o esperado sozinho.
 
 ug_file(){ printf '%s/%s/ua-gate.json' "$CONTESTSDIR" "$1"; }
 
@@ -35,7 +38,7 @@ ug_file(){ printf '%s/%s/ua-gate.json' "$CONTESTSDIR" "$1"; }
 ug_get(){
   local f; f="$(ug_file "$1")"
   if [[ -s "$f" ]] && jq -e . "$f" >/dev/null 2>&1; then
-    jq -c '{mode:(if .mode == "off" then "off" else "enforce" end),
+    jq -c '{mode:(if .mode == "off" then "off" elif .mode == "observe" then "observe" else "enforce" end),
             from_login:(if (.from_login.regex // "") != "" then
                           {regex:(.from_login.regex), expect:((.from_login.expect // "\\1"))}
                         else null end),
@@ -51,6 +54,15 @@ ug_get(){
 # single_session (default true): com o gate ligado p/ um login, um login NOVO em outra máquina
 # revoga a sessão anterior dele (lib/session-index.sh). `false` desliga só isso, mantendo o gate.
 ug_save(){ local f; f="$(ug_file "$1")"; printf '%s\n' "$2" > "$f.tmp" && mv -f "$f.tmp" "$f"; }
+
+# ug_has_rule <gate-json> <legacy> -> rc 0 se ALGUMA regra pode dar esperado a um time (regex do login,
+# sede, regex de login, fallback ou o LOGIN_UA_SUBSTRING legado). Sem nenhuma, "ligado" não barra ninguém
+# — o painel dizia "ativo" assim no TCP 2026 e o organizador achou que o gate funcionava.
+ug_has_rule(){
+  [[ -n "${2:-}" ]] && return 0
+  jq -e '(.from_login != null) or ((.by_regex // []) | length > 0)
+         or ((.by_region // {}) | length > 0) or ((.fallback // "") != "")' <<<"$1" >/dev/null 2>&1
+}
 
 # ug_legacy <c> -> LOGIN_UA_SUBSTRING do conf (lido por grep: o caminho de auth nunca sourceia
 # o conf, que roda command substitution). Mesmo idioma de handlers/auth/login.sh.

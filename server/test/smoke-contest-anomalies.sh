@@ -107,11 +107,42 @@ sleep 1; touch "$C/var/access.log"    # invalida o cache (entrada mais nova)
 call /contest/admin/anomalies GET '' adm 'contest=an'
 ck "2ª chamada (pelo índice) dá o mesmo" '[[ "$(J .counts.multi_session)" == 1 && "$(J .counts.sessions)" == 6 ]]'
 
-echo "== gate desligado ⇒ nada vale =="
+# TCP 2026 (03/10/2026): sem gate o painel ficava VAZIO com times em 2–3 máquinas. Quem identifica a máquina é o
+# UA do mlinux: as anomalias de MÁQUINA valem sem gate; só o ua_mismatch (esperado por time) precisa dele.
+echo "== gate DESLIGADO: as anomalias de máquina continuam (o UA do mlinux identifica); ua_mismatch some =="
 jq -c '.mode="off"' "$C/ua-gate.json" > "$C/x" && mv "$C/x" "$C/ua-gate.json"
 call /contest/admin/anomalies GET '' adm 'contest=an'
-ck "gate.active=false, sem anomalias, contagens zeradas, sessões contadas" '[[ "$(J .gate.active)" == false && "$(J ".anomalies|length")" == 0 && "$(J .counts.multi_session)" == 0 && "$(J .counts.sessions)" == 6 ]]'
+ck "gate.active=false mas machines_identified=true" '[[ "$(J .gate.active)" == false && "$(J .machines_identified)" == true ]]'
+ck "sem gate: multi-sessão, compartilhada, troca e sub de outra máquina SEGUEM" \
+   '[[ "$(J ".counts|[.multi_session,.machine_shared,.sub_other_machine,.switched]|join(\",\")")" == "1,1,1,1" ]]'
+ck "sem gate: ua_mismatch zera (não há esperado)"   '[[ "$(J .counts.ua_mismatch)" == 0 && "$(J .counts.sessions)" == 6 ]]'
+ck "sem gate: tabela de times vem (máquinas identificadas)" '[[ "$(J ".teams|length")" -gt 0 ]]'
+
+echo "== modo OBSERVAR: o esperado vale p/ ver (ua_mismatch volta), sem barrar =="
+jq -c '.mode="observe"' "$C/ua-gate.json" > "$C/x" && mv "$C/x" "$C/ua-gate.json"
+call /contest/admin/anomalies GET '' adm 'contest=an'
+ck "observe: active=true, enforcing=false, ua_mismatch=1" '[[ "$(J .gate.active)" == true && "$(J .gate.enforcing)" == false && "$(J .counts.ua_mismatch)" == 1 ]]'
 jq -c '.mode="enforce"' "$C/ua-gate.json" > "$C/x" && mv "$C/x" "$C/ua-gate.json"
+
+echo "== marcar como EXPLICADA (sai das contagens, fica na lista) =="
+call /contest/admin/anomalies GET '' adm 'contest=an'
+SWID="$(J 'first(.anomalies[]|select(.kind=="switched"))|.id')"
+ck "anomalia tem id kind|login|machine"            '[[ "$SWID" == switched\|teamaa001\|* ]]'
+call /contest/admin/anomalies POST "$(jq -cn --arg id "$SWID" '{action:"explain", id:$id}')" adm 'contest=an'
+ck "explicar sem motivo → 422 note_required"      '[[ "$OUT" == *"Status: 422"* && "$(J .error.code)" == note_required ]]'
+call /contest/admin/anomalies POST "$(jq -cn --arg id "$SWID" '{action:"explain", id:$id, note:"trocou por defeito, confirmado pela sede"}')" chief 'contest=an'
+ck "juiz-chefe explica"                            '[[ "$(J .saved)" == true ]] && grep -q "anomaly-explain" "$C/var/admin-audit.log"'
+call /contest/admin/anomalies GET '' adm 'contest=an'
+ck "explicada: sai da contagem (switched 0, explained 1)" '[[ "$(J .counts.switched)" == 0 && "$(J .counts.explained)" == 1 ]]'
+ck "…e fica na lista com quem e o motivo"          '[[ "$(J "first(.anomalies[]|select(.id==\"$SWID\"))|.explained.note")" == "trocou por defeito, confirmado pela sede" && "$(J "first(.anomalies[]|select(.id==\"$SWID\"))|.explained.by")" == cj.cjudge ]]'
+ck "flag do time não leva a explicada"             '[[ "$(J ".teams[]|select(.login==\"teamaa001\")|.flags|index(\"switched\")")" == null ]]'
+call /contest/admin/anomalies POST "$(jq -cn --arg id "$SWID" '{action:"unexplain", id:$id}')" adm 'contest=an'
+call /contest/admin/anomalies GET '' adm 'contest=an'
+ck "desfazer: volta à contagem"                    '[[ "$(J .counts.switched)" == 1 && "$(J .counts.explained)" == 0 ]]'
+call /contest/admin/anomalies POST '{"action":"explain","id":"x"}' adm 'contest=an'
+ck "id fora do formato → 422"                      '[[ "$OUT" == *"Status: 422"* && "$(J .error.code)" == id_invalid ]]'
+call /contest/admin/anomalies POST '{"action":"explain","id":"switched|a|b","note":"x"}' comp 'contest=an'
+ck "competidor não explica (403)"                  '[[ "$OUT" == *"Status: 403"* ]]'
 
 echo "== rodada inválida / ARG_MAX =="
 call /contest/admin/anomalies GET '' adm 'contest=an&round=Nao%20Existe'

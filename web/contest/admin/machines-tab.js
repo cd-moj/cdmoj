@@ -54,30 +54,50 @@ export function makeMachinesTab(CONTEST) {
   function gateBox() {
     const box = el('div', { class: 'subcard', style: 'margin:.6rem 0' });
     const g = (GATE && GATE.gate) || {};
-    const on = (g.mode || 'off') === 'enforce';
+    // o MODO DE VERDADE: sem ua-gate.json o servidor devolve "enforce" só p/ o LOGIN_UA_SUBSTRING legado valer —
+    // sem ele (e sem regra) nada é barrado. A caixa marcada "ativo — o login devolve 403" sem gate nenhum foi o
+    // que fez o organizador do TCP 2026 (03/10/2026) achar que o gate funcionava.
+    const configured = !!(GATE && GATE.configured), hasRule = !!(GATE && GATE.has_rule);
+    const curMode = !configured ? ((GATE && GATE.legacy) ? 'enforce' : 'off') : (g.mode || 'off');
+    const on = curMode === 'enforce' && hasRule;
     box.append(el('h3', { style: 'margin:.1rem 0 .3rem' }, T('🔒 Gate de navegador por sede', '🔒 Per-site browser gate', '🔒 Gate de navegador por sede')),
       el('p', { class: 'small muted' },
         T('A imagem de prova de cada sede manda um User-Agent que carrega um pedaço do login do time (teambrspso001 → brspso). Uma regra com captura cobre todas as sedes de uma vez. Contas de papel (.admin/.judge/.staff/…) nunca são barradas.',
           'Each site image sends a User-Agent carrying a slice of the team login (teambrspso001 → brspso). One capture rule covers every site at once. Role accounts (.admin/.judge/.staff/…) are never blocked.',
           'Cada imagen de sede envía un User-Agent que lleva un fragmento del login del equipo (teambrspso001 → brspso). Una regla con captura cubre todas las sedes de una vez. Las cuentas de papel (.admin/.judge/.staff/…) nunca son bloqueadas.')));
 
-    const mode = el('input', { type: 'checkbox', checked: on });
-    box.append(el('div', { class: on ? 'alert' : '' },
-      el('label', { class: 'row', style: 'gap:.5rem;align-items:center' }, mode,
-        el('b', {}, T('Barrar quem não vem da imagem da sede', 'Block anyone not coming from the site image', 'Bloquear a quien no venga de la imagen de la sede')),
-        el('span', { class: 'small muted' }, on
-          ? T('(ativo — o login devolve 403 ua_gate)', '(active — login returns 403 ua_gate)', '(activo — el login devuelve 403 ua_gate)')
-          : T('(desligado — a configuração fica guardada)', '(off — the configuration is kept)', '(apagado — la configuración se conserva)')))));
+    // TRÊS modos: desligado · OBSERVAR (mostra esperado × visto e o "UA fora do esperado" nas Anomalias, sem barrar
+    // nem derrubar sessão — dá p/ ligar no meio da prova) · BARRAR (o login devolve 403 ua_gate)
+    const MODES = () => [
+      ['off', T('Desligado', 'Off', 'Desactivado'), T('qualquer navegador entra (a configuração fica guardada)', 'any browser gets in (the configuration is kept)', 'cualquier navegador entra (la configuración se conserva)')],
+      ['observe', T('Observar', 'Observe', 'Observar'), T('ninguém é barrado: o painel e as Anomalias mostram quem entrou fora da imagem da sede', 'nobody is blocked: the panel and Anomalies show who logged in outside the site image', 'nadie es bloqueado: el panel y las Anomalías muestran quién entró fuera de la imagen de la sede')],
+      ['enforce', T('Barrar', 'Block', 'Bloquear'), T('quem não vem da imagem da sede leva 403 no login (ua_gate)', 'anyone not coming from the site image gets 403 at login (ua_gate)', 'quien no viene de la imagen de la sede recibe 403 en el login (ua_gate)')],
+    ];
+    let modeSel = curMode;
+    const modeRadios = el('div', { style: 'display:flex;flex-direction:column;gap:.2rem;margin:.2rem 0' },
+      ...MODES().map(([v, lbl, hint]) => el('label', { class: 'row', style: 'gap:.5rem;align-items:center' },
+        el('input', { type: 'radio', name: 'ua-gate-mode-' + CONTEST, value: v, checked: v === curMode, onchange: () => { modeSel = v; } }),
+        el('b', {}, lbl), el('span', { class: 'small muted' }, hint))));
+    // o que vale AGORA, em uma frase (sem regra, nenhum modo faz nada)
+    const nowTxt = !hasRule
+      ? T('⚠ Nenhuma regra: ninguém é barrado nem observado, e a sessão única não vale. Preencha a regex do login (ou uma sede/regra/fallback) e escolha o modo.',
+          '⚠ No rule: nobody is blocked or observed, and single session does not apply. Fill in the login regex (or a site/rule/fallback) and choose the mode.',
+          '⚠ Ninguna regla: nadie es bloqueado ni observado, y la sesión única no vale. Completa la regex del login (o una sede/regla/fallback) y elige el modo.')
+      : curMode === 'enforce' ? T('Agora: BARRANDO — o login devolve 403 ua_gate fora da imagem da sede.', 'Now: BLOCKING — login returns 403 ua_gate outside the site image.', 'Ahora: BLOQUEANDO — el login devuelve 403 ua_gate fuera de la imagen de la sede.')
+      : curMode === 'observe' ? T('Agora: OBSERVANDO — ninguém é barrado; quem entra fora do padrão aparece em Máquinas › Anomalias.', 'Now: OBSERVING — nobody is blocked; anyone logging in off-pattern shows up in Machines › Anomalies.', 'Ahora: OBSERVANDO — nadie es bloqueado; quien entra fuera del patrón aparece en Máquinas › Anomalías.')
+      : T('Agora: desligado — qualquer navegador entra.', 'Now: off — any browser gets in.', 'Ahora: desactivado — cualquier navegador entra.');
+    box.append(el('div', { class: on ? 'alert' : (!hasRule ? 'notice' : '') },
+      el('div', { class: 'small', style: 'font-weight:600' }, nowTxt), modeRadios));
 
-    // sessão única por time (lib/session-index.sh): só tem efeito com o gate ligado
+    // sessão única por time (lib/session-index.sh): só tem efeito no modo Barrar
     const single = el('input', { type: 'checkbox', checked: g.single_session !== false });
     box.append(el('div', { style: 'margin:.3rem 0' },
       el('label', { class: 'row', style: 'gap:.5rem;align-items:center' }, single,
         el('b', {}, T('Sessão única por time', 'Single session per team', 'Sesión única por equipo')),
         el('span', { class: 'small muted' },
-          T('login em outra máquina derruba a sessão anterior (troca por defeito continua funcionando). As quedas aparecem em Máquinas › Anomalias.',
-            'a login on another machine ends the previous session (switching after a failure still works). Drops show up in Machines › Anomalies.',
-            'un login en otra máquina termina la sesión anterior (el cambio tras una falla sigue funcionando). Las caídas aparecen en Máquinas › Anomalías.')))));
+          T('só no modo Barrar: login em outra máquina derruba a sessão anterior (troca por defeito continua funcionando). As quedas aparecem em Máquinas › Anomalias.',
+            'Block mode only: a login on another machine ends the previous session (switching after a failure still works). Drops show up in Machines › Anomalies.',
+            'solo en el modo Bloquear: un login en otra máquina termina la sesión anterior (el cambio tras una falla sigue funcionando). Las caídas aparecen en Máquinas › Anomalías.')))));
     // TRAVA DE SEDE POR IP (lib/site-lock.sh): conf SITE_LOCK, própria rota — o gate de UA e a
     // sessão única não seguram `curl --resolve` da máquina de prova ao treino; o IP de origem sim
     const sl = SLOCK || {};
@@ -184,7 +204,7 @@ export function makeMachinesTab(CONTEST) {
     const save = async () => {
       try {
         await apiPost('/contest/admin/ua-gate?contest=' + enc(CONTEST), {
-          action: 'set', mode: mode.checked ? 'enforce' : 'off',
+          action: 'set', mode: modeSel,
           from_login: rx.value.trim() ? { regex: rx.value.trim(), expect: ex.value.trim() || '\\1' } : null,
           by_region: Object.fromEntries(byRegion.get().map((o) => [o.k, o.v])),
           by_regex: byRegex.get(), exempt: exempt.get(), fallback: fb.value.trim(),

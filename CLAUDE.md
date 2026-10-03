@@ -101,8 +101,11 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   contest ENTRA na lista de cópia do arquivamento de rodada** (`contest-rounds.sh`). Motor de
   anomalias: `lib/anomalies.sh` (um jq; `mkey` em jq = a MESMA regra do bash — mexeu numa, mexa na
   outra; o jq vive em VARIÁVEL, fora do `jq-portability.sh`: rode `smoke-contest-anomalies.sh` com
-  o jq 1.7). Painel: **Máquinas › Anomalias** (`anomalies-tab.js`, módulo `maquinas`), só com gate
-  ativo; sessões ativas + sair em massa + log de acessos ficam em **Pessoas › Sessões**
+  o jq 1.7). Painel: **Máquinas › Anomalias** (`anomalies-tab.js`, módulo `maquinas`). Quem identifica a
+  MÁQUINA é o UA do mlinux (`machines_identified`), não o gate (03/10/2026, TCP 2026: sem gate o painel ficava
+  vazio com times em 2–3 máquinas): as anomalias de máquina valem sempre; só o `ua_mismatch` precisa do gate
+  (`enforce` ou `observe`). Caso EXPLICADO (`var/anomalies-explained.json`, POST `explain`; id `kind|login|machine`,
+  entrada do cache da rota) sai das contagens e fica na lista; sessões ativas + sair em massa + log de acessos ficam em **Pessoas › Sessões**
   (`sessions-tab.js`, todo contest); o comum aos dois em `sessions-common.js`.
 - **Trava de sede por IP (`lib/site-lock.sh`, 2026-09-02)**: o isolamento por subdomínio só vale
   p/ quem entra pelo subdomínio — `curl --resolve` da máquina de prova chega ao site base pelo
@@ -749,7 +752,12 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   imagem de cada sede manda um UA com um pedaço do login do time (`teambrspso001` → `brspso`).
   `ug_expected` resolve na ordem isentos › papel › `by_regex` › `by_region` › `from_login`
   (captura `\1`) › `fallback`/`LOGIN_UA_SUBSTRING` legado; `ug_ok` é o match (substring,
-  case-insensitive) e `login.sh`/`logout-mismatch.sh` usam os dois. **`ug_expected_map` é o MESMO
+  case-insensitive) e `login.sh`/`logout-mismatch.sh` usam os dois. **Três modos** (03/10/2026): `enforce`
+  barra, **`observe`** resolve o esperado (painel, Central, `ua_mismatch`) mas o login NÃO barra e a sessão única
+  não vale, `off`. Quem decide barrar no `login.sh` é `mode == enforce` E esperado não vazio — o `mode` sozinho
+  nunca (sem `ua-gate.json` ele vem `enforce` p/ o legado valer). Ligar SEM regra (`ug_has_rule`) = 422
+  `gate_no_rule`; o GET diz `configured`/`has_rule` e o painel mostra o modo real (o "ativo" sem regra do TCP
+  2026); a Central avisa `maquinas` ligado sem `ua-gate.json` (Desligado gravado = ok). **`ug_expected_map` é o MESMO
   programa jq em lote** (`UG_JQ`) — o painel **Máquinas › Gate & trava** precisa do esperado por time e não pode
   forkar por login; se mudar a ordem, mude nos dois. Armadilhas jq que isto pisou: `first()` de
   stream vazio e **`match()` SEM casamento** devolvem VAZIO, e `vazio as $v | …` anula a

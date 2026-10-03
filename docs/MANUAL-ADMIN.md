@@ -107,7 +107,7 @@ painel dele) tem dois modos:
 | Painel | O que faz |
 |---|---|
 | **Gate & trava** | De onde cada time logou (IP e navegador) em cada rodada, com CSV; a configuração do **gate de navegador por sede** (esperado × visto por time) e a **trava de sede por IP** (IPs presos, bloqueios, prender/soltar). A seção 7 explica. |
-| **Anomalias** | O que está fora do lugar no uso das máquinas **durante a prova** (só com o gate de UA ligado): time com 2 sessões vivas, máquina compartilhada por 2 times, submissão vinda de outra máquina, UA fora da sede, sede com menos máquinas que times, trocas de máquina, a trilha da **sessão única** e os bloqueios da trava. Linha do tempo, tabela por time, CSV, deslogar, **deslogar UA divergente**. A seção 7½ explica. |
+| **Anomalias** | O que está fora do lugar no uso das máquinas **durante a prova** (com o navegador do MLinux identificando a máquina — com ou sem gate; o "UA fora da sede" precisa do gate em Barrar ou Observar): time com 2 sessões vivas, máquina compartilhada por 2 times, submissão vinda de outra máquina, UA fora da sede, sede com menos máquinas que times, trocas de máquina, a trilha da **sessão única** e os bloqueios da trava. Linha do tempo, tabela por time, CSV, deslogar, **deslogar UA divergente** e **explicar** um caso. A seção 7½ explica. |
 | **mlinux** | O panorama das máquinas por sede que o nutellaboot coleta (hardware e modelo do equipamento, RAM, editores, pressão de memória com PSI, saúde na prova: reinícios, processos mortos por falta de memória, relógio fora, ociosidade), com a coleta e os comandos remotos. Os dados de saúde e PSI só aparecem para máquinas com o agente novo do mlinux; a tela diz quantas são. O cartão **Vínculo máquina-time** mostra quantas máquinas o MOJ já vinculou a um time no nutellaboot (acontece sozinho no login do time, com o agente novo do mlinux), e tem os botões **enviar roster** e **republicar vínculos**: use os dois, nesta ordem, quando o cartão disser "time fora do roster da imagem". O cartão **Alertas das máquinas em tempo real** instala o aviso do nutellaboot: quando uma máquina levanta um alerta (pendrive, celular, rede por USB, identidade repetida), ele aparece em Máquinas › Anomalias e, durante a prova, o dono do contest recebe no Telegram. Para instalar ou remover, a chave gravada tem de ser a de administração do nutellaboot. `docs/NUTELLABOOT.md` explica. |
 
 > **Balão e o freeze.** Por padrão, acerto feito com o placar **congelado não gera tarefa de
@@ -568,11 +568,16 @@ Quando cada sede roda a **sua** imagem, o UA de cada máquina carrega um pedaço
 do time: `teambrspso001` (Brasil/BR, São Paulo/SP, Sorocaba/SO) roda numa imagem cujo UA contém
 `brspso`. Uma substring única não serve — então o MOJ **deriva o esperado do login**.
 
-**Na web** (seção 🔒 de Máquinas › Gate & trava): a chave **"Barrar quem não vem da imagem da
-sede"** liga/desliga; abaixo dela vão a **regex do login com captura** e o **UA esperado** (`\1`),
+**Na web** (seção 🔒 de Máquinas › Gate & trava): o **modo** — **Desligado**, **Observar** (mostra o
+esperado × visto e o "UA fora da sede" nas Anomalias, **sem barrar ninguém nem derrubar sessão**: dá para
+ligar no meio da prova e conferir a sala) ou **Barrar** (o login devolve 403); abaixo vão a **regex do
+login com captura** e o **UA esperado** (`\1`),
 com um **testador ao vivo** ("testar com o login" → *UA precisa conter `brspso` · sede Sorocaba*),
 e três listas dobráveis — **overrides por sede**, **regras por regex de login** e **isentos**.
-Salvar já vale para o próximo login.
+Salvar já vale para o próximo login. **Sem nenhuma regra o gate não faz nada**: o painel diz "nenhuma
+regra: ninguém é barrado nem observado", salvar Barrar ou Observar sem regra é recusado, e a 🏁 Central
+avisa quando o módulo `maquinas` está ligado sem nenhum gate gravado (grave **Desligado** se for de
+propósito). Foi o que aconteceu no TCP 2026: o painel antigo marcava "ativo" sem regra nenhuma.
 
 **Na CLI**, o mesmo:
 
@@ -580,6 +585,7 @@ Salvar já vale para o próximo login.
 moj contest -c <cid> ua-gate set --from-login '^team([a-z]{6})[0-9]{3}$' --expect '\1'
 moj contest -c <cid> ua-gate set --region 'Sorocaba=brspso-v2'     # sede fora do padrão
 moj contest -c <cid> ua-gate set --exempt '^ccl' --exempt time-reserva-07
+moj contest -c <cid> ua-gate set --mode observe                     # olhar sem barrar (enforce = barrar, off = desligar)
 moj contest -c <cid> ua-gate check teambrspso001                   # o que se espera dele
 moj contest -c <cid> ua-gate show
 ```
@@ -588,8 +594,10 @@ Uma regra cobre **todas as sedes de uma vez**. A ordem de resolução é: **isen
 papel (sempre entra) › regra por regex › **override da sede** › captura no login › substring
 única (o `login_ua_substring` de sempre, que continua valendo como último recurso).
 
-- Quem não casa é **barrado no login** (403) — a decisão foi barrar, com a lista de **isentos**
-  como margem. `--mode off` desliga o gate sem apagar a configuração.
+- No modo **Barrar**, quem não casa é **barrado no login** (403), com a lista de **isentos** como margem.
+  No modo **Observar** ninguém é barrado: quem entra fora do padrão aparece em Máquinas › Anomalias. Um
+  caminho seguro é **Observar no aquecimento** (conferir a sala) e **Barrar na prova**. `--mode off`
+  desliga sem apagar a configuração.
 - O painel Máquinas › Gate & trava mostra **UA esperado × UA visto** por time e conta quantos estão fora da
   imagem da sede: é assim que se conserta a sala **no aquecimento**, antes de o gate barrar
   alguém na prova.
@@ -604,7 +612,7 @@ papel (sempre entra) › regra por regex › **override da sede** › captura no
   `site-lock-block`) e aparecem em Máquinas › Gate & trava (trava de sede), com "soltar" por IP e "prender IPs
   já vistos" (útil na manhã da prova). Efeito colateral aceito: durante a janela, todo mundo atrás
   daquele IP público perde o treino.
-- **Sessão única por time** (chave na mesma seção 🔒, ligada por padrão): com o gate valendo, um
+- **Sessão única por time** (chave na mesma seção 🔒, ligada por padrão): com o gate em **Barrar**, um
   login novo em **outra máquina derruba a sessão anterior** do time. Trocar de máquina por defeito
   continua funcionando (o time loga na nova e a velha perde a sessão); recarregar a página na mesma
   máquina não derruba nada. Cada queda vira um evento em Máquinas › Anomalias.
@@ -649,11 +657,12 @@ Na CLI: `moj-contest -c <id> regions show|who|assign|set|map`.
 ## 7½. Anomalias de máquina (Máquinas › Anomalias) e Sessões (Pessoas › Sessões)
 
 Na Maratona 2026 só deu para responder "algum time usou duas máquinas?" depois da prova, cruzando
-logs à mão. O painel **Máquinas › Anomalias** responde **durante** a prova (as sessões ativas, o sair em massa e o log de acessos, que valem para QUALQUER contest, ficam em **Pessoas › Sessões**). Ele só vale com o **gate de UA ligado**: é o
-navegador da imagem do mlinux que identifica a máquina (`machine_id/boot_id`). Login de navegador
-comum só tem o IP, e atrás de NAT o IP é a sede inteira: esses logins ficam fora das anomalias de
-máquina (aparecem só em "UA fora da sede" e na lista de sessões). Com o gate desligado o painel
-avisa e mostra só as sessões e o log de acessos.
+logs à mão. O painel **Máquinas › Anomalias** responde **durante** a prova (as sessões ativas, o sair em massa e o log de acessos, que valem para QUALQUER contest, ficam em **Pessoas › Sessões**). Quem identifica a
+máquina é o **navegador da imagem do mlinux** (`machine_id/boot_id`) — **com ou sem gate**. Login de
+navegador comum só tem o IP, e atrás de NAT o IP é a sede inteira: esses logins ficam fora das
+anomalias de máquina (aparecem só em "UA fora da sede" e na lista de sessões). O **"UA fora da sede"**
+precisa do esperado de cada time, isto é, do gate em **Barrar** ou **Observar**. Sem nenhuma máquina
+identificada o painel avisa e mostra só as sessões e o log de acessos.
 
 - **Cartões** (clique = filtro): sessões ativas, 👥 **2 sessões vivas** (o mesmo time em duas
   máquinas — com a sessão única ligada isso só acontece por token copiado), 🖥 **máquina
@@ -664,6 +673,10 @@ avisa e mostra só as sessões e o log de acessos.
   falha) e as **revogações** da sessão única.
 - **Linha do tempo**: cada evento com hora, tipo, time, máquina e detalhe; filtros por tipo e texto;
   CSV; botão **deslogar** o time.
+- **Explicar** (admin e juiz-chefe): um caso já esclarecido (ex.: "trocou de máquina por defeito,
+  confirmado pela sede") recebe o motivo, **sai das contagens** e fica na lista, apagado, com quem
+  explicou, quando e por quê (cartão **✓ explicadas**; **desfazer** volta a contar). Se o caso mudar
+  (o time vai para uma terceira máquina), ele volta. Cada marca vai ao audit.
 - **Times**: só os com alguma anomalia (ou todos com sessão): sessões vivas e em quantas máquinas,
   as máquinas usadas na prova em ordem, a última submissão (✓ veio da máquina da sessão; ✗ não) e as
   anomalias como etiquetas.
