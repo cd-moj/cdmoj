@@ -111,12 +111,15 @@ freeze_release_guard() {
 # freeze_change_guard <contest> <novo-FREEZE_TIME> — p/ handlers que EDITAM o freeze: barra
 # (409 freeze_locked) toda mudança que DESCONGELA antes da hora — novo = 0 (apagar) ou, com o
 # freeze JÁ EM VIGOR (0 < atual <= agora), novo no futuro/no fim (o placar voltaria a mostrar o
-# que estava escondido). Mover o freeze ANTES de ele entrar em vigor segue livre. Comparação
+# que estava escondido). Mover — ou APAGAR — o freeze ANTES de ele entrar em vigor segue livre. Comparação
 # numérica ("00" é zero). Sem freeze no conf: passa.
 freeze_change_guard() {
   local cur new="${2:-0}"; cur="$(conf_value "$1" FREEZE_TIME)"; cur="${cur//[^0-9]/}"; new="${new//[^0-9]/}"
   [[ -n "$cur" ]] && (( cur > 0 )) || return 0
   [[ -n "$new" ]] || new=0
+  # APAGAR um freeze que ainda NÃO entrou em vigor (atual no futuro) não descongela nada: livre (decisão do Ribas,
+  # 03/10/2026 — o campo diz "vazio = sem congelamento" e o servidor recusava até o fim da prova). Em vigor: fim + 1 min.
+  (( new == 0 && cur > EPOCHSECONDS )) && return 0
   (( new == 0 )) && { freeze_release_guard "$1"; return 0; }
   (( cur <= EPOCHSECONDS && new > EPOCHSECONDS )) || return 0     # não descongela: livre
   freeze_release_ok "$1" && return 0

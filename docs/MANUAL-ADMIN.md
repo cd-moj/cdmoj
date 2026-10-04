@@ -214,8 +214,8 @@ costume). Use em lista ou prova de disciplina, quando o esqueleto ajuda o aluno.
 - **Nome** — o título exibido; o *id* (que vira o subdomínio) não muda.
 - **Início / Fim** — a janela da prova. Antes do início: contagem regressiva; depois do fim: ninguém mais submete (exceto papéis de juiz). Prorrogação fina é na seção ⏱ (por regex de login — ex.: só uma sala que ficou sem luz).
 - **Abertura do login** — a partir de quando o aluno consegue LOGAR (antes disso, contagem regressiva na tela de login). Útil p/ liberar o login minutos antes da largada. A API também barra o time antes desse horário (o organizador entra sempre). **Trocar de rodada não muda este campo**: com aquecimento e prova oficial, ponha a abertura antes do início do aquecimento. A **🏁 Central** avisa quando a abertura cai depois do início (aviso) ou depois do fim (crítico) da rodada no ar. Esvaziar o campo e salvar apaga a abertura: o login volta a abrir no início da rodada.
-- **Freeze** — congela o placar público a partir deste horário (estilo ICPC). Juízes e admin seguem vendo tudo; a revelação acontece na cerimônia.
-- **Idioma** — português, inglês ou espanhol. Fixa o idioma das telas de todo mundo no contest (sem seletor) e também o do **papel impresso** (folha de rosto da impressão e folha de balão), do **relatório** final e das mensagens de convite no Telegram (em inglês ou espanhol, a mensagem leva o português junto). Os enunciados e documentos têm idioma próprio (🌐 Idiomas do enunciado, Evento › Documentos).
+- **Freeze** — congela o placar público a partir deste horário (estilo ICPC). Juízes e admin seguem vendo tudo; a revelação acontece na cerimônia. Antes de o freeze começar, você muda ou apaga o campo à vontade. Depois que ele começou, o placar só descongela a partir do fim da prova para todas as sedes + 1 minuto.
+- **Idioma** — **Automático** (cada pessoa vê a tela no idioma do próprio navegador; é o padrão de um contest sem idioma gravado), português, inglês ou espanhol. Um idioma escolhido fixa o idioma das telas de todo mundo no contest (sem seletor) e também o do **papel impresso** (folha de rosto da impressão e folha de balão), do **relatório** final e das mensagens de convite no Telegram (em inglês ou espanhol, a mensagem leva o português junto). Os enunciados e documentos têm idioma próprio (🌐 Idiomas do enunciado, Evento › Documentos).
 
 **👁 O que o time vê durante a prova**
 
@@ -230,13 +230,16 @@ costume). Use em lista ou prova de disciplina, quando o esqueleto ajuda o aluno.
 
 **⚖️ Julgamento (linguagens, pool, veredicto manual)**
 
-- **Linguagens** — a lista permitida no contest (cada problema pode restringir mais, em Prova › Problemas).
+- **Linguagens** — a lista permitida no contest. Um problema pode ter a lista própria, em Prova › Problemas: ela vale NO LUGAR desta.
 - **Pool de juízes (máquinas)** — quais MÁQUINAS de julgamento atendem este contest (vazio = qualquer juiz online). Não confundir com juízes HUMANOS (seção 4).
 - **Prioridade no julgamento e envios na fila** — decide a vez da prova na fila de julgamento e a regra de envios. Escolhe-se na criação — **obrigatória no assistente**, que não tem padrão (no TCP 2026 a prova oficial nasceu Lista pública sem ninguém escolher; pela API ou CLI, sem o campo, vale Lista pública) — e muda-se aqui, a qualquer hora, no fim da seção **⚖️ Julgamento**. Com **Lista pública** ou **Lista privada**, cada time tem no máximo **3 envios esperando veredicto**: o 4º é recusado até sair um resultado. Isso protege o juiz de quem reenvia sem parar. Com **Prova**, o contest é julgado antes das listas e não há limite: a partir do **6º envio esperando veredicto**, os seguintes daquele time entram mais atrás na fila (como se chegassem 2 minutos depois), sem recusar nada. Envio segurado no veredicto manual não conta. A mudança vale para os próximos envios. A **Super** (passa na frente de toda fila) só o **super-admin do treino** dá ou tira, no Painel do treino › Contests: aqui ela não aparece, e um contest em Super fica com o campo travado. Toda mudança de prioridade vai para a **Auditoria** do contest e para a trilha do treino, com quem mudou, de qual para qual e por onde. A **🏁 Central** mostra a regra que vale (item "Envios na fila") e avisa quando um contest ICPC ficou sem prioridade escolhida. O teto de 3 muda no conf, pelo operador do MOJ: `SUBMIT_MAX_INFLIGHT=<n>` (`0` desliga).
 - **Veredicto manual** — liga a **correção validada por juízes humanos** (seção 4).
 - **Nº de juízes que validam cada veredicto** — o quórum da correção manual: **1 a 5, padrão 2**. Com 1, um único voto decide (revisão simples); com N≥2, o veredicto só sai com N votos **unânimes** — qualquer divergência vira conflito p/ o juiz-chefe.
 - **Penalidade (ICPC)** — minutos somados por tentativa não aceita antes do Accepted (padrão 20) e QUAIS veredictos penalizam (padrão wa/tle/mle/rte — **Compilation Error fica de FORA** por padrão; vazio = nada penaliza).
 - **Placar completo p/ logins** — allowlist de logins que veem o placar sem freeze (além de admin/juízes).
+
+**Salvar** grava só o que mudou (a Auditoria registra só isso). Se uma opção estiver errada (por exemplo, um fuso
+que não existe), nada é gravado e a mensagem diz qual opção corrigir.
 
 Pela CLI, tudo isso é `moj contest -c <cid> settings set chave=valor` (ex.:
 `settings set manual_verdict=true review_judges=3`).

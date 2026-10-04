@@ -25,7 +25,7 @@ if [[ "${REQUEST_METHOD:-GET}" == GET ]]; then
   # quantos balões a regra do freeze já suprimiu (o admin precisa VER isso antes de decidir)
   source "$_LIBDIR/print.sh"; BLN_FROZEN="$(pr_balloons_frozen_count "$contest")"
   BLN_FROZEN="${BLN_FROZEN//[^0-9]/}"; BLN_FROZEN="${BLN_FROZEN:-0}"
-  ok_json '{name:$nm, start:$st, end:$en, login_start:$ls, login_enabled:$le, freeze:$fz, locale:$loc, tz:$tz,
+  ok_json '{name:$nm, start:$st, end:$en, login_start:$ls, login_enabled:$le, freeze:$fz, locale:$loc, locale_set:$locset, tz:$tz,
             show_log:$sl, show_editor:$se, login_ua_substring:$ua, score_anon:$sa,
             show_tl:$stl, languages:$langs, judges:$jdg, score_full_users:$sfu, allow_backup:$ab, allow_print:$ap, manual_verdict:$mv,
             secret:$sec, mode:$mode, penalty_minutes:$pm, penalty_verdicts:$pvd, review_judges:$rj,
@@ -46,7 +46,7 @@ if [[ "${REQUEST_METHOD:-GET}" == GET ]]; then
     --argjson pm "$PENALTY_MINUTES" --argjson pvd "$pvd_json" \
     --argjson rj "$([[ "${REVIEW_JUDGES:-}" =~ ^[1-5]$ ]] && echo "$REVIEW_JUDGES" || echo 2)" \
     --arg nm "$CONTEST_NAME" --argjson st "${CONTEST_START:-0}" --argjson en "${CONTEST_END:-0}" \
-    --argjson ls "${LOGIN_START_TIME:-0}" --argjson fz "${FREEZE_TIME:-0}" --arg loc "${LOCALE:-pt}" \
+    --argjson ls "${LOGIN_START_TIME:-0}" --argjson fz "${FREEZE_TIME:-0}" --arg loc "${LOCALE:-pt}" --argjson locset "$([[ -n "$LOCALE" ]] && echo true || echo false)" \
     --arg tz "$(contest_tz "$contest")" \
     --argjson le "$([[ "$LOGIN_ENABLED" == n ]] && echo false || echo true)" \
     --argjson sl "$([[ "$(showlog_effective "$contest")" == 0 ]] && echo false || echo true)" \
@@ -67,8 +67,13 @@ body="$(read_body)"
 jq -e . >/dev/null 2>&1 <<<"$body" || fail 400 "JSON inválido" "bad_json"
 declare -a CH
 has(){ jq -e "has(\"$1\")" >/dev/null 2>&1 <<<"$body"; }
-setvar(){ cc_set_conf_var "$contest" "$1" "$2"; CH+=("$1=$2"); }
-delvar(){ cc_del_conf_var "$contest" "$1"; CH+=("$1=padrao"); }
+# só grava (e só AUDITA) o que MUDA: o formulário manda tudo a cada Salvar e a auditoria marcava toda chave como
+# mudada — não dava p/ saber o que alguém de fato trocou (auditoria do painel, 03/10/2026). conf_value devolve o
+# valor como o `source` o vê (sem o escape do %q); valor `$'…'` (não-ASCII) não compara e é regravado, como antes.
+setvar(){ [[ "$(conf_value "$contest" "$1")" == "$2" ]] && grep -q "^$1=" "$CONTESTSDIR/$contest/conf" 2>/dev/null && return 0
+  cc_set_conf_var "$contest" "$1" "$2"; CH+=("$1=$2"); }
+delvar(){ grep -q "^$1=" "$CONTESTSDIR/$contest/conf" 2>/dev/null || return 0
+  cc_del_conf_var "$contest" "$1"; CH+=("$1=padrao"); }
 
 # o módulo `esqueletos` EXIGE o editor embutido (lib/esqueletos.sh): desligar o editor com ele ligado é
 # recusado ANTES de qualquer gravação (um 409 no meio deixaria o conf pela metade). A condição ESPELHA o
@@ -76,6 +81,25 @@ delvar(){ cc_del_conf_var "$contest" "$1"; CH+=("$1=padrao"); }
 if jq -e 'has("show_editor") and ((.show_editor | tostring) != "true")' >/dev/null 2>&1 <<<"$body" && mod_on "$contest" esqueletos; then
   fail 409 "O módulo Esqueletos de código está ligado e precisa do editor embutido: desligue o módulo antes (Central › Módulos)" "module_needs_editor"
 fi
+
+# --- VALIDAÇÃO de TUDO antes da 1ª gravação (auditoria do painel, 03/10/2026) -------------------------------
+# O POST gravava campo a campo e validava no meio: um 422/409 tardio (fuso digitado errado, freeze travado) deixava
+# gravados prioridade, nome, início, fim e idioma, perdia o resto e não auditava nada. Aqui só se CONFERE; as
+# gravações abaixo repetem as mesmas regras (que, conferidas, não falham mais).
+if has name; then v="$(jq -r '.name' <<<"$body")"; { [[ -n "$v" ]] && (( ${#v} <= 160 )); } || fail 422 "nome inválido" "name_invalid"; fi
+for k in start end login_start freeze; do
+  has "$k" || continue
+  v="$(jq -r ".$k" <<<"$body")"; [[ "$v" =~ ^[0-9]+$ ]] || fail 422 "$k inválido" "int_invalid"
+  [[ "$k" == freeze ]] && freeze_change_guard "$contest" "$v"
+done
+if has locale; then v="$(jq -r '.locale // ""' <<<"$body")"; [[ -z "$v" ]] || contest_locale_ok "$v" || fail 422 "locale inválido (pt, en ou es)" "locale_invalid"; fi
+if has tz; then v="$(jq -r '.tz // ""' <<<"$body")"; [[ -z "$v" || "$v" == null ]] || tz_canon "$v" >/dev/null || fail 422 "fuso horário desconhecido (ex.: America/Santiago)" "tz_invalid"; fi
+if has balloon_style; then [[ "$(jq -r '.balloon_style' <<<"$body")" =~ ^(icon|fill)$ ]] || fail 422 "balloon_style inválido (icon|fill)" "balloon_style_invalid"; fi
+if has login_ua_substring; then v="$(jq -r '.login_ua_substring' <<<"$body")"; (( ${#v} <= 200 )) || fail 422 "substring muito longa" "ua_long"; fi
+if has judges; then [[ "$(jq -r '(.judges // []) | map(select(type=="string") | select(test("^[A-Za-z0-9._-]+$"))) | join(" ")' <<<"$body")" == *..* ]] && fail 422 "hostname inválido" "judges_invalid"; fi
+if has penalty_minutes; then v="$(jq -r '.penalty_minutes' <<<"$body")"; { [[ "$v" =~ ^[0-9]+$ ]] && (( v <= 100000 )); } || fail 422 "penalty_minutes inválido" "penalty_minutes_invalid"; fi
+if has review_judges; then [[ "$(jq -r '.review_judges' <<<"$body")" =~ ^[1-5]$ ]] || fail 422 "review_judges inválido (1..5)" "review_judges_invalid"; fi
+if has penalty_verdicts; then penalty_codes_normalize "$(jq -c '.penalty_verdicts' <<<"$body")" >/dev/null || fail 422 "penalty_verdicts inválido (use wa/tle/mle/rte/ce)" "penalty_verdicts_invalid"; fi
 
 # PRIORIDADE no julgamento (lib/contest-create.sh cc_set_priority, 01/10/2026): o admin do contest escolhe entre
 # lista-publica / lista-privada / prova. Super é do SUPER-ADMIN do treino (Painel do treino › Contests): aqui ela
@@ -117,7 +141,9 @@ for pair in start:CONTEST_START end:CONTEST_END login_start:LOGIN_START_TIME fre
     fi
     setvar "$var" "$v"; }
 done
-has locale && { v="$(jq -r '.locale' <<<"$body")"; contest_locale_ok "$v" || fail 422 "locale inválido (pt, en ou es)" "locale_invalid"; setvar LOCALE "$v"; }
+# idioma VAZIO = automático (a interface segue o navegador de cada um): apaga o LOCALE
+has locale && { v="$(jq -r '.locale // ""' <<<"$body")"; if [[ -z "$v" ]]; then delvar LOCALE
+  else contest_locale_ok "$v" || fail 422 "locale inválido (pt, en ou es)" "locale_invalid"; setvar LOCALE "$v"; fi; }
 # FUSO da prova: governa TODA hora que o servidor escreve p/ gente sobre este contest (DM do
 # convite, checklist pré-prova, caderno, relatório). Vazio = volta ao padrão da instalação
 # (MOJ_TZ). Validado contra o zoneinfo (tz_canon): nome errado faria o `date` cair mudo em UTC; nome
@@ -187,9 +213,10 @@ if has login_ua_substring; then
 fi
 
 # whitelist de linguagens do contest (ids canônicos minúsculos, espaço-separados; vazio = todas)
+# (grafia antiga canonizada como no web/shared/languages.js LANG_ALIAS: py3/py2→py, cc/cxx/c++/hpp→cpp, h→c…)
 if has languages; then
-  lj="$(jq -r '(.languages // []) | map(ascii_downcase
-        | (if .=="py3" or .=="py2" then "py" else . end)
+  lj="$(jq -r '{"py3":"py","py2":"py","python":"py","cc":"cpp","cxx":"cpp","c++":"cpp","hpp":"cpp","h":"c","bash":"sh","kts":"kt"} as $A
+        | (.languages // []) | map(ascii_downcase | ($A[.] // .)
         | select(test("^[a-z0-9_+.-]+$"))) | unique | join(" ")' <<<"$body")"
   [[ -n "$lj" ]] && setvar LANGUAGES "$lj" || delvar LANGUAGES
 fi

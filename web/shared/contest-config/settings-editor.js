@@ -48,13 +48,23 @@ const PENALTY_DEFAULT = ['wa', 'tle', 'mle', 'rte'];
 export function makeSettingsEditor({ value = {}, mode = 'admin', canSuper = false, contestMode = '', apiCtx = null } = {}) {
   const s = value || {};
   const isCreate = mode === 'create';
+  // LINHA DE BASE do que está no servidor (o GET; depois de salvar, commit() a atualiza). O que não mudou não vai no
+  // getValue(): o campo de data tem precisão de MINUTO e mandar de volta um início/fim/freeze com segundos os
+  // arredondava a cada Salvar (o freeze andava 9 s, o fim 46 s); o fuso e o idioma ausentes viravam valor gravado.
+  const base = { ...s };
+  // keepDT: o campo mostra o MESMO minuto da base ⇒ devolve a época da base (com os segundos); senão, a do campo
+  const keepDT = (inp, orig) => { const v = inp.value; if (!v) return 0; return (orig && toLocalDT(orig) === v) ? Number(orig) : dtToEpoch(v); };
   const name = el('input', { value: s.name || '' });
   const start = el('input', { type: 'datetime-local', value: s.start ? toLocalDT(s.start) : '' });
   const end = el('input', { type: 'datetime-local', value: s.end ? toLocalDT(s.end) : '' });
   const loginStart = el('input', { type: 'datetime-local', value: s.login_start ? toLocalDT(s.login_start) : '' });
   const freeze = el('input', { type: 'datetime-local', value: s.freeze ? toLocalDT(s.freeze) : '' });
-  const locale = el('select', {}, el('option', { value: 'pt' }, 'Português'), el('option', { value: 'en' }, 'English'), el('option', { value: 'es' }, 'Español'));
-  locale.value = s.locale || 'pt';
+  // idioma AUSENTE no conf = a interface segue o navegador de cada um (contest com gente de outros países); o 1º
+  // salvar gravava `pt` e fixava o português p/ todos. Na edição, "automático" é uma opção de verdade.
+  const localeAuto = !isCreate && s.locale_set === false;
+  const locale = el('select', {}, ...(isCreate ? [] : [el('option', { value: '' }, T('Automático (idioma do navegador)', 'Automatic (browser language)', 'Automático (idioma del navegador)'))]),
+    el('option', { value: 'pt' }, 'Português'), el('option', { value: 'en' }, 'English'), el('option', { value: 'es' }, 'Español'));
+  locale.value = localeAuto ? '' : (s.locale || 'pt');
   const prios = ['lista-publica', 'lista-privada', 'prova', ...(canSuper ? ['super'] : [])];
   const PL = PRIORITY_LABEL();
   // na CRIAÇÃO a prioridade não tem padrão (TCP 2026, 03/10/2026: a prova oficial nasceu `lista-publica` sem ninguém
@@ -104,7 +114,7 @@ export function makeSettingsEditor({ value = {}, mode = 'admin', canSuper = fals
   // inclusive Lista, registra a decisão (a Central avisa prova icpc/obi sem prioridade escolhida). Só vai no
   // getValue() quando MUDA: o salvar das outras opções não regrava nem audita a prioridade.
   const prioLocked = !isCreate && s.priority === 'super';
-  const prioInitial = s.priority_set ? (s.priority || '') : '';
+  let prioInitial = s.priority_set ? (s.priority || '') : '';
   const aPrio = el('select', {},
     ...(prioLocked ? [el('option', { value: 'super' }, PL.super)] : [
       ...(prioInitial ? [] : [el('option', { value: '' }, T('— não definida (vale Lista pública) —', '— not set (Public list applies) —', '— no definida (vale Lista pública) —'))]),
@@ -157,13 +167,13 @@ export function makeSettingsEditor({ value = {}, mode = 'admin', canSuper = fals
     uaField,
     penaltySec,
     el('h3', { style: 'margin:1rem 0 .3rem' }, T('💻 Linguagens permitidas no contest', '💻 Languages allowed in the contest', '💻 Lenguajes permitidos en la competencia')),
-    el('p', { class: 'muted small' }, T('Marque as permitidas. Nenhuma marcada = todas. (Pode ser refinado por problema na aba Problemas.)', 'Check the allowed ones. None checked = all. (Can be refined per problem in the Problems tab.)', 'Marca los permitidos. Ninguno marcado = todos. (Se puede ajustar por problema en la pestaña Problemas.)')),
+    el('p', { class: 'muted small' }, T('Marque as permitidas. Nenhuma marcada = todas. Um problema pode ter a lista própria (Prova › Problemas), que vale NO LUGAR desta.', 'Check the allowed ones. None checked = all. A problem can have its own list (Contest › Problems), which applies INSTEAD of this one.', 'Marca los permitidos. Ninguno marcado = todos. Un problema puede tener su propia lista (Competencia › Problemas), que vale EN LUGAR de esta.')),
     langs.el,
     el('h3', { style: 'margin:1rem 0 .3rem' }, T('🖥️ Máquinas de juiz (pool)', '🖥️ Judge machines (pool)', '🖥️ Máquinas de juez (pool)')),
     el('p', { class: 'muted small' },
       T('Nenhuma marcada = qualquer juiz online julga. Marcar FIXA a correção nessas máquinas — ', 'None checked = any online judge judges. Checking PINS judging to those machines — ', 'Ninguna marcada = cualquier juez en línea evalúa. Marcar FIJA la evaluación en esas máquinas — '),
       T('consistência de hardware: o tempo-limite exibido passa a ser só delas e, se todas caírem, ', 'hardware consistency: the displayed time limit becomes theirs only and, if all go down, ', 'consistencia de hardware: el tiempo límite mostrado pasa a ser solo el de ellas y, si todas caen, '),
-      T('as submissões ESPERAM na fila (o pré-prova e a Situação avisam). (Pode ser refinado por problema na aba Problemas.)', 'submissions WAIT in the queue (the pre-contest check and the Situation warn). (Can be refined per problem in the Problems tab.)', 'los envíos ESPERAN en la cola (el chequeo previo a la competencia y Situación avisan). (Se puede ajustar por problema en la pestaña Problemas.)')),
+      T('as submissões ESPERAM na fila (o pré-prova e a Situação avisam). Um problema pode ter o pool próprio (Prova › Problemas), que vale NO LUGAR deste.', 'submissions WAIT in the queue (the pre-contest check and the Situation warn). A problem can have its own pool (Contest › Problems), which applies INSTEAD of this one.', 'los envíos ESPERAN en la cola (el chequeo previo a la competencia y Situación avisan). Un problema puede tener su propio pool (Competencia › Problemas), que vale EN LUGAR de este.')),
     judges.el,
     el('h3', { style: 'margin:1rem 0 .3rem' }, T('👁️ Placar completo (sem freeze)', '👁️ Full scoreboard (no freeze)', '👁️ Marcador completo (sin congelamiento)')),
     el('p', { class: 'muted small' }, T('Quem vê o placar real mesmo durante o freeze: .admin, .judge e .cjudge (juiz-chefe) sempre; some outros logins aqui.', 'Who sees the real scoreboard even during freeze: .admin, .judge and .cjudge (chief judge) always; add other logins here.', 'Quién ve el marcador real incluso durante el congelamiento: .admin, .judge y .cjudge (juez principal) siempre; agrega otros usuarios aquí.')),
@@ -182,7 +192,14 @@ export function makeSettingsEditor({ value = {}, mode = 'admin', canSuper = fals
       T('Por padrão o MOJ NÃO gera tarefa de entrega para acerto feito com o placar congelado: o balão andando pela sala conta ao público exatamente o que o freeze esconde. Esses balões não são entregues depois — simplesmente não existem. Marque para entregar normalmente durante o freeze (o clássico do ICPC); marcar agora também libera os que já ficaram retidos. Pedido de impressão não é afetado.',
         'By default the MOJ does NOT create a delivery task for a solve made while the scoreboard is frozen: a balloon crossing the room tells the audience exactly what the freeze hides. Those balloons are not delivered later — they simply never exist. Check to deliver normally during the freeze (the ICPC classic); checking it now also releases the ones already held back. Print requests are unaffected.',
         'Por defecto el MOJ NO genera una tarea de entrega para un acierto logrado con el marcador congelado: el globo cruzando la sala le cuenta al público exactamente lo que el congelamiento esconde. Esos globos no se entregan después — simplemente no existen. Marca esta opción para entregarlos normalmente durante el congelamiento (el clásico del ICPC); marcarla ahora también libera los que ya quedaron retenidos. Las solicitudes de impresión no se ven afectadas.')),
-    chk(T('Entregar balão durante o freeze', 'Deliver balloons during the freeze', 'Entregar globos durante el congelamiento'), balloonsFreeze),
+    (() => {   // o GET conta os balões já retidos (o admin precisa VER antes de decidir) — dentro do MESMO nó: o
+      // settings-tab agrupa os filhos por ÍNDICE
+      const c = chk(T('Entregar balão durante o freeze', 'Deliver balloons during the freeze', 'Entregar globos durante el congelamiento'), balloonsFreeze);
+      const n = Number(s.balloons_frozen) || 0;
+      if (!isCreate && n > 0) c.append(el('div', { class: 'small', style: 'color:#b45309' },
+        T(`${n} balão(ões) retido(s) agora — marcar esta opção os libera para entrega.`, `${n} balloon(s) held back right now — checking this option releases them for delivery.`, `${n} globo(s) retenido(s) ahora — marcar esta opción los libera para la entrega.`)));
+      return c;
+    })(),
     el('h3', { style: 'margin:1rem 0 .3rem' }, T('🎨 Célula "resolveu" no placar', '🎨 "Solved" cell on the scoreboard', '🎨 Celda de "resuelto" en el marcador')),
     el('p', { class: 'muted small' },
       T('No padrão, a célula de quem resolveu é sempre igual (verde) e a cor do balão vai numa bolinha ao lado — assim "resolveu" não depende de enxergar a cor, e o balão BRANCO deixa de sumir no fundo do placar. A outra opção é o clássico: a célula inteira pintada com a cor do balão (aí as cores claras ganham contorno para não sumir). Vale para o placar, a cerimônia de revelação e o relatório.',
@@ -207,17 +224,23 @@ export function makeSettingsEditor({ value = {}, mode = 'admin', canSuper = fals
       ...(isCreate ? { priority: priority.value } : {
         ...(!prioLocked && aPrio.value && aPrio.value !== prioInitial ? { priority: aPrio.value } : {}),
         name: name.value.trim() || undefined,
-        ...(start.value ? { start: dtToEpoch(start.value) } : {}),
-        ...(end.value ? { end: dtToEpoch(end.value) } : {}),
+        ...(start.value ? { start: keepDT(start, base.start) } : {}),
+        ...(end.value ? { end: keepDT(end, base.end) } : {}),
       }),
       // abertura VAZIA na edição = apagar (0): o login volta a abrir no início da rodada. Só manda o 0 se
       // havia uma abertura — senão todo salvar gravaria "LOGIN_START_TIME=padrao" no audit
-      ...(loginStart.value ? { login_start: dtToEpoch(loginStart.value) }
-        : (!isCreate && s.login_start ? { login_start: 0 } : {})),
-      // freeze VAZIO = sem congelamento -> 0 (e não "não mexe"): apagar o campo tem de
-      // DESCONGELAR. Omitir a chave fazia o salvar responder ✓ sem tirar o freeze.
-      freeze: freeze.value ? dtToEpoch(freeze.value) : 0,
-      locale: locale.value, tz: tz.value.trim(), login_enabled: loginEnabled.checked,
+      ...(loginStart.value ? { login_start: keepDT(loginStart, base.login_start) }
+        : (!isCreate && base.login_start ? { login_start: 0 } : {})),
+      // freeze VAZIO = sem congelamento -> 0 (e não "não mexe"): apagar o campo tem de DESCONGELAR. Na edição só vai
+      // quando MUDA (o servidor confere cada mudança de freeze: freeze_change_guard).
+      ...((() => { const fz = freeze.value ? keepDT(freeze, base.freeze) : 0;
+        return (isCreate || fz !== (Number(base.freeze) || 0)) ? { freeze: fz } : {}; })()),
+      // idioma/fuso: na edição só quando MUDAM (o GET devolve o fuso EFETIVO e o idioma `pt` quando ausentes)
+      ...(isCreate ? { locale: locale.value, tz: tz.value.trim() } : {
+        ...(locale.value !== (base.locale_set === false ? '' : (base.locale || 'pt')) ? { locale: locale.value } : {}),
+        ...(tz.value.trim() !== (base.tz || '') ? { tz: tz.value.trim() } : {}),
+      }),
+      login_enabled: loginEnabled.checked,
       show_log: showLog.checked, show_editor: showEditor.checked,
       score_anon: scoreAnon.checked, show_tl: showTL.checked,
       allow_backup: allowBackup.checked, allow_print: allowPrint.checked,
@@ -233,5 +256,13 @@ export function makeSettingsEditor({ value = {}, mode = 'admin', canSuper = fals
       } : {}),
     };
   }
-  return { el: box, getValue, setContestMode: (m) => { cmode = m; syncPen(); syncShowLog(); } };
+  // commit(v) — depois de um Salvar bem-sucedido: o que foi gravado vira a nova linha de base (senão apagar a
+  // abertura do login uma 2ª vez na mesma visita não mandava o 0, e o "não mudou" comparava com o GET velho)
+  function commit(v) {
+    if (!v) return;
+    ['start', 'end', 'login_start', 'freeze', 'tz'].forEach((k) => { if (k in v) base[k] = v[k]; });
+    if ('locale' in v) { base.locale = v.locale || 'pt'; base.locale_set = v.locale !== ''; }
+    if (v.priority) prioInitial = v.priority;
+  }
+  return { el: box, getValue, commit, setContestMode: (m) => { cmode = m; syncPen(); syncShowLog(); } };
 }

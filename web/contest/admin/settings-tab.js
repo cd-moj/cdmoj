@@ -77,7 +77,8 @@ export function makeSettingsTab(CONTEST, opts = {}) {
       save.disabled = true; msg.className = 'small'; msg.textContent = T('Salvando…', 'Saving…', 'Guardando…');
       try {
         await apiPost('/contest/admin/settings?contest=' + enc(CONTEST), v, G);
-        s.secret = v.secret; msg.className = 'small'; msg.textContent = T('✓ salvo', '✓ saved', '✓ guardado');
+        s.secret = v.secret; ed.commit(v);   // o gravado vira a linha de base do editor (próximo Salvar compara com ele)
+        msg.className = 'small'; msg.textContent = T('✓ salvo', '✓ saved', '✓ guardado');
       } catch (e) { msg.className = 'small error-box'; msg.textContent = esqErrorText(e); }   // inclui o 409 do módulo esqueletos
       save.disabled = false;
     });

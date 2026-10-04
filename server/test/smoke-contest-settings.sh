@@ -128,4 +128,22 @@ echo "== proteção =="
 call /contest/admin/settings POST '{"name":"x"}' usr 'contest=sc'
 ck "não-admin 403"        '[[ "$OUT" == *"Status: 403"* ]]'
 
+echo "== auditoria do painel (03/10/2026): atômico, só o que muda, idioma automático, linguagens antigas, freeze futuro =="
+cp "$C/conf" "$FIX/conf.at"
+call /contest/admin/settings POST '{"name":"Nome Novo","locale":"es","tz":"Marte/Olympus"}' adm 'contest=sc'
+ck "fuso inválido = 422 e NADA gravado (antes nome/idioma ficavam)" '[[ "$(jq -r .error.code <<<"$BODY")" == tz_invalid ]] && cmp -s "$C/conf" "$FIX/conf.at"'
+call /contest/admin/settings POST '{"show_tl":true,"allow_backup":true}' adm 'contest=sc'
+call /contest/admin/settings POST '{"show_tl":true,"allow_backup":true}' adm 'contest=sc'
+ck "salvar sem mudar nada: changed vazio e audita 'nada'" '[[ "$(jq -c .changed <<<"$BODY")" == "[]" ]] && tail -1 "$C/var/admin-audit.log" | grep -q "settings	nada"'
+call /contest/admin/settings POST '{"locale":"es"}' adm 'contest=sc'
+call /contest/admin/settings POST '{"locale":""}' adm 'contest=sc'
+ck "idioma vazio = automático (LOCALE sai do conf)" '! grep -q "^LOCALE=" "$C/conf"'
+call /contest/admin/settings GET '' adm 'contest=sc'
+ck "GET: locale_set false sem LOCALE" '[[ "$(jq -r .locale_set <<<"$BODY")" == false ]]'
+call /contest/admin/settings POST '{"languages":["C","CPP","PY3","cc","md"]}' adm 'contest=sc'
+ck "linguagens na grafia antiga canonizadas e o id desconhecido mantido" '( LANGUAGES=""; source "$C/conf"; [[ "$LANGUAGES" == "c cpp md py" ]] )'
+sed -i '/^FREEZE_TIME=/d' "$C/conf"; printf 'FREEZE_TIME=%s\n' "$(( $(date +%s) + 7200 ))" >> "$C/conf"
+call /contest/admin/settings POST '{"freeze":0}' adm 'contest=sc'
+ck "apagar um freeze que ainda não começou é livre" '[[ "$(jq -r .saved <<<"$BODY")" == true ]] && ! grep -q "^FREEZE_TIME=[1-9]" "$C/conf"'
+
 echo ""; echo "RESULT: $pass passed, $fail failed"; exit $(( fail>0?1:0 ))

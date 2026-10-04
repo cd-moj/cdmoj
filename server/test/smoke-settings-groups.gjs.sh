@@ -39,9 +39,8 @@ globalThis.document={ createElement:(t)=>new N(t), createTextNode:(t)=>({nodeTyp
 function T(pt){ return pt; }
 const makeLangPicker=()=>({ el:Object.assign(new N('div'),{_text:'[lang-picker]'}), get:()=>[] });
 const makeJudgePicker=()=>({ el:Object.assign(new N('div'),{_text:'[judge-picker]'}), get:()=>[] });
-const toLocalDT=()=>''; const dtToEpoch=()=>0;
 EOF
-  strip "$WEB/shared/dom.js"; strip "$WEB/shared/contest-config/settings-editor.js"
+  strip "$WEB/shared/dom.js"; strip "$WEB/shared/contest-config/util.js"; strip "$WEB/shared/contest-config/settings-editor.js"
   printf 'const GROUPS=%s;\n' "$GROUPS_JSON"
   cat <<'EOF'
 let pass=0, fail=0; const ck=(m,ok,d)=>{ if (ok) { print('  ok: '+m); pass++; } else { print('  FAIL: '+m+' :: '+(d||'')); fail++; } };
@@ -100,6 +99,24 @@ const sv=Intl.supportedValuesOf; Intl.supportedValuesOf=undefined;
 const old=tzSuggestions('');
 ck('navegador sem Intl.supportedValuesOf: lista curta das Américas, com Santiago', old.includes('America/Santiago') && old.includes('America/Mexico_City') && old.length<60, String(old.length));
 Intl.supportedValuesOf=sv;
+// DATAS/IDIOMA/FUSO só vão quando MUDAM (auditoria do painel, 03/10/2026): o campo tem precisão de MINUTO e
+// mandar de volta início/fim/freeze com segundos os arredondava a cada Salvar; LOCALE ausente virava `pt` gravado
+const dts=(e)=>{ const o=[]; const walk=(n)=>{ for (const c of (n.children||[])) { if (c.tagName==='input' && c.attrs.type==='datetime-local') o.push(c); walk(c); } }; walk(e.el); return o; };
+const BS=1791000045, BE=1791010046, BF=1791007209;
+const e3=makeSettingsEditor({ value:{ start:BS, end:BE, freeze:BF, login_start:0, locale:'es', locale_set:true, tz:'America/Santiago' }, mode:'admin', contestMode:'icpc' });
+let v3=e3.getValue();
+ck('datas sem mexer voltam com os SEGUNDOS (não arredonda)', v3.start===BS && v3.end===BE, JSON.stringify([v3.start, v3.end]));
+ck('freeze/idioma/fuso sem mexer não vão', !('freeze' in v3) && !('locale' in v3) && !('tz' in v3) && !('login_start' in v3), JSON.stringify(v3));
+const [iS, iE, iL, iF]=dts(e3);
+iF.value='2026-10-03T22:00'; v3=e3.getValue();
+ck('freeze mexido vai (e no minuto escolhido)', v3.freeze===dtToEpoch('2026-10-03T22:00'));
+iF.value=''; ck('freeze apagado vai como 0', e3.getValue().freeze===0);
+iL.value='2026-10-03T08:00'; e3.commit(e3.getValue()); iL.value='';
+ck('commit: abertura gravada e apagada na MESMA visita manda o 0', e3.getValue().login_start===0);
+const e4=makeSettingsEditor({ value:{ locale:'pt', locale_set:false }, mode:'admin', contestMode:'icpc' });
+const ls4=sels(e4).find((x)=>x.children.some((o)=>o.attrs && o.attrs.value==='es') && x.children.some((o)=>o.attrs && o.attrs.value===''));
+ck('idioma ausente: "automático" marcado e não vai no getValue()', ls4 && ls4.value==='' && !('locale' in e4.getValue()));
+ls4.value='es'; ck('escolher um idioma vai', e4.getValue().locale==='es');
 print(''); print('RESULT: '+pass+' passed, '+fail+' failed');
 imports.system.exit(fail>0?1:0);
 EOF

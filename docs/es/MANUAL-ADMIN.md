@@ -1,4 +1,4 @@
-<!-- i18n-source: MANUAL-ADMIN.md blob:8d949d3137f70ccbd4a7a0b67e724d26e0d438dd -->
+<!-- i18n-source: MANUAL-ADMIN.md blob:9c017257e7fa3ccd9309696ad3593d964c0488cd -->
 # MOJ: Manual del organizador (el panel .admin de la competencia)
 
 > **Nota de traducción.** Este manual es una traducción del original en portugués. Las herramientas de línea de comandos (`moj`, `moj-contest`, `moj-comp`) muestran sus mensajes en portugués, y los ejemplos de comandos son idénticos al original.
@@ -219,8 +219,8 @@ habituales). Úsalo en una lista o un examen de curso, cuando el esqueleto ayuda
 - **Nombre**: el título que se muestra; el *id* (que se convierte en el subdominio) no cambia.
 - **Inicio / Fin**: la ventana de la competencia. Antes del inicio: cuenta regresiva; después del fin: nadie más envía (excepto los roles de juez). La prórroga fina está en la sección ⏱ (por regex de login; ej.: solo una sala que se quedó sin luz).
 - **Apertura del login (pantalla de espera)**: desde cuándo el alumno puede INICIAR SESIÓN (antes de eso, cuenta regresiva en la pantalla de inicio de sesión). Sirve para liberar el inicio de sesión minutos antes del inicio. La API también bloquea al equipo antes de ese horario (la organización entra siempre). **Cambiar de ronda no cambia este campo**: con calentamiento y competencia oficial, pon la apertura antes del inicio del calentamiento. La **🏁 Central** avisa cuando la apertura cae después del inicio (aviso) o después del fin (crítico) de la ronda en curso. Vaciar el campo y guardar borra la apertura: el inicio de sesión vuelve a abrir al inicio de la ronda.
-- **Congelamiento del marcador**: congela el marcador público a partir de esta hora (estilo ICPC). Los jueces y el admin siguen viendo todo; la revelación ocurre en la ceremonia.
-- **Idioma**: portugués, inglés o español. Fija el idioma de las pantallas de todos en la competencia (sin selector) y también el del **papel impreso** (portada de la impresión y hoja del globo), del **informe** final y de los mensajes de invitación en Telegram (en inglés o español, el mensaje lleva también el portugués). Los enunciados y los documentos tienen su propio idioma (🌐 Idiomas del enunciado, Evento › Documentos).
+- **Congelamiento del marcador**: congela el marcador público a partir de esta hora (estilo ICPC). Los jueces y el admin siguen viendo todo; la revelación ocurre en la ceremonia. Antes de que el congelamiento empiece, puedes cambiar o vaciar el campo libremente. Después de que empezó, el marcador solo se descongela a partir del fin de la competencia para todas las sedes + 1 minuto.
+- **Idioma**: **Automático** (cada persona ve las pantallas en el idioma de su navegador; es el valor por defecto de una competencia sin idioma guardado), portugués, inglés o español. Un idioma elegido fija el idioma de las pantallas de todos en la competencia (sin selector) y también el del **papel impreso** (portada de la impresión y hoja del globo), del **informe** final y de los mensajes de invitación en Telegram (en inglés o español, el mensaje lleva también el portugués). Los enunciados y los documentos tienen su propio idioma (🌐 Idiomas del enunciado, Evento › Documentos).
 
 **👁 Lo que el equipo ve durante la competencia**
 
@@ -235,13 +235,16 @@ habituales). Úsalo en una lista o un examen de curso, cuando el esqueleto ayuda
 
 **⚖️ Evaluación (lenguajes, pool, veredicto manual)**
 
-- **💻 Lenguajes permitidos en la competencia**: la lista permitida en la competencia (cada problema puede restringir más, en Competencia › Problemas).
+- **💻 Lenguajes permitidos en la competencia**: la lista permitida en la competencia. Un problema puede tener su propia lista, en Competencia › Problemas: esa lista vale EN LUGAR de esta.
 - **🖥️ Máquinas de juez (pool)**: qué MÁQUINAS de evaluación atienden esta competencia (vacío = cualquier juez en línea). No confundir con los jueces HUMANOS (sección 4).
 - **Prioridad en la evaluación y envíos en la cola**: decide el turno de la competencia en la cola de evaluación y la regla de envíos. Se elige al crear — **obligatoria en el asistente**, que no tiene valor por defecto (en el TCP 2026 la competencia oficial nació como Lista pública sin que nadie la eligiera; por la API o la CLI, sin el campo, vale Lista pública) — y se cambia aquí, en cualquier momento, al final de la sección **⚖️ Evaluación**. Con **Lista pública** o **Lista privada**, cada equipo tiene como máximo **3 envíos esperando veredicto**: el 4.º se rechaza hasta que salga un resultado. Eso protege al juez de quien reenvía sin parar. Con **Competencia**, se evalúa antes que las listas y no hay límite: a partir del **6.º envío esperando veredicto**, los siguientes de ese equipo entran más atrás en la cola (como si llegaran 2 minutos después), sin rechazar nada. Un envío retenido en el veredicto manual no cuenta. El cambio vale para los próximos envíos. La **Super** (salta toda la cola) solo la da o quita el **superadministrador del entrenamiento**, en Panel del entrenamiento › Competencias: aquí no aparece, y una competencia en Super queda con el campo bloqueado. Todo cambio de prioridad va a la **Auditoría** de la competencia y a la traza del entrenamiento, con quién lo cambió, de cuál a cuál y por dónde. La **🏁 Central** muestra la regla vigente (ítem "Envíos en la cola") y avisa cuando una competencia ICPC quedó sin prioridad elegida. El operador del MOJ cambia el límite de 3 en el conf: `SUBMIT_MAX_INFLIGHT=<n>` (`0` lo desactiva).
 - **Veredicto manual**: activa la **corrección validada por jueces humanos** (sección 4).
 - **N.º de jueces que validan cada veredicto**: el quórum de la corrección manual: **de 1 a 5, predeterminado 2**. Con 1, un único voto decide (revisión simple); con N≥2, el veredicto solo sale con N votos **unánimes**: cualquier divergencia se convierte en conflicto para el juez principal.
 - **⏱ Penalización (marcador ICPC)**: minutos sumados por cada intento no aceptado antes del Accepted (predeterminado 20) y QUÉ veredictos penalizan (predeterminado wa/tle/mle/rte: **Compilation Error queda FUERA** por defecto; vacío = nada penaliza).
 - **👁️ Marcador completo (sin congelamiento)**: lista de usuarios permitidos que ven el marcador sin congelamiento (además de admin/jueces).
+
+**Guardar** escribe solo lo que cambió (la Auditoría registra solo eso). Si una opción está mal (por ejemplo, una
+zona horaria que no existe), no se guarda nada y el mensaje dice qué opción corregir.
 
 Por la CLI, todo esto es `moj contest -c <cid> settings set chave=valor` (ej.:
 `settings set manual_verdict=true review_judges=3`).
