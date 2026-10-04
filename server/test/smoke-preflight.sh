@@ -261,6 +261,14 @@ run
 check "modo obi (pontua por teste) => checagem ausente" '[[ "$(lvl stop_first)" == "(ausente)" ]]'
 sed -i 's/^CONTEST_TYPE=.*/CONTEST_TYPE=icpc/' "$C/conf"; rm -f "$FIX/treino/var/jsons/col#p0.json"
 
+echo "== nome do problema × idioma da prova (prob_names, 03/10/2026; TCP 2026: LOCALE=es com os nomes em PT) =="
+printf '{"id":"col#p0","title":"Prob A","public":true,"statements":{"es":{"title":"Problema A en ES"}}}' > "$FIX/treino/var/jsons/col#p0.json"
+run
+check "contest em PT com o nome = título PT => sem aviso" '[[ "$(lvl prob_names)" == "(ausente)" ]]'
+printf 'LOCALE=es\n' >> "$C/conf"; run
+check "LOCALE=es e o nome é o título PT => warn com o botão apply_titles" '[[ "$(lvl prob_names)" == warn && "$(det prob_names)" == *"A Prob A → Problema A en ES"* && "$(printf "%s" "$BODY" | jq -r "first(.checks[]|select(.id==\"prob_names\")|.action)")" == apply_titles ]]'
+sed -i '/^LOCALE=/d' "$C/conf"; rm -f "$FIX/treino/var/jsons/col#p0.json"
+
 echo "== telão (Animeitor): chave e conferência =="
 run
 check "módulo telao sem chave nenhuma => warn"                      '[[ "$(lvl telao)" == warn && "$(det telao)" == *"usuário e token"* ]]'

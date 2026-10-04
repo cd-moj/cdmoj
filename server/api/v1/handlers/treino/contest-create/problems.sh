@@ -1,7 +1,8 @@
 # GET /treino/contest-create/problems?q=&limit=  (auth treino, pode criar)
 # Busca os problemas que o usuário PODE USAR num contest: públicos (banco do treino) + os
 # PRIVADOS a que ele tem acesso (dono, colaborador ou MEMBRO da org — membro opera todos os
-# problemas da org, inclusive privados). Autocomplete do seletor de problemas.
+# problemas da org, inclusive privados). Autocomplete do seletor de problemas. Itens com enunciado
+# traduzido trazem `titles` {pt,en,es} (cc_attach_titles): as opções de nome no assistente.
 require_method GET
 require_auth_contest treino
 source "$_LIBDIR/contest-create.sh"
@@ -18,8 +19,8 @@ have="$( { ls "$CONTESTSDIR"/treino/var/jsons/*.json "$CONTESTSDIR"/treino/var/j
 set -o noglob
 [[ -n "$have" ]] || have='{}'
 
-emit_json 200 OK
-owners_merged | jq -c --arg me "$SESSION_LOGIN" --argjson orgs "$(my_orgs_json)" \
+# corpo ANTES do cabeçalho (falha do jq = 500, nunca "200 com lista vazia")
+out="$(owners_merged | jq -c --arg me "$SESSION_LOGIN" --argjson orgs "$(my_orgs_json)" \
     --arg q "$q" --argjson n "$limit" --argjson have "$have" '
   [ .problems[]
     | ( if .owner==$me then "mine"
@@ -32,6 +33,11 @@ owners_merged | jq -c --arg me "$SESSION_LOGIN" --argjson orgs "$(my_orgs_json)"
       then map(select( ((.id + " " + (.title // ""))|ascii_downcase) | contains($q|ascii_downcase) ))
       else . end )
   | sort_by(.private|not) as $f                      # privados (seus) primeiro
-  | { success:true, problems:($f[0:$n]), total:($f|length),
+  | { problems:($f[0:$n]), total:($f|length),
       mine:([$f[]|select(.access=="mine")]|length), shared:([$f[]|select(.access=="shared")]|length) }
-' 2>/dev/null || echo '{"success":true,"problems":[],"total":0}'
+' 2>/dev/null)"
+[[ -n "$out" ]] || out='{"problems":[],"total":0,"mine":0,"shared":0}'
+# `titles` {pt,en,es} nos itens com tradução (só a página devolvida, ≤limit): as opções de nome
+_pt="$(jq -c '.problems' <<<"$out" | cc_attach_titles)"
+[[ -n "$_pt" ]] && out="$(jq -c --argjson p "$_pt" '.problems = $p' <<<"$out" 2>/dev/null || printf '%s' "$out")"
+ok_json_slurp '$o[0]' o "$out"

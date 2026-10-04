@@ -1,4 +1,4 @@
-<!-- i18n-source: MANUAL-ADMIN.md blob:05ec368b6d7210f7b57689cbf3a45cfe3841888e -->
+<!-- i18n-source: MANUAL-ADMIN.md blob:9d32e7e06e32ae5785fe239f614c3c2849a73b5f -->
 # MOJ: Organizer manual (the contest .admin panel)
 
 > **Translation note.** This manual is a translation of the Portuguese original. The command-line tools (`moj`, `moj-contest`, `moj-comp`) print their messages in Portuguese, and the command examples below are identical to the original.
@@ -77,6 +77,26 @@ the **🌐 Languages** tab of the chief judge panel) has two modes:
   **Send HTML** / **Send PDF** buttons. The file applies only to that language.
 - The problem set and the editorial in EN/ES use the translation of each problem. A problem
   without a translation is in Portuguese in the problem set. The problem title is also translated.
+
+**Problem name in the contest.** The name in the problem list, in the clarifications, in the
+submissions and in the report is ONE name per problem. When you insert a problem and do not type
+a name, MOJ uses the bank title in the language that the accordion opens (the `LOCALE`, if the
+contest offers it). If the problem has no title in that language, MOJ uses the Portuguese title.
+
+- When the problem has a title in more than one language, the bank search shows the titles (🌐)
+  and the name field shows the **PT · EN · ES** buttons. Click a button to use the title in that
+  language. This applies in the creation wizard, in **Rename** (Contest › Problems) and in **Round
+  problems**.
+- In the wizard, an empty name is automatic: the Review step shows the title that MOJ will use with
+  the language from step 5.
+- The Central shows a warning (**Problem name in a language other than the contest's**) when the
+  name is the bank title in another language and a title in the contest language exists. This
+  occurs in a contest created before this rule, or in a contest that changed its language after
+  the problems were inserted. The **🌐 Use the titles in the contest language** button changes only
+  these names. A custom name does not change. If you want the name in another language, save it in
+  **Rename** and the warning goes away.
+- In the CLI: `moj-contest -c <cid> problems titles` shows the titles of each problem, and
+  `problems apply-titles` does the same as the Central button.
 
 ### 👥 People: who gets in, who is who
 

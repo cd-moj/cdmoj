@@ -7,7 +7,8 @@
 #     summary:{ok,warn,fail}}
 #    TODO item é TRILÍNGUE: label/detail em PT (nome de campo legado) + `label_en`/`detail_en` +
 #    `label_es`/`detail_es` — a Central escolhe pelo idioma da interface. `action` = o botão que a
-#    Central põe no item (hoje: "warm_judges" → POST /contest/admin/warm-judges).
+#    Central põe no item ("warm_judges" → POST /contest/admin/warm-judges; "apply_titles" → POST
+#    /contest/admin/problems {action:"apply_titles"}).
 contest="$(param contest)"
 [[ -n "$contest" ]] || fail 400 "Missing contest" "contest_missing"
 require_contest "$contest"
@@ -303,6 +304,29 @@ if [[ "${CONTEST_TYPE:-icpc}" == icpc ]]; then
     add3 stop_first ok "Julgamento para no 1º erro" "os $sw_n problema(s) com a informação param no 1º TLE/WA/RE$( (( sw_unk > 0 )) && echo " ($sw_unk sem a informação — reindexe)")" \
       "Judging stops at the 1st failure" "the $sw_n problem(s) with the information stop at the 1st TLE/WA/RE$( (( sw_unk > 0 )) && echo " ($sw_unk without the information — reindex)")" \
       "La evaluación se detiene en el 1.er error" "los $sw_n problema(s) con la información se detienen en el 1.er TLE/WA/RE$( (( sw_unk > 0 )) && echo " ($sw_unk sin la información — reindexa)")"
+  fi
+fi
+
+# --- NOME DOS PROBLEMAS × idioma da prova (03/10/2026) -------------------------------
+# TCP 2026 (LOCALE=es): os nomes nasceram com o título PT do banco e a sanfona mostrava "Problema en
+# portugués" sobre o enunciado em espanhol. Hoje o nome padrão segue o idioma da prova (cc_prob_title); isto
+# pega o contest de antes e o que trocou de LOCALE depois de inserir: nome = título do banco em OUTRO idioma,
+# com título no idioma da prova disponível (cc_title_fixes; nunca nome personalizado nem escolhido no Renomear).
+# Botão: action apply_titles → POST /contest/admin/problems {action:"apply_titles"}.
+if (( ${#PROBS[@]} >= 5 )); then
+  declare -F cc_title_fixes >/dev/null || { source "$_LIBDIR/users.sh"; source "$_LIBDIR/contest-create.sh"; }
+  pn_fx="$(cc_title_fixes "$contest" 2>/dev/null)"; [[ -n "$pn_fx" ]] || pn_fx='[]'
+  pn_n="$(jq 'length' <<<"$pn_fx" 2>/dev/null)"; [[ "$pn_n" =~ ^[0-9]+$ ]] || pn_n=0
+  if (( pn_n > 0 )); then
+    pn_l="$(jq -r '.[0].lang' <<<"$pn_fx")"
+    pn_list="$(jq -r 'map(.letter + " " + .name + " → " + .to) | join("; ")' <<<"$pn_fx" | head -c 600)"
+    add3 prob_names warn "Nome de problema em outro idioma que o da prova" \
+      "$pn_n problema(s) com o título do banco em outro idioma, embora haja o título em ${pn_l^^}: $pn_list. O botão aplica o título em ${pn_l^^} (só nesses; nome personalizado não muda). Se o nome foi escolha sua, salve-o em Prova › Problemas (Renomear) e o aviso some." \
+      "Problem name in a language other than the contest's" \
+      "$pn_n problem(s) named with the bank title in another language, although there is a ${pn_l^^} title: $pn_list. The button applies the ${pn_l^^} title (only to these; a custom name does not change). If the name was your choice, save it in Contest › Problems (Rename) and the warning goes away." \
+      "Nombre de problema en otro idioma que el de la competencia" \
+      "$pn_n problema(s) con el título del banco en otro idioma, aunque existe el título en ${pn_l^^}: $pn_list. El botón aplica el título en ${pn_l^^} (solo en esos; un nombre personalizado no cambia). Si el nombre fue tu elección, guárdalo en Competencia › Problemas (Renombrar) y el aviso desaparece." \
+      apply_titles
   fi
 fi
 

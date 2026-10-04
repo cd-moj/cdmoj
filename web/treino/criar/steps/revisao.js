@@ -4,6 +4,7 @@ import { el } from '/shared/ui.js';
 import { T, uiLocale } from '/shared/i18n.js';
 import { MODE_LABEL } from '../criar.js';
 import { MODULES } from '/contest/admin/modules.js';
+import { autoTitle } from '/shared/problem-titles.js';
 
 const fmtDate = (e) => new Date((+e || 0) * 1000).toLocaleString(uiLocale());
 
@@ -42,7 +43,13 @@ export function makeStepRevisao(ctx) {
     row(T('ID', 'ID', 'ID'), spec.id || T('(gerado do nome)', '(generated from name)', '(generado del nombre)')),
     row(T('Modo', 'Mode', 'Modo'), MODE_LABEL[spec.mode] || spec.mode),
     row(T('Período', 'Period', 'Período'), fmtDate(spec.start) + ' → ' + fmtDate(spec.end)),
-    row(T('Problemas', 'Problems', 'Problemas'), probs.length ? probs.map((p) => p.letter + '·' + (p.name || p.bank_id || p.problem_id)).join('  ') : '—'),
+    // nome vazio = AUTOMÁTICO (o título no idioma da prova — o servidor decide; aqui o gêmeo autoTitle mostra qual)
+    row(T('Problemas', 'Problems', 'Problemas'), probs.length ? el('span', {}, ...probs.map((p, i) => {
+      const dp = d.problems[i] || {};
+      if (p.name) return el('span', { style: 'margin-right:.9rem' }, p.letter + '·' + p.name);
+      return el('span', { style: 'margin-right:.9rem', title: T('automático: o título no idioma da prova', 'automatic: the title in the contest language', 'automático: el título en el idioma de la competencia') },
+        p.letter + '·', el('i', {}, autoTitle(dp._titles, spec.locale, dp._title || p.bank_id || p.problem_id)));
+    })) : '—'),
     row(T('Usuários', 'Users', 'Usuarios'), users),
     row(T('Admin', 'Admin', 'Admin'), (spec.admin.login || '—') + (spec.admin.password ? T(' (senha definida)', ' (password set)', ' (contraseña definida)') : T(' (senha gerada)', ' (password generated)', ' (contraseña generada)'))),
     row(T('Opções', 'Options', 'Opciones'), optsBits.length ? optsBits.join(' · ') : T('(padrões)', '(defaults)', '(predeterminados)')),

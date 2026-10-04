@@ -2260,7 +2260,7 @@
         "tags": [
           "contest-admin"
         ],
-        "summary": "Checklist pré-prova, a lista da 🏁 Central do painel de admin (janela, SHOWLOG, freeze, juízes online, pool de juízes — estrito: fail se o pool do contest está todo offline; pool_problems p/ overrides por problema — toolchains e TL calibrado no pool efetivo, staff e o ESCOPO do staff, contas (sem contas de papel), balões sem cor, coortes, gate de navegador por sede, rodada seguinte com os bloqueadores, documentos gerados/publicados, prorrogação × freeze, spool)",
+        "summary": "Checklist pré-prova, a lista da 🏁 Central do painel de admin (janela, SHOWLOG, freeze, juízes online, pool de juízes — estrito: fail se o pool do contest está todo offline; pool_problems p/ overrides por problema — toolchains e TL calibrado no pool efetivo, staff e o ESCOPO do staff, contas (sem contas de papel), balões sem cor, coortes, gate de navegador por sede, rodada seguinte com os bloqueadores, documentos gerados/publicados, prorrogação × freeze, spool; prob_names = nome de problema que é o título do banco em OUTRO idioma que o da prova, com action apply_titles)",
         "security": [
           {
             "bearerAuth": []
@@ -3512,7 +3512,7 @@
         "tags": [
           "contest-create"
         ],
-        "summary": "Busca no banco público de problemas",
+        "summary": "Busca no banco os problemas que o criador pode usar (públicos + privados com acesso); itens com enunciado traduzido trazem titles {pt,en,es} — as opções de nome",
         "parameters": [
           {
             "name": "q",
@@ -4241,7 +4241,7 @@
         "tags": [
           "contest-create"
         ],
-        "summary": "Sorteia problemas por tag, coleção e dificuldade (filtros em AND; reproduzível por seed); include_private=1 soma os privados de quem cria",
+        "summary": "Sorteia problemas por tag, coleção e dificuldade (filtros em AND; reproduzível por seed); include_private=1 soma os privados de quem cria; itens com mais de um título trazem titles {pt,en,es}",
         "parameters": [
           {
             "name": "tags",
@@ -5441,7 +5441,7 @@
         ],
         "responses": {
           "200": {
-            "description": "{problems:[{id,title,tags,collections,access,private,has_statement}],total,mine,shared} ou (meta=1) {tags,collections,private_included}"
+            "description": "{problems:[{id,title,titles?,tags,collections,access,private,has_statement}],total,mine,shared} ou (meta=1) {tags,collections,private_included}. titles {pt,en,es} só quando há mais de um título distinto (enunciado traduzido)"
           }
         }
       }
@@ -5534,7 +5534,7 @@
         "tags": [
           "contest-admin"
         ],
-        "summary": "Lista problemas (inclui languages e judges por problema). POST action=statement aceita lang (pt|en|es, default pt): html_b64/pdf_b64/remove_* em enunciados/<skey>[.<lang>].html|pdf; refresh apaga o PT e todas as traducoes cacheadas",
+        "summary": "Lista problemas (inclui languages e judges por problema; titles {pt,en,es} quando o problema tem MAIS DE UM título no banco — as opções de nome; name_lang = idioma do nome padrão, o da sanfona). POST action=statement aceita lang (pt|en|es, default pt): html_b64/pdf_b64/remove_* em enunciados/<skey>[.<lang>].html|pdf; refresh apaga o PT e todas as traducoes cacheadas",
         "parameters": [
           {
             "$ref": "#/components/parameters/contest"
@@ -5542,7 +5542,7 @@
         ],
         "responses": {
           "200": {
-            "description": "{problems}"
+            "description": "{problems:[{source,problem_id,name,letter,statement_key,languages,judges,titles?}],name_lang}"
           }
         }
       },
@@ -5550,7 +5550,7 @@
         "tags": [
           "contest-admin"
         ],
-        "summary": "add|remove|reorder|rename|langs|judges|statement (langs -> problem-langs.json; judges -> problem-judges.json, pool por problema, vazio herda o do contest; add de privado: só se o dono do contest é dono/colaborador — senão 404) — rename {letter,name?,new_letter?} troca o identificador (migra a cor do balão); reorder preserva letra customizada (só re-letra sequência automática); add sem letter = a 1ª letra LIVRE, letter já em uso (sem diferenciar caixa) = 422 letter_taken; rename idem e muda só a 1ª entrada (desfaz letra repetida antiga); reorder com letra repetida = 422 letter_dup",
+        "summary": "add|remove|reorder|rename|apply_titles|langs|judges|statement (add sem name = o título do banco no IDIOMA DA PROVA, senão o PT; apply_titles {letters?} -> {saved,changed:[{letter,name,to,lang}],problems}: troca pelo título no idioma da prova o nome que é um título do banco em outro idioma — nome personalizado ou dado pelo rename nunca; nada a trocar = 200 changed:[]; langs -> problem-langs.json; judges -> problem-judges.json, pool por problema, vazio herda o do contest; add de privado: só se o dono do contest é dono/colaborador — senão 404) — rename {letter,name?,new_letter?} troca o identificador (migra a cor do balão); reorder preserva letra customizada (só re-letra sequência automática); add sem letter = a 1ª letra LIVRE, letter já em uso (sem diferenciar caixa) = 422 letter_taken; rename idem e muda só a 1ª entrada (desfaz letra repetida antiga); reorder com letra repetida = 422 letter_dup",
         "parameters": [
           {
             "$ref": "#/components/parameters/contest"
@@ -5679,7 +5679,7 @@
         "tags": [
           "contest-admin"
         ],
-        "summary": "Rodadas + checklist de promocao (admin ou juiz-chefe). POST: problems segue a permissão do DONO do contest (público/dono/colaborador/org, 403 problem_denied); set aceita colors (cores de balão da rodada; null = herdar); promote recusa freeze_locked mesmo com force; problems com letra repetida (sem diferenciar caixa) = 422 letter_dup, e letra repetida na rodada planejada é bloqueador DURO letter_dup (o force não passa)",
+        "summary": "Rodadas + checklist de promocao (admin ou juiz-chefe); GET traz titles {<id>:{pt,en,es}} dos problemas das rodadas com mais de um título (problema sem name entra no ar com o título no idioma da prova). POST: problems segue a permissão do DONO do contest (público/dono/colaborador/org, 403 problem_denied); set aceita colors (cores de balão da rodada; null = herdar); promote recusa freeze_locked mesmo com force; problems com letra repetida (sem diferenciar caixa) = 422 letter_dup, e letra repetida na rodada planejada é bloqueador DURO letter_dup (o force não passa)",
         "security": [
           {
             "bearerAuth": []

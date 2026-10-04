@@ -1,15 +1,18 @@
 // steps/problemas.js — passo 2: busca+sorteio no banco (painel compartilhado, com coleções),
-// add por ID, e a lista selecionada (letra, nome, enunciado personalizado HTML/PDF, ordem).
+// add por ID, e a lista selecionada (letra, nome — automático no idioma da prova ou um dos títulos
+// PT·EN·ES —, enunciado personalizado HTML/PDF, ordem).
 import { el } from '/shared/ui.js';
 import { T } from '/shared/i18n.js';
 import { makeBankPanel } from '/shared/contest-config/index.js';
 import { fileToBase64 } from '/shared/auth.js';
+import { autoTitle, makeTitleChips } from '/shared/problem-titles.js';
 
 const b64toUtf8 = (b) => { try { return decodeURIComponent(escape(atob(b))); } catch { return ''; } };
 
 export function makeStepProblemas(ctx) {
   const d = ctx.draft;
   const listBox = el('div', {});
+  const locale = () => ctx.contestLocale();
 
   function addProblem(p) {
     if (p.bank_id && d.problems.some((x) => x.bank_id === p.bank_id)) return;
@@ -22,8 +25,15 @@ export function makeStepProblemas(ctx) {
     d.problems.forEach((p, i) => {
       const letter = el('input', { class: 'letter', value: p._letter || autoLetter(i), maxlength: '3' });
       letter.addEventListener('input', () => { p._letter = letter.value; });
-      const name = el('input', { value: p.name || '', placeholder: T('Nome exibido', 'Display name', 'Nombre mostrado') });
-      name.addEventListener('input', () => { p.name = name.value; });
+      // NOME: vazio = automático, o título no idioma da prova (o servidor decide na criação, com o idioma do
+      // passo 5); os chips PT·EN·ES preenchem com o título de um idioma; digitar vale como nome próprio.
+      const auto = autoTitle(p._titles, locale(), p._title || p.bank_id || p.problem_id);
+      const name = el('input', { value: p.name || '', placeholder: T('automático: ', 'automatic: ', 'automático: ') + auto,
+        title: T('Vazio = o título no idioma da prova (passo 5). Os botões PT/EN/ES usam o título de um idioma.',
+          'Empty = the title in the contest language (step 5). The PT/EN/ES buttons use the title in one language.',
+          'Vacío = el título en el idioma de la competencia (paso 5). Los botones PT/EN/ES usan el título de un idioma.') });
+      const chips = makeTitleChips(p._titles, () => name.value, (v) => { name.value = v; p.name = v; });
+      name.addEventListener('input', () => { p.name = name.value; chips.repaint && chips.repaint(); });
       const idtxt = p.bank_id ? (T('banco: ', 'bank: ', 'banco: ') + p.bank_id) : ((p.source || 'cdmoj') + ' / ' + p.problem_id);
       const genWarn = (p._private && !p._hasStmt)
         ? el('div', { class: 'small', style: 'color:#b8860b;margin-top:.2rem' }, T('⏳ enunciado em geração (aguardando juiz)', '⏳ statement being generated (waiting for judge)', '⏳ enunciado en generación (esperando al juez)'))
@@ -53,14 +63,16 @@ export function makeStepProblemas(ctx) {
       const dn = el('button', { class: 'btn ghost', onclick: () => { if (i < d.problems.length - 1) { [d.problems[i + 1], d.problems[i]] = [d.problems[i], d.problems[i + 1]]; renderList(); } } }, '↓');
       const rm = el('button', { class: 'btn danger', onclick: () => { d.problems.splice(i, 1); renderList(); } }, '✕');
       listBox.append(el('div', { class: 'prob-row' }, letter,
-        el('div', {}, name, el('div', { class: 'pid' }, idtxt), extras, genWarn, stmtToggle, stmtWrap),
+        el('div', {}, el('div', { class: 'row', style: 'gap:.35rem;flex-wrap:wrap;align-items:center' }, name, chips),
+          el('div', { class: 'pid' }, idtxt), extras, genWarn, stmtToggle, stmtWrap),
         el('div', { class: 'row' }, up, dn, rm)));
     });
   }
 
   const bank = makeBankPanel({
     api: ctx.bankApi,
-    onAdd: (it) => addProblem({ kind: 'bank', bank_id: it.id, name: it.title || it.id, _private: it.private, _hasStmt: it.has_statement }),
+    // sem `name`: o servidor dá o título no idioma da prova (o passo 5 ainda pode trocar o idioma)
+    onAdd: (it) => addProblem({ kind: 'bank', bank_id: it.id, name: '', _title: it.title || it.id, ...(it.titles ? { _titles: it.titles } : {}), _private: it.private, _hasStmt: it.has_statement }),
     searchLabel: T('Buscar problemas (públicos + seus privados)', 'Search problems (public + your private)', 'Buscar problemas (públicos + tus privados)'),
     searchPlaceholder: T('🔎 Buscar problemas (públicos + os seus privados) — título ou id…', '🔎 Search problems (public + your private) — title or id…', '🔎 Buscar problemas (públicos + tus privados) — título o id…'),
     noQueryFilter: (items) => items.filter((it) => it.private),

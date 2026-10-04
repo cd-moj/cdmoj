@@ -6,6 +6,7 @@
 # ?meta=1 -> {tags:[{tag,count}],collections:[{collection,count}],private_included} p/ o painel de
 # sorteio: agregado do MESMO banco que o sorteio usa — público; com &include_private=1, também os
 # privados do dono do contest (sem owner = só públicos). Índice quebrado com include = 503.
+# Itens com enunciado traduzido trazem `titles` {pt,en,es} (cc_attach_titles): as opções de nome.
 require_method GET
 contest="$(param contest)"
 [[ -n "$contest" ]] || fail 400 "Missing contest" "contest_missing"
@@ -70,4 +71,7 @@ out="$(jq -cn --arg q "$q" --arg col "$col" --arg own "$cowner" --argjson n "$li
      mine:([.[]|select(.access=="mine")]|length), shared:([.[]|select(.access=="shared")]|length)}' 2>/dev/null)"
 rm -rf "$tmpd"
 [[ -n "$out" ]] || out='{"problems":[],"total":0,"mine":0,"shared":0}'
+# `titles` {pt,en,es} nos itens com tradução (só a página devolvida, ≤limit): as opções de nome
+_pt="$(jq -c '.problems' <<<"$out" | cc_attach_titles)"
+[[ -n "$_pt" ]] && out="$(jq -c --argjson p "$_pt" '.problems = $p' <<<"$out" 2>/dev/null || printf '%s' "$out")"
 ok_json_slurp '$o[0]' o "$out"

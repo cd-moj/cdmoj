@@ -1090,7 +1090,8 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   calculada UMA vez em variável e montada por idioma; `i18n-coverage.sh` barra a volta do helper só-PT).
   `action` põe um BOTÃO no item —
   (`stop_first`, 03/10/2026: prova ICPC com problema que segue julgando depois do 1º erro — lê `stop_when`/`tests` do
-  json servível, sem abrir pacote; json antigo sem o campo = desconhecido até o `reindex-all.sh`.) hoje só `warm_judges` (`judges_warm`: juiz frio × problema, `lib/judge-warm.sh`, e o
+  json servível, sem abrir pacote; json antigo sem o campo = desconhecido até o `reindex-all.sh`.) `apply_titles` (item `prob_names`,
+  03/10/2026: nome = título do banco em outro idioma que o da prova → `POST /contest/admin/problems {action:"apply_titles"}`) e `warm_judges` (`judges_warm`: juiz frio × problema, `lib/judge-warm.sh`, e o
   `POST /contest/admin/warm-judges`; núcleo `jw_warm`, o mesmo do `bin/warm-judges.sh` que roda SOZINHO (só contest de PROVA,
   `CONTEST_PRIORITY` prova/super — lista fica com o botão) na
   promoção de rodada (destacado) e ~15 min antes do início (judged `prestart_warm_sweep`, um `grep` p/ todos os
@@ -1548,13 +1549,26 @@ mexa na outra. O índice separa as coleções por `\u001f` (nome é texto livre:
   `contest_is_secret`, que roda em TODA rota pública de contest, gastava um `grep | cut` (2
   processos) p/ ler `SECRET=`. `$(<arquivo)`/`read` são builtins. Não confundir com
   `load_contest_conf`: no caminho de auth o conf **não pode** ser *sourced*.
-- **NOME DO PROBLEMA NO CONTEST = o do spec, senão o TÍTULO DO BANCO — nunca o id** (2026-09-18, relato do
-  Daniel Saad: contest criado pela API com um JSON sem `name` mostrava "saad-problems#knight-moves" na
-  sanfona). `cc_prob_title` (`lib/contest-create.sh`) serve as DUAS cópias do laço de problemas
-  (`cc_create` e `cc_build_probs` — mexeu numa, mexa na outra); o spec aceita `name` ou `title`. Para os
-  contests que JÁ nasceram com o id como nome, o `/contest/problems` troca o nome-que-é-só-o-id pelo título
-  do banco na regeração do cache (nome de verdade nunca é trocado). Testes: `smoke-contest-problem-title.sh`
-  e a seção "sem name" do `smoke-contest-create.sh`.
+- **NOME DO PROBLEMA NO CONTEST = o do spec, senão o TÍTULO DO BANCO NO IDIOMA DA PROVA — nunca o id** (2026-09-18,
+  relato do Daniel Saad: contest criado pela API com um JSON sem `name` mostrava "saad-problems#knight-moves" na
+  sanfona; 03/10/2026, TCP 2026: `LOCALE=es` com os nomes em PT sobre o enunciado em ES). `cc_prob_title <id>
+  <fallback> <lang>` (`lib/contest-create.sh`) serve as DUAS cópias do laço de problemas (`cc_create` e
+  `cc_build_probs` — mexeu numa, mexa na outra; rodada e inclusão passam pelo `cc_build_probs`); o idioma é o
+  `cc_prob_lang` = o da sanfona (`cs_default` sobre `STATEMENT_LANGS`/`LOCALE`; na criação, o `locale` do spec),
+  e sem título nesse idioma vale o PT (`cs_bank_title_or_pt`). O spec aceita `name` ou `title`. Para os contests
+  que JÁ nasceram com o id como nome, o `/contest/problems` troca o nome-que-é-só-o-id pelo título do banco no
+  idioma da sanfona na regeração do cache (nome de verdade nunca é trocado). **UM nome por problema** (decisão
+  do Ribas: o nome que troca com o idioma do LEITOR fica p/ depois). As OPÇÕES: busca/sorteio do banco
+  (`/contest/admin/{bank,draw}`, `/treino/contest-create/{problems,draw}`) e o GET de `admin/problems`/
+  `admin/rounds` trazem **`titles` {pt,en,es} só quando há mais de um título distinto** (`cc_attach_titles`/
+  `cc_bank_titles`: lê os json servíveis SÓ dos ids da página — o índice e o sidecar do treino guardam só o PT);
+  a tela mostra os chips PT·EN·ES (`web/shared/problem-titles.js`, com `autoTitle` = gêmeo da regra do
+  servidor p/ a Revisão do assistente mostrar o nome automático). Web/CLI mandam o nome VAZIO p/ o automático.
+  Contest existente: item **`prob_names`** da Central + `apply_titles` (`cc_title_fixes`: só nome IGUAL a um
+  título do banco em outro idioma, havendo o do idioma da prova; o nome salvo pelo `rename` vai p/
+  `var/problem-names-chosen.json` e não volta a ser acusado). CLI: `problems titles`/`apply-titles`. Testes:
+  `smoke-problem-title-lang.sh`, `smoke-problem-titles.gjs.sh`, `smoke-contest-problem-title.sh` e a seção
+  "sem name" do `smoke-contest-create.sh`.
 - **CARIMBO DO CHECKSUM FRESCO (`tl_fresh_*`, `lib/tl-store.sh`, 2026-09-18)** — o `tl_checksum` do índice de
   donos só se refaz em background (30 min + a varredura); entre "editei + recalibrei" e o índice alcançar,
   o checksum de `run/tl` (novo) ≠ o do índice (velho) e o `/contest/problems` servia **`time_limits:{}`** —

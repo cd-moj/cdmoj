@@ -49,8 +49,9 @@ function newDraft(perm) {
     origem: T('em branco', 'blank', 'en blanco'),
     name: '', id: '', mode: 'icpc',
     start: nowEpoch(), end: nowEpoch() + 3 * 3600,
-    // problems: {kind:'bank'|'id', bank_id?|source+problem_id, name, _letter?, _stmt? (texto),
-    //            _stmt_b64?/_stmt_pdf_b64? (herdados de export/template), languages?, _private?, _hasStmt?}
+    // problems: {kind:'bank'|'id', bank_id?|source+problem_id, name ('' = automático), _letter?, _stmt? (texto),
+    //            _stmt_b64?/_stmt_pdf_b64? (herdados de export/template), languages?, _private?, _hasStmt?,
+    //            _title? (o título PT), _titles? ({pt,en,es} quando há tradução: as opções de nome)}
     problems: [],
     userMode: 'own', users: [], usersFrom: 'treino', sharedAck: false,
     admin: { login: me ? (me.endsWith('.admin') ? me : me + '.admin') : '', password: '', fullname: perm.name || '' },
@@ -148,6 +149,8 @@ async function boot() {
       catch { return []; }
     },
     buildSpec, applyTemplate, applyExport, submit,
+    // idioma da prova (passo 5) — decide o nome AUTOMÁTICO dos problemas (passo 2 e Revisão)
+    contestLocale: () => (optsValue() || {}).locale || 'pt',
   };
 
   function optsValue() { return ctx.editors.settings ? ctx.editors.settings.getValue() : ctx.draft.opts; }
@@ -172,7 +175,8 @@ async function boot() {
         : { users: (d.users || []).filter((u) => u.login || u.fullname).map((u) => ({ login: u.login || undefined, password: u.password || undefined, fullname: u.fullname || undefined, email: u.email || undefined })) }),
       problems: (d.problems || []).map((p, i) => ({
         ...(p.bank_id ? { bank_id: p.bank_id } : { source: p.source || 'cdmoj', problem_id: p.problem_id }),
-        name: p.name, letter: p._letter || autoLetter(i),
+        // nome vazio = AUTOMÁTICO: o servidor põe o título no idioma da prova (cc_prob_title)
+        ...((p.name || '').trim() ? { name: p.name.trim() } : {}), letter: p._letter || autoLetter(i),
         ...(p._stmt ? { statement_b64: b64utf8(p._stmt) } : (p._stmt_b64 ? { statement_b64: p._stmt_b64 } : {})),
         ...(p._stmt_pdf_b64 ? { statement_pdf_b64: p._stmt_pdf_b64 } : {}),
         ...((p.languages || []).length ? { languages: p.languages } : {}),
@@ -269,7 +273,8 @@ async function boot() {
   function fromSpecProblem(p) {
     return {
       ...(p.bank_id ? { kind: 'bank', bank_id: p.bank_id } : { kind: 'id', source: p.source || 'cdmoj', problem_id: p.problem_id }),
-      name: p.name || p.bank_id || p.problem_id || '',
+      // sem nome no spec = automático (o servidor decide); nunca o id como nome (virava "org#prob" na sanfona)
+      name: p.name || '',
       _letter: p.letter || '',
       ...(p.statement_b64 ? { _stmt_b64: p.statement_b64 } : {}),
       ...(p.statement_pdf_b64 ? { _stmt_pdf_b64: p.statement_pdf_b64 } : {}),

@@ -171,10 +171,11 @@ for (( i=0; i<${#PROBS[@]}; i+=5 )); do
   SHORTNAME="${PROBS[$((i+3))]}"
   STATEMENT="${PROBS[$((i+4))]}"
   # contest criado por spec SEM `name` gravava o id como nome ("saad-problems#knight-moves" na
-  # sanfona): quando o nome é só o id, mostra o TÍTULO do banco. Só na regeração do cache, e só p/
-  # quem está nessa situação (o conserto de verdade é na criação — cc_build_probs).
+  # sanfona): quando o nome é só o id, mostra o TÍTULO do banco no idioma em que a sanfona abre
+  # (DEF_LANG, senão PT — a regra do cc_prob_title). Só na regeração do cache, e só p/ quem está nessa
+  # situação (o conserto de verdade é na criação — cc_build_probs).
   if [[ -z "$FULLNAME" || "$FULLNAME" == "$PROBLEMID" || "$FULLNAME" == "${PROBS[$((i+1))]}" ]]; then
-    _tbf="$(cs_bank_json "$PROBLEMID" 2>/dev/null)" && _tt="$(cs_bank_title "$_tbf" pt)" && [[ -n "$_tt" ]] && FULLNAME="$_tt"
+    _tbf="$(cs_bank_json "$PROBLEMID" 2>/dev/null)" && _tt="$(cs_bank_title_or_pt "$_tbf" "$DEF_LANG")" && [[ -n "$_tt" ]] && FULLNAME="$_tt"
   fi
 
   args=(); filt='{short_name:$short, full_name:$full, problem_id:$id, show:true'

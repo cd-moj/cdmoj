@@ -1,4 +1,4 @@
-<!-- i18n-source: MANUAL-ADMIN.md blob:05ec368b6d7210f7b57689cbf3a45cfe3841888e -->
+<!-- i18n-source: MANUAL-ADMIN.md blob:9d32e7e06e32ae5785fe239f614c3c2849a73b5f -->
 # MOJ: Manual del organizador (el panel .admin de la competencia)
 
 > **Nota de traducción.** Este manual es una traducción del original en portugués. Las herramientas de línea de comandos (`moj`, `moj-contest`, `moj-comp`) muestran sus mensajes en portugués, y los ejemplos de comandos son idénticos al original.
@@ -75,6 +75,27 @@ su panel) tiene dos modos:
   **Enviar HTML** / **Enviar PDF**. El archivo vale solo para ese idioma.
 - El cuadernillo y el editorial en EN/ES usan la traducción de cada problema. Un problema sin traducción sale
   en portugués en el cuadernillo. El título del problema también sale traducido.
+
+**Nombre del problema en la competencia.** El nombre que aparece en la lista de problemas, en las
+aclaraciones, en los envíos y en el informe es UN nombre por problema. Al insertar un problema sin
+escribir el nombre, MOJ usa el título del banco en el idioma en que se abre el acordeón (el
+`LOCALE`, si se ofrece). Si el problema no tiene título en ese idioma, MOJ usa el título en
+portugués.
+
+- Cuando el problema tiene título en más de un idioma, la búsqueda del banco muestra los títulos
+  (🌐) y el campo del nombre muestra los botones **PT · EN · ES**. Haz clic en un botón para usar el
+  título de ese idioma. Esto vale en el asistente de creación, en **Renombrar** (Competencia ›
+  Problemas) y en **Problemas de la ronda**.
+- En el asistente, el nombre vacío es automático: la Revisión muestra el título que se usará con el
+  idioma elegido en el paso 5.
+- La Central avisa (**Nombre de problema en otro idioma que el de la competencia**) cuando el nombre
+  es el título del banco en otro idioma y existe el título en el idioma de la competencia. Esto
+  ocurre en una competencia creada antes de esta regla o en una competencia que cambió de idioma
+  después de insertar los problemas. El botón **🌐 Usar los títulos en el idioma de la competencia**
+  cambia solo esos nombres. Un nombre personalizado no cambia. Si quieres el nombre en otro idioma,
+  guárdalo en **Renombrar** y el aviso desaparece.
+- En la CLI: `moj-contest -c <cid> problems titles` muestra los títulos de cada problema, y
+  `problems apply-titles` hace lo mismo que el botón de la Central.
 
 ### 👥 Personas: quién entra, quién es quién
 

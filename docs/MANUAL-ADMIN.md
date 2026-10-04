@@ -73,6 +73,25 @@ painel dele) tem dois modos:
 - O caderno e o editorial em EN/ES usam a tradução de cada problema. Um problema sem tradução sai
   em português no caderno. O título do problema também sai traduzido.
 
+**Nome do problema no contest.** O nome que aparece na lista de problemas, nas clarifications, nas
+submissões e no relatório é UM nome por problema. Ao inserir um problema sem digitar o nome, o MOJ
+usa o título do banco no idioma em que a sanfona abre (o `LOCALE`, se for oferecido). Se o problema
+não tem título nesse idioma, o MOJ usa o título em português.
+
+- Quando o problema tem título em mais de um idioma, a busca do banco mostra os títulos (🌐) e o
+  campo do nome mostra os botões **PT · EN · ES**. Clique em um botão para usar o título daquele
+  idioma. Isto vale no assistente de criação, em **Renomear** (Prova › Problemas) e em **Problemas
+  da rodada**.
+- No assistente, o nome vazio é automático: a Revisão mostra o título que será usado com o idioma
+  escolhido no passo 5.
+- A Central avisa (**Nome de problema em outro idioma que o da prova**) quando o nome é o título do
+  banco em outro idioma e existe o título no idioma da prova. Isto acontece em contest criado antes
+  desta regra ou em contest que trocou de idioma depois de inserir os problemas. O botão **🌐 Usar
+  os títulos no idioma da prova** troca só esses nomes. Nome personalizado não muda. Se você quer o
+  nome em outro idioma, salve-o em **Renomear** e o aviso some.
+- Na CLI: `moj-contest -c <cid> problems titles` mostra os títulos de cada problema, e
+  `problems apply-titles` faz o mesmo que o botão da Central.
+
 ### 👥 Pessoas — quem entra, quem é quem
 
 | Painel | O que faz |

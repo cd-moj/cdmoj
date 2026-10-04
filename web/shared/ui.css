@@ -200,6 +200,11 @@ table.moj tbody tr.sub-new td:first-child { box-shadow:inset 3px 0 0 var(--blue)
 .stmt-chip:hover { background:var(--blue-soft); }
 .stmt-chip.active { background:var(--blue-dark); color:#fff; cursor:default; }
 .stmt-chip.add { border-style:dashed; font-weight:600; }
+/* item da lista do banco (busca/sorteio, shared/contest-config/bank-panel.js) — no assistente E no painel do admin
+   (vivia só no <style> do assistente e o painel mostrava título/id/botão empilhados) */
+.bank-item { display:flex; justify-content:space-between; gap:.6rem; padding:.4rem .6rem; border-top:1px solid #eef2f8; align-items:center }
+.bank-item:first-child { border-top:0 }
+.bank-item .t { font-size:.9rem } .bank-item .i { font-family:var(--mono,monospace); font-size:.72rem; color:#94a3b8 }
 .stmt-badge { display:inline-block; margin-left:.4rem; font-size:.68rem; font-weight:700; letter-spacing:.04em;
   color:var(--muted); border:1px solid var(--line); border-radius:4px; padding:0 .3rem; vertical-align:middle; }
 .tl-label { font-size:.82rem; font-weight:700; color:var(--blue-dark); margin-right:.15rem; }

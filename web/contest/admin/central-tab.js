@@ -26,6 +26,7 @@ const TARGET = {
   balloons_freeze: ['central', 'regras'], submit_cap: ['central', 'regras'], login_open: ['central', 'regras'],
   modules: ['central', 'modulos'],
   problems: ['prova', 'problemas'], pool_problems: ['prova', 'problemas'], pool: ['prova', 'problemas'],
+  prob_names: ['prova', 'problemas'],
   report: ['prova', 'relatorio'],   // postflight (encerrar evento)
   esqueletos: ['prova', 'esqueletos'],
   users: ['pessoas', 'contas'], shared_users: ['pessoas', 'contas'],
@@ -117,6 +118,28 @@ export function makeCentralTab(CONTEST, opts = {}) {
       const msg = el('span', { class: 'small muted' });
       const btn = el('button', { class: 'btn' }, T('🔥 Aquecer juízes', '🔥 Warm up judges', '🔥 Calentar jueces'));
       btn.onclick = () => warmJudges(btn, msg);
+      act = el('div', { class: 'row', style: 'gap:.35rem;flex-wrap:wrap;align-items:center;margin-top:.35rem' }, btn, msg);
+    } else if (c.action === 'apply_titles') {
+      // item prob_names: nome = título do banco em OUTRO idioma ⇒ o título no idioma da prova (só nesses;
+      // nome personalizado ou escolhido no Renomear o servidor não toca — cc_title_fixes)
+      const msg = el('span', { class: 'small muted' });
+      const btn = el('button', { class: 'btn' }, T('🌐 Usar os títulos no idioma da prova', '🌐 Use the titles in the contest language', '🌐 Usar los títulos en el idioma de la competencia'));
+      btn.onclick = async () => {
+        btn.disabled = true; msg.textContent = T('⏳ aplicando…', '⏳ applying…', '⏳ aplicando…');
+        try {
+          const r = await apiPost('/contest/admin/problems?contest=' + enc(CONTEST), { action: 'apply_titles' }, G);
+          const n = (r.changed || []).length;
+          // como o 🔥 Aquecer: a mensagem fica e o ↻ refaz o checklist (recarregar sozinho levava a tela ao topo)
+          msg.textContent = n
+            ? T(`✓ ${n} problema(s) renomeado(s): ${r.changed.map((x) => x.letter + ' ' + x.to).join('; ')}.`,
+                `✓ ${n} problem(s) renamed: ${r.changed.map((x) => x.letter + ' ' + x.to).join('; ')}.`,
+                `✓ ${n} problema(s) renombrado(s): ${r.changed.map((x) => x.letter + ' ' + x.to).join('; ')}.`)
+            : T('Nada a trocar.', 'Nothing to change.', 'Nada que cambiar.');
+        } catch (e) {
+          msg.textContent = T('Falhou: ', 'Failed: ', 'Falló: ') + ((e && e.message) || T('erro de rede', 'network error', 'error de red'));
+          btn.disabled = false;
+        }
+      };
       act = el('div', { class: 'row', style: 'gap:.35rem;flex-wrap:wrap;align-items:center;margin-top:.35rem' }, btn, msg);
     } else if (c.action === 'open_telao') {
       // a mesa do telão é página AVULSA (não é um painel daqui): o "resolver" vira link p/ ela

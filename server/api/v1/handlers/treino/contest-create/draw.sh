@@ -23,5 +23,7 @@ list="$(cc_bank_filter "$tags" "$match" "$diff" "$colls" <<<"$bank")"
 candidates="$(jq 'length' <<<"$list" 2>/dev/null)"; [[ "$candidates" =~ ^[0-9]+$ ]] || candidates=0
 drawn="$(jq -c '.[]' <<<"$list" 2>/dev/null | awk -v seed="$seed" 'BEGIN{srand(seed)} {print rand()"\t"$0}' | sort -n | cut -f2- | head -n "$count" | jq -cs '.' 2>/dev/null)"
 [[ -n "$drawn" ]] || drawn='[]'
+drawn="$(cc_attach_titles <<<"$drawn")"   # `titles` {pt,en,es} p/ quem tem tradução: as opções de nome
+[[ -n "$drawn" ]] || drawn='[]'
 ok_json '{problems:$d, candidates:$c, drawn:($d|length), seed:$s, count:$n, collections:$cl, private_included:($i == 1)}' \
   --argjson d "$drawn" --argjson c "$candidates" --argjson s "$seed" --argjson n "$count" --argjson cl "$colls" --argjson i "$inc"

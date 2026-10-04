@@ -1,6 +1,11 @@
 # GET/POST /contest/admin/problems?contest=<id>  (admin DO contest)
-# GET  -> [{source,problem_id,name,letter,statement_key}] na ordem atual.
-# POST {action, ...}: add | remove | reorder | rename. Reescreve PROBS no conf + auditoria.
+# GET  -> {problems:[{source,problem_id,name,letter,statement_key,languages,judges,titles?}], name_lang}
+#         na ordem atual. `titles` {pt,en,es} = os títulos do banco quando há MAIS DE UM (enunciado
+#         traduzido): as opções de nome da tela. `name_lang` = o idioma do nome padrão (cc_prob_lang).
+# POST {action, ...}: add | remove | reorder | rename | apply_titles | langs | judges | statement.
+#   add sem `name` = o título do banco no idioma da prova (cc_prob_title). apply_titles {letters?} troca
+#   pelo título no idioma da prova o nome que é um título do banco em OUTRO idioma (cc_title_fixes; nome
+#   personalizado ou escolhido pelo `rename` nunca). Reescreve PROBS no conf + auditoria.
 contest="$(param contest)"
 [[ -n "$contest" ]] || fail 400 "Missing contest" "contest_missing"
 require_contest "$contest"
@@ -12,10 +17,17 @@ if [[ "${REQUEST_METHOD:-GET}" == GET ]]; then
   # inclui linguagens e pool de juízes por problema (problem-{langs,judges}.json, id canônico)
   plf="$CONTESTSDIR/$contest/problem-langs.json"; pl='{}'; [[ -f "$plf" ]] && pl="$(jq -c . "$plf" 2>/dev/null)"; jq -e . >/dev/null 2>&1 <<<"$pl" || pl='{}'
   pjf="$CONTESTSDIR/$contest/problem-judges.json"; pj='{}'; [[ -f "$pjf" ]] && pj="$(jq -c . "$pjf" 2>/dev/null)"; jq -e . >/dev/null 2>&1 <<<"$pj" || pj='{}'
-  out="$(jq -c --argjson pl "$pl" --argjson pj "$pj" '[ .[] | . as $p
-          | ((if (($p.statement_key // "")|test("#")) then $p.statement_key else (($p.problem_id // "")|gsub("/";"#")) end)) as $cid
-          | $p + {languages: ($pl[$cid] // []), judges: ($pj[$cid] // [])} ]' <<<"$(cc_probs_json "$contest")")"
-  ok_json '{problems:$p}' --argjson p "$out"
+  cur="$(cc_probs_json "$contest")"
+  # títulos por idioma (até 200 problemas × 3 títulos: por ARQUIVO, nunca por argv)
+  tmf="$(mktemp)" || fail 500 "tmp" "tmp"
+  cc_bank_titles "$(jq -c "$CC_PROB_CID_JQ"' [.[] | cid]' <<<"$cur")" > "$tmf"
+  jq -e 'type == "object"' "$tmf" >/dev/null 2>&1 || echo '{}' > "$tmf"
+  out="$(jq -c --argjson pl "$pl" --argjson pj "$pj" --slurpfile tm "$tmf" "$CC_PROB_CID_JQ"'($tm[0] // {}) as $TM | [ .[] | . as $p
+          | ($p | cid) as $cid | ($TM[$cid] // {}) as $x
+          | $p + {languages: ($pl[$cid] // []), judges: ($pj[$cid] // [])}
+               + (if ([$x[]] | unique | length) > 1 then {titles: $x} else {} end) ]' <<<"$cur")"
+  rm -f "$tmf"
+  ok_json '{problems:$p, name_lang:$l}' --argjson p "$out" --arg l "$(cc_prob_lang "$contest")"
   exit 0
 fi
 
@@ -78,6 +90,17 @@ case "$action" in
             | (if ($b|has("name")) then .name=$b.name else . end)
             | (if ($b|has("new_letter")) then .letter=$b.new_letter else . end))
           else .value end ]')"
+    # nome dado pelo `rename` é ESCOLHA do admin: a Central (prob_names) não insiste em trocá-lo pelo título
+    # no idioma da prova (cc_title_fixes). Chave = id canônico, que não muda com a letra.
+    if jq -e 'has("name")' >/dev/null 2>&1 <<<"$body"; then
+      rcid="$(jq -r --arg l "$L" "$CC_PROB_CID_JQ"'[.[] | select(.letter == $l)][0] | cid // empty' <<<"$cur")"
+      if [[ -n "$rcid" ]]; then
+        kf="$(cc_names_chosen_file "$contest")"; mkdir -p "${kf%/*}" 2>/dev/null
+        kb='{}'; [[ -s "$kf" ]] && kb="$(cat "$kf" 2>/dev/null)"; jq -e 'type == "object"' >/dev/null 2>&1 <<<"$kb" || kb='{}'
+        jq -c --arg id "$rcid" --arg n "$(jq -r '.name // ""' <<<"$body")" '.[$id] = $n' <<<"$kb" > "$kf.tmp" 2>/dev/null \
+          && mv -f "$kf.tmp" "$kf" || rm -f "$kf.tmp"
+      fi
+    fi
     # a cor do balão é chaveada pela LETRA (balloons.json): a letra renomeada leva a cor junto
     # (COPIA em vez de mover quando a letra velha segue em uso — o caso da duplicata desfeita)
     NL="$(jq -r '.new_letter // empty' <<<"$body")"
@@ -88,6 +111,25 @@ case "$action" in
         'if (has($o) and (has($n)|not)) then (.[$n] = .[$o] | if $keep then . else del(.[$o]) end) else . end' \
         "$bf" > "$bf.tmp" 2>/dev/null && mv -f "$bf.tmp" "$bf" || rm -f "$bf.tmp"
     fi
+    ;;
+  apply_titles)
+    # o botão da Central (prob_names): nome = título do banco em outro idioma ⇒ o título no idioma da prova.
+    # `letters` (opcional) restringe; sem nada a trocar = 200 com changed:[] (o clique duplo não é erro).
+    fixes="$(cc_title_fixes "$contest")"; [[ -n "$fixes" ]] || fixes='[]'
+    only="$(jq -c '.letters // null' <<<"$body")"
+    fixes="$(jq -c --argjson o "$only" 'if ($o | type) == "array" then map(select(.letter as $l | $o | index($l))) else . end' <<<"$fixes")"
+    if [[ "$(jq 'length' <<<"$fixes")" == 0 ]]; then
+      ok_json '{saved:false, changed:[], problems:$p}' --argjson p "$cur"
+      exit 0
+    fi
+    new="$(jq -cn --argjson cur "$cur" --argjson f "$fixes" '
+      ($f | map({key:.letter, value:.to}) | from_entries) as $to
+      | [ $cur[] | if ($to[.letter] != null) then .name = $to[.letter] else . end ]')"
+    cc_set_probs "$contest" "$new" || fail 422 "Falha ao gravar problemas (dados inválidos?)" "probs_write"
+    audit_log_to "$contest" problems-apply_titles "$(jq -cr 'map(.letter + "→" + .lang) | join(" ")' <<<"$fixes" | head -c 300)"
+    mkdir -p "$CONTESTSDIR/$contest/var" 2>/dev/null; touch "$CONTESTSDIR/$contest/var/.problems-dirty" 2>/dev/null
+    ok_json '{saved:true, changed:$f, problems:$p}' --argjson f "$fixes" --argjson p "$(cc_probs_json "$contest")"
+    exit 0
     ;;
   reorder)
     order="$(jq -c '.order // []' <<<"$body")"
@@ -194,7 +236,7 @@ case "$action" in
     ok_json '{saved:true, statement_key:$k, lang:$l, did:$d}' --arg k "$skey" --arg l "$slang" --arg d "$did"
     exit 0
     ;;
-  *) fail 400 "action inválida (add|remove|reorder|rename|langs|judges|statement)" "action_invalid" ;;
+  *) fail 400 "action inválida (add|remove|reorder|rename|apply_titles|langs|judges|statement)" "action_invalid" ;;
 esac
 
 [[ -n "$new" ]] || fail 422 "Nada a fazer" "noop"

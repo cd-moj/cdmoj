@@ -17,6 +17,8 @@
 #   undo     {confirm:<id do contest>} — DESFAZ a última promoção (lib/contest-rounds.sh rd_undo): só se a
 #              rodada no ar não teve atividade nenhuma; a desfeita volta a planejada (TCP 2026, 03/10/2026)
 # GET também traz undo:{from, to, possible, blockers} — o painel só oferece o botão quando há o que desfazer
+# e titles:{<id>:{pt,en,es}} — os títulos por idioma dos problemas das rodadas que têm escolha (nome sem
+# `name` entra no ar com o título no idioma da prova; os chips PT·EN·ES do painel escolhem outro)
 require_auth_contest "$(param contest)"
 contest="$(param contest)"
 [[ -n "$contest" ]] || fail 400 "Missing contest" "contest_missing"
@@ -31,9 +33,15 @@ if [[ "$REQUEST_METHOD" == GET ]]; then
   rd_save "$contest" "$j"                       # persiste o espelho conf→json
   bl="$(rd_promote_blockers "$contest")"; [[ -n "$bl" ]] || bl='[]'
   un="$(rd_undo_info "$contest")"; [[ -n "$un" ]] || un='null'
-  body="$(jq -cn --argjson j "$j" --argjson bl "$bl" --arg next "$(rd_next "$contest")" --argjson un "$un" '
+  # títulos por idioma dos problemas das rodadas (só os com escolha): as opções de nome do painel. Por ARQUIVO.
+  tmf="$(mktemp)" || fail 500 "tmp" "tmp"
+  cc_bank_titles "$(jq -c '[(.rounds // [])[].problems[]? | (.bank_id // .problem_id // "") | strings | gsub("/"; "#")] | unique' <<<"$j")" > "$tmf"
+  jq -e 'type == "object"' "$tmf" >/dev/null 2>&1 || echo '{}' > "$tmf"
+  body="$(jq -cn --argjson j "$j" --argjson bl "$bl" --arg next "$(rd_next "$contest")" --argjson un "$un" --slurpfile tm "$tmf" '
     {success:true, active:($j.active // ""), rounds:($j.rounds // []), next:$next,
-     promote_ready:{ok:(($bl|length) == 0), blockers:$bl}, undo:$un}')"
+     promote_ready:{ok:(($bl|length) == 0), blockers:$bl}, undo:$un,
+     titles:(($tm[0] // {}) | with_entries(select(([.value[]] | unique | length) > 1)))}')"
+  rm -f "$tmf"
   [[ -n "$body" ]] || fail 500 "Falha ao montar a resposta" "build_fail"
   emit_json 200 OK; printf '%s\n' "$body"; exit 0
 fi

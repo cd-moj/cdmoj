@@ -233,6 +233,8 @@ cc_create(){
 
   local probs="PROBS=(" i=0
   local lused; lused="$(cc_letters_used "$(jq -c '.problems // []' <<<"$spec")")"
+  # idioma do nome padrão: o conf ainda não existe e a criação não grava STATEMENT_LANGS (automático) ⇒ LOCALE
+  local plang; plang="$(cc_prob_lang "" "$(jq -r '.locale // "pt"' <<<"$spec")")"
   local p pid src pname letter bankid stmt_b64 stmt_file skey bf html
   local pdf_b64 pdf_file larr plangs='{}' jarr pjudges='{}'
   while IFS= read -r p; do
@@ -249,8 +251,8 @@ cc_create(){
     pdf_b64="$(jq -r '.statement_pdf_b64 // ""' <<<"$p")"
     pdf_file="$(jq -r '.statement_pdf_file // ""' <<<"$p")"
     [[ -n "$pid" ]] || { rm -rf "$stg"; fail 422 "Problema sem id" "prob_no_id"; }
-    # sem `name`/`title` no spec: o TÍTULO do banco, nunca o id cru na sanfona (cc_prob_title)
-    [[ -n "$pname" ]] || pname="$(cc_prob_title "${bankid:-${pid//\//#}}" "$pid")"
+    # sem `name`/`title` no spec: o TÍTULO do banco no idioma da prova, nunca o id cru (cc_prob_title)
+    [[ -n "$pname" ]] || pname="$(cc_prob_title "${bankid:-${pid//\//#}}" "$pid" "$plang")"
     { [[ "$pid" =~ ^[A-Za-z0-9._/#@+-]+$ ]] && [[ "$pid" != *..* ]]; } || { rm -rf "$stg"; fail 422 "id de problema inválido: $pid" "prob_id_invalid"; }
     [[ "$src" =~ ^[A-Za-z0-9._-]+$ ]] || { rm -rf "$stg"; fail 422 "source de problema inválido" "src_invalid"; }
     (( ${#pname} <= 160 )) || { rm -rf "$stg"; fail 422 "nome de problema muito longo" "pname_long"; }
@@ -899,14 +901,83 @@ cc_regions_fail(){
 # `enunciados/<skey>.html`. Sem isso, um problema sem `statement_b64` no spec faz o helper
 # baixar o enunciado do banco e SOBRESCREVER o que o admin subiu à mão (a troca de rodada
 # aplica a lista da rodada e clobberaria os enunciados finais da prova).
-# cc_prob_title <bank-id|skey> <id-de-fallback> — NOME do problema quando o spec não traz `name`/`title`:
-# o TÍTULO do banco (json servível, público ou privado), e só em último caso o id. Spec montado à mão /
-# pela API sem o campo deixava "org#id" no lugar do título na sanfona (relato do Daniel Saad, 2026-09-18).
+# cc_prob_title <bank-id|skey> <id-de-fallback> [lang] — NOME do problema quando o spec não traz
+# `name`/`title`: o TÍTULO do banco (json servível, público ou privado) NO IDIOMA DA PROVA (`lang`, de
+# cc_prob_lang), senão o PT, e só em último caso o id. Spec montado à mão / pela API sem o campo deixava
+# "org#id" no lugar do título na sanfona (relato do Daniel Saad, 2026-09-18); e o PT fixo punha o nome em
+# português sobre o enunciado em espanhol (TCP 2026, `LOCALE=es`, 03/10/2026).
 cc_prob_title(){
-  local bf t=""
-  bf="$(cs_bank_json "$1" 2>/dev/null)" && t="$(cs_bank_title "$bf" pt)"
+  local bf t="" l="${3:-pt}"
+  bf="$(cs_bank_json "$1" 2>/dev/null)" && t="$(cs_bank_title_or_pt "$bf" "$l")"
   t="${t//[$'\r\n\t']/ }"; t="${t:0:160}"
   printf '%s' "${t:-$2}"
+}
+# cc_prob_lang <contest> [locale] — o idioma do NOME padrão = o que a sanfona abre (cs_default sobre os
+# idiomas oferecidos: STATEMENT_LANGS=pt com LOCALE=es dá PT). Com `locale` (a criação, o conf ainda não
+# existe e STATEMENT_LANGS ausente = automático) o idioma é o LOCALE dado.
+cc_prob_lang(){
+  if [[ $# -ge 2 ]]; then contest_locale_ok "$2" && printf '%s' "$2" || printf pt; return 0; fi
+  cs_default "$1" "$(cs_langs "$1")"
+}
+# cc_bank_titles <ids_json> -> {id:{pt,en,es}} — títulos por idioma dos problemas, lidos dos json
+# servíveis (público › privado) num jq SÓ (input_filename = o id). Só idiomas com título não vazio. Para
+# as telas que mostram as opções (Prova › Problemas, `moj-contest problems titles`) e a checagem da Central.
+cc_bank_titles(){
+  local tmp id bf; tmp="$(mktemp)" || { printf '{}'; return 0; }
+  while IFS= read -r id; do
+    bf="$(cs_bank_json "$id" 2>/dev/null)" && printf '%s\0' "$bf"
+  done < <(jq -r '.[]? | strings' <<<"${1:-[]}" 2>/dev/null) > "$tmp"
+  if [[ -s "$tmp" ]]; then
+    xargs -0 -r jq -c '{id:(input_filename | sub("^.*/"; "") | sub("\\.json$"; "")),
+        t:({pt:(.title // "")} + ((.statements // {}) | if type == "object" then . else {} end
+             | with_entries(.value = (if (.value | type) == "object" then (.value.title // "") else "" end))))
+          | with_entries(select((.value | type) == "string" and (.value | length) > 0))}' < "$tmp" 2>/dev/null \
+      | jq -sc 'map({key:.id, value:.t}) | from_entries' 2>/dev/null || printf '{}'
+  else
+    printf '{}'
+  fi
+  rm -f "$tmp"
+}
+# cc_attach_titles — stdin = array de itens com `.id` (resultado de busca/sorteio, ≤100) → o mesmo array,
+# cada item com `titles` {pt,en,es} quando o problema tem MAIS DE UM título distinto (= tem enunciado
+# traduzido). É o que as telas usam p/ mostrar as opções de nome; sem tradução, nada muda no item.
+# Lê só os json servíveis desses ids (o índice e o sidecar do treino guardam só o título PT).
+cc_attach_titles(){
+  local tmp; tmp="$(mktemp -d)" || { cat; return 0; }
+  cat > "$tmp/items.json"
+  if ! jq -e 'type == "array"' "$tmp/items.json" >/dev/null 2>&1; then cat "$tmp/items.json"; rm -rf "$tmp"; return 0; fi
+  cc_bank_titles "$(jq -c '[.[]? | .id? | strings]' "$tmp/items.json")" > "$tmp/t.json"
+  [[ -s "$tmp/t.json" ]] || echo '{}' > "$tmp/t.json"
+  jq -c --slurpfile t "$tmp/t.json" '($t[0] // {}) as $T
+    | map(. + (($T[.id] // {}) as $x | if ([$x[]] | unique | length) > 1 then {titles:$x} else {} end))' \
+    "$tmp/items.json" 2>/dev/null || cat "$tmp/items.json"
+  rm -rf "$tmp"
+}
+# cc_prob_cid — (jq) o id canônico de uma entrada do cc_probs_json: a statement_key quando já é 'org#prob',
+# senão o problem_id com a barra virada em '#' (contest legado). O mesmo cálculo do admin/problems.sh.
+CC_PROB_CID_JQ='def cid: (if ((.statement_key // "") | test("#")) then .statement_key else ((.problem_id // "") | gsub("/"; "#")) end);'
+# cc_names_chosen_file <contest> — nomes ESCOLHIDOS pelo admin (ação `rename` com nome): {cid: nome}. Nome
+# escolhido de propósito em outro idioma não vira aviso eterno na Central (item prob_names).
+cc_names_chosen_file(){ printf '%s/%s/var/problem-names-chosen.json' "$CONTESTSDIR" "$1"; }
+# cc_title_fixes <contest> -> [{letter,name,to,lang}] — problemas cujo NOME é um título do banco em OUTRO
+# idioma que o da prova, quando há título no idioma da prova (cc_prob_lang). É o caso do contest criado antes
+# de o nome seguir o idioma (TCP 2026: LOCALE=es com os nomes em PT) e do contest que trocou de LOCALE depois
+# de inserir os problemas. Só nome INTOCADO (igual a um título do banco, sem aproximação) e não escolhido de
+# propósito (cc_names_chosen_file): nome personalizado nunca é tocado. Lê os json servíveis num jq só.
+cc_title_fixes(){
+  local c="$1" lang tmp
+  lang="$(cc_prob_lang "$c")"
+  tmp="$(mktemp -d)" || { printf '[]'; return 0; }
+  cc_probs_json "$c" > "$tmp/cur.json"
+  cc_bank_titles "$(jq -c "$CC_PROB_CID_JQ"' [.[] | cid]' "$tmp/cur.json" 2>/dev/null)" > "$tmp/t.json"
+  [[ -s "$tmp/t.json" ]] || echo '{}' > "$tmp/t.json"
+  if [[ -s "$(cc_names_chosen_file "$c")" ]]; then cp "$(cc_names_chosen_file "$c")" "$tmp/k.json"; else echo '{}' > "$tmp/k.json"; fi
+  jq -c --slurpfile t "$tmp/t.json" --slurpfile k "$tmp/k.json" --arg l "$lang" "$CC_PROB_CID_JQ"'
+    ($t[0] // {}) as $T | (($k[0] // {}) | if type == "object" then . else {} end) as $K
+    | [ .[] | cid as $c | ($T[$c] // {}) as $x | ($x[$l] // "") as $to | (.name // "") as $n
+        | select(($to | length) > 0 and $n != $to and ([$x[]] | any(. == $n)) and ($K[$c] != $n))
+        | {letter, name:$n, to:$to, lang:$l} ]' "$tmp/cur.json" 2>/dev/null || printf '[]'
+  rm -rf "$tmp"
 }
 # LETRA DO PROBLEMA — nunca repetida, SEM diferenciar caixa (o editor de cores e o placar a mostram em
 # maiúscula). A letra é a chave de rename/remove/reorder, das clarifications e da cor de balão; com
@@ -939,6 +1010,7 @@ cc_build_probs(){
   local tdir="$1" spec="$2" enun="${3:-}" probs="PROBS=(" i=0
   local p pid src pname letter bankid stmt_b64 stmt_file skey bf html
   local lused; lused="$(cc_letters_used "$spec")"
+  local plang; plang="$(cc_prob_lang "${tdir##*/}")"   # o conf do contest JÁ existe (cc_set_probs)
   mkdir -p "$tdir/enunciados"
   while IFS= read -r p; do
     [[ -n "$p" ]] || continue
@@ -955,8 +1027,8 @@ cc_build_probs(){
     [[ "$letter" =~ ^[A-Za-z0-9]{1,3}$ ]] || return 1
     skey="${pid//\//#}"
     { [[ "$skey" =~ ^[A-Za-z0-9._#@+-]+$ ]] && [[ "$skey" != *..* ]]; } || return 1
-    # nome: o do spec (`name`/`title`); sem ele, o TÍTULO do banco (cc_prob_title)
-    [[ -n "$pname" ]] || pname="$(cc_prob_title "${bankid:-$skey}" "$pid")"
+    # nome: o do spec (`name`/`title`); sem ele, o TÍTULO do banco no idioma da prova (cc_prob_title)
+    [[ -n "$pname" ]] || pname="$(cc_prob_title "${bankid:-$skey}" "$pid" "$plang")"
     html=""
     if [[ "${CC_KEEP_STATEMENTS:-0}" == 1 && -z "$stmt_b64" && -z "$stmt_file" \
           && -s "$tdir/enunciados/$skey.html" ]]; then

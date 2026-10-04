@@ -26,10 +26,13 @@ Object.defineProperty(N.prototype,'textContent',{set(v){this._text=String(v);thi
   get(){ let t=this._text; for (const c of this.children) t+= c.nodeType===3 ? c.text : c.textContent; return t; }});
 Object.defineProperty(N.prototype,'value',{set(v){this._v=String(v)},get(){ return this._v!==undefined ? this._v : (this.attrs.value||''); }});
 globalThis.document={ createElement:(t)=>new N(t), createTextNode:(t)=>({nodeType:3,text:String(t),textContent:String(t)}) };
-function T(pt){ return pt; }
+function T(pt){ return pt; } function getLang(){ return 'pt'; }
+globalThis.localStorage={ getItem(){ return null; }, setItem(){} }; globalThis.location={search:''};
 let CONFIRM=true, ASKED=0; globalThis.confirm=()=>{ ASKED++; return CONFIRM; };
 EOF
-  strip "$WEB/shared/dom.js"; strip "$WEB/shared/difficulty.js"; strip "$WEB/shared/contest-config/bank-panel.js"
+  # problem-titles.js (os títulos PT·EN·ES na linha do item, 03/10/2026) + o statement-langs.js de que ele depende
+  strip "$WEB/shared/dom.js"; strip "$WEB/shared/difficulty.js"; strip "$WEB/shared/statement-langs.js"; strip "$WEB/shared/problem-titles.js"
+  strip "$WEB/shared/contest-config/bank-panel.js"
   cat <<'EOF'
 let pass=0, fail=0; const ck=(m,ok,d)=>{ if (ok) { print('  ok: '+m); pass++; } else { print('  FAIL: '+m+' :: '+(d||'')); fail++; } };
 const J=(x)=>JSON.stringify(x);

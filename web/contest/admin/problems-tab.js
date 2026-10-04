@@ -8,6 +8,7 @@ import { makeLangPicker, makeJudgePicker, makeBankPanel } from '/shared/contest-
 import { T } from '/shared/i18n.js';
 import { STMT_LANGS, STMT_SHORT, stmtName } from '/shared/statement-langs.js';
 import { makeStatementLangsPanel } from '/contest/admin/statement-langs-panel.js';
+import { makeTitleChips } from '/shared/problem-titles.js';
 
 const enc = encodeURIComponent;
 
@@ -46,7 +47,10 @@ export function makeProblemsTab(CONTEST) {
     head.addEventListener('click', () => { const hid = body.classList.toggle('hidden'); tog.textContent = hid ? '▶' : '▼'; });
 
     // --- renomear (nome E identificador: a letra pode ser custom — W1, Q… — e o reorder a preserva) ---
+    // Com enunciado traduzido, os chips PT·EN·ES preenchem o nome com o título de um idioma (Renomear grava).
     const nameInp = el('input', { value: p.name || '', style: 'max-width:280px' });
+    const tChips = makeTitleChips(p.titles, () => nameInp.value, (v) => { nameInp.value = v; });
+    nameInp.addEventListener('input', () => { tChips.repaint && tChips.repaint(); });
     const letInp = el('input', { value: p.letter || '', maxlength: '3', style: 'width:4.5rem; font-family:var(--mono)' });
     const rnMsg = el('div', { class: 'small' });
     const saveRename = () => {
@@ -73,7 +77,7 @@ export function makeProblemsTab(CONTEST) {
     body.append(
       el('div', { class: 'row', style: 'margin:.3rem 0; flex-wrap:wrap' },
         el('span', { class: 'small muted' }, T('Identificador:', 'Identifier:', 'Identificador:')), letInp,
-        el('span', { class: 'small muted' }, T('Nome:', 'Name:', 'Nombre:')), nameInp,
+        el('span', { class: 'small muted' }, T('Nome:', 'Name:', 'Nombre:')), nameInp, tChips,
         el('button', { class: 'btn ghost', onclick: saveRename }, T('Renomear', 'Rename', 'Renombrar')), rnMsg),
       el('div', { style: 'margin:.5rem 0' }, el('div', { class: 'small muted' }, T('💻 Linguagens (nenhuma marcada = herda do contest):', '💻 Languages (none checked = inherits from contest):', '💻 Lenguajes (ninguno marcado = hereda de la competencia):')),
         picker.el, el('div', { class: 'row' }, el('button', { class: 'btn', onclick: () => postProb({ action: 'langs', letter: p.letter, languages: picker.get() }, lMsg, false) }, T('Salvar linguagens', 'Save languages', 'Guardar lenguajes')), lMsg)),
@@ -114,7 +118,8 @@ export function makeProblemsTab(CONTEST) {
     if (!bank) {
       bank = makeBankPanel({
         api: bankApi,
-        onAdd: (it) => act({ action: 'add', problem: { bank_id: it.id, name: it.title || it.id } }),
+        // sem `name`: o servidor dá o título no idioma da prova (cc_prob_title); os chips do Renomear trocam
+        onAdd: (it) => act({ action: 'add', problem: { bank_id: it.id } }),
         searchLabel: T('Buscar problemas (públicos + os privados do dono do contest)', 'Search problems (public + the contest owner\'s private ones)', 'Buscar problemas (públicos + los privados del dueño de la competencia)'),
         searchPlaceholder: T('🔎 Buscar problemas (públicos + privados do dono) — título ou id…', '🔎 Search problems (public + owner\'s private) — title or id…', '🔎 Buscar problemas (públicos + privados del dueño) — título o id…'),
         noQueryFilter: (items) => items.filter((it) => it.private),

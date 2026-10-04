@@ -10,6 +10,7 @@ import { el } from '/shared/ui.js';
 import { makeBankPanel, makeColorsEditor, toLocalDT, dtToEpoch } from '/shared/contest-config/index.js';
 import { T } from '/shared/i18n.js';
 import { fmtEpoch as fmt, downloadAuthed } from '/shared/admin-ui.js';
+import { makeTitleChips } from '/shared/problem-titles.js';
 
 const enc = encodeURIComponent;
 // funções, não const de módulo: T() no topo congela o idioma ANTES do setLang(LOCALE)
@@ -163,9 +164,16 @@ export function makeRoundsTab(CONTEST, opts = {}) {
         const letInp = el('input', { value: p.letter || String.fromCharCode(65 + i), maxlength: '3',
           style: 'width:3.6rem; font-family:var(--mono)' });
         letInp.addEventListener('input', () => { p.letter = letInp.value.trim(); });
-        plist.append(el('div', { class: 'row', style: 'gap:.5rem;align-items:center;padding:.15rem 0' },
-          letInp,
-          el('span', { style: 'min-width:16rem' }, p.name || p.problem_id || p.bank_id),
+        // nome: vazio = automático (o título no idioma da prova, na hora em que a rodada entra no ar); os chips
+        // PT·EN·ES preenchem com o título de um idioma. Salvo junto com a lista.
+        const pid = (p.bank_id || p.problem_id || '').replace('/', '#');
+        const titles = p._titles || ((DATA && DATA.titles) || {})[pid];
+        const nmInp = el('input', { value: p.name || '', style: 'min-width:14rem',
+          placeholder: T('automático (idioma da prova)', 'automatic (contest language)', 'automático (idioma de la competencia)') });
+        const chips = makeTitleChips(titles, () => nmInp.value, (v) => { nmInp.value = v; p.name = v; });
+        nmInp.addEventListener('input', () => { p.name = nmInp.value; chips.repaint && chips.repaint(); });
+        plist.append(el('div', { class: 'row', style: 'gap:.5rem;align-items:center;padding:.15rem 0;flex-wrap:wrap' },
+          letInp, nmInp, chips,
           el('code', { class: 'small muted' }, p.bank_id || p.problem_id || ''),
           el('button', { class: 'btn ghost', onclick: () => { probs.splice(i, 1); renderP(); } }, '✕')));
       });
@@ -173,7 +181,8 @@ export function makeRoundsTab(CONTEST, opts = {}) {
     renderP();
     const saveP = el('button', { class: 'btn', onclick: () => act({
       action: 'problems', slug: r.slug,
-      problems: probs.map((p, i) => ({ bank_id: p.bank_id || p.problem_id, name: p.name,
+      problems: probs.map((p, i) => ({ bank_id: p.bank_id || p.problem_id,
+        ...((p.name || '').trim() ? { name: p.name.trim() } : {}),
         letter: p.letter || String.fromCharCode(65 + i) })),
     }, T('✓ problemas da rodada salvos', '✓ round problems saved', '✓ problemas de la ronda guardados')) }, T('salvar problemas', 'save problems', 'guardar problemas'));
     const bank = makeBankPanel({
@@ -182,7 +191,7 @@ export function makeRoundsTab(CONTEST, opts = {}) {
         draw: (p) => apiGet('/contest/admin/draw?contest=' + enc(CONTEST) + '&' + new URLSearchParams(p).toString(), G),
         search: (q) => apiGet('/contest/admin/bank?contest=' + enc(CONTEST) + '&limit=30&q=' + enc(q), G),
       },
-      onAdd: (it) => { probs.push({ bank_id: it.id, name: it.title || it.id }); renderP(); },
+      onAdd: (it) => { probs.push({ bank_id: it.id, name: '', ...(it.titles ? { _titles: it.titles } : {}) }); renderP(); },
       searchLabel: T('Problemas desta rodada (buscar no banco)', 'Problems for this round (search the bank)', 'Problemas de esta ronda (buscar en el banco)'),
       searchPlaceholder: T('🔎 título ou id…', '🔎 title or id…', '🔎 título o id…'),
       noQueryFilter: (items) => items.filter((x) => x.private),

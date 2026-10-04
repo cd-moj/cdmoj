@@ -21,6 +21,7 @@
 #   cs_bank_write <bankjson> <tdir> <skey> [all|langs] -> grava enunciados/<skey>[.<lang>].html
 #   cs_bank_langs <bankjson>      -> idiomas com html no json ("pt en")
 #   cs_bank_title <bankjson> <lang> -> title do idioma ("" se não há)
+#   cs_bank_title_or_pt <bankjson> <lang> -> title do idioma, senão o PT
 declare -F stmt_langs_all >/dev/null || source "${MOJTOOLS_DIR:-/home/ribas/moj/mojtools}/statement-langs.sh"
 
 _cs_clean(){ local raw="${1:-}"; raw="${raw//\\/}"; raw="${raw//,/ }"; raw="${raw//\'/}"; raw="${raw//\"/}"; printf '%s' "${raw,,}"; }
@@ -55,6 +56,9 @@ cs_bank_json(){
 }
 cs_bank_langs(){ jq -r '["pt"] + ((.statements // {}) | keys) | unique | join(" ")' "$1" 2>/dev/null; }
 cs_bank_title(){ jq -r --arg l "$2" 'if $l == "pt" then (.title // "") else (.statements[$l].title // "") end' "$1" 2>/dev/null; }
+# cs_bank_title_or_pt <bankjson> <lang> -> o título do idioma, senão o PT (o NOME padrão no contest)
+cs_bank_title_or_pt(){ jq -r --arg l "$2" '(if $l == "pt" then "" else (.statements[$l].title // "") end) as $x
+                                          | if ($x | length) > 0 then $x else (.title // "") end' "$1" 2>/dev/null; }
 # cs_bank_write: PT sai de statement_html_b64, cada tradução de statements[<lang>].html_b64. Com
 # CC_KEEP_STATEMENTS=1 não sobrescreve arquivo existente (o admin pode ter subido o dele).
 cs_bank_write(){
