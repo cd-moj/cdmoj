@@ -63,8 +63,11 @@ tg_rename(){
   tgid="$(tg_id_of_login "$c" "$old")"; [[ -n "$tgid" ]] || return 0
   ( flock 9
     printf '%s\n' "$tgid" > "$d/by-login/$new"; rm -f "$d/by-login/$old"
-    local f="$d/by-tgid/$tgid.json"
-    [[ -f "$f" ]] && { jq -c --arg l "$new" '.login=$l' "$f" > "$f.tmp.${BASHPID}" && mv -f "$f.tmp.${BASHPID}" "$f"; }
+    # o temporário é resolvido ANTES: `${BASHPID}` no alvo do redirect de um comando EXTERNO (o jq) expande no
+    # FILHO, e o mv procurava outro nome — o by-tgid seguia com o login VELHO depois de toda troca de login (o
+    # bot achava o Telegram por um login que não existe mais). Pego pelo smoke-user-promote, 04/10/2026.
+    local f="$d/by-tgid/$tgid.json" tmp="$d/by-tgid/.$tgid.json.tmp.${BASHPID}"
+    [[ -f "$f" ]] && { jq -c --arg l "$new" '.login=$l' "$f" > "$tmp" && mv -f "$tmp" "$f" || rm -f "$tmp"; }
   ) 9>"$d/.lock" 2>/dev/null
 }
 
