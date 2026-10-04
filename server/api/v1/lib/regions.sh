@@ -443,3 +443,58 @@ rg_keys_of(){
   [[ -n "$ns" ]] || return 0
   jq -r --arg ns "$ns" '. as $n | $ns | split(",")[] | $n[tonumber].key' "$CONTESTSDIR/$1/var/regions-nodes.json" | sort -u
 }
+
+# ---- REFERÊNCIAS À SEDE PELO NOME (auditoria do painel, 03/10/2026) ---------------------------------------------
+# O escopo do staff (`region:<nome>` no staff-filters.json), o gate de UA (`by_region` do ua-gate.json) e os
+# placares/sedes do Animeitor (`source:{kind:"region", id:<nome>}` no animeitor.json) apontam a sede pelo NOME.
+# Renomear ou apagar a sede deixava essas referências órfãs, caladas: o staff passava a ver NADA, o time caía
+# no esperado do from_login/fallback e a sede do telão ficava sem times.
+
+# rg_ref_rename <c> <de> <para> — a sede trocou de nome: as referências acompanham. Ecoa quantos arquivos mudaram.
+rg_ref_rename(){
+  local c="$1" from="$2" to="$3" d="$CONTESTSDIR/$1" f n=0
+  [[ -n "$from" && -n "$to" && "$from" != "$to" ]] || { printf '0'; return 0; }
+  f="$d/print-requests/staff-filters.json"
+  if [[ -s "$f" ]] && jq -e --arg a "region:$from" 'any(.[]?; type == "array" and any(.[]; . == $a))' "$f" >/dev/null 2>&1; then
+    jq --arg a "region:$from" --arg b "region:$to" 'map_values(if type == "array" then map(if . == $a then $b else . end) else . end)' \
+      "$f" > "$f.tmp" 2>/dev/null && mv -f "$f.tmp" "$f" && n=$((n + 1))
+  fi
+  f="$d/ua-gate.json"   # by_region casa sem diferenciar maiúsculas/espaço nas pontas (ug_byregion)
+  if [[ -s "$f" ]] && jq -e --arg a "$from" '($a | ascii_downcase | gsub("^ +| +$"; "")) as $k
+       | any((.by_region // {}) | keys[]; (ascii_downcase | gsub("^ +| +$"; "")) == $k)' "$f" >/dev/null 2>&1; then
+    jq --arg a "$from" --arg b "$to" '($a | ascii_downcase | gsub("^ +| +$"; "")) as $k
+       | .by_region |= with_entries(if (.key | ascii_downcase | gsub("^ +| +$"; "")) == $k then .key = $b else . end)' \
+      "$f" > "$f.tmp" 2>/dev/null && mv -f "$f.tmp" "$f" && n=$((n + 1))
+  fi
+  f="$d/animeitor.json"
+  if [[ -s "$f" ]] && jq -e --arg a "$from" '[(.contests // [])[] | .source, (.sites // [])[].source]
+       | any(.[]; (.kind // "") == "region" and .id == $a)' "$f" >/dev/null 2>&1; then
+    jq --arg a "$from" --arg b "$to" 'def rs: if (.source.kind // "") == "region" and .source.id == $a then .source.id = $b else . end;
+       .contests |= (if . == null then null else map(rs | .sites |= (if . == null then null else map(rs) end)) end)' \
+      "$f" > "$f.tmp" 2>/dev/null && mv -f "$f.tmp" "$f" && n=$((n + 1))
+  fi
+  printf '%s' "$n"
+}
+
+# rg_orphan_refs <c> — JSON [{where:"staff"|"ua_gate"|"animeitor", name, login?}] das referências a sede que NÃO
+# existe na árvore atual (a tela avisa depois de salvar; nada é apagado: pode ser uma sede que ainda vai voltar).
+rg_orphan_refs(){
+  local c="$1" d="$CONTESTSDIR/$1" W
+  W="$(mktemp -d)" || { printf '[]'; return 0; }
+  { [[ -s "$d/regions.json" ]] && jq -c '[.. | objects | .name? // empty | strings]' "$d/regions.json" 2>/dev/null || printf '[]'; } > "$W/n.json"
+  local f; for f in print-requests/staff-filters.json ua-gate.json animeitor.json; do
+    { [[ -s "$d/$f" ]] && jq -c . "$d/$f" 2>/dev/null || printf '{}'; } > "$W/${f##*/}"
+  done
+  jq -cn --slurpfile n "$W/n.json" --slurpfile s "$W/staff-filters.json" --slurpfile u "$W/ua-gate.json" \
+     --slurpfile a "$W/animeitor.json" '
+    def norm: ascii_downcase | gsub("^ +| +$"; "");
+    ($n[0]) as $N | ($N | map(norm)) as $NN
+    | [ ($s[0] | if type == "object" then to_entries[] else empty end | .key as $l | (.value | if type == "array" then .[] else empty end)
+          | strings | select(startswith("region:")) | ltrimstr("region:") as $x | select(($N | index($x)) == null)
+          | {where:"staff", login:$l, name:$x}),
+        (($u[0].by_region // {}) | keys[] | select((norm as $k | $NN | index($k)) == null) | {where:"ua_gate", name:.}),
+        ((($a[0].contests // []) | if type == "array" then . else [] end)[] | (.source, (.sites // [])[].source)
+          | (.id // "") as $i | select((.kind // "") == "region" and ($N | index($i)) == null) | {where:"animeitor", name:$i}) ]
+    | unique' 2>/dev/null || printf '[]'
+  rm -rf "$W"
+}

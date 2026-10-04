@@ -61,6 +61,9 @@ if [[ "$(jq -r '.action // empty' <<<"$body")" == materialize ]]; then
     filled="$(jq -c --arg l "$login" --argjson d "$delta" '. + {($l): $d}' <<<"$filled")"
     (( nfill++ ))
   done < <(find "$cdir/users" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | sort)
+  # nome/sigla/bandeira/sede mudaram: o placar e os caches preguiçosos se refazem (sem isto o placar seguia com os
+  # dados velhos até o próximo veredicto — auditoria do painel, 03/10/2026; molde do user_rename/perfil)
+  (( nfill > 0 )) && touch "$cdir/var/.score-dirty" 2>/dev/null
   audit_log_to "$contest" teams-materialize "preencheu=$nfill"
   ok_json '{materialized:$n, filled:$f}' --argjson n "$nfill" --argjson f "$filled"
   exit 0
@@ -98,6 +101,7 @@ while IFS= read -r login; do
   (( saved++ ))
 done < <(jq -r 'keys[]' <<<"$setj")
 
+(( saved > 0 )) && { mkdir -p "$CONTESTSDIR/$contest/var"; touch "$CONTESTSDIR/$contest/var/.score-dirty" 2>/dev/null; }
 audit_log_to "$contest" teams-set "salvos=$saved skipped=${#SKIPPED[@]}"
 ok_json '{saved:$n, skipped:$s}' --argjson n "$saved" \
   --argjson s "$( ((${#SKIPPED[@]})) && printf '%s\n' "${SKIPPED[@]}" | jq -R . | jq -cs . || echo '[]')"

@@ -115,6 +115,24 @@ grep -q ':guest' "$C/var/placar.txt" && ok "coluna guest no placar liberado" || 
 echo "    $(sed -n 3p "$C/var/placar.txt")"
 [[ "$(ch_view_for_login prova of1)" == all ]] && ok "depois de liberar, todos veem tudo" || no "view_for_login não liberou"
 
+echo "== auditoria do painel (03/10/2026): sees sem ela mesma; extra-oficial em coorte PÚBLICA =="
+cat > "$C/cohorts.json" <<'EOC'
+{ "version":1, "results_released":false,
+  "cohorts":[
+    {"id":"oficial","name":"Oficiais","default":true,"public":true},
+    {"id":"ccl","name":"Café com Leite","regex":"^ccl","public":false,"unranked":true,"sees":["oficial"]} ]}
+EOC
+[[ " $(ch_view_cohorts prova ccl | tr '\n' ' ')" == *" ccl "* ]] && ok "coorte privada com sees=[oficial] ainda se vê" || no "a visão ccl não inclui a própria coorte"
+cat > "$C/cohorts.json" <<'EOC'
+{ "version":1, "results_released":false,
+  "cohorts":[
+    {"id":"oficial","name":"Oficiais","default":true,"public":true},
+    {"id":"ccl","name":"Café com Leite","regex":"^ccl","public":true,"unranked":true} ]}
+EOC
+bash "$SC/build.sh" prova >/dev/null 2>&1
+grep -q ':guest' "$C/var/placar.txt" && ok "extra-oficial em coorte pública: coluna guest no placar público" || no "unranked de coorte pública sem efeito"
+awk -F: 'NR>2 && $2=="ccl1" {print $1}' "$C/var/placar.txt" | grep -qv '^1$' && ok "o convidado (que resolveu antes) não leva a 1ª posição oficial" || no "convidado consumiu posição: $(awk -F: 'NR>2 && $2=="ccl1"' "$C/var/placar.txt")"
+
 echo "== SEM cohorts.json: exatamente os arquivos de sempre (regressão de custo):"
 rm -f "$C/cohorts.json"
 bash "$SC/build.sh" prova >/dev/null 2>&1

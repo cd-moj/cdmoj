@@ -686,6 +686,12 @@ export function mlinuxSections(a, opts = {}) {
   const cx = ctxOf(a, opts);
   const secs = [];
   const push = (x) => { if (x) secs.push(x); };
+  // coleta feita ANTES do início: é o inventário da última hora, não a prova (o coletor marca `prestart`)
+  if (opts.prestart || (opts.data && opts.data.prestart)) {
+    push(el('p', { class: 'ml-note' }, T('Coletado ANTES do início da prova: o que aparece é o inventário da última hora (máquinas ligadas e vistas, sede × imagem). Uso, carga e editores da prova só depois do início — colete de novo.',
+      'Collected BEFORE the contest start: this is the inventory of the last hour (machines on and seen, site × image). Contest usage, load and editors only after the start — collect again.',
+      'Recolectado ANTES del inicio de la competencia: lo que aparece es el inventario de la última hora (máquinas encendidas y vistas, sede × imagen). Uso, carga y editores de la competencia solo después del inicio — recolecta de nuevo.')));
+  }
   if (a.pop) {
     push(cardsSection(a, cx));
     push(attentionSection(a));

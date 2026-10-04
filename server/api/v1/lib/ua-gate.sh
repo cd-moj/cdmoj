@@ -80,48 +80,20 @@ ug_region_of(){
 }
 
 # ug_expected <c> <login> -> a substring de UA esperada ("" = sem gate para este login)
+# Ordem: isento › papel › by_regex › by_region › from_login › fallback/LOGIN_UA_SUBSTRING legado. É o MESMO
+# programa do lote (UG_JQ/ug_expect): até 03/10/2026 este caminho tinha a sua cópia, em que o by_region
+# vencia o by_regex — o painel dizia um esperado e o login cobrava outro (auditoria do painel).
 ug_expected(){
-  local c="$1" l="$2" g reg out
+  local c="$1" l="$2" g reg
   [[ -n "$l" ]] || return 0
   g="$(ug_get "$c")"
   [[ "$(jq -r '.mode' <<<"$g")" == off ]] && return 0
-  # 1. isento? (regex bindado antes do test — armadilha de contexto de args do jq)
-  jq -e --arg l "$l" 'any(.exempt[]; . as $rr | (try ($l|test($rr;"i")) catch false))' \
-    <<<"$g" >/dev/null 2>&1 && return 0
-  # 2. conta de papel: sempre entra (é quem configura o gate)
+  # conta de papel: sempre entra (é quem configura o gate) — sai antes de procurar a sede
   case "$l" in *.admin|*.judge|*.cjudge|*.staff|*.cstaff|*.mon|*.animeitor) return 0;; esac
-  # 3./5. by_regex e from_login resolvem no mesmo jq
-  out="$(jq -r --arg l "$l" '
-    # `// null` é obrigatório: `first()` de stream VAZIO é vazio, e `vazio as $v | …` faz a
-    # expressão inteira não produzir NADA (o esperado saía sempre "" quando nenhuma by_regex
-    # casava). Mesma armadilha do `first(...) // …` no resto do repo.
-    ((first(.by_regex[] | .regex as $rr | select(try ($l|test($rr;"i")) catch false) | .expect)) // null) as $byrx
-    | if $byrx != null then $byrx
-      else
-        (if .from_login == null then ""
-         else ((.from_login.regex) as $rr | (.from_login.expect) as $ex
-               # `sub` do jq NÃO entende \1: as capturas vêm do `match` e a substituição de
-               # \1,\2,… no template é feita aqui — assim o admin escreve o \1 de sempre.
-               | (((try ($l | match($rr; "i")) catch null)) // null) as $m
-               | if $m == null then ""
-                 else ([$m.captures[]?.string // ""]) as $g
-                      | reduce range(0; ($g | length)) as $i ($ex;
-                          gsub("[\\\\]" + (($i + 1) | tostring); ($g[$i] // "")))
-                 end)
-         end)
-      end' <<<"$g")"
-  # 4. by_region tem precedência sobre o from_login (imagem da sede fora do padrão)
   reg="$(ug_region_of "$c" "$l")"
-  if [[ -n "$reg" ]]; then
-    local byreg
-    byreg="$(jq -r --arg r "$reg" "$UG_JQ"' ug_byregion(.; $r)' <<<"$g")"
-    [[ -n "$byreg" ]] && { printf '%s' "$byreg"; return 0; }
-  fi
-  [[ -n "$out" ]] && { printf '%s' "$out"; return 0; }
-  # 6. fallback do arquivo, senão o legado do conf
-  out="$(jq -r '.fallback' <<<"$g")"
-  [[ -n "$out" ]] || out="$(ug_legacy "$c")"
-  printf '%s' "$out"
+  # o fallback já resolvido com o legado do conf, como no lote
+  jq -r --arg l "$l" --arg r "$reg" --arg lg "$(ug_legacy "$c")" "$UG_JQ"'
+    (.fallback = (if (.fallback // "") != "" then .fallback else $lg end)) as $g | ug_expect($g; $l; $r)' <<<"$g"
 }
 
 # ug_ok <c> <login> <ua> -> 0 se pode entrar (sem gate, ou o UA contém o esperado)

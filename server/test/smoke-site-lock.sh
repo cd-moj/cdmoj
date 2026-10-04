@@ -84,14 +84,23 @@ call /treino/problems GET '' tradm 'q=x' 5.5.5.5
 call /auth/login POST '{"username":"alice","password":"a"}' none 'contest=treino' 5.5.5.5
 ck "solto: treino volta a entrar"        '[[ "$(J .logged_in)" == true ]]'
 # access.log tem 5.5.5.5 (alice/bob) e 7.7.7.7 (papel): claim-seen prende só o de competidor
+# NAT da sede: o staff e o time saem pelo MESMO IP (13.13.13.13); a linha do staff vem antes — o IP não pode ser pulado
+printf '%s\tapoio.staff\t13.13.13.13\tx\n%s\tbob\t13.13.13.13\tx\n' "$((NOW-200))" "$((NOW-100))" >> "$C/var/access.log"
 call /contest/admin/site-lock POST '{"action":"claim-seen"}' adm 'contest=sl'
-ck "claim-seen prende os IPs de competidor vistos (1 novo; papel fora)" '[[ "$(J .claimed)" == 1 && -f "$RUN/site-lock/5.5.5.5" && ! -f "$RUN/site-lock/7.7.7.7" ]]'
+ck "claim-seen prende os IPs de competidor vistos (papel fora)" '[[ -f "$RUN/site-lock/5.5.5.5" && ! -f "$RUN/site-lock/7.7.7.7" ]]'
+ck "claim-seen: IP de NAT com staff e time é preso (2 novos)" '[[ "$(J .claimed)" == 2 && -f "$RUN/site-lock/13.13.13.13" ]]'
 call /contest/admin/site-lock POST '{"action":"set","enabled":false}' adm 'contest=sl'
 ck "set enabled:false grava SITE_LOCK=0"  'grep -q "^SITE_LOCK=0$" "$C/conf"'
 call /auth/login POST '{"username":"alice","password":"a"}' none 'contest=sl' 8.8.8.8
 ck "trava desligada: login não reivindica" '[[ "$(J .logged_in)" == true && ! -f "$RUN/site-lock/8.8.8.8" ]]'
 call /contest/admin/site-lock POST '{"action":"set","enabled":true,"grace":600}' adm 'contest=sl'
 ck "set enabled+grace"                    '[[ "$(J .enabled)" == true && "$(J .grace)" == 600 ]]'
+
+echo "== rodadas: a reivindicação do aquecimento vale até o fim da ÚLTIMA rodada planejada =="
+printf '{"rounds":[{"slug":"w","state":"active","end":%s},{"slug":"oficial","state":"pending","end":%s}]}' "$((NOW+3600))" "$((NOW+20000))" > "$C/rounds.json"
+call /auth/login POST '{"username":"alice","password":"a"}' none 'contest=sl' 2.2.2.2
+ck "until = fim da oficial + folga (não o do aquecimento)" '[[ "$(awk -F"\t" "\$2==\"sl\"{print \$3}" "$RUN/site-lock/2.2.2.2")" == "$((NOW+20000+600))" ]]'
+rm -f "$C/rounds.json"
 
 echo "== expiração =="
 printf '4.4.4.4\tsl\t%s\t1\t1\t1\t0\t0\t\n' "$((NOW-10))" > "$RUN/site-lock/4.4.4.4"

@@ -633,13 +633,17 @@ papel (sempre entra) › regra por regex › **override da sede** › captura no
   desliga sem apagar a configuração.
 - O painel Máquinas › Gate & trava mostra **UA esperado × UA visto** por time e conta quantos estão fora da
   imagem da sede: é assim que se conserta a sala **no aquecimento**, antes de o gate barrar
-  alguém na prova.
+  alguém na prova. O ✓ quer dizer que TODOS os navegadores vistos daquele time são o da imagem; com algum
+  de fora aparece "parte fora do padrão".
+- Com inscrição por times, o **membro** é cobrado pelo esperado do **time** (a sede e o padrão de login são
+  da conta do time).
 - Quem já está logado com o navegador errado sai com **"Deslogar UA divergente"** (Máquinas ›
   Anomalias), que compara cada sessão com o esperado **daquele** time.
 - **Trava de sede por IP** (chave na mesma seção 🔒, DESLIGADA por padrão — ligue na prova): o gate
   e o isolamento por subdomínio não seguram `curl --resolve moj…:443:<IP>` da máquina de prova ao
   site base (treino, backups que o aluno subiu antes, outro contest). Com a trava, cada login de
-  competidor **prende o IP de origem** (a saída da sede) a esta prova até o fim + folga; daquele IP
+  competidor **prende o IP de origem** (a saída da sede) a esta prova até o fim + folga (com rodadas, até o
+  fim da última rodada planejada: o IP preso no aquecimento segue preso na oficial); daquele IP
   qualquer outro alvo responde **403 `site_locked`**, inclusive sessão do treino aberta antes. Contas
   de papel são isentas. **Toda reivindicação e todo bloqueio vão ao audit** (`site-lock-claim`,
   `site-lock-block`) e aparecem em Máquinas › Gate & trava (trava de sede), com "soltar" por IP e "prender IPs
@@ -667,8 +671,9 @@ momento. Um modo que não cabe na árvore atual fica desabilitado e diz por quê
 
 - **Simples** — uma lista de sedes. Cada sede tem "logins que começam com" (vírgula separa). Para atribuir
   times, cole a lista de logins e escolha a sede, ou escolha a sede de cada time sem sede. Renomear uma sede
-  leva junto os times gravados com o nome velho (a prévia mostra quantos antes de salvar). Por IP da
-  máquina da prova: Máquinas › Gate.
+  leva junto os times gravados com o nome velho (a prévia mostra quantos antes de salvar), o escopo do staff
+  (`region:`), o gate de navegador da sede e a sede do telão. Ao salvar, a tela avisa se algo ainda aponta
+  para uma sede que não existe mais. Por IP da máquina da prova: Máquinas › Gate.
 - **Intermediário** — grupos (país, região) › sedes. Cada sede tem regras: começa com, contém, termina com,
   ou é um destes (lista).
 - **Avançado** — a árvore inteira: subregiões, recortes `view` e regex livre.

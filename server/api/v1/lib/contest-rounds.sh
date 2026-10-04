@@ -353,10 +353,15 @@ rd_machines(){
       })) as $BY
     | ($BY | map(.login as $l | . + {
         ua_expected: ($E[$l] // ""),
-        # o time casa o esperado se ALGUM dos UAs vistos contém a substring (case-insensitive)
+        # o time casa o esperado se TODOS os UAs vistos contêm a substring (case-insensitive): com o gate em
+        # observe, um login de casa ao lado do da imagem ficava escondido atrás do ✓ (auditoria, 03/10/2026);
+        # ua_any = ALGUM casa (a tela diz "parte fora do padrão")
         ua_match: (($E[$l] // "") == "" or
-                   any(.uas[]; ($DEC[.] // "")
+                   all(.uas[]; ($DEC[.] // "")
                        | contains(($E[$l] // "") | ascii_downcase))),
+        ua_any: (($E[$l] // "") == "" or
+                 any(.uas[]; ($DEC[.] // "")
+                     | contains(($E[$l] // "") | ascii_downcase))),
         multi_ip: ((.ips|length) > 1),
         changed: ( ($P[$l] != null) and
                    (((.ips - ($P[$l].ips // [])) | length) > 0 or

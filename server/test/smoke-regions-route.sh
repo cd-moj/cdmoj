@@ -98,4 +98,18 @@ call /contest/admin/regions GET '' sadm 'contest=sh&login=i1'; ck "GET ?login=i1
 call /contest/admin/regions POST '{"assign":[{"login":"i1","region":""}]}' sadm 'contest=sh'
 ck "\"\" no inscrito limpa o roster e o overlay" '[[ "$(jq -r ".entries.i1.region" "$S/registrations.json")" == "" && "$(jq -r ".team.region // \"-\"" "$S/users/i1/account.json")" == - ]]'
 
+echo "== renomear a sede leva as referências pelo NOME; apagar avisa (auditoria do painel, 03/10/2026) =="
+mkdir -p "$C/print-requests"
+printf '{"x.cstaff":["region:A"],"y.staff":["^b"]}' > "$C/print-requests/staff-filters.json"
+printf '{"mode":"enforce","by_region":{"a ":"IMG-A"}}' > "$C/ua-gate.json"
+printf '{"contests":[{"name":"Geral","source":{"kind":"view","id":"public"},"sites":[{"name":"Sede A","source":{"kind":"region","id":"A"}}]}]}' > "$C/animeitor.json"
+call /contest/admin/regions GET '' adm 'contest=sr'; SIG="$(J .sig)"
+call /contest/admin/regions POST "{\"tree\":[{\"name\":\"Alfa\",\"regex\":\"^a\"}],\"renames\":[{\"from\":\"A\",\"to\":\"Alfa\"}],\"expect_sig\":\"$SIG\"}" adm 'contest=sr'
+ck "renomear A→Alfa: 3 configurações acompanham, nenhuma órfã" '[[ "$(st)" == 200 && "$(J .refs_renamed)" == 3 && "$(J ".orphan_refs | length")" == 0 ]]'
+ck "staff region:Alfa; gate by_region Alfa; telão source Alfa" '[[ "$(jq -r ".\"x.cstaff\"[0]" "$C/print-requests/staff-filters.json")" == region:Alfa && "$(jq -r ".by_region | keys[0]" "$C/ua-gate.json")" == Alfa && "$(jq -r ".contests[0].sites[0].source.id" "$C/animeitor.json")" == Alfa ]]'
+call /contest/admin/regions GET '' adm 'contest=sr'; SIG="$(J .sig)"
+call /contest/admin/regions POST "{\"tree\":[{\"name\":\"Beta\",\"regex\":\"^a\"}],\"expect_sig\":\"$SIG\"}" adm 'contest=sr'
+ck "trocar sem renames: as 3 referências voltam como órfãs" '[[ "$(st)" == 200 && "$(J "[.orphan_refs[].where] | sort | join(\",\")")" == "animeitor,staff,ua_gate" ]]'
+echo '[{"name":"A","regex":"^a"}]' > "$C/regions.json"; rm -f "$C/print-requests/staff-filters.json" "$C/ua-gate.json" "$C/animeitor.json"
+
 echo ""; echo "RESULT: $pass passed, $fail failed"; exit $(( fail > 0 ? 1 : 0 ))

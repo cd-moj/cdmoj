@@ -291,7 +291,8 @@ an_build(){
               at:.t, login:(.team // ""), name:(nm(.team // "")), region:(rg(.team // "")), machine:(.mkey // ""),
               detail:({event:.event, image:(.image // ""), mac:(.mac // ""), boot_id:(.boot_id // "")} + (.extra // {}))} ]) as $EV
     | ((if ($active or $identified) then ($MS + $SH + $SO + $SW) else [] end) + $SS + (if $active then $UM else [] end)
-       | map(. + {id: (.kind + "|" + (.login // "") + "|" + (.machine // ""))}
+       # site_short não tem login nem máquina: sem a SEDE no id, explicar uma explicava TODAS (auditoria, 03/10/2026)
+       | map(. + {id: (.kind + "|" + (.login // "") + "|" + (.machine // "") + (if .kind == "site_short" then "|" + (.region // "") else "" end))}
              | . + (($X[.id] // null) as $m | if $m == null then {} else {explained: {by: ($m.by // ""), at: ($m.at // 0), note: ($m.note // "")}} end))) as $ANALL
     # contagens e flags só do que NÃO foi explicado (o explicado segue na lista, apagado)
     | [ $ANALL[] | select(has("explained") | not) ] as $AN

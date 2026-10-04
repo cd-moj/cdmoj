@@ -1,4 +1,4 @@
-<!-- i18n-source: MANUAL-ADMIN.md blob:ca2b8e199394b8b6015de3ff84a26bead6e49571 -->
+<!-- i18n-source: MANUAL-ADMIN.md blob:7d169ec30f773b753c39ae8751a742cff8a24947 -->
 # MOJ: Organizer manual (the contest .admin panel)
 
 > **Translation note.** This manual is a translation of the Portuguese original. The command-line tools (`moj`, `moj-contest`, `moj-comp`) print their messages in Portuguese, and the command examples below are identical to the original.
@@ -672,14 +672,18 @@ usual `login_ua_substring`, which continues to apply as the last option).
   during the contest**. `--mode off` turns off the gate without deleting the configuration.
 - The Machines › Gate & lock panel shows the **expected UA × seen UA** per team, and counts how
   many are outside the site image. This is how you fix the room **in the warm-up**, before the
-  gate blocks a team in the contest.
+  gate blocks a team in the contest. The ✓ means that ALL browsers seen for that team are the site
+  image; with one outside, it shows "partly off-image".
+- With team registration, the gate checks a **member** against the expected UA of the **team** (the site
+  and the login pattern belong to the team account).
 - To log out a team that is already logged in with the wrong browser, use **"Log out mismatched
   UA"** (Machines › Anomalies). It compares each session with the expected value of **that** team.
 - **Per-site IP lock** (switch in the same 🔒 section, OFF by default; turn it on for the contest):
   the gate and the subdomain isolation do not stop `curl --resolve moj…:443:<IP>` from the contest
   machine to the base site (training, backups that the student uploaded before, another contest).
   With the lock, each competitor login **pins the source IP** (the exit of the site) to this
-  contest until the end + a margin. From that IP, any other target responds **403 `site_locked`**,
+  contest until the end + a margin (with rounds, until the end of the last planned round: an IP pinned in the
+  warm-up stays pinned in the official round). From that IP, any other target responds **403 `site_locked`**,
   also a training session opened before. Role accounts are exempt. **Every claim and every block
   goes to the audit** (`site-lock-claim`, `site-lock-block`). They appear in Machines › Gate &
   lock (site lock), with "release" per IP and "🔒 Pin IPs already seen" (useful on the morning of
@@ -711,7 +715,9 @@ any time. A mode that does not fit the current tree is disabled and tells you wh
 - **Simple** — a list of sites. Each site has "logins that start with" (comma-separated). To assign teams,
   paste the list of logins and choose the site, or choose the site of each team without a site. When you
   rename a site, the teams stored with the old name move with it (the preview shows how many before you
-  save). By the IP of the contest machine: Machines › Gate.
+  save), and so do the staff scope (`region:`), the browser gate of the site and the big-screen site. When you
+  save, the screen warns if something still points to a site that does not exist. By the IP of the contest
+  machine: Machines › Gate.
 - **Intermediate** — groups (country, region) › sites. Each site has rules: starts with, contains, ends with,
   or is one of (list).
 - **Advanced** — the whole tree: sub-regions, `view` cuts and free regex.

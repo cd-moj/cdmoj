@@ -115,7 +115,9 @@ ch_view_cohorts(){
       else
         ((first(.cohorts[] | select(.id == $v))) as $co
          | if $co == null then $pub
-           elif ($co.sees | length) > 0 then $co.sees
+           # a coorte privada SEMPRE se vê: um `sees` sem ela mesma deixava os convidados fora do próprio placar
+           # (auditoria do painel, 03/10/2026)
+           elif ($co.sees | length) > 0 then ($co.sees + [$co.id])
            # placar PARALELO de coorte pública (times × individual): só ela — senão o
            # "placar dos times" mostraria todo mundo, que é o placar geral
            elif ($co.public and $co.ranking) then [$co.id]

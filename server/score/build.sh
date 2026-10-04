@@ -205,6 +205,11 @@ if declare -F ch_enabled >/dev/null && ch_enabled "$CONTEST"; then
     done )
 else
   rm -f "$CONTESTDIR"/var/placar-view-*.txt "$CONTESTDIR"/var/placar-view-*.txt.gz 2>/dev/null
+  # coorte PÚBLICA extra-oficial (unranked) sem coorte privada/ranking: o placar público ainda leva a coluna guest
+  # (o time aparece sem consumir posição) — sem isto a marca não tinha efeito nenhum (auditoria, 03/10/2026)
+  if declare -F ch_unranked_of_view >/dev/null && [[ -s "$CONTESTDIR/cohorts.json" ]]; then
+    VIEW_UNRANKED="$(ch_unranked_of_view "$CONTEST" public | tr '\n' ' ' | sed 's/ *$//')"
+  fi
   gen_pair "$OUT" "$FULL"
 fi
 

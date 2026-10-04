@@ -24,11 +24,19 @@ _mexp="$(account_field "$contest" "$u" '.managed.expires_at')"; _mexp="${_mexp//
 # lib/ua-gate.sh resolve tudo e cai no LOGIN_UA_SUBSTRING legado quando não há ua-gate.json.
 # Papéis privilegiados seguem isentos (precisam entrar para configurar).
 source "$_LIBDIR/ua-gate.sh"
+source "$_LIBDIR/registration.sh"
 # o esperado é capturado UMA vez: é o teste do gate (ug_ok inline) e, depois do alias, o critério
 # "este login está sujeito ao gate" da sessão única (vazio = sem gate p/ ele: off, isento, papel
 # ou sem regra). O `mode` sozinho NUNCA decide (é enforce por default sem arquivo, p/ o legado valer):
 # ele só separa, entre quem TEM esperado, barrar (enforce) de apenas observar (observe).
-_ugexp="$(ug_expected "$contest" "$u")"
+# MEMBRO de time inscrito: o gate é o do TIME (a sede e o padrão de login são da conta do time — com o login
+# da pessoa o esperado saía vazio e o membro entrava de qualquer máquina; auditoria do painel, 03/10/2026)
+_uglogin="$u"
+if reg_enabled "$contest"; then
+  _ugt="$(reg_team_of "$contest" "$u")"
+  [[ -n "$_ugt" ]] && user_exists "$contest" "$_ugt" && _uglogin="$_ugt"
+fi
+_ugexp="$(ug_expected "$contest" "$_uglogin")"
 # modo e sessão única num jq só (só p/ quem tem esperado). `observe` resolve o esperado mas NÃO barra nem
 # derruba sessão — é o modo de olhar (painel e anomalias) sem risco.
 _ugmode=off; _ugsingle=false
@@ -46,7 +54,6 @@ fi
 # API direto entrava assim mesmo. Agora valem aqui, junto do roster de inscritos
 # (lib/registration.sh). Conta de PAPEL nunca é barrada: o organizador precisa entrar antes
 # de todo mundo (e p/ configurar a prova).
-source "$_LIBDIR/registration.sh"
 if ! is_reserved_role_login "$u"; then
   # \x01 como separador: campo vazio no meio DESLOCA os seguintes quando o IFS é tab (ver CLAUDE.md)
   _dc="$( ( LOGIN_ENABLED=""; LOGIN_START_TIME=""; source "$CONTESTSDIR/$contest/conf" 2>/dev/null

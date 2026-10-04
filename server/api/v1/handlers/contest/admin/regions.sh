@@ -11,8 +11,11 @@
 #                    conta no account.json, compartilhado só com dir ganha overlay; membro de time = o time;
 #       mode       — simple|rules|tree: o modo do painel (REGIONS_MODE no conf; só dica p/ a interface);
 #       dry_run    — true: a PRÉVIA com a árvore/atribuições propostas, nada é gravado;
-#       expect_sig — o `sig` que a tela leu: a árvore mudou desde então = 409 regions_changed.
-#   -> {saved|dry_run, sig, summary, assigned:[{login,target}], failed:[{login,code}]}
+#       expect_sig — o `sig` que a tela leu: a árvore mudou desde então = 409 regions_changed;
+#       renames    — [{from, to}] sedes RENOMEADAS na tela: o escopo do staff (`region:`), o `by_region` do gate
+#                    e as sedes do Animeitor acompanham (rg_ref_rename; 03/10/2026).
+#   -> {saved|dry_run, sig, summary, assigned:[{login,target}], failed:[{login,code}], refs_renamed,
+#       orphan_refs:[{where:staff|ua_gate|animeitor, name, login?}]}  (referência a sede que não existe mais)
 require_auth_contest "$(param contest)"
 contest="$(param contest)"
 [[ -n "$contest" ]] || fail 400 "Missing contest" "contest_missing"
@@ -70,6 +73,11 @@ jq -e '(.assign // []) | type == "array" and all(.[]; type == "object" and ((.lo
   || fail 422 "assign = lista de {login, region}" "assign_invalid"
 jq -r '(.assign // [])[] | [.login, (.region // "")] | map(gsub("[\t\n\r]"; " ")) | join("\t")' <<<"$body" > "$W/assign.tsv"
 (( $(wc -l < "$W/assign.tsv") <= 5000 )) || fail 422 "No máximo 5000 atribuições por vez" "assign_too_many"
+jq -e '(.renames // []) | type == "array" and length <= 500 and all(.[]; type == "object"
+        and ((.from // "") | type) == "string" and ((.to // "") | type) == "string")' >/dev/null 2>&1 <<<"$body" \
+  || fail 422 "renames = lista de {from, to}" "renames_invalid"
+jq -r '(.renames // [])[] | select(.from != "" and .to != "" and .from != .to) | [.from, .to] | map(gsub("[\t\n\r]"; " ")) | join("\t")' \
+  <<<"$body" > "$W/renames.tsv"
 
 # prévia: nada é gravado
 if [[ "$dry" == 1 ]]; then
@@ -107,11 +115,20 @@ if [[ -s "$cdir/regions.json" ]] || gawk -F'\t' '$3 == "" { f = 1 } END { exit !
   declare -F mod_enable >/dev/null || source "$_LIBDIR/modules.sh"
   mod_enable "$contest" sedes
 fi
+# sedes renomeadas: as referências pelo nome acompanham (escopo do staff, gate, Animeitor); o que sobrar apontando
+# p/ sede que não existe mais volta em orphan_refs (a tela avisa)
+nref=0
+while IFS=$'\t' read -r _rf _rt; do
+  [[ -n "$_rf" && -n "$_rt" ]] || continue
+  _k="$(rg_ref_rename "$contest" "$_rf" "$_rt")"; nref=$(( nref + ${_k:-0} ))
+  audit_log_to "$contest" regions-rename "from=$_rf to=$_rt refs=${_k:-0}" 2>/dev/null || true
+done < "$W/renames.tsv"
+rg_orphan_refs "$contest" > "$W/orph.json"; [[ -s "$W/orph.json" ]] || printf '[]' > "$W/orph.json"
 rg_build "$contest" || fail 500 "Sedes gravadas, mas o mapa falhou" "regions_map_failed"
 rg_summary "$cdir/var/regions-nodes.json" "$cdir/var/regions-map.tsv" > "$W/sum.json"
 jq -Rsc 'split("\n") | map(select(length > 0) | split("\t")) | {ok:[.[] | select((.[2] // "") == "") | {login:.[0], target:.[1]}],
          bad:[.[] | select((.[2] // "") != "") | {login:.[0], code:.[2]}]}' "$W/res.tsv" > "$W/res.json"
 audit_log_to "$contest" regions-save \
   "tree=$has_tree assign=$(wc -l < "$W/assign.tsv") ok=$(jq '.ok | length' "$W/res.json") mode=${mode:--}" 2>/dev/null || true
-ok_json_slurp '{saved:true, sig:$sig, summary:$sm[0], assigned:$r[0].ok, failed:$r[0].bad}' sm "$(cat "$W/sum.json")" \
-  --slurpfile r "$W/res.json" --arg sig "$(rg_sig "$contest")"
+ok_json_slurp '{saved:true, sig:$sig, summary:$sm[0], assigned:$r[0].ok, failed:$r[0].bad, refs_renamed:$nr, orphan_refs:$o[0]}' sm "$(cat "$W/sum.json")" \
+  --slurpfile r "$W/res.json" --arg sig "$(rg_sig "$contest")" --argjson nr "$nref" --slurpfile o "$W/orph.json"

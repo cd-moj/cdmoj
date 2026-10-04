@@ -194,6 +194,8 @@ call /contest/admin/rounds POST "$(jq -cn --argjson s "$((NOW+100))" --argjson e
 ck "rounds add => rodadas"                   'has_mod "$L" rodadas'
 call /contest/admin/cohorts POST '{"action":"add","id":"ccl","name":"CCL","regex":"^ccl","public":false}' adm-lista 'contest=lista'
 ck "cohorts add => coortes"                  'has_mod "$L" coortes'
+call /contest/admin/cohorts GET '' adm-lista 'contest=lista'
+ck "GET cohorts: \"Placares gerados\" traz o geral (public), a coorte e o completo" '[[ "$(jq -c .views <<<"$BODY")" == "[\"public\",\"ccl\",\"all\"]" ]]'
 call /contest/admin/ua-gate POST '{"action":"set","mode":"off"}' adm-lista 'contest=lista'
 ck "ua-gate mode=off NÃO liga maquinas"      '! has_mod "$L" maquinas'
 call /contest/admin/ua-gate POST '{"action":"set","mode":"enforce","from_login":{"regex":"^team([a-z]{6})","expect":"\\1"}}' adm-lista 'contest=lista'

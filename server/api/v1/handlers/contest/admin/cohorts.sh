@@ -45,7 +45,8 @@ _ch_counts_file(){  # <out-json>
 if [[ "$REQUEST_METHOD" == GET ]]; then
   is_admin_or_chief || fail 403 "Apenas o admin ou o juiz-chefe" "admin_required"
   cf="$(mktemp)"; _ch_counts_file "$cf"
-  views="$(ch_views "$contest" | jq -Rc '[inputs]' 2>/dev/null)"; [[ -n "$views" ]] || views='["public"]'
+  # -n: sem ele o jq consome a 1ª linha ("public") como `.` e o `[inputs]` só vê as demais (a tela perdia o geral)
+  views="$(ch_views "$contest" | jq -Rnc '[inputs]' 2>/dev/null)"; [[ -n "$views" ]] || views='["public"]'
   body="$(jq -cn --argjson j "$(ch_get "$contest")" --slurpfile c "$cf" --argjson v "$views" '
     ($c[0] // {}) as $C
     | {success:true, cohorts:($j.cohorts // []), results_released:($j.results_released == true),
@@ -93,7 +94,9 @@ case "$action" in
       + (if ($B|has("sees"))     then {sees:[($B.sees // [])[] | tostring]} else {} end)
       | .name = (if (.name // "") == "" then .id else .name end)
       | .public = (.public != false) | .unranked = (.unranked == true)
-      | .sees = (.sees // []) | .default = (.default == true)' <<<'null')"
+      | .sees = (.sees // []) | .default = (.default == true)
+      # coorte privada com `sees` escolhido: ela mesma entra (a visão já a inclui; a tela mostra marcado)
+      | if (.public | not) and (.sees | length) > 0 and ((.sees | index($i)) == null) then .sees += [$i] else . end' <<<'null')"
     [[ -n "$new" ]] || fail 500 "falha ao montar a coorte" "build_fail"
     if [[ "$exists" == true ]]; then
       j="$(jq -c --arg i "$id" --argjson n "$new" '.cohorts = [ .cohorts[] | if .id == $i then $n else . end ]' <<<"$j")"

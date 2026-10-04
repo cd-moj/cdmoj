@@ -88,7 +88,9 @@ máquina↔time** (roster/binding).
   `nb_staff_regions`) — sourceada POR HANDLER (rota fria, fora do prelúdio do MOLDE).
 - **Coletor**: `server/score/nutella-gen.sh <c> [out] [--reaggregate]` (standalone,
   destacado pelo painel) — baixa imagens/roster/máquinas (xargs -P) e as séries **em lote, 1 request
-  por sede** (`limit=5000`, `active_since` = início da janela; janela = [início−1h, fim+1h]). Era 1 request
+  por sede** (`limit=5000`, `active_since` = início da janela; janela = [início−1h, fim+1h]; **antes do início** a
+  janela é a ÚLTIMA HORA e o cache sai com `prestart:true` — inventário, não a prova; a janela de antes saía invertida
+  e a coleta dizia "ok" com uso/carga zerados, 03/10/2026). Era 1 request
   POR MÁQUINA: ~1.700 na Maratona, 1 min 16 s; o lote de uma sede de 29 máquinas volta em 0,15 s e a
   coleta inteira dela em 0,6 s (medido em 21/09/2026). Guarda o BRUTO em `var/nutella-raw/`
   (`samples/<sede>.ndjson`; `--reaggregate` refaz tudo dali, sem rede — mudança de view/agregado não
@@ -197,8 +199,10 @@ máquina↔time** (roster/binding).
   deploy). O UA pode ser forjado — quem barra isso é o gate de UA por sede; o binding é informação p/ o staff,
   não controle de acesso. `nutella-bind.log` e `nutella-macs.tsv` atravessam as rodadas (cópia no arquivo).
 - **Roster**: `POST {action:"push-roster"}` PUBLICA o roster do STORE nas imagens (user_id=login, nome do
-  time, universidade, país; os times de cada sede vêm da última coleta — que, com roster vazio, os tira do
-  UA dos logins) — sem `force` ele NUNCA atropela roster já povoado (o da Maratona veio do ICPC).
+  time, universidade, país; os times de cada imagem = os da SEDE no store — regra única de sedes, pelo nome da sede
+  do cache — ∪ os da última coleta que são conta do contest) — sem `force` ele NUNCA atropela roster já povoado (o da
+  Maratona veio do ICPC). Sede sem time nenhum NÃO recebe roster vazio: vai p/ `empty` na resposta (03/10/2026: na
+  véspera, só com o cache, todo roster saía vazio e a tela dizia "enviadas").
 - **Alertas em tempo real (webhooks, 21/09)**: o serviço avisa por `POST` assinado (`X-NB-Signature:
   sha256=<HMAC-SHA256 do corpo cru>`; até 3 tentativas, 5 s cada) — o MOJ recebe em **`POST /api/v1/hooks/
   nutella?contest=<c>`** (`handlers/hooks/nutella.sh`), sem Bearer. Segredo POR CONTEST em

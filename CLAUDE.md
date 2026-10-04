@@ -115,7 +115,8 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
 - **Trava de sede por IP (`lib/site-lock.sh`, 2026-09-02)**: o isolamento por subdomínio só vale
   p/ quem entra pelo subdomínio — `curl --resolve` da máquina de prova chega ao site base pelo
   mesmo IP. Com `SITE_LOCK=1` no conf, login de competidor reivindica o IP de origem
-  (`run/site-lock/<ip>`, TSV uma linha por contest, flock por IP) até `CONTEST_END+grace`; o
+  (`run/site-lock/<ip>`, TSV uma linha por contest, flock por IP) até `CONTEST_END+grace` (com rodadas, o fim da
+  ÚLTIMA rodada não arquivada — a reivindicação do aquecimento cobre a oficial); o
   `router.sh` responde 403 `site_locked` a outro alvo (papel isento; `auth/logout` passa) — custo
   `[[ -f ]]` p/ IP não preso. **Toda reivindicação nova e todo bloqueio vão ao audit** (com teto de
   1 linha/5 min por ip+alvo) e aos painéis Máquinas › Gate & trava (reivindicações/soltar/prender)
@@ -765,9 +766,12 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   não vale, `off`. Quem decide barrar no `login.sh` é `mode == enforce` E esperado não vazio — o `mode` sozinho
   nunca (sem `ua-gate.json` ele vem `enforce` p/ o legado valer). Ligar SEM regra (`ug_has_rule`) = 422
   `gate_no_rule`; o GET diz `configured`/`has_rule` e o painel mostra o modo real (o "ativo" sem regra do TCP
-  2026); a Central avisa `maquinas` ligado sem `ua-gate.json` (Desligado gravado = ok). **`ug_expected_map` é o MESMO
-  programa jq em lote** (`UG_JQ`) — o painel **Máquinas › Gate & trava** precisa do esperado por time e não pode
-  forkar por login; se mudar a ordem, mude nos dois. Armadilhas jq que isto pisou: `first()` de
+  2026); a Central avisa `maquinas` ligado sem `ua-gate.json` (Desligado gravado = ok). **O esperado é UM programa jq**
+  (`UG_JQ`/`ug_expect`): o `ug_expected` (login) e o `ug_expected_map` (lote do painel **Máquinas › Gate & trava**, que
+  não pode forkar por login) o chamam — até 03/10/2026 o do login era uma cópia em que o `by_region` vencia o `by_regex`
+  e o painel prometia um esperado e o login cobrava outro. **Membro de time inscrito é cobrado pelo esperado do TIME**
+  (o `login.sh` resolve o alias ANTES do gate). O ✓ da tabela = TODOS os navegadores vistos casam (`ua_match`; `ua_any`
+  = algum). Armadilhas jq que isto pisou: `first()` de
   stream vazio e **`match()` SEM casamento** devolvem VAZIO, e `vazio as $v | …` anula a
   expressão inteira (use `// null`); `sub()` **não entende `\1`** — as capturas vêm do `match`.
 - **Coortes de placar** (`lib/cohorts.sh` + `handlers/contest/admin/cohorts.sh`, UI no painel
@@ -1380,7 +1384,9 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   F5: painel de sedes em 3 MODOS (`sites-tab.js` + modelo puro `sites-model.js`; gjs `smoke-sites-model`/
   `smoke-sites-tab`): a árvore é a verdade, modo = vista; `rule` no nó é SÓ p/ a interface (descartado se não
   gera mais a regex exata); prévia = rgAssign sobre `?map=1` + pendências; renomear leva os times GRAVADOS
-  (delta visível antes de salvar). Central: item `regions` (regex recusada/órfã/parou no pai/sem sede).
+  (delta visível antes de salvar) e, pelo `renames` do POST, as REFERÊNCIAS pelo nome (`region:` do staff-filters,
+  `by_region` do ua-gate, `source` region do animeitor.json — `rg_ref_rename`); o que sobrar apontando p/ sede que não
+  existe volta em `orphan_refs` (`rg_orphan_refs`) e a tela avisa (03/10/2026). Central: item `regions` (regex recusada/órfã/parou no pai/sem sede).
   A órfã (gravada fora da árvore) PENDURA no nó que a regex daria. Cache válido por IDENTIDADE (inode:
   tamanho:mtime) do regions.json/registrations.json — `mv`/restauração com mtime antigo refaz. `server/bin/regions-audit.sh <c>` (só lê) diz o que muda
   em cada consumidor antigo — rodar na produção antes de migrar (em 28/09: zero diferenças nos 3 reais).

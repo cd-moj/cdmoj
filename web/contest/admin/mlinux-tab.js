@@ -155,7 +155,8 @@ export function makeMlinuxTab(CONTEST) {
         el('button', { class: 'btn ghost', onclick: () => act({ action: 'config', bind: !b.enabled }, () => '') },
           b.enabled ? T('desligar', 'turn off', 'desactivar') : T('ligar', 'turn on', 'activar')),
         el('button', { class: 'btn ghost', title: T('Envia ao nutellaboot os times de cada sede (da última coleta). Não mexe em roster já preenchido.', 'Sends the teams of each site (from the last collection) to nutellaboot. Does not touch a roster that already has entries.', 'Envía a nutellaboot los equipos de cada sede (de la última recolección). No modifica un roster que ya tenga entradas.'),
-          onclick: () => act({ action: 'push-roster' }, (r) => T(`roster: ${r.pushed} enviadas, ${r.kept} mantidas, ${r.failed} falharam`, `roster: ${r.pushed} sent, ${r.kept} kept, ${r.failed} failed`, `roster: ${r.pushed} enviadas, ${r.kept} mantenidas, ${r.failed} fallaron`)) },
+          onclick: () => act({ action: 'push-roster' }, (r) => T(`roster: ${r.pushed} enviadas, ${r.kept} mantidas, ${r.failed} falharam`, `roster: ${r.pushed} sent, ${r.kept} kept, ${r.failed} failed`, `roster: ${r.pushed} enviadas, ${r.kept} mantenidas, ${r.failed} fallaron`)
+            + ((r.empty || []).length ? T(` · sem time (nada enviado): ${r.empty.join(', ')}`, ` · no team (nothing sent): ${r.empty.join(', ')}`, ` · sin equipo (nada enviado): ${r.empty.join(', ')}`) : '')) },
         T('📋 enviar roster', '📋 send roster', '📋 enviar roster')),
         el('button', { class: 'btn ghost', title: T('Reenvia o vínculo de todo login já feito (use depois de enviar o roster).', 'Resends the link of every login already made (use it after sending the roster).', 'Reenvía el vínculo de cada inicio de sesión ya hecho (úsalo después de enviar el roster).'),
           onclick: () => act({ action: 'push-bindings' }, (r) => T(`${r.queued} vínculos na fila de envio`, `${r.queued} links queued`, `${r.queued} vínculos en cola de envío`)) },
@@ -174,7 +175,10 @@ export function makeMlinuxTab(CONTEST) {
       msg.className = 'small'; msg.textContent = '…';
       try {
         const r = await apiPost('/contest/nutella?contest=' + enc(CONTEST), Object.assign({ action: 'webhooks-install', base_url: base.value.trim() }, body), G);
-        msg.textContent = T(`${r.ok} sede(s) ok, ${r.failed} falharam`, `${r.ok} site(s) ok, ${r.failed} failed`, `${r.ok} sede(s) ok, ${r.failed} fallaron`); load();
+        msg.textContent = T(`${r.ok} sede(s) ok, ${r.failed} falharam`, `${r.ok} site(s) ok, ${r.failed} failed`, `${r.ok} sede(s) ok, ${r.failed} fallaron`);
+        // nenhuma sede aceitou: não há webhook instalado (a chave precisa do escopo webhooks:write)
+        if (!body.remove && !r.ok) { msg.className = 'small error-box'; msg.textContent += T(' — nada instalado', ' — nothing installed', ' — nada instalado'); }
+        load();
       } catch (e) {
         msg.className = 'small error-box'; msg.textContent = e.message || T('falha', 'failed', 'fallido');
       }
@@ -185,7 +189,7 @@ export function makeMlinuxTab(CONTEST) {
         'Nutellaboot tells MOJ when a machine raises an alert (USB storage, phone, USB network, duplicate identity) and when it reboots, disappears or comes back. Everything shows in Machines › Anomalies; alerts reach the contest owner on Telegram during the contest. The key saved above needs the webhooks:write scope.',
         'Nutellaboot le avisa a MOJ cuando una máquina genera una alerta (almacenamiento USB, teléfono, red por USB, identidad duplicada) y cuando se reinicia, desaparece o vuelve. Todo aparece en Máquinas › Anomalías; las alertas llegan al dueño de la competencia por Telegram durante la competencia. La clave guardada arriba necesita el alcance webhooks:write.')),
       el('div', { class: 'small', style: 'margin:.2rem 0 .4rem' },
-        (w.installed ? T('instalado', 'installed', 'instalado') : T('não instalado', 'not installed', 'no instalado')) + ' · ' + T(`${w.events} alertas recebidos`, `${w.events} alerts received`, `${w.events} alertas recibidas`)
+        (w.installed ? T(`instalado em ${w.sites || 0} sede(s)`, `installed on ${w.sites || 0} site(s)`, `instalado en ${w.sites || 0} sede(s)`) : T('não instalado', 'not installed', 'no instalado')) + ' · ' + T(`${w.events} alertas recebidos`, `${w.events} alerts received`, `${w.events} alertas recibidas`)
 ),
       el('div', { class: 'row', style: 'gap:.5rem;align-items:center;flex-wrap:wrap' },
         el('label', { class: 'small' }, T('URL pública do MOJ: ', 'MOJ public URL: ', 'URL pública de MOJ: '), base),

@@ -243,8 +243,11 @@ export function makeMachinesTab(CONTEST) {
           r.ua_expected
             ? [el('code', {}, r.ua_expected), ' ',
                r.ua_match === false
-                 ? el('span', { class: 'pill', style: 'background:#c0392b;color:#fff' }, T('fora do padrão', 'off-image', 'fuera de la imagen'))
-                 : el('span', { class: 'pill ok' }, '✓')]
+                 // ✓ = TODOS os navegadores vistos são o da imagem; com algum fora, diz se foi parte ou tudo
+                 ? el('span', { class: 'pill', style: 'background:#c0392b;color:#fff' }, r.ua_any
+                     ? T('parte fora do padrão', 'partly off-image', 'parte fuera de la imagen')
+                     : T('fora do padrão', 'off-image', 'fuera de la imagen'))
+                 : el('span', { class: 'pill ok', title: T('todos os navegadores vistos são o da imagem da sede', 'every browser seen is the site image', 'todos los navegadores vistos son el de la imagen de la sede') }, '✓')]
             : el('span', { class: 'muted' }, T('sem gate', 'no gate', 'sin gate'))),
         el('td', { class: 'small' }, fmt(r.first) + (r.logins > 1 ? T(` · ${r.logins} logins`, ` · ${r.logins} logins`, ` · ${r.logins} logins`) : '')),
         el('td', {}, r.changed ? el('span', { class: 'pill', style: 'background:#c0392b;color:#fff' },

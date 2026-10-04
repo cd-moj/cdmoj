@@ -60,6 +60,14 @@ call /contest/admin/user-disable POST "{\"login\":\"$TEAM\",\"undo\":true}" tok-
 login caio
 ck "reabilitar o time: membro volta a entrar" '[[ "$(J .username)" == "$TEAM" ]]'
 
+echo "== gate de navegador: o MEMBRO é cobrado pelo esperado do TIME (antes saía vazio e entrava de qualquer máquina) =="
+printf '{"mode":"enforce","by_regex":[{"regex":"^time-","expect":"SEDE-X"}]}' > "$C/ua-gate.json"
+OUT="$(PATH_INFO=/auth/login REQUEST_METHOD=POST QUERY_STRING=contest=esq HTTP_USER_AGENT="Mozilla/5.0 Chrome" bash "$ROUTER" <<<'{"username":"caio","password":"s3nha"}' 2>&1)"; BODY="$(printf '%s' "$OUT" | awk 'f{print} /^\r?$/{f=1}')"
+ck "membro de máquina errada: 403 ua_gate" '[[ "$OUT" == *"Status: 403"* && "$(J .error.code)" == ua_gate ]]'
+OUT="$(PATH_INFO=/auth/login REQUEST_METHOD=POST QUERY_STRING=contest=esq HTTP_USER_AGENT="Mozilla/5.0 SEDE-X img" bash "$ROUTER" <<<'{"username":"caio","password":"s3nha"}' 2>&1)"; BODY="$(printf '%s' "$OUT" | awk 'f{print} /^\r?$/{f=1}')"
+ck "membro da máquina da sede: entra como o time" '[[ "$(J .username)" == "$TEAM" ]]'
+rm -f "$C/ua-gate.json"
+
 echo "== desclassificação sobrevive à re-materialização =="
 call /contest/admin/user-disqualify POST "{\"login\":\"$TEAM\"}" tok-adm 'contest=esq'
 adm '{"action":"materialize"}'

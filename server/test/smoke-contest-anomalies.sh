@@ -139,6 +139,17 @@ ck "flag do time não leva a explicada"             '[[ "$(J ".teams[]|select(.l
 call /contest/admin/anomalies POST "$(jq -cn --arg id "$SWID" '{action:"unexplain", id:$id}')" adm 'contest=an'
 call /contest/admin/anomalies GET '' adm 'contest=an'
 ck "desfazer: volta à contagem"                    '[[ "$(J .counts.switched)" == 1 && "$(J .counts.explained)" == 0 ]]'
+# site_short não tem login nem máquina: explicar a de UMA sede não pode explicar as outras (auditoria, 03/10/2026)
+cp "$C/var/nutella.cache.json" "$C/var/nutella.cache.json.bak"
+jq '.sedes += [{name:"Sede C", machines_total:1, seen:1, teams:["teamaa001","teamaa002"], pop:{teams:2, present:2}}]' \
+  "$C/var/nutella.cache.json.bak" > "$C/var/nutella.cache.json"
+call /contest/admin/anomalies GET '' adm 'contest=an'
+NSS="$(J .counts.site_short)"; SSID="$(J 'first(.anomalies[]|select(.kind=="site_short" and .name=="Sede A"))|.id')"
+call /contest/admin/anomalies POST "$(jq -cn --arg id "$SSID" '{action:"explain", id:$id, note:"sede A conferida"}')" adm 'contest=an'
+call /contest/admin/anomalies GET '' adm 'contest=an'
+ck "site_short: explicar a Sede A deixa a Sede C contada" '[[ "$NSS" -ge 2 && "$(J .counts.site_short)" == $((NSS - 1)) && "$(J "first(.anomalies[]|select(.kind==\"site_short\" and .name==\"Sede C\"))|has(\"explained\")")" == false ]]'
+call /contest/admin/anomalies POST "$(jq -cn --arg id "$SSID" '{action:"unexplain", id:$id}')" adm 'contest=an'
+mv -f "$C/var/nutella.cache.json.bak" "$C/var/nutella.cache.json"
 call /contest/admin/anomalies POST '{"action":"explain","id":"x"}' adm 'contest=an'
 ck "id fora do formato → 422"                      '[[ "$OUT" == *"Status: 422"* && "$(J .error.code)" == id_invalid ]]'
 call /contest/admin/anomalies POST '{"action":"explain","id":"switched|a|b","note":"x"}' comp 'contest=an'

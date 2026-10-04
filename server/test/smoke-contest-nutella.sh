@@ -226,6 +226,13 @@ call /contest/nutella POST '{"action":"collect"}'
 ck "collect dispara"                 '[[ "$(J .started)" == true ]]'
 for _ in $(seq 100); do [[ "$(jq -r '.running' "$C/var/nutella.status.json" 2>/dev/null)" == false ]] && break; sleep 0.1; done
 ck "coleta destacada terminou ok"    '[[ "$(jq -r .ok "$C/var/nutella.status.json")" == true ]]'
+# ANTES do início (auditoria do painel, 03/10/2026): a janela saía INVERTIDA e a coleta "ok" com tudo zerado
+cp "$C/conf" "$MOCKD/conf.keep"; cp "$C/var/nutella.cache.json" "$MOCKD/cache.keep2.json"
+sed -i -e "s/^CONTEST_START=.*/CONTEST_START=$((NOW+7200))/" -e "s/^CONTEST_END=.*/CONTEST_END=$((NOW+14400))/" "$C/conf"
+CONTESTSDIR="$FIX" bash "$ROOT/score/nutella-gen.sh" nt >/dev/null 2>&1
+ck "antes do início: inventário da última hora, marcado prestart, janela em ordem" '[[ "$(CJ .prestart)" == true && "$(CJ ".window.start < .window.end and .contest.start < .contest.end")" == true ]]'
+cp "$MOCKD/conf.keep" "$C/conf"; cp "$MOCKD/cache.keep2.json" "$C/var/nutella.cache.json"
+ck "depois do início: prestart false" '[[ "$(CJ .prestart)" == false ]]'
 
 echo "== comandos (NutellaBoot 3: SEMPRE a rota da sede, com target) =="
 # O mock é ESTRITO como o serviço: POST …/machines/{mac}/commands = 405 e POST /commands sem
@@ -267,6 +274,15 @@ call /contest/nutella POST '{"action":"push-roster"}'
 ck "sem force: roster povoado é PRESERVADO" '[[ "$(J .kept)" == 2 && "$(J .pushed)" == 0 ]]'
 call /contest/nutella POST '{"action":"push-roster","force":true}'
 ck "force: PUT do roster nas 2 imagens" '[[ "$(J .pushed)" == 2 ]] && grep -q "\"PUT\"" "$MOCKD/posts.log" && grep -q "Time Alice" "$MOCKD/posts.log"'
+# véspera (auditoria do painel, 03/10/2026): o cache não conhece time nenhum (roster do serviço vazio, ninguém logado) —
+# os times vêm da SEDE do store; sede sem time nenhum NÃO recebe roster vazio
+cp "$C/var/nutella.cache.json" "$MOCKD/cache.keep.json"
+jq '.sedes |= (map(.teams = []) + [{id:"26tscz", name:"Sede Z", teams:[]}])' "$MOCKD/cache.keep.json" > "$C/var/nutella.cache.json"
+: > "$MOCKD/posts.log"
+call /contest/nutella POST '{"action":"push-roster","force":true}'
+ck "cache sem times: o roster sai da SEDE do store (carol na Sede B)" '[[ "$(J .pushed)" == 2 ]] && grep -q "Time Carol" "$MOCKD/posts.log"'
+ck "sede sem time nenhum: nada enviado, listada em empty" '[[ "$(J ".empty|join(\",\")")" == 26tscz ]] && ! grep -q "26tscz/roster" "$MOCKD/posts.log"'
+cp "$MOCKD/cache.keep.json" "$C/var/nutella.cache.json"
 
 echo "== CHAVE DE SERVIÇO (nb3s_): a recomendada — protocolo NOVO (≥ 21/09/2026) =="
 # Desde 21/09 o serviço responde /whoami e lista /site-images pelo glob da chave de serviço; rota de

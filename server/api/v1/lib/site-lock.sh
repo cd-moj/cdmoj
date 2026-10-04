@@ -47,6 +47,14 @@ sl_claim(){
   is_reserved_role_login "$lg" && { printf ''; return 0; }
   sl_enabled "$c" || { printf ''; return 0; }
   end="$(conf_value "$c" CONTEST_END)"; [[ "$end" =~ ^[0-9]+$ ]] || end=0
+  # RODADAS: a máquina de prova é da sede o dia todo — a reivindicação feita no aquecimento vale até o fim da
+  # ÚLTIMA rodada planejada (+folga). Com o fim da rodada no ar, ela vencia no intervalo e o time que não
+  # relogava (sessão não expira) ficava solto na prova oficial (auditoria do painel, 03/10/2026)
+  if [[ -s "$CONTESTSDIR/$c/rounds.json" ]]; then
+    local rend; rend="$(jq -r '[(.rounds // [])[] | select(.state != "archived") | (.end // 0) | tonumber? // 0] | max // 0' \
+      "$CONTESTSDIR/$c/rounds.json" 2>/dev/null)"
+    [[ "$rend" =~ ^[0-9]+$ ]] && (( rend > end )) && end="$rend"
+  fi
   if (( end > 0 )); then
     (( end + $(sl_grace "$c") >= now )) || { printf ''; return 0; }   # prova acabada: nada a prender
     until=$(( end + $(sl_grace "$c") ))

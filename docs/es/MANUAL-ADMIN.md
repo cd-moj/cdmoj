@@ -1,4 +1,4 @@
-<!-- i18n-source: MANUAL-ADMIN.md blob:ca2b8e199394b8b6015de3ff84a26bead6e49571 -->
+<!-- i18n-source: MANUAL-ADMIN.md blob:7d169ec30f773b753c39ae8751a742cff8a24947 -->
 # MOJ: Manual del organizador (el panel .admin de la competencia)
 
 > **Nota de traducción.** Este manual es una traducción del original en portugués. Las herramientas de línea de comandos (`moj`, `moj-contest`, `moj-comp`) muestran sus mensajes en portugués, y los ejemplos de comandos son idénticos al original.
@@ -641,13 +641,17 @@ rol (siempre entra) › regla por regex › **override de la sede** › captura 
   desactiva el gate sin borrar la configuración.
 - El panel Máquinas › Gate y bloqueo muestra **UA esperado × UA visto** por equipo y cuenta cuántos están fuera de la
   imagen de la sede: así se arregla la sala **en el calentamiento**, antes de que el gate bloquee
-  a alguien en la competencia.
+  a alguien en la competencia. El ✓ quiere decir que TODOS los navegadores vistos de ese equipo son el
+  de la imagen; con alguno fuera aparece "parte fuera de la imagen".
+- Con inscripción por equipos, al **miembro** se le exige el esperado del **equipo** (la sede y el patrón de
+  login son de la cuenta del equipo).
 - Quien ya tiene la sesión iniciada con el navegador equivocado sale con **"Desconectar UA divergente"** (Máquinas ›
   Anomalías), que compara cada sesión con lo esperado para **ese** equipo.
 - **Bloqueo de sede por IP** (interruptor en la misma sección 🔒, DESACTIVADO por defecto; actívalo en la competencia): el gate
   y el aislamiento por subdominio no frenan `curl --resolve moj…:443:<IP>` desde la máquina de competencia al
   sitio base (entrenamiento, respaldos que el alumno subió antes, otra competencia). Con el bloqueo, cada inicio de sesión de un
-  competidor **fija el IP de origen** (la salida de la sede) a esta competencia hasta el fin + margen; desde ese IP
+  competidor **fija el IP de origen** (la salida de la sede) a esta competencia hasta el fin + margen (con rondas,
+  hasta el fin de la última ronda planificada: la IP fijada en el calentamiento sigue fijada en la oficial); desde ese IP
   cualquier otro destino responde **403 `site_locked`**, incluida una sesión del entrenamiento abierta antes. Las cuentas
   de rol están exentas. **Toda reivindicación y todo bloqueo van a la auditoría** (`site-lock-claim`,
   `site-lock-block`) y aparecen en Máquinas › Gate y bloqueo (bloqueo de sede), con "soltar" por IP y "🔒 Fijar IPs
@@ -678,7 +682,9 @@ momento. Un modo que no cabe en el árbol actual queda deshabilitado y dice por 
 - **Simple** — una lista de sedes. Cada sede tiene "usuarios que empiezan con" (separados por coma). Para
   asignar equipos, pega la lista de usuarios y elige la sede, o elige la sede de cada equipo sin sede.
   Renombrar una sede se lleva los equipos grabados con el nombre viejo (la vista previa muestra cuántos antes
-  de guardar). Por la IP de la máquina de la competencia: Máquinas › Gate.
+  de guardar), el alcance del staff (`region:`), el gate de navegador de la sede y la sede de la pantalla. Al
+  guardar, la pantalla avisa si algo todavía apunta a una sede que ya no existe. Por la IP de la máquina de la
+  competencia: Máquinas › Gate.
 - **Intermedio** — grupos (país, región) › sedes. Cada sede tiene reglas: empieza con, contiene, termina
   con, o es uno de (lista).
 - **Avanzado** — el árbol completo: subregiones, recortes `view` y regex libre.

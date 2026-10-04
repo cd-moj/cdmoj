@@ -60,12 +60,14 @@ case "$action" in
     _r="$(rd_round "$contest" "$(rd_active "$contest")")"; [[ -n "$_r" ]] || _r='{}'
     _cs="$(jq -r '.start // 0' <<<"$_r")"; [[ "$_cs" =~ ^[0-9]+$ ]] || _cs=0
     _from=$(( _cs > 43200 ? _cs - 43200 : 0 ))
+    # o papel sai ANTES de deduplicar por IP: numa sede com NAT o staff e os times saem pelo MESMO IP, e o
+    # `sort -u` por IP podia ficar justo com a linha do staff — o IP inteiro era pulado (auditoria, 03/10/2026)
     n=0
     while IFS=$'\t' read -r _t _lg _ip _rest; do
       [[ "$_t" =~ ^[0-9]+$ ]] && (( _t >= _from )) || continue
-      is_reserved_role_login "$_lg" && continue
       r="$(sl_claim "$contest" "$_ip" "$_lg")"; [[ "$r" == new ]] && ((n++))
-    done < <(awk -F'\t' -v a="$_from" 'NF>=3 && $1+0>=a {print $1 "\t" $2 "\t" $3}' "$cdir/var/access.log" 2>/dev/null | sort -u -t$'\t' -k3,3)
+    done < <(awk -F'\t' -v a="$_from" 'NF>=3 && $1+0>=a && $2 !~ /\.(admin|judge|cjudge|staff|cstaff|mon|animeitor)$/ {print $1 "\t" $2 "\t" $3}' \
+               "$cdir/var/access.log" 2>/dev/null | sort -u -t$'\t' -k3,3)
     audit_log_to "$contest" site-lock-claim-seen "new=$n since=$_from"
     ok_json '{claimed:$n}' --argjson n "$n";;
   *) fail 400 "action inválida" "action_invalid";;

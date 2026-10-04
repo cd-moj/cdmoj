@@ -69,6 +69,14 @@ call /contest/nutella POST '{"action":"webhooks-install"}' usr
 ck "competidor → 403"                 '[[ "$OUT" == *"Status: 403"* ]]'
 call /contest/nutella POST '{"action":"webhooks-install","base_url":"javascript:alert(1)"}'
 ck "base_url inválida → 422"          '[[ "$OUT" == *"Status: 422"* ]]'
+# TODAS as sedes recusando (aqui: serviço fora do ar) = NADA instalado — antes o segredo, gravado antes do 1º POST,
+# fazia a tela dizer "instalado" com 0 sedes (auditoria do painel, 03/10/2026)
+cp "$C/conf" "$C/conf.bak"; sed -i 's|^NUTELLABOOT_URL=.*|NUTELLABOOT_URL=http://127.0.0.1:9|' "$C/conf"
+call /contest/nutella POST '{"action":"webhooks-install"}'
+ck "todas recusam: installed false" '[[ "$(J .ok)" == 0 && "$(J .installed)" == false ]]'
+call /contest/nutella GET ""
+ck "…e o GET não diz instalado (0 sedes)" '[[ "$(J .webhook.installed)" == false && "$(J .webhook.sites)" == 0 ]]'
+mv -f "$C/conf.bak" "$C/conf"
 # webhook de OUTRO dono já na sede: com entradas por dono ele nem aparece p/ a chave de serviço e fica INTOCADO
 jq -n '{webhooks:[{id:"wh_deles0000", url:"https://outro.exemplo/hook", secret:"deles-deles-deles", events:[], owner:"service:outro"}]}' > "$MOCKD/webhooks.26tsca.json"
 call /contest/nutella POST '{"action":"webhooks-install"}'
@@ -78,7 +86,7 @@ ck "o webhook alheio da sede continua lá, intocado" '[[ "$(jq -r ".webhooks|len
 ck "eventos pedidos: os 2 alertas + reiniciou/sumiu/voltou (nunca events:[] — seria machine.status a 38/s)" '[[ "$(jq -r ".webhooks[1].events|sort|join(\",\")" "$MOCKD/webhooks.26tsca.json")" == "alert.dismissed,alert.raised,machine.offline,machine.online,machine.rebooted" ]]'
 SEC="$C/secrets/nutella-webhook.secret"
 ck "segredo: 48 caracteres, 600, e é o que foi ao serviço" '[[ "$(stat -c %a "$SEC")" == 600 && "$(tr -d "\n" < "$SEC" | wc -c)" == 48 && "$(jq -r ".webhooks[1].secret" "$MOCKD/webhooks.26tsca.json")" == "$(tr -d "\n" < "$SEC")" ]]'
-ck "o segredo NÃO volta na resposta nem no GET" '[[ "$BODY" != *"$(tr -d "\n" < "$SEC")"* ]] && { call /contest/nutella GET ""; [[ "$BODY" != *"$(tr -d "\n" < "$SEC")"* && "$(J .webhook.installed)" == true ]]; }'
+ck "o segredo NÃO volta na resposta nem no GET" '[[ "$BODY" != *"$(tr -d "\n" < "$SEC")"* ]] && { call /contest/nutella GET ""; [[ "$BODY" != *"$(tr -d "\n" < "$SEC")"* && "$(J .webhook.installed)" == true && "$(J .webhook.sites)" == 1 ]]; }'
 S0="$(cat "$SEC")"; W0="$(jq -r '.["26tsca"]' "$C/var/nutella-webhooks.json")"; call /contest/nutella POST '{"action":"webhooks-install"}'
 ck "reinstalar = upsert pela url: mesmo id, mesmo segredo, sem duplicar" '[[ "$(J .ok)" == 1 && "$(cat "$SEC")" == "$S0" && "$(jq -r ".[\"26tsca\"]" "$C/var/nutella-webhooks.json")" == "$W0" && "$(jq -r ".webhooks|length" "$MOCKD/webhooks.26tsca.json")" == 2 ]]'
 ( umask 077; printf 'nb3a_mocktest123\n' > "$C/secrets/nutellaboot.key" )

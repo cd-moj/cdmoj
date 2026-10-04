@@ -102,6 +102,13 @@ WEND=$(( END + 3600 )); (( WEND > EPOCHSECONDS || END == 0 )) && WEND="$EPOCHSEC
 CS="$START"; CE="$END"
 (( CS == 0 )) && CS="$WSTART"
 (( CE == 0 || CE > EPOCHSECONDS )) && CE="$EPOCHSECONDS"
+# ANTES do início a janela da prova ainda não existe: a de cima saía INVERTIDA (início depois do fim) e a coleta dizia
+# "ok" com uso/carga zerados (auditoria do painel, 03/10/2026). Antes da prova a coleta é INVENTÁRIO: a última hora
+# (quem está ligado, sede × imagem p/ o push do roster), marcada `prestart` p/ a tela dizer o que é.
+PRESTART=0
+if (( ! REAGG && START > 0 && EPOCHSECONDS < START )); then
+  PRESTART=1; WSTART=$(( EPOCHSECONDS - 3600 )); WEND="$EPOCHSECONDS"; CS="$WSTART"; CE="$EPOCHSECONDS"
+fi
 
 if (( REAGG )); then
   # --- 1'. bruto → W (sem rede); a janela é a do bruto, não a de agora ------------------
@@ -574,7 +581,7 @@ jq -Rcs '[ split("\n")[] | select(length > 0) | split("\t") | {id: .[0], node: .
 # `rank_ed` = editores × colocação DO RECORTE: as `_rows` (rank, editores, faixa, perfil —
 # sem login/MAC) das sedes do nó, re-ranqueadas pela posição global; top 30 / quartil / 10 %.
 # As `_rows` morrem aqui (del) — nunca vão ao cache.
-jq -cs --argjson ws "$WSTART" --argjson we "$WEND" --argjson cs "$CS" --argjson ce "$CE" \
+jq -cs --argjson ws "$WSTART" --argjson we "$WEND" --argjson cs "$CS" --argjson ce "$CE" --argjson pre "$PRESTART" \
    --argjson now "$EPOCHSECONDS" --arg mode "$MODE" --argjson nlink "$NLINK" --argjson nteams "$NTEAMS" --argjson npres "$NPRES" \
    --slurpfile nmf "$W/nodemap.json" \
    --rawfile skipped <(cat "$W/skipped.txt" 2>/dev/null || printf '') '
@@ -676,7 +683,7 @@ jq -cs --argjson ws "$WSTART" --argjson we "$WEND" --argjson cs "$CS" --argjson 
        . + { ($grp[0].country): { n: ($grp | length),
              ram: (rank($grp; .ram_avg_mb)), cpu: (rank($grp; .cores_avg)),
              ed: (rank($grp; .ed_min_total)) } })) as $rk_pais
-  | { version: 2, collected_at: $now,
+  | { version: 2, collected_at: $now, prestart: ($pre == 1),
       window: {start: $ws, end: $we},
       contest: {start: $cs, end: $ce},
       link: { mode: $mode, linked: $nlink, teams: $nteams, present: $npres,

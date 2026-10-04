@@ -8,7 +8,8 @@
 #         de site-images (`NUTELLABOOT_IMAGES`) no conf. Chave `nb3a_` (admin) OU `nb3s_` (serviço
 #         — a recomendada; como ela não lista `/site-images`, a lista de sedes vem do conf).
 # POST {action:"collect"}               (admin)  dispara o nutella-gen.sh destacado.
-# POST {action:"push-roster"}           (admin)  PUT do roster do STORE em cada imagem
+# POST {action:"push-roster"}           (admin)  PUT do roster do STORE em cada imagem (times da SEDE ∪ os do cache
+#                                                que são conta do contest; sede sem time = `empty`, nada enviado)
 #                                                (correlação p/ provas futuras).
 # POST {action:"push-bindings"}         (admin)  REPUBLICA no serviço o elo máquina↔time de todo login já
 #                                                feito com o UA do agente novo (o login publica sozinho —
@@ -85,10 +86,14 @@ if [[ "${REQUEST_METHOD:-GET}" == GET ]]; then
   imgs="$(nb_images "$contest" | jq -Rcn '[inputs | select(length > 0)]' 2>/dev/null)"; [[ -n "$imgs" ]] || imgs='[]'
   kk="$(nb_key_kind "$contest")"
   bd="$(_nb_bind_json)"; jq -e . >/dev/null 2>&1 <<<"$bd" || bd='null'
-  # webhook de alertas: só EXISTÊNCIA do segredo e nº de eventos recebidos (o segredo é write-only)
+  # webhook de alertas: instalado = há sede com o id do NOSSO webhook gravado (var/nutella-webhooks.json) — o segredo
+  # nasce antes do 1º POST e sobrava com TODAS as sedes recusando: a tela dizia "instalado" com 0 sedes (auditoria,
+  # 03/10/2026). `sites` = quantas; nº de eventos recebidos. O segredo é write-only.
   _wn=0; [[ -s "$cdir/var/nutella-events.log" ]] && _wn="$(wc -l < "$cdir/var/nutella-events.log" | tr -d '[:space:]')"
-  bd="$(jq -c --argjson w "$([[ -s "$cdir/secrets/nutella-webhook.secret" ]] && echo true || echo false)" --argjson n "${_wn:-0}" \
-        '. as $b | {bind: $b, webhook: {installed: $w, events: $n}}' <<<"$bd")"
+  _ws="$(jq -r 'if type == "object" then length else 0 end' "$cdir/var/nutella-webhooks.json" 2>/dev/null)"; _ws="${_ws//[^0-9]/}"
+  [[ -s "$cdir/secrets/nutella-webhook.secret" ]] || _ws=0
+  bd="$(jq -c --argjson s "${_ws:-0}" --argjson n "${_wn:-0}" \
+        '. as $b | {bind: $b, webhook: {installed: ($s > 0), sites: $s, events: $n}}' <<<"$bd")"
   if [[ ! -s "$CACHE" ]]; then
     ok_json '{configured:$c, url:$u, key_kind:$kk, images:$im, status:$st, can_admin:$a, scoped:($sc != null), bind:$bd.bind, webhook:$bd.webhook, data:null}' \
       --argjson c "$cfg" --arg u "$(nb_url "$contest")" --argjson st "$st" \
@@ -168,7 +173,12 @@ push-roster)
   nb_configured "$contest" || fail 409 "Integração não configurada" "not_configured"
   [[ -s "$CACHE" ]] || fail 409 "Rode a coleta primeiro (o mapa sede→imagem vem dela)" "no_cache"
   force="$(jq -r '.force // false' <<<"$body")"
-  pushed=0; failed=0; kept=0
+  pushed=0; failed=0; kept=0; empty='[]'
+  # os times de cada imagem = os da SEDE (regra única, lib/regions.sh: sede do cache = nome do nó) ∪ os do cache que
+  # são conta do contest. Antes só o cache — que antes da prova (roster do serviço vazio, ninguém logado) não tinha
+  # time nenhum: o push mandava roster VAZIO e dizia "enviadas" (auditoria do painel, 03/10/2026)
+  declare -F rg_sites_json >/dev/null || source "$_LIBDIR/regions.sh"
+  _rsj="$(mktemp)"; rg_sites_json "$contest" "$_rsj" 2>/dev/null || printf '{}' > "$_rsj"
   while IFS=$'\t' read -r img; do
     [[ "$img" =~ ^[A-Za-z0-9._-]+$ ]] || continue
     # NÃO atropela roster já povoado (o da Maratona veio do ICPC, com org ids oficiais) —
@@ -192,14 +202,21 @@ push-roster)
                        + ((.team.name // .fullname // $l) | tostring)),
         organization: {id: "", name: (.team.univ_full // .team.univ_short // "")},
         country: ((.team.flag // "") | ascii_upcase | (split("-") | .[0]))}' "$af" >> "$bf.rows" 2>/dev/null
-    done < <(jq -r --arg img "$img" '.sedes[] | select(.id == $img) | .teams[]' "$CACHE" 2>/dev/null)
+    done < <({ jq -r --arg img "$img" '.sedes[] | select(.id == $img) | (.teams // [])[]?' "$CACHE" 2>/dev/null
+               jq -r --slurpfile st "$_rsj" --arg img "$img" '(first(.sedes[] | select(.id == $img) | .name) // "") as $n
+                 | select($n != "") | $st[0] | to_entries[] | select(.value == $n) | .key' "$CACHE" 2>/dev/null; } | sort -u)
+    # sede sem time nenhum: NÃO manda roster vazio (apagaria o do serviço) — vai p/ `empty`, a tela diz
+    if [[ ! -s "$bf.rows" ]]; then
+      empty="$(jq -c --arg i "$img" '. + [$i]' <<<"$empty")"; rm -f "$bf" "$bf.rows"; continue
+    fi
     jq -cs '{roster: .}' "$bf.rows" > "$bf" 2>/dev/null
     r="$(nb_curl "$contest" PUT "/site-images/$img/roster" "$bf")"
     if [[ "$(nb_status "$r")" == 2* ]]; then pushed=$((pushed+1)); else failed=$((failed+1)); fi
     rm -f "$bf" "$bf.rows"
   done < <(jq -r '.sedes[].id' "$CACHE" 2>/dev/null)
-  audit_log_to "$contest" nutella-push-roster "pushed=$pushed kept=$kept failed=$failed"
-  ok_json '{pushed:$p, kept:$k, failed:$f}' --argjson p "$pushed" --argjson k "$kept" --argjson f "$failed"
+  rm -f "$_rsj"
+  audit_log_to "$contest" nutella-push-roster "pushed=$pushed kept=$kept failed=$failed empty=$(jq -r 'length' <<<"$empty")"
+  ok_json '{pushed:$p, kept:$k, failed:$f, empty:$e}' --argjson p "$pushed" --argjson k "$kept" --argjson f "$failed" --argjson e "$empty"
   ;;
 webhooks-install)
   is_admin || fail 403 "Apenas o admin do contest" "admin_required"
@@ -254,7 +271,8 @@ webhooks-install)
   mkdir -p "$cdir/var"; printf '%s\n' "$ids" > "$idf"
   [[ "$remove" == true && $badn -eq 0 ]] && rm -f "$secf" "$idf"
   audit_log_to "$contest" nutella-webhooks "$([[ "$remove" == true ]] && echo remove || echo install) ok=$okn failed=$badn"
-  ok_json '{installed:($rm | not), url:$u, ok:$o, failed:$f, sedes:$r}' --argjson rm "$remove" --arg u "$hook" \
+  # instalado só se ALGUMA sede aceitou (com todas recusando não há webhook nenhum, só o segredo guardado)
+  ok_json '{installed:(($rm | not) and $o > 0), url:$u, ok:$o, failed:$f, sedes:$r}' --argjson rm "$remove" --arg u "$hook" \
     --argjson o "$okn" --argjson f "$badn" --argjson r "$res"
   ;;
 command-status)

@@ -55,13 +55,18 @@ ck "privilegiados fora"        '[[ "$(jq -r '"'"'.teams | has("tm.admin")'"'"' <
 ck "sem foto ainda"            '[[ "$(jq -r .teams.alfa.has_photo <<<"$BODY")" == "false" ]]'
 
 echo "== admin/teams set (fullname = nome único) + materialize =="
+rm -f "$C/var/.score-dirty"
 call /contest/admin/teams POST t-adm 'contest=tm' '{"set":{"beta":{"fullname":"Beta Renomeado","univ_short":"USP"},"naoexiste":{"region":"X"}}}'
+ck "set marca o placar sujo (.score-dirty; o placar não seguia com o nome velho)" '[[ -f "$C/var/.score-dirty" ]]'
+rm -f "$C/var/.score-dirty"
 ck "set salva 1, pula 1"       '[[ "$(jq -r .saved <<<"$BODY")" == 1 && "$(jq -r .skipped[0] <<<"$BODY")" == "naoexiste" ]]'
 ck "fullname trocado + univ setada" '[[ "$(jq -r .fullname "$C/users/beta/account.json")" == "Beta Renomeado" && "$(jq -r .team.univ_short "$C/users/beta/account.json")" == "USP" ]]'
 call /contest/admin/teams POST t-adm 'contest=tm' '{"set":{"beta":{"fullname":"","univ_short":"USP2"}}}'
 ck "fullname vazio é ignorado (nome não fica em branco)" '[[ "$(jq -r .fullname "$C/users/beta/account.json")" == "Beta Renomeado" && "$(jq -r .team.univ_short "$C/users/beta/account.json")" == "USP2" ]]'
+rm -f "$C/var/.score-dirty"
 call /contest/admin/teams POST t-adm 'contest=tm' '{"action":"materialize"}'
 ck "materialize preenche gama (teams-meta ^mat-)" '[[ "$(jq -r .filled[\"mat-gama\"].flag <<<"$BODY")" == "AR" && "$(jq -r .team.univ_short "$C/users/mat-gama/account.json")" == "UBA" ]]'
+ck "materialize que preenche marca o placar sujo" '[[ -f "$C/var/.score-dirty" ]]'
 ck "materialize não sobrescreve alfa" '[[ "$(jq -r .team.flag "$C/users/alfa/account.json")" == "BR-DF" ]]'
 
 echo "== team-assets (foto/brasão) + rotas de leitura =="
