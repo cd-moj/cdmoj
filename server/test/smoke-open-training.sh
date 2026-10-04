@@ -20,7 +20,7 @@ source "$(dirname "$(readlink -f "$0")")/fixture.sh"
 T="$FIX/treino"; mkdir -p "$T/var/jsons" "$T/var/jsons-private" "$T/var/questoes/leg#old"
 printf 'CONTEST_ID=treino\nCONTEST_NAME="Treino"\nCONTEST_TYPE=lista-publica\nUSER_STORE=v2\n' > "$T/conf"
 NOW=$EPOCHSECONDS; OLD=$((NOW - 30*86400))
-LASTWEEK="$(date --date='last-sunday' +%s)"; PREV=$((LASTWEEK - 2*86400))
+LASTWEEK="$(TZ="${MOJ_TZ:-America/Sao_Paulo}" date --date='last-sunday' +%s)"; PREV=$((LASTWEEK - 2*86400))   # o fuso da API, não o do shell
 for i in 1 3 4 5 6 7 8; do jq -n --arg t "P$i" '{title:$t}' > "$T/var/jsons/col#p$i.json"; done
 jq -n '{title:"Segundo\n\n"}' > "$T/var/jsons/col#p2.json"
 jq -n '{title:""}' > "$T/var/jsons/col#empty.json"

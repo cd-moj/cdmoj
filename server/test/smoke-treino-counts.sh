@@ -16,7 +16,7 @@ printf '{"id":"moj-problems.px","solved_count":5,"attempted_count":9}' > "$T/var
 # py NÃO tem json-count -> deve cair em 0/0
 
 # history: semana passada (PREV) x esta semana (THIS), datas relativas a hoje
-LW=$(date -d 'last-sunday' +%s 2>/dev/null || echo 0)
+LW=$(TZ="${MOJ_TZ:-America/Sao_Paulo}" date -d 'last-sunday' +%s 2>/dev/null || echo 0)   # o fuso da API (lib/common.sh), não o do shell
 PREV=$((LW - 3*86400)); THIS=$((LW + 3600))
 fx_user "$T" alice x "Alice"
 fx_user "$T" bob x "Bob"

@@ -29,7 +29,7 @@ ck "submit-origin.log: 3 linhas, 9 campos TSV (epoch subid login ip ua sess_ip s
 ck "editores = web,vim,web" '[[ "$(awk -F: "{print \$4}" "$T/var/editor-log" | paste -sd,)" == "web,vim,web" ]]'
 
 echo "== open_training: most_used_editor_prev_week =="
-LW=$(date -d 'last-sunday' +%s); PREV=$((LW-3*86400)); THIS=$((LW+3600))
+LW=$(TZ="${MOJ_TZ:-America/Sao_Paulo}" date -d 'last-sunday' +%s); PREV=$((LW-3*86400)); THIS=$((LW+3600))   # o fuso da API (lib/common.sh), não o do shell
 { printf '10:p#a:C:Accepted,100p:%s:s1\n' "$PREV"
   printf '10:p#b:PY:Accepted,100p:%s:s3\n' "$PREV"; } > "$T/users/alice/history"
 { printf '10:p#a:C:Accepted,100p:%s:s2\n' "$PREV"
