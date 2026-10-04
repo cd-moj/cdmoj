@@ -91,8 +91,11 @@ case "$action" in
             | (if ($b|has("new_letter")) then .letter=$b.new_letter else . end))
           else .value end ]')"
     # nome dado pelo `rename` é ESCOLHA do admin: a Central (prob_names) não insiste em trocá-lo pelo título
-    # no idioma da prova (cc_title_fixes). Chave = id canônico, que não muda com a letra.
-    if jq -e 'has("name")' >/dev/null 2>&1 <<<"$body"; then
+    # no idioma da prova (cc_title_fixes). Chave = id canônico, que não muda com a letra. A tela manda o nome
+    # SEMPRE: trocar só a letra (nome igual + new_letter diferente) não conta como escolha — senão silenciava o
+    # aviso; salvar o MESMO nome sem mexer na letra conta (é o "manter de propósito" que o texto da Central ensina).
+    if jq -e --arg l "$L" --argjson cur "$cur" 'has("name") and ((.name != ([$cur[] | select(.letter == $l)][0].name))
+          or ((.new_letter // $l) == $l))' >/dev/null 2>&1 <<<"$body"; then
       rcid="$(jq -r --arg l "$L" "$CC_PROB_CID_JQ"'[.[] | select(.letter == $l)][0] | cid // empty' <<<"$cur")"
       if [[ -n "$rcid" ]]; then
         kf="$(cc_names_chosen_file "$contest")"; mkdir -p "${kf%/*}" 2>/dev/null
@@ -125,7 +128,7 @@ case "$action" in
     new="$(jq -cn --argjson cur "$cur" --argjson f "$fixes" '
       ($f | map({key:.letter, value:.to}) | from_entries) as $to
       | [ $cur[] | if ($to[.letter] != null) then .name = $to[.letter] else . end ]')"
-    cc_set_probs "$contest" "$new" || fail 422 "Falha ao gravar problemas (dados inválidos?)" "probs_write"
+    CC_KEEP_STATEMENTS=1 cc_set_probs "$contest" "$new" || fail 422 "Falha ao gravar problemas (dados inválidos?)" "probs_write"
     audit_log_to "$contest" problems-apply_titles "$(jq -cr 'map(.letter + "→" + .lang) | join(" ")' <<<"$fixes" | head -c 300)"
     mkdir -p "$CONTESTSDIR/$contest/var" 2>/dev/null; touch "$CONTESTSDIR/$contest/var/.problems-dirty" 2>/dev/null
     ok_json '{saved:true, changed:$f, problems:$p}' --argjson f "$fixes" --argjson p "$(cc_probs_json "$contest")"
@@ -240,7 +243,10 @@ case "$action" in
 esac
 
 [[ -n "$new" ]] || fail 422 "Nada a fazer" "noop"
-cc_set_probs "$contest" "$new" || fail 422 "Falha ao gravar problemas (dados inválidos?)" "probs_write"
+# CC_KEEP_STATEMENTS=1: reescrever o PROBS NÃO re-baixa enunciado que o contest já tem. Sem isso, qualquer
+# add/remove/rename/reorder (e o apply_titles) regravava enunciados/*.html — PT e traduções — a partir do banco,
+# apagando o HTML que o admin enviou à mão (auditoria 03/10/2026). Problema novo (sem arquivo) segue baixando.
+CC_KEEP_STATEMENTS=1 cc_set_probs "$contest" "$new" || fail 422 "Falha ao gravar problemas (dados inválidos?)" "probs_write"
 audit_log_to "$contest" "problems-$action" "$(jq -cr '. | del(.problem.statement_b64)' <<<"$body" 2>/dev/null | head -c 300)"
 # invalida o cache de /contest/problems NA HORA. O handler também confere as entradas por mtime
 # (conf, os dois json, enunciados/) e tem teto de idade, então isto é o caminho rápido, não a

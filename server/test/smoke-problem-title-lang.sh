@@ -100,6 +100,26 @@ ck "renomeado de propósito: sem aviso" '[[ -z "$(jq -r ".checks[] | select(.id=
 call /contest/admin/problems POST '{"action":"apply_titles"}' a-c-pt contest=c-pt
 ck "…e o apply_titles não o toca" '[[ "$(names c-pt)" == "A=Corrida de Robôs|"* ]]'
 
+echo "== reescrever a lista NÃO apaga o enunciado enviado à mão (CC_KEEP_STATEMENTS; auditoria 03/10) =="
+call /contest/admin/problems POST "{\"action\":\"statement\",\"letter\":\"B\",\"html_b64\":\"$(b64 '<p>MEU PT</p>')\"}" a-c-pt contest=c-pt
+call /contest/admin/problems POST "{\"action\":\"statement\",\"letter\":\"A\",\"lang\":\"es\",\"html_b64\":\"$(b64 '<p>MI ES</p>')\"}" a-c-pt contest=c-pt
+call /contest/admin/problems POST '{"action":"rename","letter":"C","name":"Outro"}' a-c-pt contest=c-pt
+call /contest/admin/problems POST '{"action":"apply_titles"}' a-c-pt contest=c-pt
+call /contest/admin/problems POST '{"action":"add","problem":{"bank_id":"org#same"}}' a-c-pt contest=c-pt
+ck "rename/apply_titles/add mantêm o HTML PT enviado" 'grep -q "MEU PT" "$FIX/c-pt/enunciados/org#bi.html"'
+ck "…e a tradução enviada" 'grep -q "MI ES" "$FIX/c-pt/enunciados/org#tri.es.html"'
+ck "…e o problema novo baixa o enunciado do banco" '[[ -s "$FIX/c-pt/enunciados/org#same.html" ]]'
+# trocar SÓ a letra (a tela manda o nome junto) não registra o nome como escolhido
+sed -i 's/^LOCALE=.*//' "$FIX/c-en/conf"; printf 'LOCALE=es\n' >> "$FIX/c-en/conf"
+call /contest/admin/problems POST '{"action":"rename","letter":"D","name":"Bridges","new_letter":"Q"}' a-c-en contest=c-en
+call /contest/admin/preflight GET '' a-c-en contest=c-en
+ck "trocar só a letra não silencia o aviso (Bridges ≠ título ES? sem ES ⇒ fica sem aviso)" '[[ -z "$(jq -r ".checks[] | select(.id==\"prob_names\") | .detail" <<<"$BODY" | grep -o "Q Bridges")" ]]'
+call /contest/admin/problems POST '{"action":"rename","letter":"A","name":"Robot Race","new_letter":"R"}' a-c-en contest=c-en
+call /contest/admin/preflight GET '' a-c-en contest=c-en
+ck "renomear só a letra de um nome EN em prova ES: segue acusado" '[[ "$(jq -r ".checks[] | select(.id==\"prob_names\") | .detail" <<<"$BODY")" == *"R Robot Race → Carrera de Robots"* ]]'
+call /contest/admin/problems POST '{"action":"rename","letter":"R","name":"Robot Race","new_letter":"A"}' a-c-en contest=c-en
+sed -i '/^LOCALE=es$/d' "$FIX/c-en/conf"; printf 'LOCALE=en\n' >> "$FIX/c-en/conf"
+
 echo "== reparo do /contest/problems (nome == id) no idioma da sanfona =="
 fx_user "$FIX/c-en" time1 s T1; printf 'CONTEST=c-en\nLOGIN=time1\nUSERFULLNAME=T\nLOGINAT=1\n' > "$SESS/t-en"
 sed -i 's/^CONTEST_START=.*//' "$FIX/c-en/conf"; printf 'CONTEST_START=%s\n' "$((NOW-60))" >> "$FIX/c-en/conf"
