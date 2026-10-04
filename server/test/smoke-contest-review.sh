@@ -190,4 +190,16 @@ call /contest/review/conflicts GET '' cjb 'contest=rv2'
 ck "conflicts: o chefe vê os 2, em ordem, com os votos (mesmo com o q99 truncado na fila)" '[[ "$(jq .n <<<"$BODY")" == 2 && "$(jq -r "[.conflicts[].id] | join(\",\")" <<<"$BODY")" == "q41,q42" && "$(jq -r ".conflicts[0].votes | map(.verdict) | join(\"|\")" <<<"$BODY")" == "Accepted|Wrong Answer" ]]'
 ck "…e o caminho lento AVISA no log (arquivo ruim não fica escondido)" '[[ "$OUT" == *"rv_scan: ilegível"*q99.json* ]]'
 
+echo "== estatística por juiz: total de verdade e nenhum .tot.<pid> sobrando (auditoria 03/10/2026) =="
+call /contest/review/stats GET '' adm 'contest=rv'
+ck "total de votos > 0 (o BASHPID do redirect zerava)" '(( $(jq -r .total.votes <<<"$BODY") > 0 ))'
+ck "nenhum admin-audit.log.tot.<pid> deixado em var/" '[[ -z "$(find "$C/var" -name "admin-audit.log.tot.*" 2>/dev/null)" ]]'
+
+echo "== baixar o quórum libera o que já tem votos unânimes suficientes =="
+printf 'CONTEST_ID=rv\nCONTEST_TYPE=icpc\nCONTEST_START=%s\nCONTEST_END=%s\nMANUAL_VERDICT=1\nREVIEW_JUDGES=3\n' "$((NOW-3600))" "$((NOW+3600))" > "$C/conf"
+printf '%s' "{\"id\":\"rq\",\"login\":\"aluno1\",\"problem_id\":\"apc#p1\",\"lang\":\"C\",\"computed_verdict\":\"Wrong Answer\",\"status\":\"voting\",\"conflict\":false,\"created_at\":$OLD,\"sub_epoch\":$OLD,\"claimants\":[],\"votes\":[{\"by\":\"j1.judge\",\"verdict\":\"Accepted\",\"at\":$OLD},{\"by\":\"j2.judge\",\"verdict\":\"Accepted\",\"at\":$OLD}]}" > "$C/review/rq.json"
+call /contest/admin/settings POST '{"review_judges":2}' adm 'contest=rv'
+ck "quórum 3→2: o item com 2 votos iguais é liberado (antes ficava acordado e preso)" '[[ "$(jq -r .status "$C/review/rq.json")" == released && "$(jq -r .released_verdict "$C/review/rq.json")" == Accepted ]]'
+ck "…e o veredicto foi emitido (setverdict no spool)" '[[ -n "$(grep -rl "\"rq\"" "$SPOOL" 2>/dev/null)" ]]'
+
 echo ""; echo "RESULT: $pass passed, $fail failed"; exit $(( fail>0?1:0 ))

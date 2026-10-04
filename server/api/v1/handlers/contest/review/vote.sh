@@ -42,10 +42,10 @@ if [[ "$st" == agreed ]]; then
   login="$(jq -r '.login' <<<"$new")"; prob="$(jq -r '.problem_id' <<<"$new")"
   rv_emit_setverdict "$contest" "$id" "$login" "$prob" "$v"
   jq -c --arg v "$v" --argjson at "$now" '.status="released" | .released_verdict=$v | .released_by="agreement" | .released_at=$at' "$f" > "$f.tmp" && mv -f "$f.tmp" "$f"
-  audit_log_to "$contest" review-agree "id=$id verdict=$v by=$me"
+  audit_log_to "$contest" review-agree "id=$id verdict=$v by=$me voters=$(jq -r '[.votes[]?.by] | join(",")' <<<"$new")"
   ok_json '{status:"released", released_verdict:$v}' --arg v "$v"
 elif [[ "$st" == conflict ]]; then
-  audit_log_to "$contest" review-conflict "id=$id by=$me"
+  audit_log_to "$contest" review-conflict "id=$id by=$me voters=$(jq -r '[.votes[]?.by] | join(",")' <<<"$new")"
   ok_json '{status:"conflict"}'
 else
   audit_log_to "$contest" review-vote "id=$id by=$me verdict=$verdict"

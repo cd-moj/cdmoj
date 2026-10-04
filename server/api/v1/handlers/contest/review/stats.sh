@@ -19,15 +19,23 @@ rows="$(awk -F'\t' '
     id=getid($4); who=$2; votes[who]++; tv++;
     k=who SUBSEP id;
     if (k in claim) { rt=$1-claim[k]; if (rt>=0) { rtsum[who]+=rt; rtn[who]++; trts+=rt; trtn++ } }
-    if ($3=="review-agree")    agree[who]++;
-    if ($3=="review-conflict") confl[who]++;
+    # concordância/conflito vale p/ TODOS os votantes (`voters=` desde 03/10/2026); linha antiga = só quem fechou
+    if ($3=="review-agree" || $3=="review-conflict") {
+      n=0; if (match($4, /voters=[^ ]+/)) n=split(substr($4, RSTART+7, RLENGTH-7), vs, ",")
+      if (n == 0) { n=1; vs[1]=who }
+      for (i=1; i<=n; i++) { if ($3=="review-agree") agree[vs[i]]++; else confl[vs[i]]++ }
+    }
   }
   END {
     for (j in votes) printf "%s\t%d\t%d\t%d\t%d\t%d\n", j, votes[j], (rtn[j]?int(rtsum[j]/rtn[j]):0), rtn[j], agree[j]+0, confl[j]+0;
-    printf "::TOTAL::\t%d\t%d\n", tv+0, (trtn?int(trts/trtn):0) > "/dev/stderr";
+    printf "::TOTAL::\t%d\t%d\n", tv+0, (trtn?int(trts/trtn):0);
   }
-' "$log" 2>"$log.tot.${BASHPID}")"
-read -r _tag tv tavg < <(cat "$log.tot.${BASHPID}" 2>/dev/null); rm -f "$log.tot.${BASHPID}"
+' "$log")"
+# o total vem na ÚLTIMA linha do MESMO stdout: antes ia p/ "$log.tot.${BASHPID}" — o ${BASHPID} no alvo do redirect de
+# um comando externo expande NO FILHO, o `read` lia outro nome, o total saía sempre 0 e um arquivo .tot.<pid> sobrava
+# em var/ a cada poll (12 s por aba aberta; auditoria do painel, 03/10/2026)
+read -r _tag tv tavg < <(printf '%s\n' "$rows" | grep '^::TOTAL::')
+rows="$(printf '%s\n' "$rows" | grep -v '^::TOTAL::')"
 [[ "$tv" =~ ^[0-9]+$ ]] || tv=0; [[ "$tavg" =~ ^[0-9]+$ ]] || tavg=0
 
 judges="$(printf '%s' "$rows" | jq -R -s '

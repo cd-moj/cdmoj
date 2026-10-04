@@ -35,7 +35,16 @@ export function makeVerdictOptionsEditor(contest) {
     if (!options.length) { msg.className = 'small error-box'; msg.textContent = T('Defina ao menos uma opção.', 'Define at least one option.', 'Define al menos una opción.'); return; }
     save.disabled = true; msg.className = 'small'; msg.textContent = T('Salvando…', 'Saving…', 'Guardando…');
     try { await apiPost('/contest/final-verdicts?contest=' + enc(contest), { options }, G); msg.textContent = T('✓ salvo', '✓ saved', '✓ guardado'); save.disabled = false; }
-    catch (e) { save.disabled = false; msg.className = 'small error-box'; msg.textContent = e.message || T('falha', 'failed', 'fallido'); }
+    catch (e) {
+      save.disabled = false; msg.className = 'small error-box';
+      const d = (e && e.data) || {};
+      // opção inválida agora é RECUSADA com o nome dela (antes sumia calada e a tela dizia "✓ salvo")
+      msg.textContent = d.code === 'option_invalid'
+        ? T(`Opção inválida: “${d.option}”. O rótulo tem de 1 a 80 caracteres e o texto do time até 60, sem ':' nem '¦'. Nada foi salvo.`,
+            `Invalid option: “${d.option}”. The label has 1 to 80 characters and the team text up to 60, without ':' or '¦'. Nothing was saved.`,
+            `Opción inválida: “${d.option}”. La etiqueta tiene de 1 a 80 caracteres y el texto del equipo hasta 60, sin ':' ni '¦'. No se guardó nada.`)
+        : (e.message || T('falha', 'failed', 'fallido'));
+    }
   });
   (async () => {
     let r; try { r = await apiGet('/contest/final-verdicts?contest=' + enc(contest), G); } catch { r = null; }

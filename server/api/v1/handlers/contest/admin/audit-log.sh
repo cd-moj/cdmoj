@@ -102,9 +102,12 @@ body="$(jq -cn --slurpfile ev "$EV" \
   $ev
   | map(select((.time // 0) > 0 and (.time) >= $since))
   | (if $act=="" then . else map(select(((.action//"")|ascii_downcase)|contains($act|ascii_downcase))) end)
-  | (if $usr=="" then . else map(select(((.who//"")|ascii_downcase)|contains($usr|ascii_downcase))) end)
-  | sort_by(-.time) | .[:$lim]
-  | {success:true, count:length, events:.}' 2>/dev/null)"
+  # o filtro "usuário" casa quem FEZ (.who) OU sobre quem foi (os detalhes: `user-disable login=ana`)
+  | (if $usr=="" then . else map(select(((.who//"") + " " + ((.details // .detail // "")|tostring)|ascii_downcase)|contains($usr|ascii_downcase))) end)
+  | sort_by(-.time) | length as $tot | .[:$lim]
+  # `total` = quantos casaram ANTES do corte: a tela dizia "500 evento(s)" com 805 e o CSV "p/ auditoria externa" saía
+  # truncado sem aviso (auditoria do painel, 03/10/2026)
+  | {success:true, count:length, total:$tot, truncated:($tot > length), events:.}' 2>/dev/null)"
 
 [[ -n "$body" ]] || fail 500 "Falha ao montar o feed de auditoria" "audit_render_failed"
 emit_json 200 OK

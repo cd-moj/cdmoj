@@ -142,6 +142,32 @@ rv_apply() {
   printf '%s' "$out"
 }
 
+# rv_release_agreed <contest> <by> — libera o que JÁ alcançou o quórum ATUAL com votos unânimes. Existe porque baixar
+# o REVIEW_JUDGES no meio da prova deixava o item com 2 votos iguais (quórum novo = 2) como "acordado" SEM ninguém
+# emitir o veredicto: não entrava em card nenhum, o claim dava 409 e o aluno ficava em "Not Answered Yet" (auditoria
+# do painel, 03/10/2026). Ecoa quantos liberou.
+rv_release_agreed() {
+  local c="$1" by="${2:-quorum}" dir f snap id n=0 now="$EPOCHSECONDS"
+  dir="$(rv_dir "$c")"; [[ -d "$dir" ]] || { printf '0'; return 0; }
+  exec 9>"$(rv_lock "$c")"; flock -w 10 9 || { printf '0'; return 1; }
+  while IFS= read -r f; do
+    snap="$(rv_snapshot "$f")"; [[ -n "$snap" ]] || continue
+    jq -e '.status == "agreed"' >/dev/null 2>&1 <<<"$snap" || continue
+    id="$(jq -r '.id // empty' <<<"$snap")"; [[ -n "$id" ]] || continue
+    local login prob v
+    login="$(jq -r '.login // ""' <<<"$snap")"; prob="$(jq -r '.problem_id // ""' <<<"$snap")"
+    v="$(jq -r '.votes[0].verdict // ""' <<<"$snap")"; [[ -n "$v" ]] || continue
+    rv_emit_setverdict "$c" "$id" "$login" "$prob" "$v"
+    jq -c --arg v "$v" --arg by "$by" --argjson at "$now" \
+      '.status="released" | .released_verdict=$v | .released_by=$by | .released_at=$at' "$f" > "$f.tmp" 2>/dev/null \
+      && mv -f "$f.tmp" "$f"
+    audit_log_to "$c" review-agree "id=$id verdict=$v by=$by voters=$(jq -r '[.votes[]?.by] | join(",")' <<<"$snap")"
+    n=$((n+1))
+  done < <(find "$dir" -maxdepth 1 -name '*.json' -type f 2>/dev/null)
+  exec 9>&-
+  printf '%s' "$n"
+}
+
 # rv_release_uncontested <contest> <by> — varre a fila de revisão e LIBERA, com o veredicto
 # COMPUTADO, todo item que ninguém contestou (sem voto e sem conflito). Ecoa "<liberados>
 # <restantes>".

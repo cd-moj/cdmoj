@@ -243,6 +243,7 @@ if has penalty_minutes; then
   if (( v == 20 )); then delvar PENALTY_MINUTES; else setvar PENALTY_MINUTES "$v"; fi
 fi
 # nº de juízes que VALIDAM cada veredicto na correção manual (quórum; 1..5, default 2 = ausente)
+RJ_WAS="$(conf_value "$contest" REVIEW_JUDGES)"; [[ "$RJ_WAS" =~ ^[1-5]$ ]] || RJ_WAS=2
 if has review_judges; then
   v="$(jq -r '.review_judges' <<<"$body")"
   [[ "$v" =~ ^[1-5]$ ]] || fail 422 "review_judges inválido (1..5)" "review_judges_invalid"
@@ -279,12 +280,20 @@ if [[ "$BDF_WAS" == 0 ]] && has balloons_during_freeze && [[ "$(jq -r '.balloons
   BLN_FREED="${BLN_FREED//[^0-9]/}"; BLN_FREED="${BLN_FREED:-0}"
 fi
 
+# BAIXOU o quórum? O que já tem votos unânimes suficientes p/ o quórum novo é liberado agora (senão ficava "acordado"
+# sem veredicto emitido, preso — auditoria do painel, 03/10/2026)
+RV_AGREED=0
+if has review_judges && [[ "$(jq -r '.review_judges' <<<"$body")" =~ ^[1-5]$ ]] && (( $(jq -r '.review_judges' <<<"$body") < RJ_WAS )); then
+  source "$_LIBDIR/review.sh"
+  RV_AGREED="$(rv_release_agreed "$contest" "quorum")"; RV_AGREED="${RV_AGREED//[^0-9]/}"; RV_AGREED="${RV_AGREED:-0}"
+fi
+
 # freeze/penalidade mudaram ⇒ recompute forçado + build destacado (ver o comentário do snap)
 if [[ "$(score_snap)" != "$SCORE_WAS" ]]; then
   score_kick_rebuild "$contest"
 fi
 
 audit_log_to "$contest" settings "$( ((${#CH[@]})) && { IFS=,; echo "${CH[*]}"; } || echo nada )"
-ok_json '{saved:true, changed:$c, review_released:$rf, review_pending:$rl, balloons_released:$bf}' \
-  --argjson rf "$RV_FREED" --argjson rl "$RV_LEFT" --argjson bf "$BLN_FREED" \
+ok_json '{saved:true, changed:$c, review_released:($rf + $ra), review_pending:$rl, balloons_released:$bf}' \
+  --argjson rf "$RV_FREED" --argjson rl "$RV_LEFT" --argjson bf "$BLN_FREED" --argjson ra "$RV_AGREED" \
   --argjson c "$( ((${#CH[@]})) && printf '%s\n' "${CH[@]}" | jq -R . | jq -cs . || echo '[]')"

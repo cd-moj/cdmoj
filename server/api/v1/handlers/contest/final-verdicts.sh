@@ -30,6 +30,16 @@ jq -e . >/dev/null 2>&1 <<<"$body" || fail 400 "JSON inválido" "bad_json"
 bad="$(jq -r --arg cls "$VERDICT_CLASSES" '($cls|split("|")) as $C
   | [ (.options // [])[] | (if type=="string" then {label:., verdict:.} else . end) | ((.verdict // "")|tostring) | . as $v | select(($C|index($v)) == null) ] | first // empty' <<<"$body")"
 [[ -z "$bad" ]] || fail 422 "Classe de veredicto inválida: '$bad' (use uma das 6: ${VERDICT_CLASSES//|/, }); o texto que o time vê vai em team" "verdict_invalid"
+# opção INVÁLIDA é recusada com o nome dela (antes era DESCARTADA calada: "NO: contact staff" — com ':' — sumia, a
+# tela dizia "✓ salvo" e seguia mostrando a linha; auditoria do painel, 03/10/2026)
+badopt="$(jq -r '
+  (.options // []) | map(
+    (if type=="string" then {label:., verdict:.} else . end)
+    | {label:((.label // "")|tostring), team:((.team // "")|tostring)})
+  | map(select(((.label|test("^[^¦\n\t\r]{1,80}$")) and (.team|test("^[^:¦\n\t\r]{0,60}$"))) | not))
+  | first | if . == null then empty else (.label + (if .team != "" then " / " + .team else "" end)) end' <<<"$body")"
+[[ -z "$badopt" ]] || { FAIL_EXTRA="$(jq -cn --arg o "$badopt" '{option:$o}')" \
+  fail 422 "Opção inválida: '$badopt' — o rótulo tem 1 a 80 caracteres e o texto do time até 60, sem ':' nem '¦'" "option_invalid"; }
 opts="$(jq -c '
   (.options // []) | map(
     (if type=="string" then {label:., verdict:.} else . end)

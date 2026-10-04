@@ -22,23 +22,33 @@ export function makeAuditTab(CONTEST) {
     const fSince = el('input', { type: 'date' });
     const body = el('div', {});
     let lastEvents = [];
-    const dl = el('button', { class: 'btn ghost', title: T('Baixar (CSV) para auditoria externa', 'Download (CSV) for external audit', 'Descargar (CSV) para auditoría externa'), onclick: () => {
+    // o CSV "p/ auditoria externa" pede o MÁXIMO da API (5000), não os 500 da tela — saía truncado sem aviso
+    const dl = el('button', { class: 'btn ghost', title: T('Baixar (CSV) para auditoria externa', 'Download (CSV) for external audit', 'Descargar (CSV) para auditoría externa'), onclick: async () => {
+      let evs = lastEvents, r = null;
+      try { const qp = query(); qp.set('limit', '5000'); r = await apiGet('/contest/admin/audit-log?contest=' + enc(CONTEST) + '&' + qp.toString(), G); evs = r.events || evs; } catch { /* fica o da tela */ }
       const rows = [['epoch', T('datahora', 'datetime', 'fechahora'), T('tipo', 'kind', 'tipo'), T('quem', 'who', 'quién'), T('acao', 'action', 'acción'), T('detalhes', 'details', 'detalles')],
-        ...lastEvents.map((x) => [x.time, new Date(x.time * 1000).toISOString(), x.kind, x.who || '', x.action || '', x.details || ''])];
+        ...evs.map((x) => [x.time, new Date(x.time * 1000).toISOString(), x.kind, x.who || '', x.action || '', x.details || ''])];
       downloadText('auditoria-' + CONTEST + '-' + stamp() + '.csv', toCsv(rows), 'text/csv');
+      if (r && r.truncated) alert(T(`O CSV traz os ${evs.length} eventos mais recentes de ${r.total}. Use o filtro de data para baixar o resto.`, `The CSV has the ${evs.length} most recent events of ${r.total}. Use the date filter to download the rest.`, `El CSV trae los ${evs.length} eventos más recientes de ${r.total}. Usa el filtro de fecha para descargar el resto.`));
     } }, '⬇ CSV');
-    async function run() {
-      body.innerHTML = '';
+    function query() {
       const qp = new URLSearchParams();
       if (fUser.value.trim()) qp.set('user', fUser.value.trim());
       if (fAction.value.trim()) qp.set('action', fAction.value.trim());
       if (fSince.value) { const e = Math.floor(new Date(fSince.value + 'T00:00:00').getTime() / 1000); if (e) qp.set('since', String(e)); }
+      return qp;
+    }
+    async function run() {
+      body.innerHTML = '';
+      const qp = query();
       let r;
       try { r = await apiGet('/contest/admin/audit-log?contest=' + enc(CONTEST) + (qp.toString() ? '&' + qp.toString() : ''), G); }
       catch (e) { body.append(el('div', { class: 'error-box' }, T('Falha: ', 'Failed: ', 'Error: ') + (e.message || T('erro', 'error', 'error')))); return; }
       const ev = r.events || []; lastEvents = ev;
       const kind = KIND();
-      body.append(el('div', { class: 'small muted', style: 'margin:.3rem 0' }, ev.length + T(' evento(s).', ' event(s).', ' evento(s).')));
+      body.append(el('div', { class: 'small muted', style: 'margin:.3rem 0' }, r.truncated
+        ? T(`os ${ev.length} mais recentes de ${r.total} evento(s) — filtre por data, usuário ou ação para ver o resto.`, `the ${ev.length} most recent of ${r.total} event(s) — filter by date, user or action to see the rest.`, `los ${ev.length} más recientes de ${r.total} evento(s) — filtra por fecha, usuario o acción para ver el resto.`)
+        : ev.length + T(' evento(s).', ' event(s).', ' evento(s).')));
       if (!ev.length) { body.append(el('div', { class: 'muted' }, T('Nada encontrado.', 'Nothing found.', 'No se encontró nada.'))); return; }
       const tb = el('tbody');
       ev.forEach((x) => tb.append(el('tr', { class: 'audit-' + x.kind },

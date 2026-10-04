@@ -43,6 +43,11 @@ clean="$(jq -c --argjson valid "$valid_staff" '
   | map(select((.value | length) > 0))
   | from_entries' <<<"$filters")"
 [[ -n "$clean" ]] || clean='{}'
+# regex que não compila salvava com "✓" e o staff passava a ver NADA (staff_can_see: try … catch false) — recusa com
+# a regra ruim (auditoria do painel, 03/10/2026). `region:<sede>` não é regex.
+badrx="$(jq -r '[ .[][] | select(startswith("region:") | not) | . as $r
+                  | select((try ("" | test($r; "i")) catch "ERR") == "ERR") ] | first // empty' <<<"$clean" 2>/dev/null)"
+[[ -z "$badrx" ]] || { FAIL_EXTRA="$(jq -cn --arg r "$badrx" '{regex:$r}')" fail 422 "Regex inválida no escopo: $badrx" "regex_invalid"; }
 
 mkdir -p "$dir"
 tmp="$ff.tmp"

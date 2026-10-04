@@ -45,4 +45,22 @@ dash
 ck "66 pendentes"                                    '[[ "$(R pending_total)" == 66 ]]'
 ck "60 reviews a mais custam no máx. 2 jq a mais (era 1 por arquivo)" '(( NJQ <= N0 + 2 ))'
 
+echo "== pendentes: do history INTEIRO, sem os segurados na revisão (auditoria do painel, 03/10/2026) =="
+rm -f "$C/review/x"*.json
+H="$C/users/aluno1/history"; : > "$H"
+printf '%s:apc#p1:C:Not Answered Yet:%s:preso1\n' "$((NOW-2400))" "$((NOW-2400))" >> "$H"       # preso há 40 min
+for i in $(seq 1 520); do printf '%s:apc#p1:C:Accepted:%s:ok%s\n' "$((NOW-2000+i))" "$((NOW-2000+i))" "$i" >> "$H"; done
+printf '%s:apc#p1:C:Not Answered Yet:%s:r-novo\n' "$((NOW-100))" "$((NOW-100))" >> "$H"           # segurado na revisão
+dash
+ck "submissão presa ANTES das últimas 500 aparece (era 0)" '[[ "$(jq -r ".submissions.pending_list | map(.id) | index(\"preso1\") != null" <<<"$BODY")" == true ]]'
+ck "segurada na revisão manual NÃO conta como fila do juiz" '[[ "$(jq -r ".submissions.pending_list | map(.id) | index(\"r-novo\")" <<<"$BODY")" == null ]]'
+ck "maior espera ≈ 40 min" '(( $(jq -r .submissions.max_wait_s <<<"$BODY") >= 2390 ))'
+
+echo "== juízes: multi-slot com slot em uso é ocupado; desabilitado não é online =="
+printf '{"host":"m1","state":"free","free_slots":2,"total_slots":4,"last_seen":%s}' "$NOW" > "$RUN/registry/m1.json"
+printf '{"host":"d1","state":"free","status":"disabled","free_slots":1,"total_slots":1,"last_seen":%s}' "$NOW" > "$RUN/registry/d1.json"
+dash
+ck "multi-slot 2/4 em uso conta como ocupado (era 0)" '[[ "$(jq -r .judges.busy <<<"$BODY")" == 1 && "$(jq -r ".judges.list[] | select(.host==\"m1\") | .used_slots" <<<"$BODY")" == 2 ]]'
+ck "desabilitado não conta como online" '[[ "$(jq -r ".judges.list[] | select(.host==\"d1\") | .online" <<<"$BODY")" == false && "$(jq -r .judges.online <<<"$BODY")" == 1 ]]'
+
 echo ""; echo "RESULT: $pass passed, $fail failed"; exit $(( fail>0?1:0 ))

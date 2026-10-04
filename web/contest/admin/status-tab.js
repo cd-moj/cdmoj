@@ -182,9 +182,11 @@ export function makeStatusTab(CONTEST, opts = {}) {
     const tb = el('tbody');
     judges.forEach((x) => tb.append(el('tr', {},
       el('td', {}, el('span', { class: x.online ? '' : 'flag-anom', title: pool.includes(x.host) ? T('no pool do contest', 'in the contest pool', 'en el pool de la competencia') : '' },
-        (pool.includes(x.host) ? '⭐ ' : '') + (x.online ? '🟢 ' : '🔴 ') + x.host)),
-      el('td', { class: 'small' }, x.state || '—'),
-      el('td', { class: 'small' + (x.online ? '' : ' flag-anom') }, x.online ? 'online' : (T('offline há ', 'offline for ', 'fuera de línea hace ') + fmtS(x.age_s))),
+        (pool.includes(x.host) ? '⭐ ' : '') + (x.status === 'disabled' ? '⛔ ' : x.online ? '🟢 ' : '🔴 ') + x.host)),
+      // estado com os SLOTS em uso (multi-slot: "free" com slot ocupado parecia ocioso)
+      el('td', { class: 'small' }, (x.state || '—') + ((x.total_slots || 1) > 1 ? ' · ' + (x.used_slots || 0) + '/' + x.total_slots + T(' slots', ' slots', ' slots') : '')),
+      el('td', { class: 'small' + (x.online ? '' : ' flag-anom') }, x.status === 'disabled' ? T('desabilitado', 'disabled', 'deshabilitado')
+        : x.online ? 'online' : (T('offline há ', 'offline for ', 'fuera de línea hace ') + fmtS(x.age_s))),
       el('td', { class: 'small' }, String(x.problems_count || 0) + ' probs'),
       el('td', { class: 'small ua' }, (x.langs || []).join(' ')))));
     box.append(el('div', { class: 'chart-wrap' }, el('table', { class: 'moj' },
@@ -274,7 +276,7 @@ export function makeStatusTab(CONTEST, opts = {}) {
     swapIf(SK.review, sigOf(d.review || {}), () => buildReview(d.review || {}));
     const actions = computeActions(d, sess, tq);
     swapIf(SK.actions, sigOf(actions), () => buildActions(actions));
-    swapIf(SK.judges, sigOf(j.pool, (j.list || []).map((x) => [x.host, x.online, x.state, x.age_s, x.problems_count, x.langs])), () => buildJudges(j));
+    swapIf(SK.judges, sigOf(j.pool, (j.list || []).map((x) => [x.host, x.online, x.state, x.status, x.used_slots, x.age_s, x.problems_count, x.langs])), () => buildJudges(j));
     const pend = sub.pending_list || [];
     swapIf(SK.pending, sigOf(pend), () => buildPending(pend));
     const pp = (sub.per_problem || []).filter((x) => x.submits > 0);
