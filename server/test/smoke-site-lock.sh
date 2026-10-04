@@ -52,6 +52,12 @@ call /auth/login POST '{"username":"alice","password":"a"}' none 'contest=outro'
 ck "login em OUTRO contest → 403"        '[[ "$(J .error.code)" == site_locked ]]'
 call /index/status GET '' tralice '' 5.5.5.5
 ck "índice → 403"                        '[[ "$(J .error.code)" == site_locked ]]'
+# o IP é o da CONEXÃO: X-Forwarded-For/X-Real-IP vêm do cliente (não há proxy na frente) — forjá-los não solta a
+# trava (auditoria do painel, 03/10/2026: antes o 1º hop do X-Forwarded-For valia e a trava se furava)
+OUT="$(PATH_INFO=/index/status REQUEST_METHOD=GET HTTP_AUTHORIZATION="Bearer tralice" REMOTE_ADDR=5.5.5.5 \
+  HTTP_X_FORWARDED_FOR=203.0.113.9 HTTP_X_REAL_IP=203.0.113.9 CONTESTSDIR="$FIX" SESSIONDIR="$SESS" RUNDIR="$RUN" bash "$ROUTER" 2>/dev/null)"
+BODY="$(printf '%s' "$OUT" | awk 'f{print} /^\r?$/{f=1}')"
+ck "X-Forwarded-For/X-Real-IP forjados NÃO soltam a trava" '[[ "$(J .error.code)" == site_locked ]]'
 call /contest/basic GET '' adm 'contest=sl' 5.5.5.5
 ck "rota do contest dono passa"          '[[ "$OUT" != *"site_locked"* ]]'
 call /auth/login POST '{"username":"alice","password":"a"}' none 'contest=sl' 5.5.5.5

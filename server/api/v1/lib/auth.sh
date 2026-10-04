@@ -156,11 +156,14 @@ user_fullname() {  # <contest> <login> — account.json próprio primeiro, depoi
   [[ "$src" != "$1" ]] && jq -r '.fullname // empty' "$CONTESTSDIR/$src/users/$2/account.json" 2>/dev/null
 }
 
-# IP do cliente: 1º hop de X-Forwarded-For, senão X-Real-IP/REMOTE_ADDR.
+# IP do cliente = o da CONEXÃO (REMOTE_ADDR, que o nginx preenche com $remote_addr). NUNCA o X-Forwarded-For
+# nem o X-Real-IP: não há proxy na frente do nginx de produção (decisão do Ribas, 03/10/2026), então esses
+# cabeçalhos vêm do PRÓPRIO cliente — com eles a trava de sede se furava com um `X-Forwarded-For` forjado, e a
+# chave de máquina `ip:`, o access.log e as anomalias gravavam o IP que o cliente quisesse (auditoria do painel).
+# Se um dia houver proxy, a confiança é no nginx (`set_real_ip_from` + `real_ip_header`), nunca aqui.
 # Sanitizado (só chars de IP) — o arquivo de sessão é "sourced", então nada de metachars.
 client_ip(){
-  local ip="${HTTP_X_FORWARDED_FOR:-}"; ip="${ip%%,*}"
-  [[ -z "$ip" ]] && ip="${HTTP_X_REAL_IP:-${REMOTE_ADDR:-}}"
+  local ip="${REMOTE_ADDR:-}"
   printf '%s' "$ip" | tr -cd '0-9a-fA-F.:'
 }
 

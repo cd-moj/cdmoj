@@ -107,6 +107,9 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   (`enforce` ou `observe`). Caso EXPLICADO (`var/anomalies-explained.json`, POST `explain`; id `kind|login|machine`,
   entrada do cache da rota) sai das contagens e fica na lista; sessões ativas + sair em massa + log de acessos ficam em **Pessoas › Sessões**
   (`sessions-tab.js`, todo contest); o comum aos dois em `sessions-common.js`.
+- **IP do cliente = `REMOTE_ADDR`** (`client_ip`, `lib/auth.sh`; 03/10/2026): nunca `X-Forwarded-For`/`X-Real-IP` — não há
+  proxy na frente do nginx de produção, então eles vêm do cliente (a trava de sede se furava com um cabeçalho forjado).
+  Proxy um dia ⇒ `set_real_ip_from` no nginx, não no bash. Teste no `smoke-site-lock.sh`.
 - **Trava de sede por IP (`lib/site-lock.sh`, 2026-09-02)**: o isolamento por subdomínio só vale
   p/ quem entra pelo subdomínio — `curl --resolve` da máquina de prova chega ao site base pelo
   mesmo IP. Com `SITE_LOCK=1` no conf, login de competidor reivindica o IP de origem

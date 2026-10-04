@@ -12,7 +12,7 @@ printf '100:p#x:C:Not Answered Yet:100:s1\n200:p#x:C:Accepted,100p:200:s2\n' > "
 
 # call <path> <method> <query> <token> <body> [ua] [xff]
 call(){ OUT="$(PATH_INFO="$1" REQUEST_METHOD="$2" QUERY_STRING="$3" \
-  HTTP_AUTHORIZATION="${4:+Bearer $4}" HTTP_USER_AGENT="${6:-}" HTTP_X_FORWARDED_FOR="${7:-}" \
+  HTTP_AUTHORIZATION="${4:+Bearer $4}" HTTP_USER_AGENT="${6:-}" REMOTE_ADDR="${7:-}" \
   CONTESTSDIR="$FIX" SESSIONDIR="$SESS" bash "$ROUTER" <<<"${5:-}" 2>&1)"
   BODY="$(printf '%s' "$OUT" | awk 'f{print} /^\r?$/{f=1}')"; }
 pass=0; fail=0; ck(){ if eval "$2"; then echo "  ok: $1"; ((pass++)); else echo "  FAIL: $1 :: ${BODY:0:160}"; ((fail++)); fi; }

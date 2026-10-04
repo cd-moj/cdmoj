@@ -14,7 +14,7 @@ key="$(param key)"
 [[ -n "$key" ]] || fail 404 "Not found" "notfound"
 
 source "$_LIBDIR/webcast.sh"
-ip="${HTTP_X_REAL_IP:-${REMOTE_ADDR:-}}"
+ip="$(client_ip)"   # o IP da conexão — X-Real-IP vem do cliente (lib/auth.sh client_ip)
 [[ -d "$CONTESTSDIR/$contest" ]] || { wc_deny_log "$contest" "$key" "$ip"; fail 404 "Not found" "notfound"; }
 view="$(wc_lookup "$contest" "$key")" || { wc_deny_log "$contest" "$key" "$ip"; fail 404 "Not found" "notfound"; }
 

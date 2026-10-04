@@ -94,7 +94,7 @@ mojb_…`, `require_bot`, segredo em `run/secrets/bot.token`) — o bot **não**
 | `/treino/telegram/unlink` | Bearer | POST `{}` — desvincula o Telegram do PRÓPRIO login (404 `not_linked` sem vínculo). **Cota anti conta-descartável**: usuário comum desvincula no máx **`TELEGRAM_CHANGE_LIMIT` (1)/ano** (403 `telegram_limit` com a data da próxima; histórico em account.json `telegram_changes`); **`.admin` é livre**. Trocar de Telegram exige desvincular ⇒ a cota cobre a troca. A cota sai no `GET /treino/profile` (`telegram.changes_used/limit/remaining/next_available`; `limit:null` = livre) |
 
 ## Treino — painel admin (`.admin`, Bearer)
-Acesso registra **IP** (`X-Forwarded-For`/`REMOTE_ADDR`) e **User-Agent** na sessão e em `var/access.log`.
+Acesso registra **IP** (`REMOTE_ADDR`, o da conexão — `X-Forwarded-For`/`X-Real-IP` são IGNORADOS: não há proxy na frente do nginx e esses cabeçalhos viriam do próprio cliente; 03/10/2026) e **User-Agent** na sessão e em `var/access.log`.
 
 | Rota | Método | Ação |
 |---|---|---|
