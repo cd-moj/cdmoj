@@ -54,35 +54,12 @@ fi
 # …também nos contests COMPARTILHADOS com o treino (o dir de lá segue o rename logo abaixo)
 shared_pending_for treino "$old" \
   && fail 409 "Você tem submissões pendentes de julgamento. Aguarde o veredicto e tente de novo." "uname_pending"
-# mv do diretório (+ account.login) e registro da troca
-user_rename treino "$old" "$new" || fail 500 "Falha ao renomear a conta" "save_fail"
+# a CASCATA inteira (mv da conta + Telegram, orgs, inscrições, compartilhados, virtuais, posse, sessões) mora em
+# lib/rename-cascade.sh — a mesma da promoção pelo admin (bin/user-promote.sh)
+source "$_LIBDIR/rename-cascade.sh"
+nsess="$(treino_rename_cascade "$old" "$new")" || fail 500 "Falha ao renomear a conta" "save_fail"
+# registro da troca (conta p/ o limite anual — a promoção pelo admin não conta)
 account_merge treino "$new" '.uname_changes = ((.uname_changes // []) + [$t])' --argjson t "$EPOCHSECONDS"
-# (o índice Telegram — by-login/by-tgid — é ajustado em tg_rename)
-command -v tg_rename >/dev/null 2>&1 && tg_rename treino "$old" "$new" 2>/dev/null || true
-# ACESSO segue o rename: troca o login em members/admins de TODAS as orgs (sem isso a conta
-# renomeada ficava órfã de todas — inclusive da implícita — e perdia acesso aos problemas)
-source "$_DIR/lib/orgs.sh"
-orgs_rename_login "$old" "$new" || true
-# INSCRIÇÕES seguem o rename: sem isto a pessoa "sumia" do roster (e do time) de todo contest
-# em que estava inscrita ao trocar de handle. Ver lib/registration.sh.
-source "$_DIR/lib/registration.sh"
-reg_rename_login "$old" "$new" || true
-# CONTESTS COMPARTILHADOS (USERS_FROM=treino): o dir local do participante (history, submissões) segue o
-# nome — sem isto ficava órfão e sumia do placar (lib/users.sh shared_rename_login)
-shared_rename_login treino "$old" "$new" >/dev/null || true
-# PARTICIPAÇÕES VIRTUAIS seguem o rename: o estado mora no dir do usuário (já foi no mv), mas o
-# snapshot publicado fica no contest, chaveado pelo login (lib/virtual.sh)
-source "$_LIBDIR/virtual.sh" 2>/dev/null && vr_rename_login "$old" "$new" || true
-# A POSSE segue o rename (lib/owner-rename.sh): dono de problema, de contest, de coleção e as permissões
-# de criar contest. `owner` CONCEDE acesso — dono apontando p/ login que deixou de existir é posse solta
-# (e os problemas somem de "Meus"). O barato vale JÁ; os metas dos pacotes (1 commit cada) vão destacados.
-source "$_LIBDIR/owner-rename.sh" 2>/dev/null && { owner_rename_fast "$old" "$new" >/dev/null; owner_rename_bg "$old" "$new" "$new"; } || true
-
-# TODAS as sessões do login seguem o novo nome — não só a que pediu a troca. A sessão da outra
-# aba/computador e o token do moj-cli continuavam valendo com o login VELHO: como a conta é um
-# diretório (rename = mv), a próxima submissão por uma dessas sessões recriava o diretório do
-# nome antigo (fantasma sem account.json). Ver rename_contest_sessions em lib/auth.sh.
-nsess="$(rename_contest_sessions treino "$old" "$new")"
 
 flock -u 9
 used2=$(( used + 1 ))

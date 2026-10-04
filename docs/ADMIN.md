@@ -360,6 +360,20 @@ Para consertar uma conta:
 2. Rode de novo com `--apply`.
 3. Confira a última linha: tudo em zero.
 
+### Promover uma conta a um papel (`.admin`, `.judge`…)
+
+O papel vem do **sufixo** do login, e o usuário não pode se dar um sufixo pelo perfil (é escalação). Quem promove é
+o admin da plataforma, com `server/bin/user-promote.sh` — a MESMA cascata da troca de username (conta, Telegram,
+orgs, inscrições, contests compartilhados, virtuais, posse e as sessões abertas, que seguem logadas já com o papel).
+A senha não muda e a troca não gasta o limite anual do usuário.
+
+1. Escreva a mensagem (HTML do Telegram: `<b>`, `<i>`, `<code>`, `<a href>`; escape `<`, `>` e `&`) num arquivo.
+2. Rode em **dry-run** (mostra a conta, o Telegram vinculado e a posse):
+   `podman exec systemd-moj-api bash /opt/moj/cdmoj/server/bin/user-promote.sh <login> <login>.admin`
+3. Repita com `--apply --message-file <arquivo>`: promove e põe a mensagem na fila do mojinho p/ o Telegram
+   vinculado (sem vínculo, avisa e não manda). Fica no audit do treino (`user-promote`, `user-promote-dm`).
+
+
 A ferramenta **recusa** quando o login novo não existe, e quando o login antigo **ainda existe**. No segundo
 caso não houve troca de username: são duas contas, e a posse entre contas diferentes não se transfere por
 aqui. Rodar duas vezes é inofensivo. Cada problema ganha um commit `dono: <antigo> -> <novo>`.

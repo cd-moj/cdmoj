@@ -291,8 +291,13 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   apontando p/ login que não existe mais é posse SOLTA, e os problemas somem de "Meus" — foi o relato do
   Daniel Saad, 201 problemas + 87 contests no login antigo. Passado se conserta com
   `server/bin/owner-rename.sh <antigo> <novo> [--apply]`, dry-run por padrão, que RECUSA se o antigo ainda
-  existe — aquilo é rename, não transferência entre contas. Teste: `smoke-owner-rename.sh`). Item novo na cascata de rename ⇒ entra aqui, no
-  `username.sh` E no `smoke-profile.sh`.
+  existe — aquilo é rename, não transferência entre contas. Teste: `smoke-owner-rename.sh`). **A cascata mora em
+  `lib/rename-cascade.sh` (`treino_rename_cascade`, 04/10/2026)** — fonte única da troca pelo usuário (`username.sh`)
+  e da PROMOÇÃO pelo admin da plataforma (`server/bin/user-promote.sh <login> <login.papel> [--apply]
+  [--message-file <html>]`: ganha o sufixo que o usuário não pode se dar, mesma cascata, não gasta o limite anual,
+  `.promoted` na conta, audit `user-promote`, e manda a DM pelo mojinho ao Telegram vinculado; dry-run por padrão;
+  teste `smoke-user-promote.sh`). Item novo na cascata de rename ⇒ entra na lib, no `smoke-profile.sh` e no
+  `smoke-user-promote.sh`.
 - **Inscrição em contest (`lib/registration.sh`)**: `contests/<c>/registrations.json` — **existir =
   ligado** (doutrina do `cohorts.json`: ausente = comportamento de sempre, custo zero). Vale só p/
   contest com `USERS_FROM` (quem se inscreve é a conta da FONTE, pela página `/contests/inscricao/`
