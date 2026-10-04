@@ -370,13 +370,15 @@ export function makeDocsTab(CONTEST, opts = {}) {
           'La organización todavía no publicó documentos. Vuelve más cerca de la competencia.')));
     } else {
       panel.append(el('p', { class: 'small muted' },
-        T('Gere em PDF e HTML, em pt, en e es. Publicar deixa o documento visível na seção “Prova” do contest e para os chefes de sede (.cstaff).',
-          'Generate as PDF and HTML, in pt, en and es. Publishing shows the document under “Contest” and to site chiefs (.cstaff).',
-          'Genera en PDF y HTML, en pt, en y es. Publicar deja el documento visible en la sección “Competencia” y para los jefes de sede (.cstaff).')),
+        T('Gere em PDF e HTML, em pt, en e es. Publicar deixa o documento visível na seção “Prova” do contest e para a sede — o caderno e a folha de time limits só a partir do INÍCIO da prova (antes, só juízes e organização).',
+          'Generate as PDF and HTML, in pt, en and es. Publishing shows the document under “Contest” and to the site — the problem set and the time-limits sheet only from the contest START (before that, only judges and the organization).',
+          'Genera en PDF y HTML, en pt, en y es. Publicar deja el documento visible en la sección “Competencia” y para la sede — el cuadernillo y la hoja de límites de tiempo solo a partir del INICIO de la competencia (antes, solo jueces y organización).')),
         el('p', { class: 'small muted' },
-          T('⚠️ O idioma vale para capa, títulos e tabelas. O enunciado sai no idioma em que foi escrito — para prova traduzida, use “subir PDF” (o enviado vence o gerado).',
-            '⚠️ The language applies to cover, headings and tables. Statements come out in the language they were written in — for a translated set, use “upload PDF” (the uploaded file wins).',
-            '⚠️ El idioma se aplica a la portada, los títulos y las tablas. El enunciado sale en el idioma en que fue escrito — para una prueba traducida, usa “subir PDF” (el archivo subido gana al generado).')),
+          // desde 15/09/2026 o CORPO também segue o idioma do documento (lib/contest-docs.sh: arquivo do idioma no contest ›
+          // tradução do banco › PT) — o aviso antigo mandava subir PDF p/ ter o enunciado traduzido
+          T('🌐 Cada documento sai no idioma da linha: capa, títulos e o enunciado de cada problema na tradução que o problema tem (sem tradução, em português). Prova traduzida por fora: use “subir PDF” (o enviado vence o gerado).',
+            '🌐 Each document comes out in the language of its line: cover, headings and each problem statement in the translation the problem has (without one, in Portuguese). A set translated elsewhere: use “upload PDF” (the uploaded file wins).',
+            '🌐 Cada documento sale en el idioma de su fila: portada, títulos y el enunciado de cada problema en la traducción que tenga el problema (sin traducción, en portugués). Prueba traducida por fuera: usa “subir PDF” (el archivo subido gana al generado).')),
         el('p', { class: 'small muted' },
           T('✎ Algo torto no PDF gerado (espaço demais ou de menos entre os elementos, imagem grande)? Baixe o “✎ .odt”, ajuste no LibreOffice (ou Word), exporte em PDF e suba em “subir PDF” — o enviado vence o gerado e é ele que os times baixam.',
             '✎ Something off in the generated PDF (too much or too little space between elements, an oversized image)? Download the “✎ .odt”, adjust it in LibreOffice (or Word), export to PDF and upload it with “upload PDF” — the uploaded file wins and is what teams download.',
