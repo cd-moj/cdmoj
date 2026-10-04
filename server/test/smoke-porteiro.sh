@@ -87,6 +87,15 @@ r="$(req /contest/score contest=fx)"
 [[ "$r" == *linha-frozen* && "$r" == *'X-MOJ-Frozen: 1'* ]] && ok "anônimo: congelado + header 1" || bad "score anon: ${r:0:120}"
 r="$(req /contest/score contest=fx "Bearer tk-adm")"
 [[ "$r" == *linha-full* && "$r" == *'X-MOJ-Frozen: 0'* ]] && ok "admin: full + header 0" || bad "score adm: ${r:0:120}"
+# SCORE_FULL_USERS com DOIS logins, gravado como o settings grava (%q ⇒ `livre1\ livre2`): os dois recebem o full
+# — com o escape cru o .split() dava ['livre1\\', 'livre2'] e só o último valia (auditoria do painel, 03/10/2026)
+for u in livre1 livre2; do mkdir -p "$C/users/$u"; printf '{"login":"%s"}' "$u" > "$C/users/$u/account.json"
+  printf 'CONTEST=fx\nLOGIN=%s\n' "$u" > "$SESSIONDIR/tk-$u"; done
+printf 'SCORE_FULL_USERS=%q\n' "livre1 livre2" >> "$C/conf"
+r="$(req /contest/score contest=fx "Bearer tk-livre1")"
+[[ "$r" == *linha-full* && "$r" == *'X-MOJ-Frozen: 0'* ]] && ok "SCORE_FULL_USERS: o 1º de dois logins recebe o full" || bad "score livre1: ${r:0:120}"
+r="$(req /contest/score contest=fx "Bearer tk-livre2")"
+[[ "$r" == *linha-full* ]] && ok "SCORE_FULL_USERS: o 2º também" || bad "score livre2: ${r:0:120}"
 r="$(req /contest/score contest=fx "" GET gzip)"
 [[ "$r" == *'Content-Encoding: gzip'* ]] && ok "gz servido com Accept-Encoding" || bad "score gz: ${r:0:120}"
 

@@ -72,7 +72,9 @@ ck "outro time segue no congelado"       '[[ "$BODY" == "$A_CONG" ]]'
 call sv.judge 'view=public'
 ck "?view=public congela o juiz"     '[[ "$BODY" != "$A_JUIZ" ]]'
 ck "mas ele segue na visão dele"     'tem conv01'
-printf 'SCORE_FULL_USERS=livre01\n' >> "$C/conf"
+# DOIS logins, gravados como o settings grava (%q ⇒ `livre01\ outro.cstaff`): o 1º da lista também vale — com o
+# escape cru só o ÚLTIMO recebia o full (auditoria do painel, 03/10/2026)
+printf 'SCORE_FULL_USERS=%q\n' "livre01 outro.cstaff" >> "$C/conf"
 sleep 1; CONTESTSDIR="$FIX" RUNDIR="$FIX/run" bash "$ROOT/score/build.sh" sv >/dev/null 2>&1
 call livre01
 ck "SCORE_FULL_USERS libera o full"      '[[ "$BODY" != "$A_CONG" ]]'

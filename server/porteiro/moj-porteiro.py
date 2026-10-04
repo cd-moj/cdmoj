@@ -101,17 +101,36 @@ def cache_fresh(cf, ttl, inputs):
     return True
 
 
+def q_unescape(v):
+    """O escape do `printf %q` sai (`\\X` -> `X`), como no conf_value do bash; `$'…'` fica como está."""
+    if "\\" not in v or v.startswith("$"):
+        return v
+    out, i = [], 0
+    while i < len(v):
+        c = v[i]
+        if c == "\\":
+            i += 1
+            c = v[i] if i < len(v) else ""
+        out.append(c)
+        i += 1
+    return "".join(out)
+
+
 def conf_value(contest, key):
-    """Espelho do conf_value: PRIMEIRA linha `KEY=...`, aspas removidas."""
+    """Espelho do conf_value (lib/common.sh): a ÚLTIMA linha `KEY=...` (como o `source`), aspas removidas e o
+    escape do %q desfeito — `SCORE_FULL_USERS=alice\\ bob` dava ['alice\\', 'bob'] (auditoria 03/10/2026)."""
     pref = key + "="
+    val = None
     try:
         with open(os.path.join(CONTESTSDIR, contest, "conf"), errors="replace") as f:
             for line in f:
                 if line.startswith(pref):
-                    return line[len(pref):].rstrip("\n").replace("'", "").replace('"', "")
+                    val = line[len(pref):].rstrip("\n")
     except OSError:
         pass
-    return ""
+    if val is None:
+        return ""
+    return q_unescape(val.replace("'", "").replace('"', ""))
 
 
 def read_json(path):

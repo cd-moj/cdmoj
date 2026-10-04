@@ -1551,7 +1551,10 @@ mexa na outra. O índice separa as coleções por `\u001f` (nome é texto livre:
 - **`conf_value <contest> <CHAVE>` (lib/common.sh) lê uma chave do conf SEM PROCESSO NENHUM.** O
   `contest_is_secret`, que roda em TODA rota pública de contest, gastava um `grep | cut` (2
   processos) p/ ler `SECRET=`. `$(<arquivo)`/`read` são builtins. Não confundir com
-  `load_contest_conf`: no caminho de auth o conf **não pode** ser *sourced*.
+  `load_contest_conf`: no caminho de auth o conf **não pode** ser *sourced*. **Fiel ao `source`** (03/10/2026):
+  a ÚLTIMA linha da chave vence e o escape do `printf %q` sai (`alice\ bob` → `alice bob`) — sem isso
+  `SCORE_FULL_USERS` com 2 logins só valia p/ o último e o gate legado com espaço barrava todos. Os espelhos
+  Python fazem o MESMO (`q_unescape` no porteiro e no `spool-drain.py`): leitor novo de conf, use-os.
 - **NOME DO PROBLEMA NO CONTEST = o do spec, senão o TÍTULO DO BANCO NO IDIOMA DA PROVA — nunca o id** (2026-09-18,
   relato do Daniel Saad: contest criado pela API com um JSON sem `name` mostrava "saad-problems#knight-moves" na
   sanfona; 03/10/2026, TCP 2026: `LOCALE=es` com os nomes em PT sobre o enunciado em ES). `cc_prob_title <id>

@@ -53,6 +53,21 @@ IDLE_EXIT_S = 120
 _conf_cache = {}
 
 
+def q_unescape(v):
+    """Desfaz o escape do `printf %q` (`\\X` -> `X`), como o conf_value do bash (lib/common.sh)."""
+    if "\\" not in v or v.startswith("$"):
+        return v
+    out, i = [], 0
+    while i < len(v):
+        c = v[i]
+        if c == "\\":
+            i += 1
+            c = v[i] if i < len(v) else ""
+        out.append(c)
+        i += 1
+    return "".join(out)
+
+
 def conf(contest):
     if contest in _conf_cache:
         return _conf_cache[contest]
@@ -64,7 +79,9 @@ def conf(contest):
                 if s.startswith("CONTEST_PRIORITY="):
                     prio = s.split("=", 1)[1].strip().strip("'\"") or prio
                 elif s.startswith("CONTEST_JUDGES="):
-                    judges = s.split("=", 1)[1].strip().strip("'\"")
+                    # o conf é gravado com %q: `j1\\ j2` — sem desfazer o escape só o último host julgava
+                    # (o judged.sh usa `source` e acertava; auditoria 03/10/2026)
+                    judges = q_unescape(s.split("=", 1)[1].strip().replace("'", "").replace('"', ""))
     except OSError:
         pass
     pj = {}

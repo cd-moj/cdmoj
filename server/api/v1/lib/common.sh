@@ -248,17 +248,34 @@ require_contest() {  # require_contest <id>
 }
 # carrega o conf do contest em variáveis (CONTEST_NAME, CONTEST_TYPE, PROBS, ...)
 load_contest_conf() { source "$CONTESTSDIR/$1/conf"; }
-# conf_value <contest> <CHAVE> -> valor da 1ª linha `CHAVE=…`, sem aspas, SEM PROCESSO NENHUM.
+# conf_value <contest> <CHAVE> -> valor de `CHAVE=…` como o `source` o veria, SEM PROCESSO NENHUM.
 # O conf é *sourced* em outros caminhos, mas aqui não pode ser (é o caminho de auth: conteúdo de
 # usuário não vira código) — e o par grep|cut custava DOIS processos numa checagem que roda em
 # TODA rota pública de contest. `$(<arquivo)` é caso especial do bash: lê sem forkar.
+# Fiel ao `source` (auditoria do painel, 03/10/2026):
+#   - a ÚLTIMA linha da chave vence (era a 1ª: um `CONTEST_END=` acrescentado ao fim valia p/ o `source` e não p/
+#     os leitores daqui — webcast, animeitor, trava de sede);
+#   - o escape do `printf %q` sai (`\X` -> `X`): `SCORE_FULL_USERS=alice\ bob` dava "alice\ bob" e só o ÚLTIMO
+#     login recebia o placar completo. Valor `$'…'` (não-ASCII) fica como está.
 conf_value() {
-  local f="$CONTESTSDIR/$1/conf" k="$2=" line v
+  local f="$CONTESTSDIR/$1/conf" k="$2=" line v="" o i c hit=0
   [[ -r "$f" ]] || return 0
   while IFS= read -r line || [[ -n "$line" ]]; do
     [[ "$line" == "$k"* ]] || continue
-    v="${line#"$k"}"; v="${v//\'/}"; v="${v//\"/}"; printf '%s' "$v"; return 0
+    v="${line#"$k"}"; hit=1
   done < "$f"
+  (( hit )) || return 0
+  v="${v//\'/}"; v="${v//\"/}"
+  if [[ "$v" == *\\* && "$v" != \$* ]]; then
+    o=""
+    for (( i=0; i<${#v}; i++ )); do
+      c="${v:i:1}"
+      if [[ "$c" == \\ ]]; then i=$((i+1)); c="${v:i:1}"; fi
+      o+="$c"
+    done
+    v="$o"
+  fi
+  printf '%s' "$v"
   return 0
 }
 # contest SUPER SECRETO (conf SECRET=1): fora das listagens públicas (home/arquivo/status);

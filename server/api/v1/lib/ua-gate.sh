@@ -64,14 +64,10 @@ ug_has_rule(){
          or ((.by_region // {}) | length > 0) or ((.fallback // "") != "")' <<<"$1" >/dev/null 2>&1
 }
 
-# ug_legacy <c> -> LOGIN_UA_SUBSTRING do conf (lido por grep: o caminho de auth nunca sourceia
-# o conf, que roda command substitution). Mesmo idioma de handlers/auth/login.sh.
-ug_legacy(){
-  local v
-  v="$(grep -m1 '^LOGIN_UA_SUBSTRING=' "$CONTESTSDIR/$1/conf" 2>/dev/null | cut -d= -f2-)"
-  v="${v%\'}"; v="${v#\'}"; v="${v%\"}"; v="${v#\"}"
-  printf '%s' "$v"
-}
+# ug_legacy <c> -> LOGIN_UA_SUBSTRING do conf pelo conf_value (o caminho de auth nunca sourceia o conf, que roda
+# command substitution): sem processo e com o escape do %q desfeito — o grep|cut de antes devolvia "MOJ\ Box" p/ a
+# substring "MOJ Box" e o gate barrava TODO time (auditoria do painel, 03/10/2026).
+ug_legacy(){ conf_value "$1" LOGIN_UA_SUBSTRING; }
 
 # ug_region_of <c> <login> -> sede do time pela regra ÚNICA (lib/regions.sh): a gravada, senão a regex
 # mais FUNDA. Até 28/09/2026 era a 1ª em pré-ordem — o pai vencia a folha (teamsp01 → "Brasil") e o

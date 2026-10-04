@@ -85,4 +85,11 @@ echo "== proteção: não-admin =="
 call /contest/admin/sessions GET '' "$TOKF" 'contest=lc'
 ck "alice (não-admin) 403"     '[[ "$OUT" == *"Status: 403"* ]]'
 
+echo "== gate legado com ESPAÇO na substring (gravada com %q: MOJ\\ Box) — auditoria do painel, 03/10/2026 =="
+sed -i '/^LOGIN_UA_SUBSTRING=/d' "$C/conf"; printf 'LOGIN_UA_SUBSTRING=%q\n' "MOJ Box" >> "$C/conf"
+call /auth/login POST '{"username":"alice","password":"a"}' '' 'contest=lc' 'Mozilla MOJ Box/3' 8.8.8.8
+ck "UA com 'MOJ Box' entra (o escape do %q não vai p/ a comparação)" '[[ "$(jq -r .logged_in <<<"$BODY")" == true ]]'
+call /auth/login POST '{"username":"alice","password":"a"}' '' 'contest=lc' 'Mozilla Firefox' 8.8.8.8
+ck "…e UA sem a substring continua barrado"                          '[[ "$OUT" == *"Status: 403"* ]]'
+
 echo ""; echo "RESULT: $pass passed, $fail failed"; exit $(( fail>0?1:0 ))

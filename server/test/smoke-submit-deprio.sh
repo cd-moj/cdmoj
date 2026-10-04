@@ -99,6 +99,16 @@ spec = importlib.util.spec_from_file_location("sd", sys.argv[1]); m = importlib.
 spec.loader.exec_module(m); sys.exit(0 if m.process(sys.argv[2]) else 1)
 EOF
 }
+# pool do contest gravado com %q (`j1\ j2`): o drenador lia ['j1\\', 'j2'] e só o ÚLTIMO host julgava (o judged.sh
+# usa `source` e acertava) — auditoria do painel, 03/10/2026
+mkdir -p "$FIX/pj"; printf 'CONTEST_JUDGES=%q\n' "j1 j2" > "$FIX/pj/conf"
+PJ="$(CONTESTSDIR="$FIX" PYTHONDONTWRITEBYTECODE=1 python3 - "$ROOT/daemons/spool-drain.py" <<'EOF'
+import importlib.util, sys
+spec = importlib.util.spec_from_file_location("sd", sys.argv[1]); m = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(m); prio, judges, pj = m.conf("pj"); print(",".join(m.allowed_hosts(pj, judges, "a#b")))
+EOF
+)"
+ck "drenador: CONTEST_JUDGES com dois hosts ⇒ j1,j2 (era só o último)" '[[ "$PJ" == "j1,j2" ]]'
 mkc py prova
 P=(); for i in 1 2 3 4 5 6 7 8 9; do sub py; P+=("$SID"); done     # 9 linhas pendentes, nada drenado
 pyrun "${P[5]}"; DBG="$(qts "${P[5]}") vs $(qenq "${P[5]}")"
