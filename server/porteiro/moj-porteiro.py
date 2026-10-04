@@ -176,6 +176,11 @@ def load_session(params):
         if not (src and valid_id(src) and src != contest and os.path.isfile(
                 os.path.join(CONTESTSDIR, src, "users", login, "account.json"))):
             raise Decline("conta não-viva")
+        # conta de PAPEL que só existe na fonte: o bash aplica o _shared_role_ok (SHARED_ADMIN/dono/super-admin) e
+        # derruba a sessão (401) quando não vale — o porteiro não tem essa regra, então devolve ao bash (sessão aberta
+        # antes do corte de papéis de 28/09 recebia aqui o placar descongelado; auditoria 03/10/2026)
+        if role_of(login) != "time":
+            raise Decline("papel de conta só da fonte")
     return contest, login
 
 
@@ -813,6 +818,12 @@ def handle_request(params):
     if not contest:
         raise Decline("sem contest")
     require_contest(contest)
+    # TRAVA DE SEDE (router.sh + lib/site-lock.sh): IP preso a um contest ⇒ quem decide (403 site_locked, papel
+    # isento, auditoria) é o bash. Um stat por requisição; o porteiro servia o placar/problemas de OUTRO contest a
+    # uma máquina presa (auditoria do painel, 03/10/2026). O IP é o da conexão (client_ip: REMOTE_ADDR, nunca XFF).
+    ip = "".join(ch for ch in params.get("REMOTE_ADDR", "") if ch in "0123456789abcdefABCDEF.:")
+    if ip and os.path.exists(os.path.join(RUNDIR, "site-lock", ip)):
+        raise Decline("IP preso pela trava de sede")
     # isolamento por subdomínio (router.sh:57-64): rota de contest é permitida; só o mismatch cai
     ch = params.get("CONTEST_HOST", "")
     if ch and valid_id(ch) and q.get("contest") and q["contest"] != ch:

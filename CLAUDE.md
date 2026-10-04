@@ -44,6 +44,8 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   esquisita, POST, `scope=mine`, coorte fora do padrão) ele DECLINA fechando a conexão sem
   resposta ⇒ nginx 502 ⇒ `@moj_fcgiwrap` ⇒ o bash responde E regenera o cache (que o porteiro
   volta a servir). A preguiça de regeneração do bash continua exercitada por construção.
+  Também DECLINA (03/10/2026) IP preso pela trava de sede (`RUNDIR/site-lock/<ip>`: o 403 e a isenção de papel
+  são do bash) e sessão de PAPEL cuja conta só existe na fonte `USERS_FROM` (o `_shared_role_ok` é do bash).
   ⚠ As VARIANTES espelhadas nele são REGRAS DE SEGURANÇA (papel da nav, coorte, autor da
   lista, congelado×completo) — mudou a regra no handler/lib bash ⇒ mude no porteiro E rode
   `smoke-porteiro.sh` (25 asserções: variantes + declines + computadas, com cliente FCGI

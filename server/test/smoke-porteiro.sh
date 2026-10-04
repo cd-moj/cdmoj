@@ -45,7 +45,7 @@ for i in $(seq 40); do [[ -S "$SOCK" ]] && break; sleep 0.1; done
 # cliente FCGI: fala uma requisição e ecoa a resposta crua (vazio = DECLINE)
 req(){ # req PATH QS [AUTH] [METHOD] [ACCEPT_ENC]
   python3 - "$SOCK" "$1" "$2" "${3:-}" "${4:-GET}" "${5:-}" <<'PY'
-import socket, struct, sys
+import socket, struct, sys, os
 sock, path, qs, auth, method, ae = sys.argv[1:7]
 def nv(n, v):
     n, v = n.encode(), v.encode()
@@ -55,6 +55,7 @@ def rec(t, c): return struct.pack(">BBHHBB", 1, t, 1, len(c), 0, 0) + c
 params = nv("PATH_INFO", path) + nv("QUERY_STRING", qs) + nv("REQUEST_METHOD", method)
 if auth: params += nv("HTTP_AUTHORIZATION", auth)
 if ae:   params += nv("HTTP_ACCEPT_ENCODING", ae)
+if os.environ.get("RADDR"): params += nv("REMOTE_ADDR", os.environ["RADDR"])
 s = socket.socket(socket.AF_UNIX); s.settimeout(5); s.connect(sock)
 s.sendall(rec(1, struct.pack(">HB5x", 1, 0)) + rec(4, params) + rec(4, b"") + rec(5, b""))
 out = b""
@@ -107,6 +108,18 @@ d "POST"                     "$(req /contest/score contest=fx "" POST)"
 d "traversal"                "$(req /contest/score "contest=../../etc")"
 d "scope=mine"               "$(req /contest/score "contest=fx&scope=mine" "Bearer tk-adm")"
 d "cache frio (basic sem cache)" "$(req /contest/basic contest=fx "Bearer tk-eq1")"
+# trava de sede: IP preso ⇒ o bash decide (403 site_locked / papel isento) — auditoria 03/10/2026
+mkdir -p "$RUNDIR/site-lock"; printf 'outro\t9999999999\n' > "$RUNDIR/site-lock/9.8.7.6"
+d "IP preso pela trava de sede" "$(RADDR=9.8.7.6 req /contest/rounds contest=fx "Bearer tk-eq1")"
+touch "$C/var/rounds-cache.pub.json" "$C/var/rounds-cache.priv.json"   # o conf mudou acima (SCORE_FULL_USERS)
+r="$(RADDR=9.8.7.7 req /contest/rounds contest=fx "Bearer tk-eq1")"
+[[ "$r" == *'"r":"pub"'* ]] && ok "IP livre segue servido" || bad "ip livre: ${r:0:80}"
+# papel de conta SÓ da fonte (USERS_FROM): o _shared_role_ok é do bash ⇒ declina
+mkdir -p "$CONTESTSDIR/fonte/users/sx.judge" "$CONTESTSDIR/sh/var"; printf '{"login":"sx.judge"}' > "$CONTESTSDIR/fonte/users/sx.judge/account.json"
+printf 'CONTEST_NAME=Sh\nCONTEST_START=1\nCONTEST_END=99999999999\nUSERS_FROM=fonte\n' > "$CONTESTSDIR/sh/conf"
+printf '{"success":true,"r":"pub"}' > "$CONTESTSDIR/sh/var/rounds-cache.pub.json"; printf '{"success":true,"r":"priv"}' > "$CONTESTSDIR/sh/var/rounds-cache.priv.json"
+printf 'CONTEST=sh\nLOGIN=sx.judge\n' > "$SESSIONDIR/tk-sxj"
+d "papel de conta só da fonte" "$(req /contest/rounds contest=sh "Bearer tk-sxj")"
 rm "$C/var/rounds-cache.pub.json"
 d "cache ausente"            "$(req /contest/rounds contest=fx "Bearer tk-eq1")"
 touch "$C/conf"
