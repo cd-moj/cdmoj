@@ -19,7 +19,7 @@ source "$(dirname "$(readlink -f "$0")")/fixture.sh"
 
 C="$FIX/bc"; mkdir -p "$C/var" "$C/enunciados"
 T0=$(( $(date +%s) - 3600 )); TE=$(( T0 + 18000 ))
-{ printf 'CONTEST_ID=bc\nCONTEST_TYPE=icpc\nCONTEST_NAME=Prova\n'
+{ printf 'CONTEST_ID=bc\nCONTEST_MODULES=sedes,maquinas,baloes,coortes,inscricoes\nCONTEST_TYPE=icpc\nCONTEST_NAME=Prova\n'
   printf 'CONTEST_START=%s\nCONTEST_END=%s\n' "$T0" "$TE"
   printf 'PROBS=( x col#pa Alfa A col#pa )\n'; } > "$C/conf"
 for u in bc.admin bc.judge bc.cjudge bc.staff bc.cstaff bc.animeitor bc.mon time01 time02; do

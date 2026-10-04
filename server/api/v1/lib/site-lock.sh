@@ -30,7 +30,9 @@
 
 sl_dir(){ printf '%s/site-lock' "${RUNDIR:-/home/ribas/moj/run}"; }
 sl_file(){ printf '%s/%s' "$(sl_dir)" "$1"; }
-sl_enabled(){ local v; v="$(conf_value "$1" SITE_LOCK)"; [[ "$v" == 1 || "$v" == y || "$v" == true ]]; }
+# a trava só vale com o módulo `maquinas` LIGADO (desligar desliga a regra — e o admin/modules solta os IPs presos)
+sl_enabled(){ local v; v="$(conf_value "$1" SITE_LOCK)"; [[ "$v" == 1 || "$v" == y || "$v" == true ]] || return 1
+  declare -F mod_on >/dev/null || source "${_LIBDIR:-${BASH_SOURCE[0]%/*}}/modules.sh"; mod_on "$1" maquinas; }
 sl_grace(){ local g; g="$(conf_value "$1" SITE_LOCK_GRACE)"; [[ "$g" =~ ^[0-9]+$ ]] && printf '%s' "$g" || printf '3600'; }
 
 _sl_lock(){ local fd d; d="$(sl_dir)"; mkdir -p "$d/.blk" 2>/dev/null; chmod 700 "$d" 2>/dev/null
@@ -131,6 +133,17 @@ sl_release(){
   awk -F'\t' -v c="$c" '$2 != c' "$f" > "$tmp" 2>/dev/null
   if [[ -s "$tmp" ]]; then mv -f "$tmp" "$f"; else rm -f "$tmp" "$f"; fi
   _sl_unlock "$fd"; return 0
+}
+
+# sl_release_contest <contest> — solta TODOS os IPs presos por este contest (o módulo `maquinas` foi desligado: a
+# reivindicação no disco seguiria barrando no router, que só confere o arquivo). Ecoa quantos.
+sl_release_contest(){
+  local c="$1" d f n=0; d="$(sl_dir)"; [[ -d "$d" ]] || { printf '0'; return 0; }
+  while IFS= read -r -d '' f; do
+    awk -F'\t' -v c="$c" '$2 == c { f = 1 } END { exit !f }' "$f" 2>/dev/null || continue
+    sl_release "$c" "${f##*/}"; n=$((n + 1))
+  done < <(find "$d" -maxdepth 1 -type f ! -name '.*' -print0 2>/dev/null)
+  printf '%s' "$n"
 }
 
 # sl_list <contest> -> JSON [{ip,until,first,last,logins,blocked,last_block,last_target,active}]

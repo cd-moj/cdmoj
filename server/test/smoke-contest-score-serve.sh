@@ -17,7 +17,7 @@ source "$(dirname "$(readlink -f "$0")")/fixture.sh"
 
 C="$FIX/sv"; mkdir -p "$C/var"
 T0=$(( $(date +%s) - 7200 )); TE=$(( T0 + 18000 ))
-{ printf 'CONTEST_ID=sv\nCONTEST_TYPE=icpc\nCONTEST_NAME=Prova\n'
+{ printf 'CONTEST_ID=sv\nCONTEST_MODULES=sedes,maquinas,baloes,coortes,inscricoes\nCONTEST_TYPE=icpc\nCONTEST_NAME=Prova\n'
   printf 'CONTEST_START=%s\nCONTEST_END=%s\nFREEZE_TIME=%s\n' "$T0" "$TE" "$(( T0 + 3600 ))"
   printf 'PROBS=( x c#a Alfa A c#a x c#b Beta B c#b )\n'; } > "$C/conf"
 for u in time01 time02 conv01 sv.admin sv.judge sv.animeitor sv.cstaff livre01; do fx_user "$C" "$u" p "Nome $u"; done

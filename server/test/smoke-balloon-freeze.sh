@@ -12,7 +12,7 @@ FIX="$(mktemp -d)"; SESS="$(mktemp -d)"; trap 'rm -rf "$FIX" "$SESS"' EXIT
 source "$(dirname "$(readlink -f "$0")")/fixture.sh"
 C="$FIX/bf"; mkdir -p "$C/var" "$C/print-requests"
 NOW="$(date +%s)"; FZ=$((NOW-1800)); PRE=$((NOW-2400)); POS=$((NOW-600))
-printf 'CONTEST_ID=bf\nCONTEST_TYPE=icpc\nCONTEST_START=%s\nCONTEST_END=%s\nFREEZE_TIME=%s\nUSER_STORE=v2\nPROBS=( cdmoj apc#p1 Um A apc#p1 cdmoj apc#p2 Dois B apc#p2 )\n' \
+printf 'CONTEST_ID=bf\nCONTEST_MODULES=sedes,maquinas,baloes,coortes,inscricoes\nCONTEST_TYPE=icpc\nCONTEST_START=%s\nCONTEST_END=%s\nFREEZE_TIME=%s\nUSER_STORE=v2\nPROBS=( cdmoj apc#p1 Um A apc#p1 cdmoj apc#p2 Dois B apc#p2 )\n' \
   "$((NOW-3600))" "$((NOW+3600))" "$FZ" > "$C/conf"
 fx_user "$C" bf.admin p "Admin"
 fx_user "$C" sede.staff p "Staff"

@@ -6800,14 +6800,14 @@
       "get": {
         "tags": ["contest-admin"],
         "summary": "Módulos do contest (grupos de recursos ligáveis): catálogo, ligado/desligado, dados presentes",
-        "description": "Catálogo ÚNICO em lib/modules.sh (espelho em web/contest/admin/modules.js): sedes, maquinas, rodadas, documentos, baloes, coortes, inscricoes, telao, classificacao, virtual, esqueletos. detected = há artefato do módulo no contest (regions.json, ua-gate.json/SITE_LOCK/chave nutellaboot, rounds.json, docs/config.json, balloons.json, cohorts.json, registrations.json, webcast.json/fotos, classification.json, virtual/runs, esqueletos.json) e reason diz qual. É UX: decide o que o painel do admin/chefe mostra; o acesso continua cortado em cada rota. Contests anteriores a 2026-09-05: server/bin/contest-modules-detect.sh [--apply].",
+        "description": "Catálogo ÚNICO em lib/modules.sh (espelho em web/contest/admin/modules.js): sedes, maquinas, rodadas, documentos, baloes, coortes, inscricoes, telao, classificacao, virtual, esqueletos. detected = há artefato do módulo no contest (regions.json, ua-gate.json/SITE_LOCK/LOGIN_UA_SUBSTRING/chave nutellaboot, rounds.json, docs/config.json, balloons.json, cohorts.json, registrations.json, webcast.json/fotos, classification.json, virtual/runs, esqueletos.json) e reason diz qual. Decide o que o painel mostra E, desde 03/10/2026, se a REGRA vale: desligado, maquinas (gate/sessão única/trava), sedes (prorrogação), inscricoes (só inscrito entra), coortes (corte do placar) e baloes (tarefas) não valem, com o arquivo no disco. O acesso continua cortado em cada rota. Contests anteriores a 2026-09-05: server/bin/contest-modules-detect.sh [--apply].",
         "parameters": [{"$ref": "#/components/parameters/contest"}],
         "security": [{"bearerAuth": []}],
         "responses": {"200": {"description": "{modules:[{id,on,detected,reason}], enabled:[…]}"}}
       },
       "post": {
         "tags": ["contest-admin"],
-        "summary": "Liga/desliga módulos (CONTEST_MODULES no conf). Desligar NUNCA apaga dado. Gravar o dado de um módulo por qualquer rota da API (rounds, cohorts, ua-gate, docs, registrations, classify, config, time-overrides, webcast, team-assets) LIGA o módulo sozinho (auditado modules-auto)",
+        "summary": "Liga/desliga módulos (CONTEST_MODULES no conf). Desligar NUNCA apaga dado, mas DESLIGA A REGRA (desligar maquinas solta os IPs presos pela trava; religar baloes faz a varredura completa). Gravar o dado de um módulo por qualquer rota da API (rounds, cohorts, ua-gate, docs, registrations, classify, config, time-overrides, webcast, team-assets) LIGA o módulo sozinho (auditado modules-auto)",
         "parameters": [{"$ref": "#/components/parameters/contest"}],
         "requestBody": {"content": {"application/json": {"schema": {"type": "object", "properties": {"on": {"type": "array", "items": {"type": "string"}}, "off": {"type": "array", "items": {"type": "string"}}}}}}},
         "security": [{"bearerAuth": []}],

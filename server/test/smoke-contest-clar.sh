@@ -5,7 +5,7 @@ ROOT="$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)"; ROUTER="$ROOT/api/v1/
 FIX="$(mktemp -d)"; SESS="$(mktemp -d)"; trap 'rm -rf "$FIX" "$SESS"' EXIT
 source "$(dirname "$(readlink -f "$0")")/fixture.sh"
 C="$FIX/cl"; mkdir -p "$C/var"
-printf 'CONTEST_ID=cl\nCONTEST_TYPE=icpc\n' > "$C/conf"
+printf 'CONTEST_ID=cl\nCONTEST_MODULES=sedes,maquinas,baloes,coortes,inscricoes\nCONTEST_TYPE=icpc\n' > "$C/conf"
 fx_user "$C" cl.admin  p Admin
 fx_user "$C" jdg.judge p Judge
 fx_user "$C" jd2.judge p "Judge Two"
@@ -22,7 +22,7 @@ pass=0; fail=0; ck(){ if eval "$2"; then echo "  ok: $1"; ((pass++)); else echo 
 
 echo "== perguntar: só DURANTE a prova (time/.mon); staff nunca; juiz/admin sempre =="
 NOW="$EPOCHSECONDS"
-printf 'CONTEST_ID=cl\nCONTEST_TYPE=icpc\nCONTEST_START=%s\nCONTEST_END=%s\n' "$((NOW+3600))" "$((NOW+7200))" > "$C/conf"
+printf 'CONTEST_ID=cl\nCONTEST_MODULES=sedes,maquinas,baloes,coortes,inscricoes\nCONTEST_TYPE=icpc\nCONTEST_START=%s\nCONTEST_END=%s\n' "$((NOW+3600))" "$((NOW+7200))" > "$C/conf"
 call /contest/clarification-ask POST '{"question":"cedo"}' alice 'contest=cl'
 ck "antes do início: time -> 403 contest_not_started" '[[ "$OUT" == *"Status: 403"* && "$(jq -r .error.code <<<"$BODY")" == contest_not_started ]]'
 call /contest/clarification-ask POST '{"question":"cedo"}' mon 'contest=cl'
@@ -30,14 +30,14 @@ ck "antes do início: .mon -> 403"       '[[ "$OUT" == *"Status: 403"* ]]'
 call /contest/clarification-ask POST '{"question":"cedo"}' jdg 'contest=cl'
 ck "juiz pergunta antes do início"      '[[ "$(jq -r .asked <<<"$BODY")" == true ]]'
 rm -f "$C"/clarifications/*.json
-printf 'CONTEST_ID=cl\nCONTEST_TYPE=icpc\nCONTEST_START=%s\nCONTEST_END=%s\n' "$((NOW-7200))" "$((NOW-3600))" > "$C/conf"
+printf 'CONTEST_ID=cl\nCONTEST_MODULES=sedes,maquinas,baloes,coortes,inscricoes\nCONTEST_TYPE=icpc\nCONTEST_START=%s\nCONTEST_END=%s\n' "$((NOW-7200))" "$((NOW-3600))" > "$C/conf"
 call /contest/clarification-ask POST '{"question":"tarde"}' alice 'contest=cl'
 ck "depois do fim: time -> 403 contest_ended" '[[ "$OUT" == *"Status: 403"* && "$(jq -r .error.code <<<"$BODY")" == contest_ended ]]'
 printf '[{"regex":"^alice$","end":%s,"reason":"sede prorrogada"}]' "$((NOW+1800))" > "$C/time-overrides.json"
 call /contest/clarification-ask POST '{"question":"prorrogada"}' alice 'contest=cl'
 ck "sede prorrogada segue perguntando"  '[[ "$(jq -r .asked <<<"$BODY")" == true ]]'
 rm -f "$C/time-overrides.json" "$C"/clarifications/*.json
-printf 'CONTEST_ID=cl\nCONTEST_TYPE=icpc\nCONTEST_START=%s\nCONTEST_END=%s\n' "$((NOW-3600))" "$((NOW+3600))" > "$C/conf"
+printf 'CONTEST_ID=cl\nCONTEST_MODULES=sedes,maquinas,baloes,coortes,inscricoes\nCONTEST_TYPE=icpc\nCONTEST_START=%s\nCONTEST_END=%s\n' "$((NOW-3600))" "$((NOW+3600))" > "$C/conf"
 call /contest/clarification-ask POST '{"question":"staff"}' sala 'contest=cl'
 ck "staff nunca pergunta -> 403 role_forbidden" '[[ "$OUT" == *"Status: 403"* && "$(jq -r .error.code <<<"$BODY")" == role_forbidden ]]'
 

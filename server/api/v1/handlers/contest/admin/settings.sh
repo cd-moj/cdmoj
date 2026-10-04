@@ -209,7 +209,8 @@ fi
 if has login_ua_substring; then
   v="$(jq -r '.login_ua_substring' <<<"$body")"; v="${v//$'\n'/}"
   (( ${#v} <= 200 )) || fail 422 "substring muito longa" "ua_long"
-  [[ -n "$v" ]] && setvar LOGIN_UA_SUBSTRING "$v" || delvar LOGIN_UA_SUBSTRING
+  # o gate legado é do módulo `maquinas`: gravá-lo LIGA o módulo (desligado, a regra não vale — 03/10/2026)
+  if [[ -n "$v" ]]; then setvar LOGIN_UA_SUBSTRING "$v"; mod_enable "$contest" maquinas; else delvar LOGIN_UA_SUBSTRING; fi
 fi
 
 # whitelist de linguagens do contest (ids canônicos minúsculos, espaço-separados; vazio = todas)

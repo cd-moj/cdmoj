@@ -12,6 +12,7 @@ is_admin || fail 403 "Apenas o admin do contest" "admin_required"
 # isentos) e cai no LOGIN_UA_SUBSTRING legado quando não há ua-gate.json.
 source "$_DIR/lib/ua-gate.sh"
 _g="$(ug_get "$contest")"
+ug_module_on "$contest" || fail 422 "O módulo Máquinas está desligado: o gate de navegador não vale" "gate_off"
 if [[ "$(jq -r '.mode' <<<"$_g")" == off ]]; then
   fail 422 "o gate de UA está desligado (mode:off)" "gate_off"
 fi

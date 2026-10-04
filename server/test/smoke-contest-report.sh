@@ -9,7 +9,7 @@ source "$(dirname "$(readlink -f "$0")")/fixture.sh"
 
 C="$FIX/rp"; mkdir -p "$C/var" "$C/enunciados" "$C/clarifications" "$C/print-requests"
 T0=$(( $(date +%s) - 7200 )); TE=$(( T0 + 18000 )); FZ=$(( T0 + 3600 ))
-{ printf 'CONTEST_ID=rp\nCONTEST_TYPE=icpc\nCONTEST_NAME=Prova\\ Smoke\n'
+{ printf 'CONTEST_ID=rp\nCONTEST_MODULES=sedes,maquinas,baloes,coortes,inscricoes\nCONTEST_TYPE=icpc\nCONTEST_NAME=Prova\\ Smoke\n'
   printf 'CONTEST_START=%s\nCONTEST_END=%s\nFREEZE_TIME=%s\n' "$T0" "$TE" "$FZ"
   printf "PROBS=( x col#pa Alfa A col#pa x col#pb Beta B col#pb )\n"; } > "$C/conf"
 fx_user "$C" rp.admin p "Admin"

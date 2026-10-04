@@ -1,4 +1,4 @@
-<!-- i18n-source: MANUAL-ADMIN.md blob:7d169ec30f773b753c39ae8751a742cff8a24947 -->
+<!-- i18n-source: MANUAL-ADMIN.md blob:b447d136745deae99e54687f9812eb8a5f84be0b -->
 # MOJ: Organizer manual (the contest .admin panel)
 
 > **Translation note.** This manual is a translation of the Portuguese original. The command-line tools (`moj`, `moj-contest`, `moj-comp`) print their messages in Portuguese, and the command examples below are identical to the original.
@@ -164,6 +164,13 @@ course exam in a lab with **Maratona Linux** turns on `maquinas` (machine gate, 
 anomalies). The Maratona turns on all of them. When you turn on a module, MOJ shows the related
 panels, Home checks and cards. **When you turn it off, MOJ hides them and deletes nothing.** When
 you turn it on again, all comes back.
+
+**While a module is off, its rule does NOT apply**, also with the configuration saved: **Machines** turns off the
+browser gate, the single session and the site lock (the pinned IPs are released at once); **Sites** turns off the
+per-site extension; **Registration** lets in persons who did not register (a team member still enters as the team);
+**Cohorts** puts all teams on the public scoreboard; **Balloons** stops creating balloon tasks (turning it on again
+creates the missing ones). Before you turn off a module of a contest that is running, make sure that this is what you
+want.
 
 | Module | What it turns on | Detected by |
 |---|---|---|

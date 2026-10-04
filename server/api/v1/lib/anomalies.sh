@@ -144,6 +144,7 @@ an_build(){
   # um login novo entra no esperado na próxima regeração — ua_mismatch tolera 5 min).
   local gj mode single; gj="$(ug_get "$c")"
   mode="$(jq -r '.mode' <<<"$gj")"; single="$(jq -r '.single_session' <<<"$gj")"
+  ug_module_on "$c" || mode=off    # módulo `maquinas` desligado: o gate não vale (nem o ua_mismatch)
   printf '{}' > "$W/exp.json"
   if [[ "$mode" == enforce || "$mode" == observe ]]; then
     local ecache="$cdir/var/.an-exp.json"

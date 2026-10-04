@@ -16,10 +16,10 @@ trap 'rm -rf "$FIX" "$SESS" "$SPOOL" "$RUN"' EXIT
 export CONTESTSDIR="$FIX" SESSIONDIR="$SESS" SPOOLDIR="$SPOOL" SCOREDIR="$ROOT/score" RUNDIR="$RUN"
 NOW="$(date +%s)"
 T="$FIX/treino"; mkdir -p "$T/var/jsons"
-printf 'CONTEST_ID=treino\nCONTEST_NAME="Treino"\nCONTEST_TYPE=lista-publica\n' > "$T/conf"
+printf 'CONTEST_ID=treino\nCONTEST_MODULES=sedes,maquinas,baloes,coortes,inscricoes\nCONTEST_NAME="Treino"\nCONTEST_TYPE=lista-publica\n' > "$T/conf"
 for u in ana caio zeze bob; do fx_user "$T" "$u" s3nha "Fulano $u"; done
 C="$FIX/esq"; mkdir -p "$C/var" "$C/users" "$C/enunciados"
-{ printf 'CONTEST_ID=esq\nCONTEST_NAME="Esquenta"\nCONTEST_TYPE=icpc\nUSERS_FROM=treino\n'
+{ printf 'CONTEST_ID=esq\nCONTEST_MODULES=sedes,maquinas,baloes,coortes,inscricoes\nCONTEST_NAME="Esquenta"\nCONTEST_TYPE=icpc\nUSERS_FROM=treino\n'
   printf 'CONTEST_START=%s\nCONTEST_END=%s\n' "$((NOW-600))" "$((NOW+10800))"
   printf 'PROBS=( cdmoj org#alfa Alfa A org#alfa )\n'; } > "$C/conf"
 fx_user "$C" esq.admin adm "Admin"; fx_user "$C" own1 velha "Conta Própria"

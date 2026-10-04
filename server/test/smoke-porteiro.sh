@@ -174,6 +174,28 @@ printf 'SHOWLOG=1\n' >> "$C/conf"
 d "SHOWLOG=1 ⇒ resumo real é do bash" "$(req /submission/summary "contest=fx&ids=0123456789abcdef0123456789abcdef" "Bearer tk-eq1")"
 sed -i '/^SHOWLOG=1$/d' "$C/conf"
 
+echo "== módulo desligado desliga a regra (03/10/2026): coortes e prorrogação por sede, igual ao bash"
+M="$CONTESTSDIR/mf"; mkdir -p "$M/var" "$M/users/eq1" "$M/users/conv1"
+printf '{"login":"eq1"}' > "$M/users/eq1/account.json"; printf '{"login":"conv1"}' > "$M/users/conv1/account.json"
+printf 'CONTEST=mf\nLOGIN=eq1\n' > "$SESSIONDIR/tk-mfe"; printf 'CONTEST=mf\nLOGIN=conv1\n' > "$SESSIONDIR/tk-mfc"
+printf '{"cohorts":[{"id":"oficial","default":true,"public":true},{"id":"conv","regex":"^conv","public":false}]}' > "$M/cohorts.json"
+printf '[{"regex":"^eq","end":4100000000}]' > "$M/time-overrides.json"
+mfconf(){ printf 'CONTEST_NAME=Mf\nCONTEST_START=1\nCONTEST_END=4000000000\nFREEZE_TIME=2\nCONTEST_MODULES=%s\n' "$1" > "$M/conf"
+  sleep 1
+  for f in placar placar-full placar-view-conv placar-view-conv-full; do printf 'icpc\nlinha-%s\n' "$f" > "$M/var/$f.txt"; done
+  printf '{"v":"prorrogado"}' > "$M/var/basic-cache.u.4100000000.oficial.public.json"
+  printf '{"v":"conf"}' > "$M/var/basic-cache.u.4000000000._.public.json"; }
+mfconf coortes,sedes
+r="$(req /contest/score contest=mf "Bearer tk-mfc")"
+[[ "$r" == *linha-placar-view-conv* ]] && ok "coortes ligado: o convidado recebe o placar da coorte" || bad "mf conv on: ${r:0:120}"
+r="$(req /contest/basic contest=mf "Bearer tk-mfe")"
+[[ "$r" == *prorrogado* ]] && ok "sedes ligado: a variante do basic leva o fim prorrogado" || bad "mf basic on: ${r:0:120}"
+mfconf ""
+r="$(req /contest/score contest=mf "Bearer tk-mfc")"
+[[ "$r" == *linha-placar* && "$r" != *conv* ]] && ok "coortes desligado: o convidado recebe o placar PÚBLICO" || bad "mf conv off: ${r:0:120}"
+r="$(req /contest/basic contest=mf "Bearer tk-mfe")"
+[[ "$r" == *'"v":"conf"'* ]] && ok "sedes desligado: a variante do basic volta ao fim do conf" || bad "mf basic off: ${r:0:120}"
+
 echo "== placar velho fora do piso declina"
 touch -d "-30 seconds" "$C/var/placar.txt" "$C/var/placar.txt.gz" "$C/var/placar-full.txt"
 touch "$C/var/.score-dirty"

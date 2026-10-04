@@ -12,7 +12,7 @@ source "$(dirname "$(readlink -f "$0")")/fixture.sh"
 NOW="$EPOCHSECONDS"
 C="$FIX/tov"; mkdir -p "$C/var"
 # contest começou há 2h e o fim GLOBAL foi há 10 min; prorrogação dá +30 min à sede1
-{ printf 'CONTEST_ID=tov\nCONTEST_TYPE=icpc\nCONTEST_START=%s\nCONTEST_END=%s\nUSER_STORE=v2\n' \
+{ printf 'CONTEST_ID=tov\nCONTEST_MODULES=sedes,maquinas,baloes,coortes,inscricoes\nCONTEST_TYPE=icpc\nCONTEST_START=%s\nCONTEST_END=%s\nUSER_STORE=v2\n' \
     $(( NOW - 7200 )) $(( NOW - 600 ))
   printf "PROBS=(f0 col/pa 'Prob A' A 'col#pa')\n"; } > "$C/conf"
 fx_user "$C" tov.admin p "Admin"

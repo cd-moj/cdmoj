@@ -9,10 +9,10 @@ FIX="$(mktemp -d)"; SESS="$(mktemp -d)"; RUN="$(mktemp -d)"; trap 'rm -rf "$FIX"
 source "$(dirname "$(readlink -f "$0")")/fixture.sh"
 NOW=$EPOCHSECONDS
 C="$FIX/sl"; mkdir -p "$C/var"
-printf 'CONTEST_ID=sl\nCONTEST_TYPE=icpc\nCONTEST_START=%s\nCONTEST_END=%s\nSITE_LOCK=1\nUSER_STORE=v2\n' "$((NOW-3600))" "$((NOW+3600))" > "$C/conf"
+printf 'CONTEST_ID=sl\nCONTEST_MODULES=sedes,maquinas,baloes,coortes,inscricoes\nCONTEST_TYPE=icpc\nCONTEST_START=%s\nCONTEST_END=%s\nSITE_LOCK=1\nUSER_STORE=v2\n' "$((NOW-3600))" "$((NOW+3600))" > "$C/conf"
 printf "PROBS=( x col#pa Alfa A col#pa )\n" >> "$C/conf"
-T="$FIX/treino"; mkdir -p "$T/var"; printf 'CONTEST_ID=treino\nCONTEST_TYPE=treino\nUSER_STORE=v2\n' > "$T/conf"
-O="$FIX/outro"; mkdir -p "$O/var"; printf 'CONTEST_ID=outro\nCONTEST_TYPE=icpc\nUSER_STORE=v2\n' > "$O/conf"
+T="$FIX/treino"; mkdir -p "$T/var"; printf 'CONTEST_ID=treino\nCONTEST_MODULES=sedes,maquinas,baloes,coortes,inscricoes\nCONTEST_TYPE=treino\nUSER_STORE=v2\n' > "$T/conf"
+O="$FIX/outro"; mkdir -p "$O/var"; printf 'CONTEST_ID=outro\nCONTEST_MODULES=sedes,maquinas,baloes,coortes,inscricoes\nCONTEST_TYPE=icpc\nUSER_STORE=v2\n' > "$O/conf"
 fx_user "$C" sl.admin p "Admin"; fx_user "$C" alice a "Alice"; fx_user "$C" bob b "Bob"
 fx_user "$T" alice a "Alice"; fx_user "$T" tr.admin p "Admin T"; fx_user "$O" alice a "Alice O"
 # sessão do treino aberta ANTES da prova (não expira) e sessão de admin do treino

@@ -16,12 +16,12 @@ FIX="$(mktemp -d)"; RUN="$(mktemp -d)"; W="$(mktemp -d)"; trap 'rm -rf "$FIX" "$
 export CONTESTSDIR="$FIX" RUNDIR="$RUN" SESSIONDIR="$RUN/s"; mkdir -p "$RUN/s"
 NOW="$EPOCHSECONDS"; S0=$((NOW-30000)); E0=$((NOW-12000))
 T="$FIX/treino"; mkdir -p "$T/var/jsons"
-printf 'CONTEST_ID=treino\nCONTEST_TYPE=lista-publica\nCONTEST_END=%s\n' "$((NOW+86400))" > "$T/conf"
+printf 'CONTEST_ID=treino\nCONTEST_MODULES=sedes,maquinas,baloes,coortes,inscricoes\nCONTEST_TYPE=lista-publica\nCONTEST_END=%s\n' "$((NOW+86400))" > "$T/conf"
 for p in a b c; do printf '{"id":"org#%s","public":true}' "$p" > "$T/var/jsons/org#$p.json"; done
 
 mkc(){ # <cid> <corte-epoch>
   local C="$FIX/$1" cut="$2"; mkdir -p "$C/var"
-  { printf 'CONTEST_ID=%s\nCONTEST_NAME=Dif\nCONTEST_TYPE=icpc\nCONTEST_START=%s\nCONTEST_END=%s\nCONTEST_MODULES=virtual\n' "$1" "$S0" "$E0"
+  { printf 'CONTEST_ID=%s\nCONTEST_NAME=Dif\nCONTEST_TYPE=icpc\nCONTEST_START=%s\nCONTEST_END=%s\nCONTEST_MODULES=virtual,coortes\n' "$1" "$S0" "$E0"
     printf 'PROBS=( x org/a Alfa A org#a x org/b Beta B org#b x org/c Gama C org#c )\n'; } > "$C/conf"
   printf '{"version":1,"cohorts":[{"id":"oficial","name":"Oficiais","default":true,"public":true,"ranking":true},{"id":"conv","name":"Conv","regex":"^conv","public":true,"unranked":true,"ranking":true}]}' > "$C/cohorts.json"
   mk(){ local u="$C/users/$1"; mkdir -p "$u"; jq -cn --arg l "$1" --arg n "$2" '{login:$l,password:"x",fullname:$n,status:"active",team:{univ_short:"UNB",flag:"br"}}' > "$u/account.json"; : > "$u/history"; }

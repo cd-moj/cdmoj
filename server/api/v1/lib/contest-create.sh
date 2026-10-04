@@ -100,7 +100,9 @@ cc_settings_conf_lines(){
   # `baloes`. Ids desconhecidos são ignorados (mod_normalize).
   v="$(jq -r '[ ((.modules // {}) | to_entries[] | select(if (.value|type) == "object" then ((.value | if has("on") then .on else true end) != false) else (.value == true) end) | .key),
                (if ((.regions // []) | length) > 0 or ((.teams_meta // .teams_meta_rules // []) | length) > 0 then "sedes" else empty end),
-               (if ((.colors // {}) | length) > 0 then "baloes" else empty end) ] | unique | join(",")' <<<"$spec" 2>/dev/null)"
+               (if ((.colors // {}) | length) > 0 then "baloes" else empty end),
+               # o gate legado (login_ua_substring) é do módulo `maquinas`: sem ele ligado a regra não vale (03/10/2026)
+               (if ((.login_ua_substring // "") | tostring | length) > 0 then "maquinas" else empty end) ] | unique | join(",")' <<<"$spec" 2>/dev/null)"
   v="$(mod_normalize "$v")"; [[ -n "$v" ]] && printf 'CONTEST_MODULES=%q\n' "$v"
   # seções de módulo que viram VARIÁVEL de conf (o resto vira arquivo em cc_apply_modules_spec).
   # Compat: `balloons_during_freeze` no topo (idioma do settings) também vale.

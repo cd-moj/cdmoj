@@ -169,7 +169,8 @@ _sc_users_compute() {
   # de sempre). É deste funil que saem o rank (ordem das linhas) e a ESTRELA de first-to-solve,
   # e é por isso que o corte por coorte tem de ser aqui e não no TXT pronto.
   local CH_JSON='{"cohorts":[]}'
-  if [[ -s "$CONTESTDIR/cohorts.json" ]]; then
+  # só com o módulo `coortes` ligado (o conf já foi sourceado no sc_load; desligar desliga a regra, 03/10/2026)
+  if [[ -s "$CONTESTDIR/cohorts.json" && ",${CONTEST_MODULES:-}," == *",coortes,"* ]]; then
     CH_JSON="$(jq -c '{cohorts:[ (.cohorts // [])[] | {id:(.id//""), regex:(.regex//""),
                        default:(.default == true)} | select(.id != "") ]}' \
                  "$CONTESTDIR/cohorts.json" 2>/dev/null)" || CH_JSON='{"cohorts":[]}'

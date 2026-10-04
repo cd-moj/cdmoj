@@ -1,4 +1,4 @@
-<!-- i18n-source: MANUAL-ADMIN.md blob:7d169ec30f773b753c39ae8751a742cff8a24947 -->
+<!-- i18n-source: MANUAL-ADMIN.md blob:b447d136745deae99e54687f9812eb8a5f84be0b -->
 # MOJ: Manual del organizador (el panel .admin de la competencia)
 
 > **Nota de traducción.** Este manual es una traducción del original en portugués. Las herramientas de línea de comandos (`moj`, `moj-contest`, `moj-comp`) muestran sus mensajes en portugués, y los ejemplos de comandos son idénticos al original.
@@ -161,6 +161,12 @@ el panel muestra solo lo común (problemas, cuentas, sesiones, marcador, staff, 
 de curso en laboratorio con **Maratona Linux** activa `maquinas` (gate de máquina, sesión única,
 anomalías). La Maratona activa todos. Activar muestra los paneles, las revisiones de la Central y las tarjetas
 correspondientes; **desactivar oculta, sin borrar nada**: reactivar restaura todo.
+
+**Desactivado, la regla del módulo NO se aplica**, aunque la configuración esté guardada: **Máquinas** desactiva el
+gate de navegador, la sesión única y el bloqueo de sede (las IP fijadas se sueltan de inmediato); **Sedes** desactiva
+la prórroga por sede; **Inscripciones** deja entrar a quien no se inscribió (el miembro de equipo sigue entrando como el
+equipo); **Cohortes** pone a todos en el marcador público; **Globos** deja de crear tareas de globo (reactivarlo crea
+las que faltaron). Antes de desactivar un módulo de una competencia en curso, confirma que eso es lo que quieres.
 
 | Módulo | Qué activa | Detectado por |
 |---|---|---|

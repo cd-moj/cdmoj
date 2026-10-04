@@ -173,6 +173,8 @@ if [[ -s "$CONTESTDIR/cohorts.json" && -r "$CH_LIB" ]]; then
   # shellcheck source=/dev/null
   source "$CH_LIB"
   export CONTESTSDIR
+  # módulo `coortes` desligado: as coortes não valem (03/10/2026) — nada de visão, convidado nem coluna guest
+  _ch_mod_on "$CONTEST" || unset -f ch_enabled ch_unranked_of_view 2>/dev/null
 fi
 
 # --prestart: uma passada só, com os envs da VISÃO PÚBLICA das coortes (coorte privada não

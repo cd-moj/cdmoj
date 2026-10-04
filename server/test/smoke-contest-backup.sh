@@ -9,7 +9,7 @@ FIX="$(mktemp -d)"; SESS="$(mktemp -d)"; trap 'rm -rf "$FIX" "$SESS"' EXIT
 source "$(dirname "$(readlink -f "$0")")/fixture.sh"
 C="$FIX/bk"; mkdir -p "$C/var"
 NOW="$EPOCHSECONDS"
-conf(){ printf 'CONTEST_ID=bk\nCONTEST_TYPE=icpc\nCONTEST_START=%s\nCONTEST_END=%s\n%s\n' "$1" "$2" "${3:-}" > "$C/conf"; }
+conf(){ printf 'CONTEST_ID=bk\nCONTEST_MODULES=sedes,maquinas,baloes,coortes,inscricoes\nCONTEST_TYPE=icpc\nCONTEST_START=%s\nCONTEST_END=%s\n%s\n' "$1" "$2" "${3:-}" > "$C/conf"; }
 conf "$((NOW-3600))" "$((NOW+3600))"
 fx_user "$C" bk.admin p Admin; fx_user "$C" j.judge p Judge; fx_user "$C" s.staff p Staff; fx_user "$C" time01 p Time
 for s in "adm bk.admin" "jdg j.judge" "stf s.staff" "t1 time01"; do set -- $s; printf 'CONTEST=bk\nLOGIN=%s\nLOGINAT=1\n' "$2" > "$SESS/$1"; done

@@ -1111,9 +1111,17 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   contest (`CONTEST_MODULES=a,b` no conf, `%q` escapa a vírgula ⇒ `mod_raw` tira as barras; ausente
   = nenhum). Catálogo ÚNICO `MODULES=(sedes maquinas rodadas documentos baloes coortes inscricoes
   telao classificacao virtual esqueletos)`, espelhado em `web/contest/admin/modules.js` (paridade testada em
-  `smoke-admin-nav.sh`); `mod_on/mod_any/mod_list_json/mod_set/mod_detect`. O gate é **UX** (decide
-  nav/painéis/checagens/cartões); **o acesso continua cortado em cada rota**. **Desligar nunca apaga
-  dado** (o painel avisa; `detected` mostra que há arquivo). **Gravar o artefato de um módulo LIGA o
+  `smoke-admin-nav.sh`); `mod_on/mod_any/mod_list_json/mod_set/mod_detect`. O módulo decide
+  nav/painéis/checagens/cartões **E, desde 03/10/2026 (decisão do Ribas), se a REGRA vale**: desligado, o artefato no
+  disco não vale — `maquinas` (gate de UA inclusive o `LOGIN_UA_SUBSTRING` legado, sessão única, trava de sede; o
+  `admin/modules` solta os IPs presos ao desligar), `sedes` (prorrogação), `inscricoes` (o roster "só inscrito entra"; o
+  alias do time segue), `coortes` (corte do placar), `baloes` (tarefas do staff; o carimbo do reconcile anda mesmo assim
+  — senão o porteiro declinaria a fila p/ sempre — e religar faz a varredura completa). O corte mora no LEITOR de cada
+  artefato (`ug_expected`/`ug_expected_map`, `sl_enabled`, `time_override_end`/`contest_end_all`, `reg_gate_active`,
+  `ch_get`/`ch_ctx`/`sc_users`/`stats-gen`/`build.sh`, `pr_reconcile_balloons`) e nos espelhos do porteiro (`mod_on`,
+  `ch_ctx`, `override_end`/`end_all`). `mod_on` é ZERO fork (`conf_value_to`, nameref). **Desligar nunca apaga
+  dado** (o painel avisa; `detected` mostra que há arquivo). Teste: `smoke-modules-off-rules.sh`. ⚠ Deploy: contest com
+  artefato e módulo DESLIGADO perde a regra — `server/bin/contest-modules-detect.sh` (dry-run) antes, `--apply` nos vivos. **Gravar o artefato de um módulo LIGA o
   módulo** (`mod_enable <c> <id>`, união idempotente, auditado `modules-auto`) — cada handler chama
   no ponto de escrita (rounds/cohorts/ua-gate≠off/site-lock/nutella/docs/registrations/classify/
   config/time-overrides/webcast/team-assets); GET nunca liga; desligar é sempre manual. Handler novo

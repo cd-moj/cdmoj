@@ -46,9 +46,9 @@ for _m in "${MODULES[@]}"; do
   _r="$(mod_detect "$contest" "$_m")" && _mods_off_with_data="${_mods_off_with_data:+$_mods_off_with_data, }$_m ($_r)"
 done
 if [[ -n "$_mods_off_with_data" ]]; then
-  add3 modules warn "Módulo desligado com dados existentes" "$_mods_off_with_data — se a prova usa isso, ligue em Central › Módulos (desligado só esconde os painéis; nada foi apagado)" \
-    "Module off with existing data" "$_mods_off_with_data — if the contest uses this, turn it on in Central › Modules (off only hides the panels; nothing was deleted)" \
-    "Módulo desactivado con datos existentes" "$_mods_off_with_data — si la competencia lo usa, actívalo en Central › Módulos (desactivado solo oculta los paneles; no se borró nada)"
+  add3 modules warn "Módulo desligado com dados existentes" "$_mods_off_with_data — se a prova usa isso, ligue em Central › Módulos (desligado, a regra NÃO vale — gate, trava, prorrogação, roster, coortes, balões; nada foi apagado)" \
+    "Module off with existing data" "$_mods_off_with_data — if the contest uses this, turn it on in Central › Modules (while off, the rule does NOT apply — gate, lock, extension, roster, cohorts, balloons; nothing was deleted)" \
+    "Módulo desactivado con datos existentes" "$_mods_off_with_data — si la competencia lo usa, actívalo en Central › Módulos (desactivado, la regla NO se aplica — gate, bloqueo, prórroga, roster, cohortes, globos; no se borró nada)"
 elif mod_any "$contest"; then
   _mods_on="$(mod_raw "$contest" | tr ',' ' ')"
   add3 modules ok "Módulos ligados" "$_mods_on" "Modules on" "$_mods_on" "Módulos activados" "$_mods_on"

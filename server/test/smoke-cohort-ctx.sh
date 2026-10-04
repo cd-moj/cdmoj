@@ -12,6 +12,8 @@ set -u
 ROOT="$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)"
 FIX="$(mktemp -d)"; trap 'rm -rf "$FIX"' EXIT
 export CONTESTSDIR="$FIX"; C="$FIX/co"; mkdir -p "$C/users"
+# coortes só valem com o módulo `coortes` LIGADO (03/10/2026) — o caso desligado tem seção própria no fim
+printf 'CONTEST_MODULES=coortes\n' > "$C/conf"
 source "$ROOT/api/v1/lib/cohorts.sh"
 
 mkuser(){ mkdir -p "$C/users/$1"; printf '%s' "${2:-{\}}" > "$C/users/$1/account.json"; }
@@ -91,5 +93,15 @@ echo "== id com caractere fora do padrão (vira nome de arquivo no cache do basi
 jq -cn '{cohorts:[{id:"a/b", regex:"^time", public:false}, {id:"ok", public:true, ranking:true}]}' \
   > "$C/cohorts.json"
 cen dif "id esquisito" time01
+
+echo "== módulo DESLIGADO com coorte privada no disco: as duas implementações dizem 'sem coorte' =="
+jq -cn '{results_released:false, cohorts:[
+  {id:"oficial", regex:"^time",  public:true,  ranking:true},
+  {id:"ccl",     regex:"^guest", public:false}]}' > "$C/cohorts.json"
+printf 'CONTEST_MODULES=\n' > "$C/conf"
+cen dif "módulo off: privado volta ao public" guest01
+_off="$( ( unset "${!_CH_@}"; declare -gA _CH_J=() _CH_EN=() _CH_OF=() _CH_VW=(); ch_ctx co guest01 ) | tr '\001' '/')"
+[[ "$_off" == "0//public" ]] && { echo "  ok: módulo off: ch_ctx = 0//public"; ((pass++)); } || { echo "  FAIL: módulo off: ch_ctx='$_off'"; ((fail++)); }
+printf 'CONTEST_MODULES=coortes\n' > "$C/conf"
 
 echo ""; echo "RESULT: $pass passed, $fail failed"; exit $(( fail>0?1:0 ))

@@ -20,9 +20,9 @@ call(){ OUT="$(PATH_INFO="$1" REQUEST_METHOD="$2" QUERY_STRING="${5:-}" HTTP_AUT
 J(){ jq -r "$1" <<<"$BODY" 2>/dev/null; }
 pass=0; fail=0; ck(){ if eval "$2"; then echo "  ok: $1"; ((pass++)); else echo "  FAIL: $1 ${3:-}"; ((fail++)); fi; }
 mkses(){ printf 'CONTEST=%q\nLOGIN=%q\nUSERFULLNAME=%q\nLOGINAT=1\n' "$2" "$3" "$3" > "$SESS/$1"; }
-mkdir -p "$FIX/treino/users"; printf 'CONTEST_ID=treino\n' > "$FIX/treino/conf"
+mkdir -p "$FIX/treino/users"; printf 'CONTEST_ID=treino\nCONTEST_MODULES=sedes,maquinas,baloes,coortes,inscricoes\n' > "$FIX/treino/conf"
 C="$FIX/rc"; mkdir -p "$C/users" "$C/var" "$C/print-requests"
-printf 'CONTEST_ID=rc\nCONTEST_NAME=Rc\nCONTEST_TYPE=icpc\nCONTEST_START=%s\nCONTEST_END=%s\n' "$((NOW-600))" "$((NOW+3600))" > "$C/conf"
+printf 'CONTEST_ID=rc\nCONTEST_MODULES=sedes,maquinas,baloes,coortes,inscricoes\nCONTEST_NAME=Rc\nCONTEST_TYPE=icpc\nCONTEST_START=%s\nCONTEST_END=%s\n' "$((NOW-600))" "$((NOW+3600))" > "$C/conf"
 jq -n '[{name:"Brasil",regex:"^team",subregions:[
           {name:"Sudeste",regex:"^team(sp|rj)",subregions:[{name:"SP",regex:"^teamsp"},{name:"RJ",regex:"^teamrj"}]},
           {name:"Norte",regex:"^teamam",subregions:[{name:"AM",regex:"^teamam"}]}]},

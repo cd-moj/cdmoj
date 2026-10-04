@@ -9,7 +9,7 @@ ROOT="$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)"; ROUTER="$ROOT/api/v1/
 FIX="$(mktemp -d)"; SESS="$(mktemp -d)"; trap 'rm -rf "$FIX" "$SESS"' EXIT
 C="$FIX/mx"; mkdir -p "$C/var" "$C/users"
 NOW=$(date +%s)
-printf 'CONTEST_ID=mx\nCONTEST_TYPE=icpc\nCONTEST_START=%s\nCONTEST_END=%s\nPROBS=( x col#pa A A col#pa )\n' \
+printf 'CONTEST_ID=mx\nCONTEST_MODULES=sedes,maquinas,baloes,coortes,inscricoes\nCONTEST_TYPE=icpc\nCONTEST_START=%s\nCONTEST_END=%s\nPROBS=( x col#pa A A col#pa )\n' \
   "$((NOW-3600))" "$((NOW+3600))" > "$C/conf"
 mkdir -p "$C/users/mx.admin"
 jq -cn '{login:"mx.admin", fullname:"Admin", password:"x"}' > "$C/users/mx.admin/account.json"

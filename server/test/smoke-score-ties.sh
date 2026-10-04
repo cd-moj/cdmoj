@@ -11,7 +11,7 @@ FIX="$(mktemp -d)"; trap 'rm -rf "$FIX"' EXIT
 export CONTESTSDIR="$FIX"
 C="$FIX/tz"; mkdir -p "$C/var" "$C/enunciados"
 NOW=$(date +%s); T0=$(( NOW - 7200 ))
-{ printf 'CONTEST_ID=tz\nCONTEST_TYPE=icpc\nCONTEST_NAME=Ties\n'
+{ printf 'CONTEST_ID=tz\nCONTEST_MODULES=sedes,maquinas,baloes,coortes,inscricoes\nCONTEST_TYPE=icpc\nCONTEST_NAME=Ties\n'
   printf 'CONTEST_START=%s\nCONTEST_END=%s\n' "$T0" "$(( NOW + 3600 ))"
   printf 'PROBS=( x col#pa Alfa A col#pa )\n'; } > "$C/conf"
 jq -cn '{version:1, results_released:true, cohorts:[

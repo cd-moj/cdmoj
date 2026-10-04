@@ -14,12 +14,12 @@ export CONTESTSDIR="$FIX" SESSIONDIR="$SESS" SPOOLDIR="$SPOOL" SCOREDIR="$ROOT/s
 NOW="$(date +%s)"
 
 T="$FIX/treino"; mkdir -p "$T/var/jsons"
-printf 'CONTEST_ID=treino\nCONTEST_NAME="Treino"\nCONTEST_TYPE=lista-publica\n' > "$T/conf"
+printf 'CONTEST_ID=treino\nCONTEST_MODULES=sedes,maquinas,baloes,coortes,inscricoes\nCONTEST_NAME="Treino"\nCONTEST_TYPE=lista-publica\n' > "$T/conf"
 for u in ana caio west zeze bob; do fx_user "$T" "$u" s3nha "Fulano $u"; done
 
 C="$FIX/esq"; mkdir -p "$C/var" "$C/users" "$C/enunciados"
 conf(){ # <start> <end> [extra…]
-  { printf 'CONTEST_ID=esq\nCONTEST_NAME="Esquenta"\nCONTEST_TYPE=icpc\nUSERS_FROM=treino\n'
+  { printf 'CONTEST_ID=esq\nCONTEST_MODULES=sedes,maquinas,baloes,coortes,inscricoes\nCONTEST_NAME="Esquenta"\nCONTEST_TYPE=icpc\nUSERS_FROM=treino\n'
     printf 'CONTEST_START=%s\nCONTEST_END=%s\n' "$1" "$2"
     printf 'PROBS=( cdmoj org#alfa Alfa A org#alfa )\n'
     shift 2; for e in "$@"; do printf '%s\n' "$e"; done; } > "$C/conf"
@@ -359,7 +359,10 @@ printf '10:org#alfa:c:Accepted,100p:%s:w1\n' "$((NOW-100))" > "$C/users/west/his
 printf '10:org#alfa:c:Accepted,100p:%s:s1\n' "$((NOW-200))" > "$C/users/time-os-tres-ponteiros/history"
 mkdir -p "$RUNDIR"; : > "$RUNDIR/judged.alive"
 bash "$SCOREDIR/build.sh" esq >/dev/null 2>&1
+# a rodada "prova" do fixture não tem problemas: o único bloqueador é o AVISO round_no_problems (03/10/2026) — o force passa
 call /contest/admin/rounds POST '{"action":"promote","to":"prova"}' tok-adm 'contest=esq'
+ck "sem force: só o aviso round_no_problems"   '[[ "$(J ".error.blockers | map(.code) | join(\",\")")" == round_no_problems ]]'
+call /contest/admin/rounds POST '{"action":"promote","to":"prova","force":true}' tok-adm 'contest=esq'
 ck "promoção de contest COMPARTILHADO passa"    '[[ "$(J .promoted)" == true ]]'
 ck "varreu a sessão do turista"                 '[[ "$(J .swept.sessions)" -ge 1 ]]'
 ck "e o diretório vazio dele"                   '[[ "$(J .swept.dirs)" -ge 1 && ! -e "$C/users/west" ]]'

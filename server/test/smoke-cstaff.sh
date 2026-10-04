@@ -12,7 +12,7 @@ source "$(dirname "$(readlink -f "$0")")/fixture.sh"
 
 NOW="$EPOCHSECONDS"; START=$(( NOW - 7200 )); FREEZE=$(( NOW - 3600 )); END=$(( NOW - 600 ))
 C="$FIX/cs"; mkdir -p "$C/var" "$C/print-requests"
-{ printf 'CONTEST_ID=cs\nCONTEST_TYPE=icpc\nCONTEST_START=%s\nCONTEST_END=%s\nFREEZE_TIME=%s\nUSER_STORE=v2\n' \
+{ printf 'CONTEST_ID=cs\nCONTEST_MODULES=sedes,maquinas,baloes,coortes,inscricoes\nCONTEST_TYPE=icpc\nCONTEST_START=%s\nCONTEST_END=%s\nFREEZE_TIME=%s\nUSER_STORE=v2\n' \
     "$START" "$END" "$FREEZE"
   printf "PROBS=(f0 col/pa 'Prob A' A 'col#pa' f1 col/pb 'Prob B' B 'col#pb')\n"; } > "$C/conf"
 fx_user "$C" cs.admin p "Admin"

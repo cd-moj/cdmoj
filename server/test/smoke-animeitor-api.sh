@@ -16,7 +16,7 @@ export CONTESTSDIR="$FIX" RUNDIR="$RUN" SESSIONDIR="$SESS"
 
 NOW="$EPOCHSECONDS"; START=$(( NOW - 7200 )); FREEZE=$(( NOW - 3600 )); END=$(( NOW + 3600 ))
 C="$FIX/ap"; mkdir -p "$C/var"
-{ printf 'CONTEST_ID=ap\nCONTEST_TYPE=icpc\nCONTEST_NAME=Prova\nCONTEST_START=%s\nCONTEST_END=%s\nFREEZE_TIME=%s\nPENALTY_MINUTES=20\n' "$START" "$END" "$FREEZE"
+{ printf 'CONTEST_ID=ap\nCONTEST_MODULES=sedes,maquinas,baloes,coortes,inscricoes\nCONTEST_TYPE=icpc\nCONTEST_NAME=Prova\nCONTEST_START=%s\nCONTEST_END=%s\nFREEZE_TIME=%s\nPENALTY_MINUTES=20\n' "$START" "$END" "$FREEZE"
   printf "PROBS=( x col#pa Alfa A col#pa x col#pb Beta B col#pb )\n"; } > "$C/conf"
 mkteam(){ fx_user "$C" "$1" x "$2" >/dev/null
   jq -c --arg n "$2" --arg u "$3" --arg r "$4" '.team = ({name:$n, univ_short:$u, flag:"br"} + (if $r == "" then {} else {region:$r} end))' \

@@ -16,7 +16,7 @@ FIX="$(mktemp -d)"; SESS="$(mktemp -d)"; MARK="$(mktemp)"; trap 'rm -rf "$FIX" "
 source "$(dirname "$(readlink -f "$0")")/fixture.sh"
 C="$FIX/sx"; mkdir -p "$C/var"
 NOW=$EPOCHSECONDS
-printf 'CONTEST_ID=sx\nCONTEST_TYPE=icpc\nCONTEST_START=%s\nCONTEST_END=%s\nUSER_STORE=v2\n' "$((NOW-3600))" "$((NOW+3600))" > "$C/conf"
+printf 'CONTEST_ID=sx\nCONTEST_MODULES=sedes,maquinas,baloes,coortes,inscricoes\nCONTEST_TYPE=icpc\nCONTEST_START=%s\nCONTEST_END=%s\nUSER_STORE=v2\n' "$((NOW-3600))" "$((NOW+3600))" > "$C/conf"
 fx_user "$C" sx.admin p "Admin"; for u in team001 team002 team003; do fx_user "$C" $u x "Time $u"; done
 jq -n '{mode:"enforce", fallback:"MLinux"}' > "$C/ua-gate.json"
 b64(){ printf '%s' "$1" | base64 -w0; }

@@ -14,7 +14,7 @@ export CONTESTSDIR="$FIX"
 ENG="$ROOT/score/classify-pda.sh"
 C="$FIX/lar"; mkdir -p "$C/var" "$C/enunciados"
 NOW=$(date +%s); T0=$(( NOW - 7200 ))
-{ printf 'CONTEST_ID=lar\nCONTEST_TYPE=icpc\nCONTEST_NAME=LAR\n'
+{ printf 'CONTEST_ID=lar\nCONTEST_MODULES=sedes,maquinas,baloes,coortes,inscricoes\nCONTEST_TYPE=icpc\nCONTEST_NAME=LAR\n'
   printf 'CONTEST_START=%s\nCONTEST_END=%s\n' "$T0" "$(( NOW + 3600 ))"
   printf 'PROBS=( x col#p1 P1 A col#p1 x col#p2 P2 B col#p2 x col#p3 P3 C col#p3 x col#p4 P4 D col#p4 x col#p5 P5 E col#p5 )\n'
 } > "$C/conf"

@@ -82,6 +82,10 @@ SPEC2="$(jq -cn --argjson s "$((NOW+600))" --argjson e "$((NOW+4200))" '{id:"nov
   regions:[{name:"X", regex:"^x"}], colors:{A:"#f00"}}')"
 call /treino/contest-create/create POST "$SPEC2" tadm ''
 ck "compat: regions/colors no topo ligam sedes,baloes" '[[ "$(confmods "$FIX/novo2")" == "sedes,baloes" ]]'
+# o gate LEGADO (login_ua_substring) é do módulo `maquinas`: criar com ele LIGA o módulo (03/10/2026: desligado, a regra não vale)
+SPEC4="$(jq -cn --argjson s "$((NOW+600))" --argjson e "$((NOW+4200))" '{id:"novo9", name:"Novo 9", mode:"icpc", start:$s, end:$e, allow_empty:true, login_ua_substring:"KIOSK"}')"
+call /treino/contest-create/create POST "$SPEC4" tadm ''
+ck "create com login_ua_substring liga maquinas" '[[ "$(confmods "$FIX/novo9")" == "maquinas" ]] && grep -q "^LOGIN_UA_SUBSTRING=KIOSK" "$FIX/novo9/conf"'
 call /treino/contest-create/export GET '' tadm 'id=novo1'
 ck "export traz modules{maquinas,documentos}" '[[ "$(J ".modules|keys|join(\",\")")" == "documentos,maquinas" ]]'
 
@@ -200,6 +204,9 @@ call /contest/admin/ua-gate POST '{"action":"set","mode":"off"}' adm-lista 'cont
 ck "ua-gate mode=off NÃO liga maquinas"      '! has_mod "$L" maquinas'
 call /contest/admin/ua-gate POST '{"action":"set","mode":"enforce","from_login":{"regex":"^team([a-z]{6})","expect":"\\1"}}' adm-lista 'contest=lista'
 ck "ua-gate enforce => maquinas"             'has_mod "$L" maquinas'
+call /contest/admin/modules POST '{"off":["maquinas"]}' adm-lista 'contest=lista'
+call /contest/admin/settings POST '{"login_ua_substring":"KIOSK"}' adm-lista 'contest=lista'
+ck "settings login_ua_substring => maquinas (o gate legado é do módulo)" 'has_mod "$L" maquinas'
 call /contest/admin/time-overrides POST "$(jq -cn --argjson e "$((FUT+600))" '{rules:[{regex:"^alice",end:$e,reason:"x"}]}')" adm-lista 'contest=lista'
 ck "time-overrides => sedes"                 'has_mod "$L" sedes'
 call /contest/admin/config POST '{"colors":{"A":"FF0000"}}' adm-lista 'contest=lista'

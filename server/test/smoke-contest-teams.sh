@@ -14,7 +14,7 @@ NOW="$EPOCHSECONDS"
 PNG1='iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='
 
 C="$FIX/tm"; mkdir -p "$C/var"
-{ printf 'CONTEST_ID=tm\nCONTEST_TYPE=icpc\nCONTEST_START=%s\nCONTEST_END=%s\nUSER_STORE=v2\n' $((NOW-100)) $((NOW+7200))
+{ printf 'CONTEST_ID=tm\nCONTEST_MODULES=sedes,maquinas,baloes,coortes,inscricoes\nCONTEST_TYPE=icpc\nCONTEST_START=%s\nCONTEST_END=%s\nUSER_STORE=v2\n' $((NOW-100)) $((NOW+7200))
   printf "PROBS=(f0 col/pa 'Prob A' A 'col#pa')\n"; } > "$C/conf"
 fx_user "$C" tm.admin p "Admin"
 fx_user "$C" sede1.staff s "Balcao 1"
@@ -107,7 +107,7 @@ sed -i '/^SECRET=1$/d' "$C/conf"
 
 echo "== users_from -> 409 =="
 C2="$FIX/tm2"; mkdir -p "$C2/var" "$C2/users"
-printf 'CONTEST_ID=tm2\nCONTEST_TYPE=icpc\nUSERS_FROM=tm\nUSER_STORE=v2\n' > "$C2/conf"
+printf 'CONTEST_ID=tm2\nCONTEST_MODULES=sedes,maquinas,baloes,coortes,inscricoes\nCONTEST_TYPE=icpc\nUSERS_FROM=tm\nUSER_STORE=v2\n' > "$C2/conf"
 mkdir -p "$C2/users/tm2.admin"; cp "$C/users/tm.admin/account.json" "$C2/users/tm2.admin/account.json" 2>/dev/null || true
 fx_user "$C2" tm2.admin p "Admin2"
 printf 'CONTEST=%q\nLOGIN=%q\nUSERFULLNAME=%q\nLOGINAT=%q\n' tm2 tm2.admin Admin2 "$NOW" > "$SESS/t-adm2"
@@ -123,6 +123,7 @@ echo "== /contest/teams é UMA varredura, e o que ela devolve não mudou =="
 TB="$FIX/tb"; mkdir -p "$TB/var"
 TB0=$(( $(date +%s) - 3600 ))
 printf 'CONTEST_ID=tb
+CONTEST_MODULES=coortes
 CONTEST_TYPE=icpc
 CONTEST_NAME=B
 CONTEST_START=%s

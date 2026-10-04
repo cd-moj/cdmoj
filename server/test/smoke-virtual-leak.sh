@@ -19,7 +19,7 @@ export CONTESTSDIR="$FIX" SESSIONDIR="$SESS" RUNDIR="$RUN" \
 mkdir -p "$SPOOLDIR" "$SPOOLDONEDIR"
 NOW="$EPOCHSECONDS"
 T="$FIX/treino"; mkdir -p "$T/var/jsons" "$T/var/jsons-private"
-printf 'CONTEST_ID=treino\nCONTEST_TYPE=lista-publica\nUSER_STORE=v2\nCONTEST_END=%s\n' "$((NOW+86400))" > "$T/conf"
+printf 'CONTEST_ID=treino\nCONTEST_MODULES=sedes,maquinas,baloes,coortes,inscricoes\nCONTEST_TYPE=lista-publica\nUSER_STORE=v2\nCONTEST_END=%s\n' "$((NOW+86400))" > "$T/conf"
 printf '{"id":"col#pa","title":"SEGREDOTITULO","public":true,"languages":["c"]}' > "$T/var/jsons/col#pa.json"
 printf '{"id":"col#pv","title":"SEGREDOPRIV","public":false,"languages":["c"]}'  > "$T/var/jsons-private/col#pv.json"
 printf '{"id":"col#pf","title":"SEGREDOFALSE","public":false,"languages":["c"]}' > "$T/var/jsons/col#pf.json"   # vazou p/ jsons/ mas é public:false
@@ -37,7 +37,7 @@ mk(){ # <cid> <start> <end> <linhas extras do conf> [probs]
   gzip -c "$c/var/virtual-feed.json" > "$c/var/virtual-feed.json.gz"
   mkdir -p "$c/virtual/runs"; printf '{"login":"SEGREDOVIRT","name":"x","solved":1,"penalty":1,"runs":[]}' > "$c/virtual/runs/x.json"
   printf '[{"login":"SEGREDOVIRT"}]' > "$c/var/virtual-board.json"; }
-ON='CONTEST_MODULES=virtual\n'
+ON='CONTEST_MODULES=virtual,sedes,coortes\n'
 mk vrun    $((NOW-3600))  $((NOW+3600))  "$ON"
 mk vfut    $((NOW+3600))  $((NOW+7200))  "$ON"
 mk vsecrun $((NOW-3600))  $((NOW+3600))  "${ON}SECRET=1\n"

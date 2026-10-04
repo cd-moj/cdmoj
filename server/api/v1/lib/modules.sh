@@ -7,6 +7,13 @@
 # conf como CONTEST_MODULES=<ids separados por vírgula> (printf %q de um token só — sem
 # escape; ausente = nenhum). Desligar NUNCA apaga dado: os arquivos da feature ficam, e o
 # preflight avisa "módulo desligado com dados existentes".
+# DESLIGAR DESLIGA A REGRA (decisão do Ribas, 03/10/2026 — revoga o "módulo = só UX"): com o módulo
+# desligado a regra dele NÃO vale, mesmo com o arquivo no disco — `maquinas`: gate de navegador, sessão
+# única e trava de sede (desligar solta os IPs presos); `sedes`: prorrogação por sede (time-overrides.json);
+# `inscricoes`: só inscrito entra (o alias do time continua — é identidade); `coortes`: o corte do placar;
+# `baloes`: as tarefas de balão do staff. O ponto de corte é o LEITOR de cada artefato (ug_expected,
+# sl_enabled, time_override_end/contest_end_all, reg_gate_active, ch_get/ch_ctx/sc_users, pr_reconcile_balloons
+# — e os espelhos do porteiro). Gravar o artefato continua LIGANDO o módulo (mod_enable).
 #
 # Este catálogo tem um ESPELHO em web/contest/admin/modules.js (nome/descrição/painéis p/ a
 # UI). server/test/smoke-admin-nav.sh confere que as duas listas são iguais — módulo novo
@@ -17,8 +24,8 @@ mod_valid(){ local m; for m in "${MODULES[@]}"; do [[ "$m" == "$1" ]] && return 
 # mod_raw <c> — o valor cru do conf ("a,b,c" ou vazio); zero fork (conf_value é builtin)
 # (%q escapa a vírgula — `a\,b` no conf; o `source` desfaz, o conf_value não: tira as barras aqui)
 mod_raw(){ local v; v="$(conf_value "$1" CONTEST_MODULES)"; printf '%s' "${v//\\/}"; }
-# mod_on <c> <id> — rc 0 se o módulo está ligado
-mod_on(){ local v; v=",$(mod_raw "$1"),"; [[ "$v" == *",$2,"* ]]; }
+# mod_on <c> <id> — rc 0 se o módulo está ligado. ZERO fork (conf_value_to): roda em rota quente
+mod_on(){ local __mo_v; conf_value_to __mo_v "$1" CONTEST_MODULES; __mo_v=",${__mo_v//\\/},"; [[ "$__mo_v" == *",$2,"* ]]; }
 # mod_any <c> — rc 0 se algum módulo está ligado
 mod_any(){ [[ -n "$(mod_raw "$1")" ]]; }
 # mod_list_json <c> — ["a","b"] (só ids válidos, na ordem do catálogo)
@@ -71,6 +78,8 @@ mod_detect(){
     maquinas)
       [[ -s "$d/ua-gate.json" ]] && [[ "$(jq -r '.mode // "off"' "$d/ua-gate.json" 2>/dev/null)" != off ]] && { printf ua-gate.json; return 0; }
       [[ "$(conf_value "$1" SITE_LOCK)" == 1 ]] && { printf SITE_LOCK; return 0; }
+      # o gate LEGADO (a substring única do conf) também é do módulo: desligado, ele não vale (03/10/2026)
+      [[ -n "$(conf_value "$1" LOGIN_UA_SUBSTRING)" ]] && { printf LOGIN_UA_SUBSTRING; return 0; }
       [[ -s "$d/secrets/nutellaboot.key" || -n "$(conf_value "$1" NUTELLABOOT_URL)" ]] && { printf nutellaboot; return 0; } ;;
     rodadas)
       [[ -s "$d/rounds.json" ]] && jq -e '(.rounds // []) | length > 0' "$d/rounds.json" >/dev/null 2>&1 && { printf rounds.json; return 0; } ;;

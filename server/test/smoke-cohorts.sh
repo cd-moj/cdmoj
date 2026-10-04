@@ -14,6 +14,7 @@ NOW=$(date +%s); W0=$((NOW-7200))
 
 cat > "$C/conf" <<EOF
 CONTEST_ID=prova
+CONTEST_MODULES=sedes,maquinas,baloes,coortes,inscricoes
 CONTEST_NAME='Maratona com Convidados'
 CONTEST_TYPE=icpc
 CONTEST_START=$W0

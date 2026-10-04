@@ -221,8 +221,17 @@ def conf_int(contest, key):
     return int(v) if v.isdigit() else 0
 
 
+def mod_on(contest, m):
+    """Espelho do mod_on (lib/modules.sh): o módulo está em CONTEST_MODULES. DESLIGAR DESLIGA A REGRA (03/10/2026):
+    prorrogação por sede só com `sedes`, coortes só com `coortes` — como no bash."""
+    v = conf_value(contest, "CONTEST_MODULES").replace("\\", "")
+    return m in [x.strip() for x in v.split(",")]
+
+
 def override_end(contest, login):
     """Espelho do time_override_end: PRIMEIRA entrada cujo regex casa o login."""
+    if not mod_on(contest, "sedes"):
+        return None
     data = read_json(os.path.join(CONTESTSDIR, contest, "time-overrides.json"))
     if not isinstance(data, list) or not login:
         return None
@@ -249,6 +258,8 @@ def end_effective(contest, login):
 
 def end_all(contest):
     end = conf_int(contest, "CONTEST_END")
+    if not mod_on(contest, "sedes"):
+        return end
     data = read_json(os.path.join(CONTESTSDIR, contest, "time-overrides.json"))
     if isinstance(data, list) and end > 0:
         ends = [int(e["end"]) for e in data if isinstance(e, dict) and (e.get("regex") or "")
@@ -266,6 +277,8 @@ def over_for_all(contest):
 # ---------------------------------------------------------------- coortes (lib/cohorts.sh)
 def ch_ctx(contest, login):
     """Espelho do jq de ch_ctx: (enabled, cohort_id, view)."""
+    if not mod_on(contest, "coortes"):
+        return False, "", "public"
     j = read_json(os.path.join(CONTESTSDIR, contest, "cohorts.json")) or {}
     cohorts = []
     for c in (j.get("cohorts") or []):
@@ -310,6 +323,8 @@ def ch_ctx(contest, login):
 
 
 def ch_is_ranking_view(contest, view):
+    if not mod_on(contest, "coortes"):
+        return False
     j = read_json(os.path.join(CONTESTSDIR, contest, "cohorts.json")) or {}
     return any(isinstance(c, dict) and c.get("id") == view and c.get("public") is not False
                and c.get("ranking") is True for c in (j.get("cohorts") or []))

@@ -913,6 +913,8 @@ pr_balloon_freeze_gate() {
 # A chave é o `sub_epoch` da SUBMISSÃO, nunca o instante do veredicto: em MANUAL_VERDICT o
 # balão nasce quando os .judge decidem, e um AC enviado ANTES do freeze e julgado DEPOIS
 # seria retido por engano. É a mesma semântica do placar (`.ac and .sub_epoch < $freeze`).
+_pr_baloes_on(){ declare -F mod_on >/dev/null || source "${_LIBDIR:-${BASH_SOURCE[0]%/*}}/modules.sh"
+  declare -F conf_value_to >/dev/null || return 0; mod_on "$1" baloes; }
 pr_reconcile_balloons() {
   local c="$1" dir hist stamp
   staff_exists "$c" || return 0
@@ -920,6 +922,10 @@ pr_reconcile_balloons() {
   [[ -e "$hist" ]] || return 0                     # sem submissão desde o cut-over: nada a fazer
   mkdir -p "$dir"; stamp="$dir/.balloon-stamp"
   [[ -f "$stamp" && ! "$hist" -nt "$stamp" ]] && return 0
+  # módulo `baloes` DESLIGADO: não nasce tarefa de balão (desligar desliga a regra, 03/10/2026). O carimbo anda junto do
+  # .score-dirty mesmo assim — senão o porteiro (gate dirty>stamp) declinaria a fila do staff p/ sempre. Religar o
+  # módulo apaga o carimbo (admin/modules) e a varredura completa cria o que faltou (id determinístico, sem duplicar).
+  if ! _pr_baloes_on "$c"; then touch -r "$hist" "$stamp" 2>/dev/null; return 0; fi
   # PISO DE IDADE + ESPERADOR NÃO ESTACIONA (2026-08-27, teste de carga): com veredicto
   # entrando sem parar o `.score-dirty` está SEMPRE mais novo que o stamp — todo load da fila
   # entrava aqui, um varria e os outros ficavam presos no `flock -w 5` segurando um worker cada

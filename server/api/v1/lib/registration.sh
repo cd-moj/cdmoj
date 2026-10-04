@@ -123,6 +123,9 @@ reg_round_kind(){
 # quiser atrair curiosos); nesse caso a varredura da promoção (reg_sweep_unregistered) limpa.
 reg_gate_active(){
   reg_enabled "$1" || return 1
+  # o roster ("só inscrito entra") é do módulo `inscricoes`: DESLIGADO, a regra não vale (03/10/2026; o alias do
+  # time segue — é identidade, não regra de entrada)
+  { declare -F mod_on >/dev/null || source "${_LIBDIR:-${BASH_SOURCE[0]%/*}}/modules.sh"; mod_on "$1" inscricoes; } || return 1
   if [[ "$(reg_round_kind "$1")" == warmup ]]; then
     local v; v="$( ( REG_WARMUP_OPEN=""; source "$CONTESTSDIR/$1/conf" 2>/dev/null; printf '%s' "${REG_WARMUP_OPEN:-}" ) )"
     [[ "$v" == y ]] && return 1
@@ -561,6 +564,8 @@ reg_rename_login(){
 reg_sweep_unregistered(){
   local c="$1" ns=0 nd=0 f d u
   reg_enabled "$c" || { printf '0\t0'; return 0; }
+  # módulo `inscricoes` desligado: não há roster valendo — ninguém é varrido por não estar nele
+  { declare -F mod_on >/dev/null || source "${_LIBDIR:-${BASH_SOURCE[0]%/*}}/modules.sh"; mod_on "$c" inscricoes; } || { printf '0\t0'; return 0; }
   declare -A _REGOK=()
   while IFS= read -r u; do [[ -n "$u" ]] && _REGOK["$u"]=1; done \
     < <(reg_get "$c" | jq -r '((.entries // {}) | keys[]), ((.teams // {}) | keys[])' 2>/dev/null)

@@ -46,5 +46,16 @@ cur=",$(mod_raw "$contest"),"
 for m in "${ON[@]}";  do [[ "$cur" == *",$m,"* ]] || cur="$cur$m,"; done
 for m in "${OFF[@]}"; do cur="${cur//,$m,/,}"; done
 mod_set "$contest" "$cur"
+# DESLIGAR DESLIGA A REGRA (03/10/2026): efeitos que o arquivo sozinho não dá conta
+_was=",$(IFS=,; echo "${ON[*]:-}"),"; _off=",$(IFS=,; echo "${OFF[*]:-}"),"
+_rel=0
+if [[ "$_off" == *",maquinas,"* ]]; then   # a trava no disco seguiria barrando no router (que só olha o arquivo)
+  source "$_LIBDIR/site-lock.sh"; _rel="$(sl_release_contest "$contest")"
+fi
+if [[ "$_was$_off" == *",coortes,"* || "$_was$_off" == *",sedes,"* || "$_was$_off" == *",baloes,"* ]]; then
+  mkdir -p "$CONTESTSDIR/$contest/var"; touch "$CONTESTSDIR/$contest/var/.score-dirty" 2>/dev/null   # placar/visões mudam
+fi
+# religar os balões: varredura COMPLETA (o carimbo andou com o módulo desligado; o id da tarefa é determinístico)
+[[ "$_was" == *",baloes,"* ]] && rm -f "$CONTESTSDIR/$contest/print-requests/.balloon-stamp" "$CONTESTSDIR/$contest/print-requests/.balloon-prev" 2>/dev/null
 audit_log_to "$contest" modules-set "on=$(IFS=,; echo "${ON[*]:-}") off=$(IFS=,; echo "${OFF[*]:-}") agora=$(mod_raw "$contest")"
 _mods_body

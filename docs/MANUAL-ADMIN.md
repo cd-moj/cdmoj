@@ -157,6 +157,12 @@ disciplina em laboratório com **Maratona Linux** liga `maquinas` (gate de máqu
 anomalias). A Maratona liga todos. Ligar mostra os painéis, as checagens da Central e os cartões
 correspondentes; **desligar esconde, sem apagar nada** — religar restaura tudo.
 
+**Desligado, a regra do módulo NÃO vale**, mesmo com a configuração gravada: **Máquinas** desliga o gate de
+navegador, a sessão única e a trava de sede (os IPs presos são soltos na hora); **Sedes** desliga a prorrogação por
+sede; **Inscrições** deixa entrar quem não se inscreveu (o membro de time continua entrando como o time); **Coortes**
+põe todo mundo no placar público; **Balões** para de criar tarefas de balão (religar cria as que faltaram). Antes de
+desligar um módulo de uma prova em andamento, confira se é isso mesmo que você quer.
+
 | Módulo | O que liga | Detectado por |
 |---|---|---|
 | `sedes` | Evento › Sedes & escolas, Evento › Times (identidade), prorrogação por sede, escopo do staff por sede | `regions.json`, `teams-meta.json`, prorrogações |

@@ -9,7 +9,7 @@ FIX="$(mktemp -d)"; SESS="$(mktemp -d)"; [[ -n "${KEEP:-}" ]] && echo "FIX=$FIX 
 source "$(dirname "$(readlink -f "$0")")/fixture.sh"
 C="$FIX/an"; mkdir -p "$C/var"
 NOW=$EPOCHSECONDS; CS=$((NOW-3600)); CE=$((NOW+3600))
-printf 'CONTEST_ID=an\nCONTEST_TYPE=icpc\nCONTEST_START=%s\nCONTEST_END=%s\nUSER_STORE=v2\n' "$CS" "$CE" > "$C/conf"
+printf 'CONTEST_ID=an\nCONTEST_MODULES=sedes,maquinas,baloes,coortes,inscricoes\nCONTEST_TYPE=icpc\nCONTEST_START=%s\nCONTEST_END=%s\nUSER_STORE=v2\n' "$CS" "$CE" > "$C/conf"
 printf "PROBS=( x col#pa Alfa A col#pa )\n" >> "$C/conf"
 fx_user "$C" an.admin p "Admin"; fx_user "$C" cj.cjudge p "Chefe"
 for u in teamaa001 teamaa002 teamaa003 teamaa004 teamaa005; do fx_user "$C" $u x "Time $u"; done

@@ -16,9 +16,13 @@
 # times ganham minutos). Formato: [{regex, end, reason?}, …] — 1ª que casa vence.
 # ATENÇÃO jq: `.regex` PRECISA ser bindado ANTES do test ($l|test(.regex) leria .regex
 # de $l — ver a armadilha de contexto de args do jq); try/catch protege de regex inválido.
+# A prorrogação por sede é do módulo `sedes`: DESLIGADO, o arquivo não vale (decisão do Ribas, 03/10/2026). O teste
+# do módulo vem DEPOIS do do arquivo (custo zero p/ quem não tem prorrogação).
+_tov_on(){ declare -F mod_on >/dev/null || source "${_LIBDIR:-${BASH_SOURCE[0]%/*}}/modules.sh"; mod_on "$1" sedes; }
 time_override_end() {
   local f="$CONTESTSDIR/$1/time-overrides.json"
   [[ -s "$f" && -n "${2:-}" ]] || return 0
+  _tov_on "$1" || return 0
   jq -r --arg l "$2" '
     first(.[]? | (.regex // "") as $rr | (.end) as $e
           | select($rr != "" and ($e|type=="number") and (try ($l | test($rr)) catch false))
@@ -47,7 +51,7 @@ contest_end_all() {
   local CONTEST_START=0 CONTEST_END=0 mx f="$CONTESTSDIR/$1/time-overrides.json"
   source "$CONTESTSDIR/$1/conf" 2>/dev/null
   [[ "$CONTEST_END" =~ ^[0-9]+$ ]] || CONTEST_END=0
-  if [[ -s "$f" ]] && (( CONTEST_END > 0 )); then
+  if [[ -s "$f" ]] && (( CONTEST_END > 0 )) && _tov_on "$1"; then
     mx="$(jq -r '[.[]? | select((.regex//"") != "" and (.end|type=="number")) | .end] | max // empty' "$f" 2>/dev/null)"
     [[ "$mx" =~ ^[0-9]+$ ]] && (( mx > CONTEST_END )) && CONTEST_END=$mx
   fi

@@ -12,7 +12,7 @@ FIX="$(mktemp -d)"; trap 'rm -rf "$FIX"' EXIT
 export CONTESTSDIR="$FIX"
 C="$FIX/cb"; mkdir -p "$C/var" "$C/enunciados"
 NOW=$(date +%s); T0=$(( NOW - 7200 ))
-{ printf 'CONTEST_ID=cb\nCONTEST_TYPE=icpc\nCONTEST_NAME=Classify\n'
+{ printf 'CONTEST_ID=cb\nCONTEST_MODULES=sedes,maquinas,baloes,coortes,inscricoes\nCONTEST_TYPE=icpc\nCONTEST_NAME=Classify\n'
   printf 'CONTEST_START=%s\nCONTEST_END=%s\n' "$T0" "$(( NOW + 3600 ))"
   printf 'PROBS=( x col#p1 P1 A col#p1 x col#p2 P2 B col#p2 x col#p3 P3 C col#p3 x col#p4 P4 D col#p4 x col#p5 P5 E col#p5 )\n'
 } > "$C/conf"
@@ -161,7 +161,7 @@ jq -e '(.stages[0].draft // false) == false and (.stages[0].teams | length) == 1
 # não existe: `$NF` virava o LastAC (time com LastAC=1 era tomado por convidado e SUMIA) e o "Total" vinha
 # de uma célula de problema. Agora o placar sai pelo cabeçalho (sc_board_rows).
 C2="$FIX/cb2"; mkdir -p "$C2/var" "$C2/enunciados"
-{ printf 'CONTEST_ID=cb2\nCONTEST_TYPE=icpc\nCONTEST_NAME=Classify2\n'
+{ printf 'CONTEST_ID=cb2\nCONTEST_MODULES=sedes,maquinas,baloes,coortes,inscricoes\nCONTEST_TYPE=icpc\nCONTEST_NAME=Classify2\n'
   printf 'CONTEST_START=%s\nCONTEST_END=%s\n' "$T0" "$(( NOW + 3600 ))"
   printf 'PROBS=( x col#p1 P1 A col#p1 x col#p2 P2 B col#p2 x col#p3 P3 C col#p3 x col#p4 P4 D col#p4 x col#p5 P5 E col#p5 )\n'
 } > "$C2/conf"

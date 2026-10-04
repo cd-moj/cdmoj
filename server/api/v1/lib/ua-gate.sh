@@ -83,9 +83,14 @@ ug_region_of(){
 # Ordem: isento › papel › by_regex › by_region › from_login › fallback/LOGIN_UA_SUBSTRING legado. É o MESMO
 # programa do lote (UG_JQ/ug_expect): até 03/10/2026 este caminho tinha a sua cópia, em que o by_region
 # vencia o by_regex — o painel dizia um esperado e o login cobrava outro (auditoria do painel).
+# ug_module_on <c> — o gate (e a sessão única, que depende do esperado) só vale com o módulo `maquinas` LIGADO:
+# desligar desliga a regra, inclusive o LOGIN_UA_SUBSTRING legado (decisão do Ribas, 03/10/2026; lib/modules.sh)
+ug_module_on(){ declare -F mod_on >/dev/null || source "${_LIBDIR:-${BASH_SOURCE[0]%/*}}/modules.sh"; mod_on "$1" maquinas; }
+
 ug_expected(){
   local c="$1" l="$2" g reg
   [[ -n "$l" ]] || return 0
+  ug_module_on "$c" || return 0
   g="$(ug_get "$c")"
   [[ "$(jq -r '.mode' <<<"$g")" == off ]] && return 0
   # conta de papel: sempre entra (é quem configura o gate) — sai antes de procurar a sede
@@ -148,6 +153,7 @@ UG_JQ='
 ug_expected_map(){
   local c="$1" logins="$2" w g
   [[ -n "$logins" && "$logins" != '[]' ]] || { printf '{}'; return 0; }
+  ug_module_on "$c" || { printf '{}'; return 0; }   # módulo desligado: ninguém tem esperado
   w="$(mktemp -d)" || { printf '{}'; return 1; }
   printf '%s' "$logins" > "$w/logins.json"
   declare -F rg_sites_json >/dev/null || source "${_LIBDIR:-${BASH_SOURCE[0]%/*}}/regions.sh"

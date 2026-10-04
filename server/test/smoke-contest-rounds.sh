@@ -11,7 +11,7 @@ export CONTESTSDIR="$FIX" SESSIONDIR="$SESS" SPOOLDIR="$SPOOL" SCOREDIR="$ROOT/s
 export JUDGED_ALIVE_FILE="$RUN/judged.alive"
 source "$(dirname "$(readlink -f "$0")")/fixture.sh"
 T="$FIX/treino"; mkdir -p "$T/var/jsons" "$T/var/jsons-private"
-printf 'CONTEST_ID=treino\nCONTEST_TYPE=lista-publica\nUSER_STORE=v2\n' > "$T/conf"
+printf 'CONTEST_ID=treino\nCONTEST_MODULES=sedes,maquinas,baloes,coortes,inscricoes\nCONTEST_TYPE=lista-publica\nUSER_STORE=v2\n' > "$T/conf"
 fx_user "$T" regular s "Regular"
 fx_user "$T" eve s "Eve"
 printf '{"threshold":0,"allow":["regular"],"deny":[]}' > "$T/var/contest-perms.json"
@@ -254,7 +254,8 @@ ck "promoção bloqueada por freeze_locked" '[[ "$(J ".promote_ready.blockers | 
 ck "freeze_locked trilíngue (detail_en + detail_es, sem PT)" '[[ "$(J "[.promote_ready.blockers[] | select(.code==\"freeze_locked\") | .detail_en, .detail_es] | map(select(length > 0)) | length")" == 2 && "$(J "$BLK_I18N")" == 0 ]]'
 RD '{"action":"promote","to":"prox","force":true}'
 ck "force NÃO passa por cima"      '[[ "$OUT" == *"Status: 409"* && "$(J ".blockers | map(.code) | join(\",\")")" == freeze_locked ]]'
-# sede prorrogada empurra o mínimo: fim geral = +20 min
+# sede prorrogada empurra o mínimo: fim geral = +20 min (a prorrogação é do módulo `sedes`: ligado aqui)
+grep -q '^CONTEST_MODULES=' "$C/conf" && sed -i '/^CONTEST_MODULES=/ s/$/,sedes/' "$C/conf" || printf 'CONTEST_MODULES=sedes\n' >> "$C/conf"
 printf '[{"regex":"^sede1-","end":%s}]' "$((NOW+1200))" > "$C/time-overrides.json"
 sed -i "s/^CONTEST_END=.*/CONTEST_END=$((NOW-7200))/" "$C/conf"
 call /contest/admin/settings GET '' cadm "$Q"

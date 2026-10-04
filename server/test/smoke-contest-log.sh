@@ -5,7 +5,7 @@ ROOT="$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)"; ROUTER="$ROOT/api/v1/
 FIX="$(mktemp -d)"; SESS="$(mktemp -d)"; trap 'rm -rf "$FIX" "$SESS"' EXIT
 source "$(dirname "$(readlink -f "$0")")/fixture.sh"
 C="$FIX/lc"; mkdir -p "$C/var"
-printf 'CONTEST_ID=lc\nCONTEST_TYPE=icpc\nLOGIN_UA_SUBSTRING=MOJBOX\nUSER_STORE=v2\n' > "$C/conf"
+printf 'CONTEST_ID=lc\nCONTEST_MODULES=sedes,maquinas,baloes,coortes,inscricoes\nCONTEST_TYPE=icpc\nLOGIN_UA_SUBSTRING=MOJBOX\nUSER_STORE=v2\n' > "$C/conf"
 fx_user "$C" lc.admin p "Admin"
 fx_user "$C" alice a "Alice"
 b64(){ printf '%s' "$1" | base64 -w0; }

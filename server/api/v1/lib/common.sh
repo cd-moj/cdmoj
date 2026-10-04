@@ -258,25 +258,30 @@ load_contest_conf() { source "$CONTESTSDIR/$1/conf"; }
 #     os leitores daqui — webcast, animeitor, trava de sede);
 #   - o escape do `printf %q` sai (`\X` -> `X`): `SCORE_FULL_USERS=alice\ bob` dava "alice\ bob" e só o ÚLTIMO
 #     login recebia o placar completo. Valor `$'…'` (não-ASCII) fica como está.
-conf_value() {
-  local f="$CONTESTSDIR/$1/conf" k="$2=" line v="" o i c hit=0
-  [[ -r "$f" ]] || return 0
-  while IFS= read -r line || [[ -n "$line" ]]; do
-    [[ "$line" == "$k"* ]] || continue
-    v="${line#"$k"}"; hit=1
-  done < "$f"
-  (( hit )) || return 0
-  v="${v//\'/}"; v="${v//\"/}"
-  if [[ "$v" == *\\* && "$v" != \$* ]]; then
-    o=""
-    for (( i=0; i<${#v}; i++ )); do
-      c="${v:i:1}"
-      if [[ "$c" == \\ ]]; then i=$((i+1)); c="${v:i:1}"; fi
-      o+="$c"
+conf_value() { local __cv_r; conf_value_to __cv_r "$1" "$2"; printf '%s' "$__cv_r"; return 0; }
+# conf_value_to <var> <contest> <CHAVE> — o MESMO, gravando em <var> (nameref): ZERO fork, nem o subshell do `$(…)`.
+# É o que deixa o `mod_on` (módulo desligado desliga a regra, 03/10/2026) entrar em rota quente.
+conf_value_to() {
+  local -n __cv_ref="$1"
+  local __cv_f="$CONTESTSDIR/$2/conf" __cv_k="$3=" __cv_line __cv_v="" __cv_o __cv_i __cv_c __cv_hit=0
+  __cv_ref=""
+  [[ -r "$__cv_f" ]] || return 0
+  while IFS= read -r __cv_line || [[ -n "$__cv_line" ]]; do
+    [[ "$__cv_line" == "$__cv_k"* ]] || continue
+    __cv_v="${__cv_line#"$__cv_k"}"; __cv_hit=1
+  done < "$__cv_f"
+  (( __cv_hit )) || return 0
+  __cv_v="${__cv_v//\'/}"; __cv_v="${__cv_v//\"/}"
+  if [[ "$__cv_v" == *\\* && "$__cv_v" != \$* ]]; then
+    __cv_o=""
+    for (( __cv_i=0; __cv_i<${#__cv_v}; __cv_i++ )); do
+      __cv_c="${__cv_v:__cv_i:1}"
+      if [[ "$__cv_c" == \\ ]]; then __cv_i=$((__cv_i+1)); __cv_c="${__cv_v:__cv_i:1}"; fi
+      __cv_o+="$__cv_c"
     done
-    v="$o"
+    __cv_v="$__cv_o"
   fi
-  printf '%s' "$v"
+  __cv_ref="$__cv_v"
   return 0
 }
 # contest SUPER SECRETO (conf SECRET=1): fora das listagens públicas (home/arquivo/status);

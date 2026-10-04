@@ -92,7 +92,7 @@ START_VAL="${CONTEST_START:-0}"; [[ "$START_VAL" =~ ^[0-9]+$ ]] || START_VAL=0
 # convidados (coortes unranked, ex.: CCL): competem e aparecem nos eventos/comparação,
 # mas NÃO entram em top_teams/performance — população oficial, como no placar
 UNRX=""
-if [[ -s "$CONTESTSDIR/$C/cohorts.json" ]]; then
+if [[ -s "$CONTESTSDIR/$C/cohorts.json" && ",${CONTEST_MODULES:-}," == *",coortes,"* ]]; then   # módulo desligado: sem coorte
   UNRX="$(jq -r '[(.cohorts // [])[] | select(.unranked == true) | .regex | select(. != "")] | join("|")' \
     "$CONTESTSDIR/$C/cohorts.json" 2>/dev/null)"
 fi

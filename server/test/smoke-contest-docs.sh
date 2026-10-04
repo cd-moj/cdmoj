@@ -19,7 +19,7 @@ NOW="$(date +%s)"
 
 C="$FIX/dprova"; mkdir -p "$C/docs" "$C/var"
 conf(){ # <start> <end>
-  { printf 'CONTEST_ID=dprova\nCONTEST_NAME="Prova Docs"\nCONTEST_TYPE=icpc\n'
+  { printf 'CONTEST_ID=dprova\nCONTEST_MODULES=sedes,maquinas,baloes,coortes,inscricoes\nCONTEST_NAME="Prova Docs"\nCONTEST_TYPE=icpc\n'
     printf 'CONTEST_START=%s\nCONTEST_END=%s\n' "$1" "$2"
     printf 'PROBS=( cdmoj org#alfa Alfa A org#alfa )\n'; } > "$C/conf"
 }

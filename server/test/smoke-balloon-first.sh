@@ -22,7 +22,7 @@ source "$(dirname "$(readlink -f "$0")")/fixture.sh"
 export CONTESTSDIR="$FIX"
 C="$FIX/bs"; mkdir -p "$C/var" "$C/print-requests"
 NOW="$(date +%s)"; T0=$((NOW-3600))
-conf(){ { printf 'CONTEST_ID=bs\nCONTEST_TYPE=icpc\nCONTEST_START=%s\nCONTEST_END=%s\nUSER_STORE=v2\n' "$T0" "$((NOW+3600))"
+conf(){ { printf 'CONTEST_ID=bs\nCONTEST_MODULES=sedes,maquinas,baloes,coortes,inscricoes\nCONTEST_TYPE=icpc\nCONTEST_START=%s\nCONTEST_END=%s\nUSER_STORE=v2\n' "$T0" "$((NOW+3600))"
           printf 'PROBS=( cdmoj apc#p1 Um A apc#p1 )\n'
           [[ -n "${1:-}" ]] && printf '%s\n' "$1"; } > "$C/conf"; }
 conf ""

@@ -353,7 +353,8 @@ na aba Configurações do admin e por `moj-contest extend --group`, auditado). T
   vive em **`nav.js`** (puro, testável): **4 grupos comuns** (🏁 Central · 🧩 Prova · 👥 Pessoas ·
   🎛️ Operação) sempre, e os grupos de EVENTO (🏟️ Evento · 🖥️ Máquinas) só quando o contest liga
   o **MÓDULO** correspondente (`basic.modules` ← `CONTEST_MODULES` do conf; catálogo em
-  `lib/modules.sh` ⇄ `modules.js`; painel **Central › Módulos**; spec de criação `modules{}`).
+  `lib/modules.sh` ⇄ `modules.js`; painel **Central › Módulos**; spec de criação `modules{}`). Desligado, a
+  REGRA do módulo também não vale (gate/trava, prorrogação, roster, coortes, balões — 03/10/2026; `lib/modules.sh`).
   Hash `#grupo/painel` resolve pelo id do painel em qualquer grupo visível; `ALIAS` cobre TODOS os
   hashes antigos (13 abas planas E os 4 grupos de agosto: `#settings`→`central/regras`,
   `#pessoas/maquinas`→`maquinas/gate`, `#prova/rodadas`→`evento/rodadas`, …); painel de módulo

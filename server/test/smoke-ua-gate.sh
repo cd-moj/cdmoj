@@ -10,7 +10,7 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 TMP="$(mktemp -d)"; trap 'rm -rf "$TMP"' EXIT
 export CONTESTSDIR="$TMP/contests"
 C="$CONTESTSDIR/prova"; mkdir -p "$C/users"
-: > "$C/conf"
+printf 'CONTEST_MODULES=maquinas\n' > "$C/conf"   # o gate é do módulo `maquinas` (desligado, não vale)
 printf '[{"name":"Campinas","regex":"^teambrspcp"},{"name":"Sorocaba","regex":"^teambrspso"}]' > "$C/regions.json"
 mk(){ mkdir -p "$C/users/$1"; jq -cn --arg l "$1" --arg r "${2:-}" \
   '{login:$l,fullname:$l} + (if $r=="" then {} else {team:{region:$r}} end)' > "$C/users/$1/account.json"; }
@@ -59,7 +59,7 @@ ck "mode:off não barra ninguém"  'ug_ok prova teambrspso001 "Chrome"'
 ck "mode:off zera o esperado"    '[[ -z "$(exp teambrspso001)" ]]'
 
 echo "== sem ua-gate.json: cai no LOGIN_UA_SUBSTRING legado =="
-rm -f "$C/ua-gate.json"; printf 'LOGIN_UA_SUBSTRING=MOJ-KIOSK\n' > "$C/conf"
+rm -f "$C/ua-gate.json"; printf 'CONTEST_MODULES=maquinas\nLOGIN_UA_SUBSTRING=MOJ-KIOSK\n' > "$C/conf"
 ck "legado vira o esperado"          '[[ "$(exp teambrspso001)" == MOJ-KIOSK ]]'
 ck "legado barra quem não tem"       '! ug_ok prova teambrspso001 "Chrome/120"'
 ck "legado passa quem tem"           'ug_ok prova teambrspso001 "x MOJ-KIOSK y"'
