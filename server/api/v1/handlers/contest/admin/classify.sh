@@ -63,6 +63,26 @@ stage="$(jq -r '.stage // ""' "$BF")"
 force="$(jq -r 'if .force == true then 1 else 0 end' "$BF")"
 [[ -z "$stage" || "$stage" =~ ^[a-z0-9-]{1,32}$ ]] || fail 400 "stage inválido" "stage_invalid"
 
+# --- placar CONGELADO (auditoria do painel, 03/10/2026; decisão do Ribas: recusar até liberar) --------------
+# O motor lê o placar COMPLETO (placar-full) e a rota pública /contest/classification serve o estágio publicado a
+# QUALQUER UM (o chip 🎓 aparece no placar congelado): publicar — ou recalcular um estágio já publicado — com o
+# freeze valendo mostrava o resultado antes da revelação. Antes do fim geral + 1 min (freeze_release_at): 409
+# freeze_locked, sem saída. Depois, com o placar AINDA congelado (cerimônia por fazer): 409 board_frozen, e
+# `force_frozen:true` publica mesmo assim (a tela pergunta). `release_at` vai no erro p/ a tela mostrar a hora.
+_frozen_guard(){
+  local fz at; fz="$(conf_value "$contest" FREEZE_TIME)"; fz="${fz//[^0-9]/}"
+  [[ -n "$fz" ]] && (( fz > 0 )) || return 0
+  source "$_LIBDIR/contest-gate.sh"
+  at="$(freeze_release_at "$contest")"
+  if ! freeze_release_ok "$contest"; then
+    FAIL_EXTRA="$(jq -cn --argjson a "${at:-0}" '{release_at:$a}')" \
+      fail 409 "Com o placar congelado a classificação só pode ser publicada a partir de $(fmt_epoch "$at" '%d/%m %H:%M' "$contest") (fim da prova para todas as sedes + 1 min): ela é calculada pelo placar completo" "freeze_locked"
+  fi
+  [[ "$(jq -r '.force_frozen // false' "$BF")" == true ]] && return 0
+  FAIL_EXTRA='{"can_force":true}' \
+    fail 409 "O placar ainda está congelado: publicar agora mostra o resultado antes da revelação. Descongele (Central › Encerrar evento) ou confirme para publicar mesmo assim" "board_frozen"
+}
+
 # --- arquivo de estágios (sempre sob a trava nas escritas) ------------------------------------------
 _lock(){ [[ -n "${CL_LOCKED:-}" ]] && return 0
   mkdir -p "$CONTESTSDIR/$contest/var"; exec 7>"$CONTESTSDIR/$contest/var/.classify.lock"
@@ -142,7 +162,9 @@ if [[ "$action" == promote_next ]]; then
   _run_engine "$alg" "$W/cfg.json" "$W/st.json" "$W/wl.json" waitlist
   nxt="$(jq -r '.waitlist[0].login // ""' "$W/wl.json")"
   [[ -n "$nxt" ]] || fail 409 "A lista de espera está vazia" "waitlist_empty"
-  jq -c --arg l "$nxt" --arg s "$stage" --arg r "$REASON" '{action:"add", stage:$s, login:$l, via:"lista", reason:$r}' <<<'{}' > "$BF"
+  ff="$(jq -r '.force_frozen == true' "$BF")"   # o add abaixo passa pela trava do placar congelado: leva a confirmação junto
+  jq -c --arg l "$nxt" --arg s "$stage" --arg r "$REASON" --argjson ff "$ff" \
+    '{action:"add", stage:$s, login:$l, via:"lista", reason:$r, force_frozen:$ff}' <<<'{}' > "$BF"
   action=add
 fi
 
@@ -158,6 +180,8 @@ case "$action" in
     jq -c --arg a "$alg" '. + {algorithm:$a} | del(.preassigned)' "$W/cfg.json" > "$W/cfg2.json" && mv -f "$W/cfg2.json" "$W/cfg.json"
     [[ "$action" == apply ]] && _lock
     _stage_get "$stage" > "$W/st.json" || jq -cn --arg s "$stage" '{id:$s, status:"draft", teams:{}}' > "$W/st.json"
+    # recalcular um estágio PUBLICADO muda o que todo mundo vê: com o placar congelado, a mesma trava do publicar
+    [[ "$action" == apply && "$(jq -r '.status // ""' "$W/st.json")" == published ]] && _frozen_guard
     old="$(jq -r '.config.algorithm // ""' "$W/st.json")"
     if [[ "$action" == apply && -n "$old" && "$old" != "$alg" && "$force" != 1 ]]; then
       FAIL_EXTRA="$(jq -cn --arg o "$old" --arg n "$alg" '{stage_algorithm:$o, requested:$n}')" \
@@ -205,6 +229,7 @@ case "$action" in
       exit 0
     fi
     st=published; [[ "$action" == unpublish ]] && st=draft
+    [[ "$action" == publish ]] && _frozen_guard
     jq -c --arg st "$st" --argjson now "$EPOCHSECONDS" '. + {status:$st} + (if $st == "published" then {published_at:$now} else {} end)' \
       "$W/st.json" > "$W/new.json"
     _stage_put "$W/new.json"
@@ -217,6 +242,7 @@ case "$action" in
     exists=1
     _stage_get "$stage" > "$W/st.json" || { exists=0; jq -cn --arg s "$stage" '{id:$s, status:"draft", teams:{}}' > "$W/st.json"; }
     [[ "$exists" == 1 || "$action" == add || "$action" == exclude ]] || fail 404 "Estágio não existe: $stage" "no_stage"
+    [[ "$(jq -r '.status // ""' "$W/st.json")" == published ]] && _frozen_guard
     jq -c "$CL_JQ"'cl_ovs' "$W/st.json" > "$W/ovs.json"
     rerun=1     # withdraw (e desfazer um withdraw) NÃO recalcula: compõe sobre a saída guardada
     if [[ "$action" == override_undo ]]; then

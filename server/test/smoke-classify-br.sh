@@ -256,6 +256,31 @@ hk '.error.code == "stage_published"' "publicado não se apaga"
 calla POST '{"action":"delete","stage":"legado"}'
 fk '[.stages[] | select(.id=="legado")] | length == 0' "rascunho apagado"
 
+# PLACAR CONGELADO (auditoria do painel, 03/10/2026): o motor lê o placar completo e o público vê o estágio
+# publicado — publicar/recalcular um publicado com o freeze valendo vazaria o resultado antes da revelação
+cp "$C/conf" "$FIX/conf.bak"
+printf 'FREEZE_TIME=%s\n' "$T0" >> "$C/conf"
+calla POST "$(jq -cn --argjson c "$CFGJ" '{action:"apply", config:$c}')"
+hk '.error.code == "freeze_locked" and (.error.release_at > 0)' "congelado e antes do fim+1min: recalcular o PUBLICADO = 409 freeze_locked"
+calla POST '{"action":"withdraw","login":"teamrj03","reason":"x"}'
+hk '.error.code == "freeze_locked"' "…override no publicado também"
+calla POST '{"action":"unpublish","stage":"final-br"}'
+hk '.status == "draft"' "despublicar é livre"
+calla POST '{"action":"publish","stage":"final-br"}'
+hk '.error.code == "freeze_locked"' "publicar congelado antes do fim+1min = 409 freeze_locked (sem saída)"
+calla POST '{"action":"publish","stage":"final-br","force_frozen":true}'
+hk '.error.code == "freeze_locked"' "…nem com force_frozen"
+calla POST "$(jq -cn --argjson c "$CFGJ" '{action:"apply", config:$c}')"
+hk '.applied == true' "rascunho segue recalculável com o freeze (ninguém vê)"
+sed -i "s/^CONTEST_END=.*/CONTEST_END=$((NOW - 120))/" "$C/conf"
+calla POST '{"action":"publish","stage":"final-br"}'
+hk '.error.code == "board_frozen" and .error.can_force == true' "depois do fim+1min com o placar AINDA congelado = 409 board_frozen (pede confirmação)"
+calla POST '{"action":"publish","stage":"final-br","force_frozen":true}'
+hk '.status == "published"' "…e com force_frozen publica"
+cp "$FIX/conf.bak" "$C/conf"
+calla POST '{"action":"unpublish","stage":"final-br"}'; calla POST '{"action":"publish","stage":"final-br"}'
+hk '.status == "published"' "sem freeze: publica direto (como antes)"
+
 # a composição não depende do motor pular o time: linha do motor de quem tem override add/exclude é descartada
 CLJQ="$(_DIR="$ROOT/api/v1" bash -c 'source "$_DIR/lib/classify.sh"; printf "%s" "$CL_JQ"')"
 rel="$(jq -c "$CLJQ"'cl_relation(.result) | map(.login + ":" + .via + (if .manual then ":m" else "" end))' <<<'{"result":{"classified":[

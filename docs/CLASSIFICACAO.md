@@ -219,6 +219,10 @@ Vale para TODO estágio. O cálculo do motor e as decisões manuais ficam SEPARA
 - ✔ **Aplicar** grava o estágio. Num estágio já PUBLICADO, aplicar muda o placar na hora, e o painel avisa. Estágio de
   outro motor pede confirmação (409 `stage_algorithm_mismatch` → `force`).
 - 📢 **Publicar** exige o id do contest digitado. 🗑 apaga só rascunho.
+- **Placar congelado** (03/10/2026): o motor lê o placar COMPLETO e o estágio publicado aparece a todos (chip no
+  placar, rota pública). Por isso, com freeze, publicar — ou recalcular/mexer num estágio já publicado — é recusado
+  até o fim da prova para todas as sedes + 1 min (`freeze_locked`). Depois disso, com o placar ainda congelado
+  (a revelação não aconteceu), a tela pede confirmação (`board_frozen` → `force_frozen`). Rascunho segue livre.
 - Na relação, cada linha do motor tem ✂ (retirar sem recalcular) e ⊘ (excluir e recalcular). Linha manual ou retirada
   tem ↩ (desfazer). "➕ Promover à mão" leva login ou time de fora do placar, via e motivo. A lista "🛠 Overrides
   manuais" mostra todos, com quem e quando.

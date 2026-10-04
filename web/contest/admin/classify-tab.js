@@ -67,7 +67,32 @@ const OP_T = () => ({
 export function makeClassifyTab(CONTEST) {
   const panel = el('div', { class: 'section' });
   const G = { contest: CONTEST, auth: true };   // auth:true = manda o Bearer (padrão das abas)
-  const call = (body) => apiPost('/contest/admin/classify?contest=' + enc(CONTEST), body, G);
+  const post = (body) => apiPost('/contest/admin/classify?contest=' + enc(CONTEST), body, G);
+  // PLACAR CONGELADO (auditoria 03/10/2026): o motor lê o placar completo, então publicar (ou mexer num estágio
+  // publicado) com o freeze valendo mostraria o resultado antes da revelação. Antes do fim + 1 min o servidor
+  // recusa (freeze_locked, com a hora em release_at); depois, com o placar ainda congelado, pede confirmação
+  // (board_frozen) e aceita force_frozen.
+  const call = async (body) => {
+    try { return await post(body); }
+    catch (e) {
+      const code = e && e.data && e.data.code;
+      if (code === 'board_frozen' && !body.force_frozen) {
+        if (!confirm(T('O placar ainda está CONGELADO: esta mudança mostra a classificação a todos antes da revelação. Fazer mesmo assim?',
+          'The scoreboard is still FROZEN: this change shows the qualification to everyone before the reveal. Do it anyway?',
+          'El marcador todavía está CONGELADO: este cambio muestra la clasificación a todos antes de la revelación. ¿Hacerlo de todos modos?'))) {
+          throw new Error(T('Nada mudou: o placar segue congelado.', 'Nothing changed: the scoreboard is still frozen.', 'Nada cambió: el marcador sigue congelado.'));
+        }
+        return post(Object.assign({}, body, { force_frozen: true }));
+      }
+      if (code === 'freeze_locked') {
+        const at = e.data.release_at ? fmtEpoch(e.data.release_at) : '';
+        throw new Error(T(`Com o placar congelado, a classificação só pode ser publicada a partir de ${at} (fim da prova para todas as sedes + 1 min): ela é calculada pelo placar completo.`,
+          `With the scoreboard frozen, the qualification can only be published from ${at} (end of the contest for all sites + 1 min): it is computed from the full scoreboard.`,
+          `Con el marcador congelado, la clasificación solo se puede publicar a partir de ${at} (fin de la competencia para todas las sedes + 1 min): se calcula con el marcador completo.`));
+      }
+      throw e;
+    }
+  };
 
   const head = el('h2', {}, T('🎓 Classificação — próximas fases', '🎓 Qualification — next stages', '🎓 Clasificación — próximas etapas'));
   const barBox = el('div', { class: 'row', style: 'gap:.5rem;flex-wrap:wrap;align-items:center;margin:.3rem 0 .6rem' });
