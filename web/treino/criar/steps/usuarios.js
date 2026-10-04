@@ -61,7 +61,12 @@ export function makeStepUsuarios(ctx) {
     blanks.forEach((u, i) => { u.password = pw[i] || u.password; }); renderUsersTable();
   } }, T('Gerar senhas faltantes', 'Generate missing passwords', 'Generar contraseñas faltantes'));
   const dlBtn = el('button', { class: 'btn ghost', onclick: () => { if (d.users.length) downloadCsv('credenciais.csv', d.users); } }, T('⬇ baixar CSV', '⬇ download CSV', '⬇ descargar CSV'));
-  ownBox.append(paste, el('div', { class: 'row', style: 'margin:.4rem 0' }, procBtn, addRow, genPw, dlBtn), prev);
+  // o ':' de um nome é gravado como '∶' (lib/common.sh name_clean: o placar é TXT separado por ':'), e uma linha com
+  // ':' é sempre login:senha:nome:email — a tabela abaixo mostra como cada linha foi lida (TCP 2026)
+  const colonHint = el('p', { class: 'small muted', style: 'margin:.2rem 0' }, T('Linha com “:” é lida como login:senha:nome:email (confira a tabela). Um “:” no nome é gravado como “∶” (parece igual): o placar usa “:” como separador.',
+    'A line with “:” is read as login:password:name:email (check the table). A “:” in a name is saved as “∶” (looks the same): the scoreboard uses “:” as a separator.',
+    'Una línea con “:” se lee como usuario:contraseña:nombre:email (revisa la tabla). Un “:” en el nombre se guarda como “∶” (se ve igual): el marcador usa “:” como separador.'));
+  ownBox.append(paste, colonHint, el('div', { class: 'row', style: 'margin:.4rem 0' }, procBtn, addRow, genPw, dlBtn), prev);
   renderUsersTable();
   const updateUserMode = () => {
     d.userMode = ownRadio.checked ? 'own' : 'shared';

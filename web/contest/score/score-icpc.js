@@ -293,7 +293,7 @@ export function renderICPC(parsed, opts) {
 // ---- compartilhado ----
 export function filterTeams(list, term) {
   if (!term) return list;
-  const q = term.trim().toLowerCase();
+  const q = term.trim().toLowerCase().replace(/:/g, '\u2236');   // o ':' de um nome é gravado como '∶' (lib/common.sh name_clean)
   return list.filter(t =>
     (t.username || '').toLowerCase().includes(q) ||
     (t.teamName || '').toLowerCase().includes(q) ||

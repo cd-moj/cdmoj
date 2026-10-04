@@ -31,6 +31,7 @@ let USERS_API=[];                              // a API simulada: GET /contest/a
 async function apiGet(){ return { users: USERS_API }; }
 async function apiPost(){ return {}; }
 function parseUsers(){ return []; } function parseRichCsv(){ return null; } function downloadCsv(){}
+const NAME_COLON="\u2236"; function colonQ(q){ return String(q||"").replace(/:/g, NAME_COLON); } function colonNote(){ return ""; } function skipReason(r){ return r; }
 const PRIV=/\.(admin|judge|cjudge|staff|cstaff|mon)$/;
 function mkBool(){ return document.createElement('input'); }
 function makeConvertCard(){ return { el: document.createElement('div'), show(){} }; }

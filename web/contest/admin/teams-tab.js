@@ -10,7 +10,7 @@ import { el } from '/shared/ui.js';
 import { apiGet, apiPost } from '/shared/api.js';
 import { fileToBase64 } from '/shared/auth.js';
 import { flagEl, flagManifest } from '/shared/flags.js';
-import { parseRichCsv } from '/shared/users-batch.js';
+import { parseRichCsv, colonNote } from '/shared/users-batch.js';
 import { T } from '/shared/i18n.js';
 import { setMediaSrc, mediaLink } from '/shared/media-auth.js';
 import { PRIV_RE } from '/shared/admin-ui.js';
@@ -191,6 +191,11 @@ export function makeTeamsTab(CONTEST) {
         dirty.forEach((r) => { r.orig = { ...r.vals }; });
         msg.textContent = '✓ ' + (res.saved || 0) + T(' salvo(s)', ' saved', ' guardado(s)') +
           ((res.skipped || []).length ? T(' · pulados: ', ' · skipped: ', ' · saltados: ') + res.skipped.join(', ') : '');
+        // o servidor grava o ':' do nome como '∶' (placar TXT separa por ':'): a tela mostra o que ficou
+        (res.adjusted || []).forEach((a) => {
+          const r = ROWS.find((x) => x.login === a.login); if (r) { r.vals.fullname = r.orig.fullname = a.to; if (r.els.fullname) r.els.fullname.value = a.to; }
+          msg.append(el('div', { class: 'muted' }, a.login + ': “' + a.from + '” → “' + a.to + '”.' + colonNote(':')));
+        });
       } catch (e) { msg.className = 'small error-box'; msg.textContent = e.message || T('falha', 'failed', 'fallido'); }
       save.disabled = false;
     });

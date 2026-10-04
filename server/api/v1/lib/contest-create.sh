@@ -339,7 +339,9 @@ cc_create(){
   else
     adminpass="$(cc_genpass)"                     # padrão: gera
   fi
-  case "$adminpass$adminname" in *:*) rm -rf "$stg"; fail 422 "senha/nome do admin não podem conter ':'" "colon";; esac
+  # nome: ':' vira '∶' (name_clean — o placar TXT separa por ':'); a senha segue sem ':'
+  name_clean adminname "$adminname"
+  case "$adminpass" in *:*) rm -rf "$stg"; fail 422 "a senha do admin não pode conter ':'" "colon";; esac
 
   # --- usuários: compartilhados (USERS_FROM) ou específicos do contest ---
   # _cc_stage_user <stg> <login> <pass> <fullname> [email] [team-json] — conta no store
@@ -375,8 +377,8 @@ cc_create(){
       [[ -n "$ul" ]] || continue
       valid_id "$ul" || { rm -rf "$stg"; fail 422 "login de usuário inválido: $ul" "user_login_invalid"; }
       [[ "$ul" == "$adminlogin" ]] && continue
-      [[ -z "$up" ]] && up="$(cc_genpass)"; [[ -z "$un" ]] && un="$ul"
-      case "$up$un$ue" in *:*) rm -rf "$stg"; fail 422 "campos de usuário não podem conter ':'" "user_colon";; esac
+      [[ -z "$up" ]] && up="$(cc_genpass)"; name_clean un "$un"; [[ -z "$un" ]] && un="$ul"
+      case "$up$ue" in *:*) rm -rf "$stg"; fail 422 "senha/email de usuário não podem conter ':'" "user_colon";; esac
       _cc_stage_user "$stg" "$ul" "$up" "$un" "$ue" "$(team_fields_json "$u")" \
         || { rm -rf "$stg"; fail 500 "Falha ao criar usuário" "mkdir_fail"; }
       CREDS+=("$(jq -cn --arg l "$ul" --arg p "$up" --arg n "$un" '{login:$l,password:$p,fullname:$n,role:"user"}')")

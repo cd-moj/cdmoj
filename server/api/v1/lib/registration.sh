@@ -331,9 +331,13 @@ reg_unmaterialize_team(){
 # reg_team_slug <nome> -> slug canônico (sem acento, minúsculo, [a-z0-9-]). É ele que decide
 # se dois nomes são "o mesmo" (Os Três Ponteiros × Os Tres Ponteiros): dois times com nomes
 # que só diferem no acento seriam indistinguíveis no placar.
+# (quem sourceia sem o common.sh ainda tem o filtro do nome — o mesmo NAME_CLEAN_JQ de lib/common.sh)
+[[ -n "${NAME_CLEAN_JQ:-}" ]] || NAME_CLEAN_JQ='gsub(":"; "\u2236") | gsub("[\t\n\r]"; " ") | gsub("^ +| +$"; "")'
 reg_team_slug(){
   local base slug
-  base="$(printf '%s' "$1" | iconv -f UTF-8 -t ASCII//TRANSLIT 2>/dev/null || printf '%s' "$1")"
+  # LC_ALL=C.UTF-8: a imagem de produção roda em locale POSIX, e lá o TRANSLIT troca a letra acentuada por
+  # '?' ("No Fundão" virava `no-fund-o`, e "Os Três" × "Os Tres" deixavam de colidir) — 04/10/2026
+  base="$(printf '%s' "$1" | LC_ALL=C.UTF-8 iconv -f UTF-8 -t ASCII//TRANSLIT 2>/dev/null || printf '%s' "$1")"
   slug="$(printf '%s' "$base" | tr '[:upper:]' '[:lower:]' | tr -cs 'a-z0-9' '-' \
           | sed 's/^-*//; s/-*$//' | cut -c1-24)"
   printf '%s' "${slug:-time}"
@@ -387,7 +391,7 @@ reg_team_create(){  # <c> <captain> <name> -> ecoa o login do time
   reg_teams_allowed "$c" || { printf 'teams_disabled'; return 1; }
   k="$(reg_kind_of "$c" "$cap")"
   [[ "$k" == team ]] && { printf 'in_team'; return 1; }
-  name="$(printf '%s' "$name" | tr -d '\t\n\r' | sed 's/^ *//; s/ *$//' | cut -c1-48)"
+  name="$(jq -rn --arg s "$name" '$s | '"$NAME_CLEAN_JQ"' | .[0:48] | gsub(" +$"; "")')"   # ':'→'∶'; 48 CARACTERES (não bytes)
   [[ ${#name} -ge 2 ]] || { printf 'bad_name'; return 1; }
   # colisão pelo SLUG (não pelo nome cru): "Os Três" e "Os Tres" são o mesmo time no placar
   reg_get "$c" | jq -e --arg t "$REG_TEAM_PREFIX$(reg_team_slug "$name")" '.teams | has($t)' \
@@ -484,7 +488,7 @@ reg_team_meta(){
   t="$(reg_team_of "$c" "$cap")"; [[ -n "$t" ]] || { printf 'no_team'; return 1; }
   reg_get "$c" | jq -e --arg t "$t" --arg l "$cap" '.teams[$t].captain == $l' >/dev/null 2>&1 \
     || { printf 'not_captain'; return 1; }
-  univ="$(printf '%s' "$univ" | tr -d ':\t\n\r' | sed 's/^ *//; s/ *$//' | cut -c1-20)"
+  univ="$(jq -rn --arg s "$univ" '$s | '"$NAME_CLEAN_JQ"' | .[0:20] | gsub(" +$"; "")')"     # ':'→'∶'; 20 CARACTERES
   flag="${flag,,}"; flag="${flag//_/-}"
   [[ -z "$flag" || "$flag" =~ ^[a-z]{2}(-[a-z]{2})?$ ]] || { printf 'flag_invalid'; return 1; }
   case "$ai" in yes) aiv=true;; no) aiv=false;; esac
@@ -501,7 +505,7 @@ reg_individual_meta(){
   k="$(reg_kind_of "$c" "$l")"
   [[ "$k" == team ]] && { printf 'in_team'; return 1; }
   [[ "$k" == individual ]] || { printf 'not_registered'; return 1; }
-  univ="$(printf '%s' "$univ" | tr -d ':\t\n\r' | sed 's/^ *//; s/ *$//' | cut -c1-20)"
+  univ="$(jq -rn --arg s "$univ" '$s | '"$NAME_CLEAN_JQ"' | .[0:20] | gsub(" +$"; "")')"     # ':'→'∶'; 20 CARACTERES
   flag="${flag,,}"; flag="${flag//_/-}"
   [[ -z "$flag" || "$flag" =~ ^[a-z]{2}(-[a-z]{2})?$ ]] || { printf 'flag_invalid'; return 1; }
   case "$ai" in yes) aiv=true;; no) aiv=false;; esac
@@ -515,7 +519,7 @@ reg_team_rename(){  # <c> <captain> <novo-nome>  (o LOGIN do time não muda)
   t="$(reg_team_of "$c" "$cap")"; [[ -n "$t" ]] || { printf 'no_team'; return 1; }
   reg_get "$c" | jq -e --arg t "$t" --arg l "$cap" '.teams[$t].captain == $l' >/dev/null 2>&1 \
     || { printf 'not_captain'; return 1; }
-  name="$(printf '%s' "$name" | tr -d '\t\n\r' | sed 's/^ *//; s/ *$//' | cut -c1-48)"
+  name="$(jq -rn --arg s "$name" '$s | '"$NAME_CLEAN_JQ"' | .[0:48] | gsub(" +$"; "")')"   # ':'→'∶'; 48 CARACTERES (não bytes)
   [[ ${#name} -ge 2 ]] || { printf 'bad_name'; return 1; }
   reg_get "$c" | jq -e --arg t "$t" --arg s "$REG_TEAM_PREFIX$(reg_team_slug "$name")" \
     'any(.teams | to_entries[]; .key != $t and .key == $s)' \

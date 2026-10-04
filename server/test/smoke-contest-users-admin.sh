@@ -92,7 +92,7 @@ ck "nova1 com senha gerada"    '[[ -n "$(jq -r ".created[]|select(.login==\"nova
 ck "nova2 mantém senha dada"   '[[ "$(jq -r ".created[]|select(.login==\"nova2\").password" <<<"$BODY")" == "pw2" ]]'
 ck "passwd tem nova1 e nova2"  '[[ -f "$C/users/nova1/account.json" && "$(jq -r .password "$C/users/nova2/account.json")" == "pw2" && "$(jq -r .email "$C/users/nova2/account.json")" == "n2@x.com" ]]'
 ck "skip: alice existe"        '[[ "$(jq -r ".skipped[]|select(.login==\"alice\").reason" <<<"$BODY")" == exists ]]'
-ck "skip: login inválido"      '[[ "$(jq -r ".skipped[]|select(.login==\"inv@lido!\").reason" <<<"$BODY")" == invalid ]]'
+ck "skip: login inválido"      '[[ "$(jq -r ".skipped[]|select(.login==\"inv@lido!\").reason" <<<"$BODY")" == login_invalid ]]'
 ck "skip: duplicado no lote"   '[[ "$(jq -r "[.skipped[]|select(.reason==\"duplicate\")]|length" <<<"$BODY")" == 1 ]]'
 call /contest/admin/users-bulk POST '{"on_existing":"update","users":[{"login":"alice","password":"alnova","fullname":"Alice Nova"},{"login":"jx.judge","password":"hack"}]}' adm 'contest=uc'
 ck "update troca a alice"      '[[ "$(jq -r .counts.updated <<<"$BODY")" == 1 ]] && [[ "$(jq -r .password "$C/users/alice/account.json")" == "alnova" && "$(jq -r .fullname "$C/users/alice/account.json")" == "Alice Nova" ]]'

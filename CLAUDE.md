@@ -259,6 +259,13 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   (regex→campos vazios). **O NOME é campo ÚNICO: `fullname` = nome do time** (usuário de
   contest É o time); `.team.name` existe só como LEGADO da migração — os leitores fazem
   `.team.name // .fullname` e a API nunca o escreve.
+  **`:` NO NOME (04/10/2026, TCP 2026):** o placar e o relatório são TXT separados por `:`, então TODO caminho que
+  grava NOME de exibição (user-add, users-bulk, admin/teams, contest-create, inscrição team-create/rename; escola
+  idem) passa por `name_clean` (lib/common.sh; `NAME_CLEAN_JQ` p/ quem está num jq): `:` vira `∶` (U+2236, igual na
+  tela) e a resposta devolve `adjusted[{login,field,from,to}]` p/ a tela avisar. Senha/email seguem SEM `:` (422
+  `colon`). Sede/bandeira (chaves) viram espaço. O sc_users/report-gen fazem o mesmo `∶` p/ o dado antigo. Caminho
+  NOVO que grava nome ⇒ `name_clean`, nunca recusa nem engole o `:` em silêncio. O lote (`users-bulk`) diz o motivo
+  de cada pulado (`login_invalid|colon|exists|privileged|duplicate|write_failed`).
   `.team.region` = SEDE GRAVADA (texto; casa com o `name` de regions.json e vence a regex — regra única
   de sedes, `lib/regions.sh`); o `staff_can_see` aceita entradas **`region:<nome>`** no staff-filters
   (= o aluno ESTÁ nesse nó: a sede, um ancestral dela ou um recorte). Assets por-time: `users/<login>/{photo,logo}.png`

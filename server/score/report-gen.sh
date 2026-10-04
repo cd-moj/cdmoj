@@ -501,8 +501,9 @@ done >> "$W/probs.tsv"
 # login \t team-name \t univ_short \t univ_full \t flag \t sede ; USERS_FROM cobre compartilhados.
 # A SEDE (.team.region) entra como 6º campo (leitores antigos usam 1-5): é o que alimenta o
 # filtro por sede do placar — o TXT do placar não tem essa coluna.
-ACCT_JQ='[.login//"", ((.team.name // .fullname // "")|gsub("[:\t\n]";" ")),
-          ((.team.univ_short//"")|gsub("[:\t\n]";" ")), ((.team.univ_full//"")|gsub("[:\t\n]";" ")),
+# nomes: ':' → '∶' (U+2236, igual na tela — como a gravação, lib/common.sh name_clean); tab/quebra → espaço
+ACCT_JQ='[.login//"", ((.team.name // .fullname // "")|gsub(":";"\u2236")|gsub("[\t\n]";" ")),
+          ((.team.univ_short//"")|gsub(":";"\u2236")|gsub("[\t\n]";" ")), ((.team.univ_full//"")|gsub(":";"\u2236")|gsub("[\t\n]";" ")),
           ((.team.flag//"")|gsub("[:\t\n]";"")), ((.team.region//"")|gsub("[:\t\n]";" "))] | @tsv'
 {
   find "$CDIR/users" -mindepth 2 -maxdepth 2 -name account.json -print0 2>/dev/null \

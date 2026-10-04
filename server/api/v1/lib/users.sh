@@ -70,15 +70,20 @@ account_merge(){
 
 # team_fields_json <user-json> — extrai do JSON de entrada os campos de TIME
 # (univ_short, univ_full, country->flag, region) e ecoa o objeto `.team` só com os
-# NÃO-vazios ('{}' se nada veio). Saneia ':'/tab/newline (quebrariam os TSVs derivados:
-# sc_users/badges). O NOME do time é o próprio `.fullname` (campo ÚNICO — usuário de
+# NÃO-vazios ('{}' se nada veio). Saneia tab/newline (quebrariam os TSVs derivados: sc_users/badges);
+# o ':' das ESCOLAS (univ_short/univ_full, exibição) vira '∶' como no nome (NAME_CLEAN_JQ, lib/common.sh),
+# o de bandeira/sede (chaves) vira espaço. O NOME do time é o próprio `.fullname` (campo ÚNICO — usuário de
 # contest É o time); `.team.name` é só legado da migração (leitores fazem
 # `.team.name // .fullname`). Writers: users-bulk, user-add, contest-create users[] e
 # admin/teams — a LEITURA já existia (placar, badges, print).
+# (quem sourceia este arquivo sem o common.sh — scripts de score — ainda tem o filtro do nome)
+[[ -n "${NAME_CLEAN_JQ:-}" ]] || NAME_CLEAN_JQ='gsub(":"; "\u2236") | gsub("[\t\n\r]"; " ") | gsub("^ +| +$"; "")'
 team_fields_json() {
   jq -c '{univ_short:(.univ_short // ""), univ_full:(.univ_full // ""),
           flag:(.country // ""), region:(.region // "")}
-         | with_entries(.value |= (tostring | gsub("[:\t\n\r]"; " ") | gsub("^ +| +$"; "")))
+         | with_entries(.key as $k | .value |= (tostring
+             | if ($k == "univ_short" or $k == "univ_full") then '"$NAME_CLEAN_JQ"'
+               else (gsub("[:\t\n\r]"; " ") | gsub("^ +| +$"; "")) end))
          | with_entries(select(.value != ""))' <<<"${1:-null}" 2>/dev/null || echo '{}'
 }
 

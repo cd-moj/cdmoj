@@ -46,7 +46,7 @@ call /treino/contest-create/draw GET '' reg 'tags=%23y&count=9'
 ck "poucos candidatos (#y=1)" '[[ "$(jq -r ".candidates" <<<"$BODY")" == 1 && "$(jq -r ".drawn" <<<"$BODY")" == 1 ]]'
 
 echo "== criar com usuários próprios + admin custom =="
-SPEC="{\"id\":\"own-c\",\"name\":\"Own\",\"mode\":\"icpc\",\"end\":$FUT,\"admin\":{\"login\":\"chief\",\"password\":\"sek123\",\"fullname\":\"Chief\"},\"users\":[{\"login\":\"u1\",\"fullname\":\"User One\"},{\"login\":\"u2\",\"password\":\"p2pass\",\"fullname\":\"User Two\",\"email\":\"u2@x.com\"}],\"problems\":[{\"bank_id\":\"bankprob\",\"name\":\"P1\",\"letter\":\"A\"}]}"
+SPEC="{\"id\":\"own-c\",\"name\":\"Own\",\"mode\":\"icpc\",\"end\":$FUT,\"admin\":{\"login\":\"chief\",\"password\":\"sek123\",\"fullname\":\"Chief\"},\"users\":[{\"login\":\"u1\",\"fullname\":\"User:One\"},{\"login\":\"u2\",\"password\":\"p2pass\",\"fullname\":\"User Two\",\"email\":\"u2@x.com\"}],\"problems\":[{\"bank_id\":\"bankprob\",\"name\":\"P1\",\"letter\":\"A\"}]}"
 call /treino/contest-create/create POST "$SPEC" reg
 ck "criou own-c"        '[[ "$(jq -r .contest_id <<<"$BODY")" == "own-c" ]]'
 ck "admin = chief.admin" '[[ "$(jq -r .admin_login <<<"$BODY")" == "chief.admin" ]]'
@@ -54,6 +54,7 @@ ck "3 credenciais"      '[[ "$(jq -r .users_count <<<"$BODY")" == 3 ]]'
 ck "u1 ganhou senha"    '[[ -n "$(jq -r ".users[]|select(.login==\"u1\")|.password" <<<"$BODY")" ]]'
 ck "store: chief.admin:sek123" '[[ "$(jq -r .password "$FIX/own-c/users/chief.admin/account.json")" == "sek123" ]]'
 ck "store: u2 com email" '[[ "$(jq -r .email "$FIX/own-c/users/u2/account.json")" == "u2@x.com" && "$(jq -r .password "$FIX/own-c/users/u2/account.json")" == "p2pass" ]]'
+ck "store: o ':' do nome do u1 vira '∶' (name_clean)" '[[ "$(jq -r .fullname "$FIX/own-c/users/u1/account.json")" == "User"$'"'"'\xe2\x88\xb6'"'"'"One" ]]'
 
 echo "== criar compartilhado (USERS_FROM=treino) + login fallback =="
 SPEC2="{\"id\":\"shared-c\",\"name\":\"Shared\",\"mode\":\"icpc\",\"end\":$FUT,\"users_from\":\"treino\",\"problems\":[{\"bank_id\":\"bankprob\",\"name\":\"P1\",\"letter\":\"A\"}]}"

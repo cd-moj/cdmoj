@@ -27,7 +27,7 @@ bash "$MOJTOOLS_DIR/kattis/import.sh" "$tarf" "$mojpkg/pkg" >"$mojpkg/log" 2>&1 
 # nome do problema: do body, senão slug do display_title, senão do uuid
 prob="$(jq -r '.prob // empty' <<<"$body")"
 if [[ -z "$prob" ]]; then
-  prob="$(jq -r '.display_title // ""' "$mojpkg/pkg/.moj-meta.json" 2>/dev/null | iconv -f utf-8 -t ascii//TRANSLIT 2>/dev/null | tr '[:upper:]' '[:lower:]' | tr -c 'a-z0-9' '-' | sed 's/-\+/-/g; s/^-//; s/-$//')"
+  prob="$(jq -r '.display_title // ""' "$mojpkg/pkg/.moj-meta.json" 2>/dev/null | LC_ALL=C.UTF-8 iconv -f utf-8 -t ascii//TRANSLIT 2>/dev/null | tr '[:upper:]' '[:lower:]' | tr -c 'a-z0-9' '-' | sed 's/-\+/-/g; s/^-//; s/-$//')"
   [[ "$prob" =~ ^[a-z0-9] ]] || prob="kattis-$(jq -r '.uuid // "x"' "$mojpkg/pkg/.kattis.json" 2>/dev/null | tr -cd 'a-f0-9' | cut -c1-8)"
 fi
 [[ "$prob" =~ ^[a-z0-9][a-z0-9._-]{1,80}$ ]] || fail 400 "Nome de problema inválido (passe prob)" "prob_invalid"

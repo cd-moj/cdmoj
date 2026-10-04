@@ -14,7 +14,8 @@ jq -e '.users | type == "array" and length >= 1 and length <= 500' >/dev/null 2>
 # slug ascii nome.sobrenome (≤24) p/ login gerado
 _slug(){
   local s w=() first last
-  s="$(printf '%s' "$1" | iconv -f UTF-8 -t ASCII//TRANSLIT 2>/dev/null | tr '[:upper:]' '[:lower:]' | tr -cs 'a-z0-9' ' ')"
+  # LC_ALL=C.UTF-8: em locale POSIX (a imagem) o TRANSLIT dá '?' — "João Ávila" virava jo.vila (04/10/2026)
+  s="$(printf '%s' "$1" | LC_ALL=C.UTF-8 iconv -f UTF-8 -t ASCII//TRANSLIT 2>/dev/null | tr '[:upper:]' '[:lower:]' | tr -cs 'a-z0-9' ' ')"
   read -ra w <<<"$s"
   first="${w[0]:-}"; last=""
   (( ${#w[@]} > 1 )) && last="${w[${#w[@]}-1]}"

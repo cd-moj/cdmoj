@@ -28,7 +28,7 @@ export function parseGeneric(lines, mode) {
 
 export function renderGeneric(parsed, opts) {
   const { searchTerm = '', regionFn = null } = opts || {};
-  const q = (searchTerm || '').trim().toLowerCase();
+  const q = (searchTerm || '').trim().toLowerCase().replace(/:/g, '\u2236');   // nome gravado com '∶' (name_clean)
   let rows = parsed.rows;
   if (q) {
     rows = rows.filter(r => r.some(cell => String(cell).toLowerCase().includes(q)));

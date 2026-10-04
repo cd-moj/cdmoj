@@ -4,7 +4,7 @@
 // As sessões e o log de acessos ficaram em Pessoas › Sessões (sessions-tab.js).
 import { el } from '/shared/ui.js';
 import { apiGet, apiPost } from '/shared/api.js';
-import { parseUsers, parseRichCsv, downloadCsv } from '/shared/users-batch.js';
+import { parseUsers, parseRichCsv, downloadCsv, colonNote, colonQ, skipReason, NAME_COLON } from '/shared/users-batch.js';
 import { mkBool, PRIV_RE as PRIV } from '/shared/admin-ui.js';
 import { T } from '/shared/i18n.js';
 import { makeConvertCard } from './users-convert.js';
@@ -76,7 +76,8 @@ export function makeUsersTab(CONTEST) {
   }
   function renderList() {
     list.innerHTML = '';
-    const q = fQ.value.trim().toLowerCase(), sel = fSel.value;
+    const q = colonQ(fQ.value.trim().toLowerCase()), sel = fSel.value;   // ':' acha o nome gravado com '∶'
+
     const items = USERS.filter((u) => {
       if (sel === 'active' && u.disabled) return false;
       if (sel === 'disabled' && !u.disabled) return false;
@@ -110,17 +111,39 @@ export function makeUsersTab(CONTEST) {
   function makeBatchUsers() {
     let staged = [];       // [{login,password,fullname,email, team_name?,country?,region?,…}] da prévia
     let richMode = false;  // true = veio de CSV com cabeçalho (campos de time inclusos)
-    const ta = el('textarea', { rows: '5', placeholder: T('Cole aqui (ou envie um arquivo). Formatos por linha:\n  login:senha:nome:email\n  login,nome,email\n  Nome Completo   (login e senha gerados)\nOu CSV COM CABEÇALHO (ordem livre; nome = nome do time; carga única c/ país+sede):\n  login,senha,nome,pais,sede,univ,univ_nome', 'Paste here (or upload a file). Per-line formats:\n  login:senha:nome:email\n  login,nome,email\n  Full Name   (login and password generated)\nOr CSV WITH HEADER (any order; nome = team name; single load w/ country+site):\n  login,senha,nome,pais,sede,univ,univ_nome', 'Pega aquí (o sube un archivo). Formatos por línea:\n  login:senha:nome:email\n  login,nome,email\n  Nombre Completo   (login y contraseña generados)\nO CSV CON ENCABEZADO (orden libre; nome = nombre del equipo; carga única con país+sede):\n  login,senha,nome,pais,sede,univ,univ_nome'), style: 'width:100%' });
+    const ta = el('textarea', { rows: '5', placeholder: T('Cole aqui (ou envie um arquivo). Formatos por linha:\n  login:senha:nome:email\n  login,nome,email\n  Nome Completo   (login e senha gerados)\nOu CSV COM CABEÇALHO (ordem livre; nome = nome do time; carga única c/ país+sede):\n  login,senha,nome,pais,sede,univ,univ_nome\nNome com “:” ou “,” → use o CSV com cabeçalho (o “:” do nome é gravado como “∶”).', 'Paste here (or upload a file). Per-line formats:\n  login:senha:nome:email\n  login,nome,email\n  Full Name   (login and password generated)\nOr CSV WITH HEADER (any order; nome = team name; single load w/ country+site):\n  login,senha,nome,pais,sede,univ,univ_nome\nName with “:” or “,” → use the CSV with a header (the “:” in a name is saved as “∶”).', 'Pega aquí (o sube un archivo). Formatos por línea:\n  login:senha:nome:email\n  login,nome,email\n  Nombre Completo   (login y contraseña generados)\nO CSV CON ENCABEZADO (orden libre; nome = nombre del equipo; carga única con país+sede):\n  login,senha,nome,pais,sede,univ,univ_nome\nNombre con “:” o “,” → usa el CSV con encabezado (el “:” del nombre se guarda como “∶”).'), style: 'width:100%' });
     const fileInp = el('input', { type: 'file', accept: '.txt,.csv,text/plain,text/csv', style: 'display:none' });
     fileInp.addEventListener('change', () => { const f = fileInp.files[0]; if (!f) return; const rd = new FileReader(); rd.onload = () => { ta.value = ta.value ? (ta.value.replace(/\s*$/, '') + '\n' + rd.result) : rd.result; }; rd.readAsText(f); fileInp.value = ''; });
     const onExisting = el('select', {}, el('option', { value: 'skip' }, T('pular os que já existem', 'skip existing ones', 'omitir los existentes')), el('option', { value: 'update' }, T('atualizar senha dos existentes', 'update password of existing ones', 'actualizar contraseña de los existentes')));
     const prev = el('div', {}); const msg = el('div', { class: 'small' });
     const parse = (txt) => { const rich = parseRichCsv(txt); richMode = !!rich; return rich || parseUsers(txt); };
+    // PRÉVIA: como cada linha foi LIDA (não só quantas) — é aqui que "localhost:6767" aparece como login+senha,
+    // e que o ':' de um nome aparece como o '∶' que será gravado (TCP 2026)
+    const PREV_MAX = 30;
     const renderPrev = () => {
       prev.innerHTML = ''; if (!staged.length) return;
       prev.append(el('div', { class: 'small muted', style: 'margin:.3rem 0' },
         staged.length + T(' linha(s) prontas (senhas em branco são geradas no servidor).', ' line(s) ready (blank passwords are generated on the server).', ' línea(s) lista(s) (las contraseñas en blanco se generan en el servidor).') +
         (richMode ? T(' Cabeçalho detectado — os campos de time/país/sede vão junto.', ' Header detected — the team/country/site fields go along.', ' Encabezado detectado — los campos de equipo/país/sede se incluyen.') : '')));
+      const muted = (t) => el('span', { class: 'muted' }, t);
+      const cols = [['login', 'login'], ['password', T('senha', 'password', 'contraseña')], ['fullname', T('nome', 'name', 'nombre')], ['email', 'email']]
+        .concat(richMode ? [['country', T('país', 'country', 'país')], ['region', T('sede', 'site', 'sede')], ['univ_short', T('escola', 'school', 'escuela')]] : []);
+      const cell = (u, k) => {
+        const v = u[k] || '';
+        if (k === 'password') return v ? '••••' : muted(T('(gerada)', '(generated)', '(generada)'));
+        if (k === 'fullname' && !v) return muted('(= login)');   // igual nos 3 idiomas
+        if ((k === 'fullname' || k === 'univ_short') && v.includes(':')) return el('span', { title: colonNote(v).trim() }, v.replace(/:/g, NAME_COLON) + ' ⚠');
+        return v;
+      };
+      const tb = el('tbody');
+      staged.slice(0, PREV_MAX).forEach((u) => tb.append(el('tr', {}, ...cols.map(([k]) => el('td', {}, cell(u, k))))));
+      prev.append(el('div', { style: 'overflow-x:auto' }, el('table', { class: 'moj', style: 'margin:.2rem 0; font-size:.85rem' },
+        el('thead', {}, el('tr', {}, ...cols.map(([, h]) => el('th', {}, h)))), tb)));
+      if (staged.length > PREV_MAX) prev.append(el('div', { class: 'small muted' }, T('… e mais ', '… and ', '… y ') + (staged.length - PREV_MAX) + T(' linha(s).', ' more line(s).', ' línea(s) más.')));
+      const notes = [];
+      if (staged.some((u) => u.fmt === 'colon' && !u.fullname)) notes.push(T('Linha com “:” (sem cabeçalho) é lida como login:senha:nome:email — confira a tabela. Nome com “:” ou “,”: use CSV com cabeçalho (login,senha,nome,…).', 'A line with “:” (no header) is read as login:password:name:email — check the table. Names with “:” or “,”: use a CSV with a header (login,senha,nome,…).', 'Una línea con “:” (sin encabezado) se lee como login:contraseña:nombre:email — revisa la tabla. Nombre con “:” o “,”: usa CSV con encabezado (login,senha,nome,…).'));
+      if (staged.some((u) => String(u.fullname || '').includes(':') || String(u.univ_short || '').includes(':') || String(u.univ_full || '').includes(':'))) notes.push('⚠' + colonNote(':'));
+      notes.forEach((n) => prev.append(el('div', { class: 'small', style: 'margin:.2rem 0; color:var(--warn,#b9770e)' }, n)));
     };
     const proc = el('button', { class: 'btn ghost', onclick: () => { staged = parse(ta.value); msg.textContent = ''; renderPrev(); } }, T('Processar', 'Process', 'Procesar'));
     const send = el('button', { class: 'btn', onclick: async () => {
@@ -140,6 +163,14 @@ export function makeUsersTab(CONTEST) {
         msg.append('✓ ' + (c.created || 0) + T(' criado(s), ', ' created, ', ' creado(s), ') + (c.updated || 0) + T(' atualizado(s), ', ' updated, ', ' actualizado(s), ') + (c.skipped || 0) + T(' pulado(s). ', ' skipped. ', ' omitido(s). '));
         const creds = (r.created || []).concat(r.updated || []);
         if (creds.length) msg.append(el('button', { class: 'btn ghost', onclick: () => downloadCsv(CONTEST + '-credenciais.csv', creds) }, T('⬇ baixar credenciais (CSV)', '⬇ download credentials (CSV)', '⬇ descargar credenciales (CSV)')));
+        // POR QUE cada linha foi pulada, e quais nomes mudaram (antes: só "N pulado(s)" — TCP 2026)
+        const sk = r.skipped || [], ad = r.adjusted || [];
+        if (sk.length) msg.append(el('div', { class: 'error-box', style: 'margin:.3rem 0' },
+          el('b', {}, T('Pulados:', 'Skipped:', 'Omitidos:')),
+          el('ul', { style: 'margin:.2rem 0 0 1rem' }, ...sk.map((s) => el('li', {}, el('code', {}, s.login || '?'), ' — ' + skipReason(s.reason))))));
+        if (ad.length) msg.append(el('div', { class: 'small', style: 'margin:.3rem 0; color:var(--warn,#b9770e)' },
+          el('b', {}, T('Nomes ajustados:', 'Adjusted names:', 'Nombres ajustados:')), colonNote(':'),
+          el('ul', { style: 'margin:.2rem 0 0 1rem' }, ...ad.map((a) => el('li', {}, el('code', {}, a.login), ' — “' + a.from + '” → “' + a.to + '”')))));
         send.disabled = false; staged = []; ta.value = ''; renderPrev(); loadList();
       } catch (e) { send.disabled = false; msg.className = 'small error-box'; msg.textContent = e.message || T('falha', 'failed', 'fallido'); }
     } }, T('Enviar lote', 'Send batch', 'Enviar lote'));
@@ -170,6 +201,7 @@ export function makeUsersTab(CONTEST) {
       try {
         const r = await call('user-add', { login: li.value.trim(), password: pw.value.trim() || undefined, fullname: fn.value.trim() || undefined, email: em.value.trim() || undefined });
         amsg.className = 'small'; amsg.innerHTML = ''; amsg.append('✓ ' + r.user.login + T(' · senha: ', ' · password: ', ' · contraseña: '), el('span', { class: 'cred' }, r.user.password));
+        if ((r.adjusted || []).length) amsg.append(el('div', { class: 'muted' }, '“' + r.adjusted[0].to + '”.' + colonNote(':')));
         add.disabled = false; li.value = pw.value = fn.value = em.value = ''; loadList();
       } catch (e) { add.disabled = false; amsg.className = 'small error-box'; amsg.textContent = e.message || T('falha', 'failed', 'fallido'); }
     } }, T('Adicionar / resetar / reabilitar', 'Add / reset / re-enable', 'Agregar / restablecer / reactivar'));

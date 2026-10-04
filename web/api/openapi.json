@@ -1516,7 +1516,7 @@
         "tags": [
           "treino"
         ],
-        "summary": "Inscrição do próprio login num contest que usa as contas do treino (individual ou time de até 3 contas existentes): janela ancorada na PROVA OFICIAL (o aquecimento pode ficar dias no ar), minha situação, meu time e convites recebidos",
+        "summary": "Inscrição do próprio login num contest que usa as contas do treino (individual ou time de até 3 contas existentes): janela ancorada na PROVA OFICIAL (o aquecimento pode ficar dias no ar), minha situação, meu time e convites recebidos. Nome de time (team-create/team-rename): ':' vira '∶', até 48 caracteres; login time-<slug> sem acento",
         "security": [
           {
             "bearerAuth": []
@@ -3541,7 +3541,7 @@
         "tags": [
           "contest-create"
         ],
-        "summary": "Cria e publica o contest (no ar na hora) SPEC UNIFICADO (2026-09-05): modules:{<id>: true | {on?, …seção…}} leva os DADOS de cada módulo — sedes{regions,teams_meta,time_overrides}, baloes{colors,during_freeze}, coortes{cohorts}, maquinas{ua_gate,site_lock{enabled,grace},nutella_url}, rodadas{active,rounds}, documentos{config}, inscricoes{enabled,window}, telao{views} (chaves NOVAS de webcast), classificacao{algorithm,config} ou {stages:[{id?,algorithm,config,name?,venue?,when?,chip?}]} (motor pela allowlist + config pelo --check do motor). Seção presente = módulo ligado (salvo on:false); tipo errado = 422 modules_spec_invalid; segredo nunca entra. colors/regions/teams_meta no topo continuam aceitos (compat). Letra de problema: sem letter = a 1ª LIVRE; repetida (sem diferenciar caixa) = 422 letter_dup (numa rodada do spec, 422 modules_spec_invalid). Módulo esqueletos: {langs:{<lang>:{mode:custom,code}|{mode:off}}} grava o esqueletos.json e exige show_editor (senão 422 editor_required; vale p/ criar, duplicar e template).",
+        "summary": "Cria e publica o contest (no ar na hora) SPEC UNIFICADO (2026-09-05): modules:{<id>: true | {on?, …seção…}} leva os DADOS de cada módulo — sedes{regions,teams_meta,time_overrides}, baloes{colors,during_freeze}, coortes{cohorts}, maquinas{ua_gate,site_lock{enabled,grace},nutella_url}, rodadas{active,rounds}, documentos{config}, inscricoes{enabled,window}, telao{views} (chaves NOVAS de webcast), classificacao{algorithm,config} ou {stages:[{id?,algorithm,config,name?,venue?,when?,chip?}]} (motor pela allowlist + config pelo --check do motor). Seção presente = módulo ligado (salvo on:false); tipo errado = 422 modules_spec_invalid; segredo nunca entra. colors/regions/teams_meta no topo continuam aceitos (compat). Letra de problema: sem letter = a 1ª LIVRE; repetida (sem diferenciar caixa) = 422 letter_dup (numa rodada do spec, 422 modules_spec_invalid). Módulo esqueletos: {langs:{<lang>:{mode:custom,code}|{mode:off}}} grava o esqueletos.json e exige show_editor (senão 422 editor_required; vale p/ criar, duplicar e template). Nomes (admin e users[]) com ':' são gravados com '∶'; senha/email de usuário com ':' = 422 user_colon, senha do admin = 422 colon.",
         "requestBody": {
           "required": true,
           "content": {
@@ -4928,7 +4928,7 @@
         "tags": [
           "contest-admin"
         ],
-        "summary": "Times por-usuário: set{login:{fullname?,univ_short?,univ_full?,country?,region?}} (fullname = nome do time, campo único; '' apaga os de .team) ou action:materialize (aplica teams-meta/regions aos campos VAZIOS); USERS_FROM → 409",
+        "summary": "Times por-usuário: set{login:{fullname?,univ_short?,univ_full?,country?,region?}} (fullname = nome do time, campo único; '' apaga os de .team) → {saved, skipped, adjusted[{login,field,from,to}]} (nome/escola com ':' = '∶'; sede/bandeira = espaço) ou action:materialize (aplica teams-meta/regions aos campos VAZIOS); USERS_FROM → 409",
         "security": [
           {
             "bearerAuth": []
@@ -5058,7 +5058,7 @@
         "tags": [
           "contest-admin"
         ],
-        "summary": "Adiciona/reseta usuário do contest (fullname = nome do time; univ_short/univ_full/country/region opcionais mesclam no .team)",
+        "summary": "Adiciona/reseta usuário do contest (fullname = nome do time; univ_short/univ_full/country/region opcionais mesclam no .team). Nome com ':' é gravado com '∶' (U+2236; o placar é TXT separado por ':') e volta em adjusted[{login,field,from,to}]; senha/email com ':' = 422 colon",
         "parameters": [
           {
             "$ref": "#/components/parameters/contest"
@@ -5115,7 +5115,7 @@
         "tags": [
           "contest-admin"
         ],
-        "summary": "Carga de usuários em lote (skip|update; conta privilegiada existente nunca é resetada; fullname = nome do time; univ_short/univ_full/country/region opcionais gravam o .team — carga única de credenciais+time)",
+        "summary": "Carga de usuários em lote (skip|update; conta privilegiada existente nunca é resetada; fullname = nome do time; univ_short/univ_full/country/region opcionais gravam o .team — carga única de credenciais+time). Nome/escola com ':' = gravado com '∶' e listado em adjusted[]; skipped[].reason = login_invalid|colon (senha/email)|exists|privileged|duplicate|write_failed",
         "parameters": [
           {
             "$ref": "#/components/parameters/contest"

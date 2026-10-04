@@ -208,6 +208,26 @@ resp_cache_store(){
   return 0
 }
 
+# --- NOME de exibição (time, escola) --------------------------------------
+# O placar e o relatório são TXT separados por ':' (desc:asc:flag:username:univ short:team name:…), então
+# um ':' cru no nome desalinharia as colunas. Até 04/10/2026 cada caminho fazia uma coisa (recusava, pulava
+# a linha do lote sem dizer por quê, trocava por espaço — "localhost:6767" virava "localhost 6767" —, ou
+# gravava cru); o TCP 2026 tropeçou nisso. Decisão do Ribas: TODO caminho que grava nome troca ':' por '∶'
+# (U+2236 RATIO — igual na tela, o que o organizador fazia à mão) e avisa. Tab/quebra de linha viram espaço.
+# Senha e email continuam sem ':' (não são exibição). Os bytes do '∶' vão por escape: `$'∶'` depende do
+# locale do bash, e a imagem roda em POSIX.
+NAME_COLON=$'\xe2\x88\xb6'
+# name_clean <var-saída> <texto> — zero fork; NAME_CLEAN_COLON=1 se trocou algum ':' (p/ a resposta avisar)
+name_clean(){
+  local -n _nc_out="$1"; local _nc_s="$2"     # (local com prefixo: o nameref não pode sombrear a var do chamador)
+  NAME_CLEAN_COLON=0; [[ "$_nc_s" == *:* ]] && NAME_CLEAN_COLON=1
+  _nc_s="${_nc_s//:/$NAME_COLON}"; _nc_s="${_nc_s//[$'\t\n\r']/ }"
+  _nc_s="${_nc_s#"${_nc_s%%[! ]*}"}"; _nc_s="${_nc_s%"${_nc_s##*[! ]}"}"
+  _nc_out="$_nc_s"
+}
+# o mesmo, como filtro jq (p/ quem já está num jq): `… | <NAME_CLEAN_JQ>`
+NAME_CLEAN_JQ='gsub(":"; "∶") | gsub("[\t\n\r]"; " ") | gsub("^ +| +$"; "")'
+
 # --- validação / paths ----------------------------------------------------
 valid_id() {  # id seguro (sem traversal). Permite #, @, ., +, -, _ (usados em ids).
   [[ "$1" =~ ^[A-Za-z0-9._@#+-]+$ ]] && [[ "$1" != *..* ]]

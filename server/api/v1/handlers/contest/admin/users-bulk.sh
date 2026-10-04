@@ -6,13 +6,15 @@
 # campos de TIME (opcionais) vão p/ o `.team{univ_short,univ_full,flag,region}` do
 # account.json — carga ÚNICA de credenciais+país+sede+universidade (team_fields_json saneia;
 # update mescla só os presentes). Regras: ≤5000; login valid_id; senha vazia = gerada
-# (cc_genpass); senha/nome/email sem ':'.
+# (cc_genpass); NOME com ':' é gravado com '∶' (name_clean — o placar TXT separa por ':') e volta em
+# `adjusted`; senha/email com ':' = pulado (`colon`).
 # on_existing=update troca senha/nome/email de conta existente, MAS conta PRIVILEGIADA
 # existente (is_reserved_role_login) NUNCA é tocada (skipped: privileged — não resetar
 # admin/juízes em massa); CRIAR privilegiada nova é permitido (staff em lote, como o user-add).
 # Grava um account.json por conta (users/<login>/).
 # Resposta: {created:[{login,password,fullname,email}], updated:[…],
-#            skipped:[{login,reason:exists|privileged|invalid|duplicate}], counts}.
+#            skipped:[{login,reason:login_invalid|colon|exists|privileged|duplicate|write_failed}],
+#            adjusted:[{login,field:"fullname",from,to}], counts}.
 require_method POST
 contest="$(param contest)"
 [[ -n "$contest" ]] || fail 400 "Missing contest" "contest_missing"
@@ -33,10 +35,11 @@ declare -A EXIST
 while IFS= read -r l; do [[ -n "$l" ]] && EXIST["$l"]=1; done < <(list_users "$contest")
 
 tmpd="$(mktemp -d)" || fail 500 "tmp" "tmp"
-: > "$tmpd/created.jsonl"; : > "$tmpd/updated.jsonl"; : > "$tmpd/skipped.jsonl"
+: > "$tmpd/created.jsonl"; : > "$tmpd/updated.jsonl"; : > "$tmpd/skipped.jsonl"; : > "$tmpd/adjusted.jsonl"
 declare -A SEEN
 skipj(){ jq -cn --arg l "$1" --arg r "$2" '{login:$l,reason:$r}' >> "$tmpd/skipped.jsonl"; }
 credj(){ jq -cn --arg l "$1" --arg p "$2" --arg f "$3" --arg e "$4" '{login:$l,password:$p,fullname:$f,email:$e}'; }
+adjj(){ jq -cn --arg l "$1" --arg f "$2" --arg t "$3" '{login:$l,field:"fullname",from:$f,to:$t}' >> "$tmpd/adjusted.jsonl"; }
 
 while IFS= read -r u; do
   [[ -n "$u" ]] || continue
@@ -44,10 +47,11 @@ while IFS= read -r u; do
   pass="$(jq -r '.password // ""' <<<"$u")"
   full="$(jq -r '.fullname // ""' <<<"$u")"
   email="$(jq -r '.email // ""' <<<"$u")"
-  # saneamento: tab/newline quebrariam os TSVs derivados (sc_users/allsubmissions)
-  full="${full//$'\t'/ }"; full="${full//$'\n'/ }"; email="${email//$'\t'/ }"; email="${email//$'\n'/ }"
-  { [[ -n "$login" ]] && valid_id "$login"; } || { skipj "${login:-?}" invalid; continue; }
-  case "$pass$full$email" in *:*) skipj "$login" invalid; continue;; esac
+  # saneamento: tab/newline quebrariam os TSVs derivados (sc_users/allsubmissions); ':' no nome vira '∶'
+  fraw="$full"; name_clean fclean "$full"; fadj=$NAME_CLEAN_COLON; full="$fclean"
+  email="${email//$'\t'/ }"; email="${email//$'\n'/ }"
+  { [[ -n "$login" ]] && valid_id "$login"; } || { skipj "${login:-?}" login_invalid; continue; }
+  case "$pass$email" in *:*) skipj "$login" colon; continue;; esac
   [[ -n "${SEEN[$login]:-}" ]] && { skipj "$login" duplicate; continue; }
   SEEN["$login"]=1
   [[ -z "$full" ]] && full="$login"
@@ -60,34 +64,38 @@ while IFS= read -r u; do
     # nome/email só sobrescrevem se VIERAM na linha (linha parcial de enriquecimento —
     # ex.: login+sede — não pode clobberar o nome do time p/ o login); a senha segue a
     # semântica documentada do update (vazia = regenerada).
-    fin="$(jq -r '.fullname // ""' <<<"$u")"; ein="$(jq -r '.email // ""' <<<"$u")"
+    fin="$fclean"; ein="$(jq -r '.email // ""' <<<"$u")"
     account_merge "$contest" "$login" '.password=$p | .updated_at=$t
         | (if $f != "" then .fullname=$f else . end)
         | (if $e != "" then .email=$e else . end)
         | .team = ((.team // {}) + $tm) | if (.team|length)==0 then del(.team) else . end' \
       --arg p "$pass" --arg f "$fin" --arg e "$ein" --argjson t "$EPOCHSECONDS" \
-      --argjson tm "$teamj" || { skipj "$login" invalid; continue; }
+      --argjson tm "$teamj" || { skipj "$login" write_failed; continue; }
+    (( fadj )) && adjj "$login" "$fraw" "$fin"
     credj "$login" "$pass" "$(account_field "$contest" "$login" '.fullname')" "$email" >> "$tmpd/updated.jsonl"
   else
     [[ -z "$pass" ]] && pass="$(cc_genpass)"
     # criação inline (mesmo shape do user_create em lib/users.sh, + .team quando veio)
     d="$(user_dir "$contest" "$login")"
-    mkdir -p "$d/submissions" "$d/mojlog" "$d/results" || { skipj "$login" invalid; continue; }
+    mkdir -p "$d/submissions" "$d/mojlog" "$d/results" || { skipj "$login" write_failed; continue; }
     jq -cn --arg l "$login" --arg p "$pass" --arg n "$full" --arg e "$email" --argjson t "$EPOCHSECONDS" \
       --argjson tm "$teamj" \
       '{login:$l,password:$p,fullname:$n,email:$e,created_at:$t,updated_at:$t,status:"active",uname_changes:[]}
        + (if ($tm|length) > 0 then {team:$tm} else {} end)' \
-      > "$d/account.json" || { skipj "$login" invalid; continue; }
+      > "$d/account.json" || { skipj "$login" write_failed; continue; }
     [[ -f "$d/history" ]] || : > "$d/history"   # nunca zera o de quem já submeteu (ver user_create)
+    (( fadj )) && adjj "$login" "$fraw" "$full"
     credj "$login" "$pass" "$full" "$email" >> "$tmpd/created.jsonl"
   fi
 done < <(jq -c '(.users // [])[]' <<<"$body")
 
 audit_log_to "$contest" users-bulk \
   "created=$(grep -c . "$tmpd/created.jsonl" 2>/dev/null) updated=$(grep -c . "$tmpd/updated.jsonl" 2>/dev/null) skipped=$(grep -c . "$tmpd/skipped.jsonl" 2>/dev/null) on_existing=$onex"
-ok_json '{created:($c[0] // []), updated:($u[0] // []), skipped:($s[0] // []),
-          counts:{created:(($c[0] // [])|length), updated:(($u[0] // [])|length), skipped:(($s[0] // [])|length)}}' \
+ok_json '{created:($c[0] // []), updated:($u[0] // []), skipped:($s[0] // []), adjusted:($a[0] // []),
+          counts:{created:(($c[0] // [])|length), updated:(($u[0] // [])|length), skipped:(($s[0] // [])|length),
+                  adjusted:(($a[0] // [])|length)}}' \
   --slurpfile c <(jq -cs '.' "$tmpd/created.jsonl") \
+  --slurpfile a <(jq -cs '.' "$tmpd/adjusted.jsonl") \
   --slurpfile u <(jq -cs '.' "$tmpd/updated.jsonl") \
   --slurpfile s <(jq -cs '.' "$tmpd/skipped.jsonl")
 rm -rf "$tmpd"

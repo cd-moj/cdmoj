@@ -337,7 +337,7 @@ authored_remove(){
 }
 
 # norm <txt> -> minúsculas, sem acento, só [a-z0-9 ] (espelha gen-problem-owners.sh)
-prob_norm(){ printf '%s' "$1" | iconv -f utf-8 -t ascii//TRANSLIT 2>/dev/null | tr '[:upper:]' '[:lower:]' | tr -c 'a-z0-9 ' ' ' | tr -s ' '; }
+prob_norm(){ printf '%s' "$1" | LC_ALL=C.UTF-8 iconv -f utf-8 -t ascii//TRANSLIT 2>/dev/null | tr '[:upper:]' '[:lower:]' | tr -c 'a-z0-9 ' ' ' | tr -s ' '; }
 
 # ---- storage MOJ-nativo: repo git LOCAL por problema (sem Gitea) --------------------------
 # O canônico É a árvore de trabalho em $MOJ_PROBLEMS_DIR/<org>/<prob> (pkg_path lê dela direto). O

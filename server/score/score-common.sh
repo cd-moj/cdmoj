@@ -211,8 +211,9 @@ _sc_users_compute() {
         [[ "$want" == *" ${coh:-} "* ]] || continue
       fi
       [[ -z "$tn" ]] && tn="$full"
-      # strip any stray ':' that would break the field layout
-      full="${full//:/ }"; tn="${tn//:/ }"; us="${us//:/ }"; uf="${uf//:/ }"; flag="${flag//:/}"
+      # ':' quebraria as colunas do TXT: nos NOMES vira '∶' (U+2236, igual na tela — o mesmo que a gravação faz
+      # desde 04/10/2026, lib/common.sh name_clean; aqui cobre o dado antigo); na bandeira (código) some
+      full="${full//:/$'\xe2\x88\xb6'}"; tn="${tn//:/$'\xe2\x88\xb6'}"; us="${us//:/$'\xe2\x88\xb6'}"; uf="${uf//:/$'\xe2\x88\xb6'}"; flag="${flag//:/}"
       printf '%s\x01%s\x01%s\x01%s\x01%s\x01%s\x01%s\n' \
         "$login" "$full" "$tn" "$us" "$uf" "$flag" "${coh:-}"
     done

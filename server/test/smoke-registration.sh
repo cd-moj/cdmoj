@@ -87,6 +87,14 @@ call /treino/contest-registration GET '' tok-caio 'contest=esq'
 ck "caio vê o convite"          '[[ "$(J ".invites[0].login")" == time-os-tres-ponteiros ]]'
 reg '{"contest":"esq","action":"team-accept","team":"time-os-tres-ponteiros"}' tok-caio
 ck "caio no time"               '[[ "$(J .me.kind)" == team && "$(J ".team.members|join(\",\")")" == *caio* ]]'
+# nome com ':' (TCP 2026) e corte por CARACTERE — o login do time não muda no renomear
+TACC="$C/users/time-os-tres-ponteiros/account.json"
+reg '{"contest":"esq","action":"team-rename","name":"localhost:6767"}' tok-ana
+ck "renomear com ':' grava '∶' (placar TXT separa por ':')" '[[ "$(jq -r .fullname "$TACC")" == "localhost"$'"'"'\xe2\x88\xb6'"'"'"6767" ]]'
+LONGN="Equipe dos Acentuados ãõçé Fenômenos Imbatíveis do Século XXI"
+reg "$(jq -cn --arg n "$LONGN" '{contest:"esq",action:"team-rename",name:$n}')" tok-ana
+ck "nome cortado em 48 CARACTERES, sem partir letra" '[[ "$(jq -r ".fullname | length" "$TACC")" -le 48 && "$(jq -r ".fullname | length" "$TACC")" -ge 47 && "$(jq -r .fullname "$TACC")" != *$'"'"'\xef\xbf\xbd'"'"'* && "$(jq -r .fullname "$TACC")" == "Equipe dos Acentuados ãõçé Fenômenos"* ]]'
+reg '{"contest":"esq","action":"team-rename","name":"Os Três Ponteiros"}' tok-ana
 reg '{"contest":"esq","action":"team-decline","team":"time-os-tres-ponteiros"}' tok-west
 ck "west recusou"               '[[ "$(J ".invites|length")" == 0 ]]'
 reg '{"contest":"esq","action":"team-invite","login":"caio"}' tok-caio

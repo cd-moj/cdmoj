@@ -19,7 +19,9 @@ email="$(jq -r '.email // empty' <<<"$body")"
 valid_id "$login" || fail 422 "login inválido" "login_invalid"
 [[ -z "$pass" ]] && pass="$(cc_genpass)"
 [[ -z "$full" ]] && full="$login"
-case "$pass$full$email" in *:*) fail 422 "senha/nome/email não podem conter ':'" "colon";; esac
+# nome: ':' vira '∶' (o placar TXT separa por ':' — name_clean); senha/email seguem sem ':'
+full_in="$full"; name_clean full "$full"; adj=$NAME_CLEAN_COLON; [[ -n "$full" ]] || full="$login"
+case "$pass$email" in *:*) fail 422 "senha/email não podem conter ':'" "colon";; esac
 
 # account.json é a fonte (auth/placar leem direto dele)
 teamj="$(team_fields_json "$body")"
@@ -37,5 +39,7 @@ fi
 account_team_merge "$contest" "$login" "$teamj" || fail 500 "Falha ao gravar time" "write_fail"
 (( RESET )) && [[ "$login" != "$SESSION_LOGIN" ]] && remove_contest_sessions "$contest" "$login" >/dev/null 2>&1
 audit_log_to "$contest" user-add "login=$login$( (( RESET )) && echo ' reset=1')"
-ok_json '{saved:true, user:{login:$l, password:$p, fullname:$f, email:$e}}' \
+ok_json '{saved:true, user:{login:$l, password:$p, fullname:$f, email:$e}}
+         + (if $adj == 1 then {adjusted:[{login:$l, field:"fullname", from:$fi, to:$f}]} else {} end)' \
+    --argjson adj "$adj" --arg fi "$full_in" \
   --arg l "$login" --arg p "$pass" --arg f "$full" --arg e "$email"
