@@ -39,6 +39,12 @@ valid_id "$problem" || fail 400 "Invalid problem id" "problem_invalid"
 # Só o não-público paga o índice de donos: dono/colaborador/membro da org seguem submetendo
 # (autor testa o próprio problema). Privado alheio e inexistente saem IDÊNTICOS (404) — a
 # resposta não pode confirmar que o id existe. Índice quebrado = recusa (fail-closed).
+# CONTEST: o problema tem de ser DA PROVA (PROBS do conf) — sem isto qualquer id do banco era julgado, inclusive
+# o privado de outro dono e o problema removido (auditoria 03/10/2026). 404 idêntico ao de inexistente.
+if [[ "$contest" != treino ]]; then
+  source "$_LIBDIR/langs.sh"
+  contest_problem_ok "$contest" "$problem" || fail 404 "Problem not found" "problem_notfound"
+fi
 if [[ "$contest" == treino && ! -f "$CONTESTSDIR/treino/var/jsons/$problem.json" ]]; then
   source "$_LIBDIR/problems.sh"
   _vis=0

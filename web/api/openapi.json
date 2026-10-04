@@ -1642,7 +1642,7 @@
         "tags": [
           "submission"
         ],
-        "summary": "Submeter solução (assíncrono). Gate por fase+papel: admin/judge sempre; staff nunca (403 submit_forbidden); normal e mon só durante a janela (403 contest_not_started / contest_ended; mon fica fora do placar). Whitelist de linguagens FORÇADA (400 lang_not_allowed): extensão canonicalizada tem de estar na lista efetiva do problema (override do contest -> LANGUAGES -> pacote -> todas); a linguagem gravada é a CANÔNICA (C++ = .cpp/.cc/.cxx/.c++ -> CPP; .h -> C; .py3 -> PY) Teto SUBMIT_MAX_KB (1024) -> 413 source_too_large; whitelist vazia = as linguagens da PLATAFORMA (.exe -> 400); fail-closed: spool validado antes do OK (500 spool_write_failed, sem pendente fantasma). Campo opcional virtual:<cid> (só no treino; docs/VIRTUAL.md): etiqueta a submissão na participação virtual do login — 404 virtual_unavailable, 400 virtual_problem, 403 virtual_not_running; a whitelist de linguagem passa a ser a do contest. No TREINO o problema tem de ser visível ao login (público, ou privado de dono/colaborador/membro da org): senão 404 problem_notfound, idêntico a id inexistente.",
+        "summary": "Submeter solução (assíncrono). Gate por fase+papel: admin/judge sempre; staff nunca (403 submit_forbidden); normal e mon só durante a janela (403 contest_not_started / contest_ended; mon fica fora do placar). Whitelist de linguagens FORÇADA (400 lang_not_allowed): extensão canonicalizada tem de estar na lista efetiva do problema (override do contest -> LANGUAGES -> pacote -> todas); a linguagem gravada é a CANÔNICA (C++ = .cpp/.cc/.cxx/.c++ -> CPP; .h -> C; .py3 -> PY) Teto SUBMIT_MAX_KB (1024) -> 413 source_too_large; whitelist vazia = as linguagens da PLATAFORMA (.exe -> 400); fail-closed: spool validado antes do OK (500 spool_write_failed, sem pendente fantasma). Campo opcional virtual:<cid> (só no treino; docs/VIRTUAL.md): etiqueta a submissão na participação virtual do login — 404 virtual_unavailable, 400 virtual_problem, 403 virtual_not_running; a whitelist de linguagem passa a ser a do contest. No TREINO o problema tem de ser visível ao login (público, ou privado de dono/colaborador/membro da org): senão 404 problem_notfound, idêntico a id inexistente. Em CONTEST o problema tem de ser da prova (PROBS do conf): senão o mesmo 404 problem_notfound.",
         "security": [
           {
             "bearerAuth": []
@@ -9401,7 +9401,7 @@
     },
     "/contest/offline-submit": {
       "post": {
-        "summary": "Rota emergencial do moj-comp: pacotes cifrados criados sem rede; cada um é validado (beacon assinado, janela beacon.t≤claimed≤now, janela da prova do aluno, monotonicidade, dedup, whitelist de linguagens do problema) e contabilizado NO horário reivindicado, com flag p/ o organizador (var/offline-log + audit).",
+        "summary": "Rota emergencial do moj-comp: pacotes cifrados criados sem rede; cada um é validado (beacon assinado, janela beacon.t≤claimed≤now, janela da prova do aluno, monotonicidade, dedup, whitelist de linguagens do problema, problema da prova) e contabilizado NO horário reivindicado, com flag p/ o organizador (var/offline-log + audit).",
         "tags": [
           "contest"
         ],

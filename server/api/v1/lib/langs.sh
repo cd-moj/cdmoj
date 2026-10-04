@@ -40,6 +40,24 @@ platform_langs_json(){ printf '%s\n' $PLATFORM_LANGS | jq -R . | jq -cs .; }
 # re-sourceava o conf 12 vezes (3 processos por problema). O cache vive só neste processo, então
 # não há invalidação a fazer: a próxima requisição relê.
 declare -gA _EPL=()
+# contest_problem_ok <contest> <problem_id> — o problema É DESTA PROVA (consta do PROBS do conf: o id canônico
+# `org#prob` — a forma que o /contest/problems devolve — ou as duas formas cruas do PROBS). O /submit e o
+# /contest/offline-submit de CONTEST não conferiam nada: qualquer id do banco ia ao juiz, inclusive o PRIVADO de
+# outro dono e o problema removido da prova (auditoria 03/10/2026; o treino tem a guarda própria). Memo por
+# requisição (o offline-submit valida um lote).
+declare -gA _CPO=()
+contest_problem_ok(){
+  local c="$1" p="$2"
+  [[ -n "$p" ]] || return 1
+  if [[ -z "${_CPO[$c]+x}" ]]; then
+    _CPO[$c]="$( ( PROBS=(); load_contest_conf "$c" >/dev/null 2>&1; local i k
+      for ((i=0; i+4<${#PROBS[@]}; i+=5)); do
+        k="${PROBS[i+4]}"; [[ "$k" == *"#"* ]] || k="${PROBS[i+1]//\//#}"
+        printf ' %s %s %s' "$k" "${PROBS[i+1]}" "${PROBS[i+4]}"
+      done; printf ' ' ) 2>/dev/null)"
+  fi
+  [[ "${_CPO[$c]}" == *" $p "* ]]
+}
 effective_problem_langs(){
   local contest="$1" pid="$2" plangs="" clangs="" pjf
   if [[ -z "${_EPL[pj:$contest]+x}" ]]; then

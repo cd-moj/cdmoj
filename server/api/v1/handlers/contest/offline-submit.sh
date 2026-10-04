@@ -64,6 +64,8 @@ while (( i < NP )); do
   [[ "$pc" == "$contest" ]] || { reject "pacote de outro contest"; continue; }
   [[ -n "$problem" && -n "$codeb64" ]] || { reject "faltou problem_id/code_b64"; continue; }
   valid_id "$problem" || { reject "problem_id inválido"; continue; }
+  # o problema tem de ser DESTA PROVA (lib/langs.sh contest_problem_ok — a mesma regra do /submit)
+  contest_problem_ok "$contest" "$problem" || { reject "problema não pertence a este contest"; continue; }
   [[ "$claimed" =~ ^[0-9]+$ ]] || { reject "claimed_utc inválido"; continue; }
   # WHITELIST de linguagens do problema — mesma regra do /submit online (lib/langs.sh):
   # pacote offline com extensão fora da lista é rejeitado NA CHEGADA (motivo visível).
