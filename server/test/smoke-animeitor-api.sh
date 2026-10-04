@@ -248,6 +248,11 @@ call $A POST '{"action":"config","event":""}'                       # volta ao n
 printf '{"version":1,"active":"prova","rounds":[{"slug":"aquecimento","state":"archived"},{"slug":"prova","state":"active"}]}' > "$C/rounds.json"
 call $A GET ''
 ck "com rodadas o nome-padrão do evento leva a rodada ativa" '[[ "$(J .event)" == "ap-prova" ]]'
+call $A POST '{"action":"config","event":"ap-prova"}'            # a tela manda de volta o nome RESOLVIDO ao gravar
+ck "gravar o nome que já vale não congela o padrão da rodada" '[[ "$(J .saved)" == true && "$(jq -r .event "$C/animeitor.json")" == "" ]]'
+sed -i 's/"active":"prova"/"active":"final"/' "$C/rounds.json"; call $A GET ''
+ck "…e a rodada seguinte ganha o evento dela" '[[ "$(J .event)" == "ap-final" ]]'
+sed -i 's/"active":"final"/"active":"prova"/' "$C/rounds.json"
 cp "$C/users/teambr001/history" "$MOCKD/h1.bak"; : > "$C/users/teambr001/history"    # a promoção zerou o history deste time
 call $A POST '{"action":"publish"}'; call $A POST '{"action":"push-runs"}'
 ck "evento novo recebe só as runs VIVAS — as que sumiram não viram X fantasma nele" \

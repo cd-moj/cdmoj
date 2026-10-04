@@ -99,6 +99,7 @@ jq -e . >/dev/null 2>&1 <<<"$body" || fail 400 "JSON inválido" "bad_json"
 action="$(jq -r '.action // empty' <<<"$body")"
 case "$action" in
 config)
+  unset ev_typed
   cfg="$(an_cfg "$contest")"
   if jq -e 'has("url")' >/dev/null 2>&1 <<<"$body"; then
     url="$(jq -r '.url // ""' <<<"$body")"; url="${url%/}"
@@ -114,7 +115,7 @@ config)
     # vazio = o nome-PADRÃO (id do contest; com rodadas, `<contest>-<rodada ativa>`) — fica vazio no arquivo
     ev="$(jq -r '.event // ""' <<<"$body")"
     [[ -z "$ev" ]] || an_name_ok "$ev" || fail 422 "Nome de evento inválido (até 64 caracteres, sem barra)" "event_invalid"
-    cfg="$(jq -c --arg e "$ev" '.event_set = $e' <<<"$cfg")"
+    ev_typed="$ev"     # aplicado depois da chave: "o mesmo nome" depende da chave e da URL DESTE pedido
   fi
   # a chave: validada aqui, gravada só depois de todas as conferências (um 409/422 não deixa meia troca)
   credop=keep; own=""
@@ -129,6 +130,14 @@ config)
       [[ "$token" =~ ^[A-Za-z0-9._~+/=-]{8,256}$ ]] || fail 422 "Token inválido (8 a 256 caracteres, sem espaço nem aspas)" "token_invalid"
       credop=write; own=1
     fi
+  fi
+  # o MESMO nome que já valeria sem mexer no `event_set` = sem mudança: a tela manda de volta o nome RESOLVIDO a cada
+  # "gravar", e gravá-lo congelaria o padrão `<contest>-<rodada>` (a rodada nova deixaria de criar evento novo) —
+  # 04/10/2026. A comparação é com o nome que valeria COM a URL e a chave deste pedido (trocar p/ a chave própria
+  # tira o prefixo moj-: aí o nome digitado é mudança de verdade).
+  if [[ -n "${ev_typed+x}" ]]; then
+    ev_keep="$(jq -r .event <<<"$(an_cfg "$contest" "$(jq -c '.event = .event_set | del(.event_set)' <<<"$cfg")" "$own")")"
+    [[ "$ev_typed" == "$ev_keep" ]] || cfg="$(jq -c --arg e "$ev_typed" '.event_set = $e' <<<"$cfg")"
   fi
   # o nome que o evento TERÁ com tudo isso (URL, nome digitado e chave mudam o nome: com a chave do MOJ ele
   # ganha o prefixo moj-) — é ELE que tem de caber e que não pode mudar com o alimentador ligado

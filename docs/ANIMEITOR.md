@@ -107,6 +107,9 @@ conferência, alimentador, `GET` (o `event` é o nome EFETIVO; o `event_set` gra
 - o `an_publish` barra o que escapar disso (chave do MOJ, evento novo sem o prefixo) com `409
   event_prefix_required`, antes de qualquer request.
 
+`config {event}` com o MESMO nome que já vale = sem mudança (04/10/2026): a mesa manda de volta o nome RESOLVIDO a cada
+"gravar", e gravá-lo congelava o padrão `<contest>-<rodada>` no `event_set` — a rodada nova deixava de criar evento novo.
+
 ## Publicar (`an_publish`)
 
 `POST /contest/animeitor/api {action:"publish"}`: evento → placares → sedes, e apaga lá os placares e
