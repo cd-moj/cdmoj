@@ -1,4 +1,4 @@
-// contest/admin/balloons-tab.js — "Prova › Balões": cor de cada letra.
+// contest/admin/balloons-tab.js — "Evento › Balões": cor de cada letra.
 // O staff imprime a folha do balão com a cor desenhada (lib/print.sh); sem balloons.json vale a paleta
 // padrão do ICPC (A–O; depois do O, cinza). Salva só a chave `colors` do POST /contest/admin/config (o
 // handler é por-chave), que também passa à cor nova as tarefas de balão ainda não impressas.

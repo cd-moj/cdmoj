@@ -79,7 +79,7 @@ export function makeSitesTab(CONTEST, opts = {}) {
     prev.append(
       det(T('Sem sede', 'No site', 'Sin sede'), p.none),
       det(T('Pararam num grupo/país (a regex casou o grupo, nenhuma sede dele)', 'Stopped at a group/country (the regex matched the group, none of its sites)', 'Se quedaron en un grupo/país (la regex coincidió con el grupo, ninguna de sus sedes)'), p.stopped),
-      det(T('Casam em duas sedes (valeu a primeira da lista)', 'Match two sites (the first in the list won)', 'Coinciden con dos sedes (valió la primera de la lista)'), p.two),
+      det(T('Casam em duas sedes (vale a mais funda; no mesmo nível, a primeira da lista)', 'Match two sites (the deepest wins; at the same level, the first in the list)', 'Coinciden con dos sedes (vale la más profunda; en el mismo nivel, la primera de la lista)'), p.two),
       p.orphans.length ? el('p', { class: 'small notice' }, T('Sede gravada em time que não existe na árvore: ', 'Site stored on a team that does not exist in the tree: ', 'Sede grabada en un equipo que no existe en el árbol: ')
         + p.orphans.map((o) => '«' + o.name + '»').join(', ') + T(' — crie a sede com esse nome ou atribua outra.', ' — create a site with that name or assign another one.', ' — crea una sede con ese nombre o asigna otra.')) : '');
     const changes = [];

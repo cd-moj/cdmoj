@@ -142,7 +142,7 @@ case "$action" in
       # build em voo — a corrida do incidente de 29/08; auditoria do painel, 03/10/2026)
       [[ "$(conf_value "$contest" CONTEST_START):$(conf_value "$contest" CONTEST_END):$(conf_value "$contest" FREEZE_TIME)" != "$_w0" ]] \
         && score_kick_rebuild "$contest"
-      # cores novas na rodada no ar: a tarefa de balão ainda não impressa passa à cor nova (como em Prova › Balões)
+      # cores novas na rodada no ar: a tarefa de balão ainda não impressa passa à cor nova (como em Evento › Balões)
       if jq -e '.colors | type == "object"' <<<"$cur" >/dev/null 2>&1; then
         source "$_LIBDIR/print.sh"; read -r rcol rold <<<"$(pr_recolor_pending_balloons "$contest")"
       fi

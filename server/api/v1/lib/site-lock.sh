@@ -19,8 +19,8 @@
 # .admin): a 1ª reivindicação de um IP por um contest vai ao admin-audit.log daquele contest
 # (`site-lock-claim ip= login= until=`); cada bloqueio vai como `site-lock-block ip= target=
 # route= login=` — com teto de 1 linha por (ip, alvo) a cada 5 min (um laço de curl não pode
-# inundar o log), e o contador `blocked` da reivindicação sobe sempre. O painel Pessoas ›
-# Sessões & anomalias mostra a tabela de IPs presos e os bloqueios; o preflight avisa gate
+# inundar o log), e o contador `blocked` da reivindicação sobe sempre. Máquinas › Gate & trava
+# mostra a tabela de IPs presos e Máquinas › Anomalias os bloqueios; o preflight avisa gate
 # ligado sem trava.
 #
 # Estado: run/site-lock/<ip> — TSV, UMA linha por contest que reivindicou o IP:

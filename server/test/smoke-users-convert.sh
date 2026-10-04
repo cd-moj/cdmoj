@@ -35,7 +35,8 @@ rows(){ ( export CONTESTSDIR="$FIX" CONTESTDIR="$FIX/$1"; source "$ROOT/score/sc
 tree_sum(){ (cd "$FIX/$1" && find . -type f ! -name '*.lock' ! -path './var/.*' -print0 | sort -z | xargs -0 md5sum | md5sum); }
 
 # contest que ainda NÃO começou (start no futuro), admin = o do treino (reusado)
-call /treino/contest-create/create POST "{\"id\":\"cv\",\"name\":\"Prova\",\"mode\":\"icpc\",\"start\":$(( NOW + 3600 )),\"end\":$FUT,\"users_from\":\"treino\",\"admin\":{\"login\":\"prof\"},\"problems\":[{\"bank_id\":\"bankprob\",\"name\":\"P\"}]}" tprof
+# prioridade PROVA: o aviso de contas compartilhadas é de prova (numa lista elas são o normal — 03/10/2026)
+call /treino/contest-create/create POST "{\"id\":\"cv\",\"name\":\"Prova\",\"mode\":\"icpc\",\"priority\":\"prova\",\"start\":$(( NOW + 3600 )),\"end\":$FUT,\"users_from\":\"treino\",\"admin\":{\"login\":\"prof\"},\"problems\":[{\"bank_id\":\"bankprob\",\"name\":\"P\"}]}" tprof
 [[ "$(st)" == 200 ]] || { echo "SETUP FAIL: $BODY"; exit 1; }
 C="$FIX/cv"; U="$C/users"
 # ana: inscrita individual (overlay sem senha) + history; bia/caio: só dir; gil+hugo: time azul (gil tem

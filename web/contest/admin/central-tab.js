@@ -22,16 +22,18 @@ const ICON = { ok: '🟢', warn: '🟡', fail: '🔴' };
 // (o botão "resolver →" só aparece se o painel-alvo está visível — módulo ligado; ver nav.js)
 const TARGET = {
   window: ['central', 'regras'], fim: ['central', 'regras'], show_log: ['central', 'regras'],
-  freeze: ['central', 'regras'], mode: ['central', 'regras'], langs: ['central', 'regras'],
+  // `mode` sem destino: o modo do placar não muda depois da criação (Regras o mostra só em leitura)
+  freeze: ['central', 'regras'], langs: ['central', 'regras'], pool: ['central', 'regras'],
   balloons_freeze: ['central', 'regras'], submit_cap: ['central', 'regras'], login_open: ['central', 'regras'],
   modules: ['central', 'modulos'],
-  problems: ['prova', 'problemas'], pool_problems: ['prova', 'problemas'], pool: ['prova', 'problemas'],
+  problems: ['prova', 'problemas'], pool_problems: ['prova', 'problemas'],
   prob_names: ['prova', 'problemas'],
   report: ['prova', 'relatorio'],   // postflight (encerrar evento)
   esqueletos: ['prova', 'esqueletos'],
   users: ['pessoas', 'contas'], shared_users: ['pessoas', 'contas'],
   registration: ['pessoas', 'inscricoes'], reg_invites: ['pessoas', 'inscricoes'], reg_source: ['pessoas', 'inscricoes'],
-  print: ['operacao', 'staff'], staff_filters: ['operacao', 'staff'],
+  // `print`: o que resolve "impressão sem staff" é criar a conta .staff (Contas); ligar/desligar a impressão é nas Regras
+  print: ['pessoas', 'contas'], staff_filters: ['operacao', 'staff'],
   judges: ['operacao', 'situacao'], judges_cpus: ['operacao', 'situacao'], daemon: ['operacao', 'situacao'], manual: ['operacao', 'juizes'],
   // módulos de evento
   next_round: ['evento', 'rodadas'], reg_warmup: ['evento', 'rodadas'],

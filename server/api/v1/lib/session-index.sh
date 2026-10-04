@@ -30,7 +30,7 @@
 #
 # EVENTOS (sess_event): contests/<c>/var/session-events.log — TSV
 #   epoch \t login \t evento(revoke|logout|mismatch-logout) \t old_key \t new_key \t tok8 [\t quem]
-# É a trilha que o painel "Sessões & anomalias" mostra. Entra no arquivamento de rodada.
+# É a trilha que Máquinas › Anomalias mostra. Entra no arquivamento de rodada.
 
 _sidx_dir(){ printf '%s/.idx/%s' "$SESSIONDIR" "$1"; }
 _sidx_file(){ printf '%s/.idx/%s/%s' "$SESSIONDIR" "$1" "$2"; }

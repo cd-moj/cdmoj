@@ -145,7 +145,7 @@ check "trava ligada => ok (0 IPs presos)"      '[[ "$(lvl site_lock)" == ok && "
 sed -i '/^SITE_LOCK=/d' "$C/conf"; run
 jq -c '.single_session=false' "$C/ua-gate.json" > "$C/x" && mv "$C/x" "$C/ua-gate.json"; run
 check "single_session:false => warn"   '[[ "$(lvl session_single)" == warn ]]'
-check "detalhe aponta o painel"        '[[ "$(det session_single)" == *"Sessões & anomalias"* ]]'
+check "detalhe aponta o painel"        '[[ "$(det session_single)" == *"Máquinas › Anomalias"* && "$(det session_single)" == *"Máquinas › Gate & trava"* ]]'
 jq -c 'del(.single_session)' "$C/ua-gate.json" > "$C/x" && mv "$C/x" "$C/ua-gate.json"; run
 
 echo "== sede com menos máquinas que times (nutellaboot) =="
@@ -174,6 +174,13 @@ check "gerado mas não publicado => warn" '[[ "$(lvl docs)" == warn ]]'
 check "detalhe diz 'só visíveis'"        '[[ "$(det docs)" == *"só visíveis"* ]]'
 printf '{"published":["times.pt"]}' > "$C/docs/config.json"; run
 check "publicado => ok"                  '[[ "$(lvl docs)" == ok ]]'
+
+echo "== sem aviso eterno (03/10/2026): sem freeze e contas compartilhadas só avisam numa PROVA =="
+_fzb="$(grep '^FREEZE_TIME=' "$C/conf")"; sed -i '/^FREEZE_TIME=/d; /^CONTEST_PRIORITY=/d' "$C/conf"; printf 'CONTEST_PRIORITY=lista-publica\n' >> "$C/conf"; run
+check "lista sem freeze: ok (não é aviso eterno)" '[[ "$(lvl freeze)" == ok ]]'
+sed -i 's/^CONTEST_PRIORITY=.*/CONTEST_PRIORITY=prova/' "$C/conf"; run
+check "prova ICPC sem freeze: warn" '[[ "$(lvl freeze)" == warn ]]'
+sed -i '/^CONTEST_PRIORITY=/d' "$C/conf"; [[ -n "$_fzb" ]] && printf '%s\n' "$_fzb" >> "$C/conf"; run
 
 echo "== classificação (destino da Central sem checagem até 03/10/2026) =="
 check "módulo ligado sem estágio => warn" '[[ "$(lvl classificacao)" == warn ]]'

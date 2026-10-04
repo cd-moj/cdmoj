@@ -1,6 +1,6 @@
 # GET /contest/team-photo?contest=<id>&user=<login>[&thumb=1]   -> foto do time
 # Gate = o do PLACAR (público; contest SECRETO exige sessão do contest).
-#   sem thumb  -> a foto (webp; png no acervo antigo) — é o que a galeria do telão e o painel Pessoas › Times abrem
+#   sem thumb  -> a foto (webp; png no acervo antigo) — é o que a galeria do telão e o painel Evento › Times abrem
 #   &thumb=1   -> a MINIATURA de 320px (~7 KB), para a galeria do .animeitor
 # TIME SEM FOTO **não dá mais 404**: devolve a FOTO PADRÃO do contest (200) com o cabeçalho
 # `X-MOJ-Photo: placeholder`. É o que faz o Animeitor achar imagem para todo time do placar.

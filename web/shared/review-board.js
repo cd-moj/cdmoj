@@ -106,7 +106,7 @@ export function makeReviewBoard({ contest }) {
           el('th', {}, T('Ver', 'View', 'Ver')), el('th', {}, T('Ação', 'Action', 'Acción')))), tb)));
     }
     listBox.append(el('p', { class: 'small muted', style: 'margin:.4rem 0 0' },
-      T('Para avaliar como juiz (pegar + votar, fluxo dos 2 votos): ', 'To evaluate as a judge (take + vote, the 2-vote flow): ', 'Para evaluar como juez (reservar + votar, el flujo de 2 votos): '),
+      T('Para avaliar como juiz (pegar + votar; quantos juízes validam cada veredicto está nas Regras): ', 'To evaluate as a judge (take + vote; how many judges validate each verdict is in Rules): ', 'Para evaluar como juez (reservar + votar; cuántos jueces validan cada veredicto está en Reglas): '),
       el('a', { href: '/contest/judge/?c=' + enc(contest) }, T('área de avaliação →', 'evaluation area →', 'área de evaluación →'))));
   }
 

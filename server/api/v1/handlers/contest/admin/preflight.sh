@@ -150,10 +150,15 @@ elif (( fz > 0 )); then
   add3 freeze warn "Freeze fora da janela" "FREEZE_TIME não está entre o início e o fim" \
     "Freeze outside the window" "FREEZE_TIME is not between the start and the end" \
     "Congelamiento fuera de la ventana" "FREEZE_TIME no está entre el inicio y el fin"
+elif [[ "$mode" == icpc && "$(conf_value "$contest" CONTEST_PRIORITY)" =~ ^(prova|super)$ ]]; then
+  add3 freeze warn "Sem freeze" "prova ICPC costuma congelar o placar (Central › Regras)" \
+    "No freeze" "ICPC contests usually freeze the scoreboard (Home › Rules)" \
+    "Sin congelamiento" "las competencias ICPC suelen congelar el marcador (Central › Reglas)"
 else
-  add3 freeze warn "Sem freeze" "prova ICPC costuma congelar o placar (Configurações → Freeze)" \
-    "No freeze" "ICPC contests usually freeze the scoreboard (Settings → Freeze)" \
-    "Sin congelamiento" "las competencias ICPC suelen congelar el marcador (Configuración → Freeze)"
+  # lista, disciplina, OBI: placar aberto é a escolha normal — nada de aviso eterno (auditoria do painel, 03/10/2026)
+  add3 freeze ok "Sem freeze" "placar aberto até o fim (prova ICPC costuma congelar: Central › Regras)" \
+    "No freeze" "scoreboard open until the end (ICPC exams usually freeze: Home › Rules)" \
+    "Sin congelamiento" "marcador abierto hasta el fin (los exámenes ICPC suelen congelarlo: Central › Reglas)"
 fi
 
 # --- envios na fila (submit.sh / judged.sh, 01/10/2026) --------------------------------
@@ -337,9 +342,9 @@ jq -e . >/dev/null 2>&1 <<<"$pjm" || pjm='{}'
 pool_all="$(jq -r --arg c "${CONTEST_JUDGES:-}" \
   '([$c|split(" ")[]|select(length>0)] + [.[]?[]?]) | unique | join(" ")' <<<"$pjm" 2>/dev/null)"
 if [[ -z "$pool_all" ]]; then
-  add3 pool ok "Sem pool de juízes fixo" "qualquer juiz online pode julgar (Configurações → Máquinas de juiz)" \
-    "No fixed judge pool" "any online judge may judge (Settings → Judge machines)" \
-    "Sin pool fijo de jueces" "cualquier juez en línea puede evaluar (Configuración → Máquinas de juez)"
+  add3 pool ok "Sem pool de juízes fixo" "qualquer juiz online pode julgar (Central › Regras)" \
+    "No fixed judge pool" "any online judge may judge (Home › Rules)" \
+    "Sin pool fijo de jueces" "cualquier juez en línea puede evaluar (Central › Reglas)"
 else
   offline=""
   for h in $pool_all; do
@@ -393,9 +398,9 @@ if [[ -n "$langs_lc" ]]; then
       "Lenguaje sin juez" "sin toolchain en línea$_ip_es para:$missing"
   fi
 else
-  add3 langs warn "Linguagens sem whitelist" "todas as linguagens do MOJ ficam liberadas (Configurações → Linguagens)" \
-    "Languages without a whitelist" "every MOJ language is allowed (Settings → Languages)" \
-    "Lenguajes sin whitelist" "todos los lenguajes del MOJ quedan habilitados (Configuración → Lenguajes)"
+  add3 langs warn "Linguagens sem whitelist" "todas as linguagens do MOJ ficam liberadas (Central › Regras)" \
+    "Languages without a whitelist" "every MOJ language is allowed (Home › Rules)" \
+    "Lenguajes sin whitelist" "todos los lenguajes del MOJ quedan habilitados (Central › Reglas)"
 fi
 
 # --- problemas: TL calibrado (do pool EFETIVO, se houver) ------------------------------
@@ -510,9 +515,9 @@ else
       "Staff scope per site" "$scoped staff account(s) with a defined scope" \
       "Alcance del staff por sede" "$scoped cuenta(s) de staff con alcance definido"
   else
-    add3 staff_filters warn "Staff sem escopo de sede" "$(( cstaff_n + staff_n - scoped )) de $(( cstaff_n + staff_n )) conta(s) .staff/.cstaff sem filtro: veem a fila e as ETIQUETAS COM SENHA de todos os times (Operação → Staff)" \
-      "Staff without a site scope" "$(( cstaff_n + staff_n - scoped )) of $(( cstaff_n + staff_n )) .staff/.cstaff account(s) without a filter: they see the queue and the LABELS WITH PASSWORDS of every team (Operations → Staff)" \
-      "Staff sin alcance de sede" "$(( cstaff_n + staff_n - scoped )) de $(( cstaff_n + staff_n )) cuenta(s) .staff/.cstaff sin filtro: ven la cola y las ETIQUETAS CON CONTRASEÑA de todos los equipos (Operación → Staff)"
+    add3 staff_filters warn "Staff sem escopo de sede" "$(( cstaff_n + staff_n - scoped )) de $(( cstaff_n + staff_n )) conta(s) .staff/.cstaff sem filtro: veem a fila e as ETIQUETAS COM SENHA de todos os times (Operação › Staff)" \
+      "Staff without a site scope" "$(( cstaff_n + staff_n - scoped )) of $(( cstaff_n + staff_n )) .staff/.cstaff account(s) without a filter: they see the queue and the LABELS WITH PASSWORDS of every team (Operations › Staff)" \
+      "Staff sin alcance de sede" "$(( cstaff_n + staff_n - scoped )) de $(( cstaff_n + staff_n )) cuenta(s) .staff/.cstaff sin filtro: ven la cola y las ETIQUETAS CON CONTRASEÑA de todos los equipos (Operación › Staff)"
   fi
 fi
 fi   # módulo sedes
@@ -527,13 +532,13 @@ elif [[ -s "$cdir/balloons.json" ]]; then
     "Balloon colors" "${nbc:-0} letter(s) with a defined color" \
     "Colores de los globos" "${nbc:-0} letra(s) con color definido"
 elif (( nprob > 15 )); then
-  add3 balloons warn "Balões sem cor a partir da letra P" "$nprob problemas e o default cobre A–O: da letra P em diante o balão sai CINZA (Prova → Balões)" \
-    "Balloons without a color from letter P on" "$nprob problems and the default covers A–O: from letter P on the balloon comes out GRAY (Contest → Balloons)" \
-    "Globos sin color a partir de la letra P" "$nprob problemas y el default cubre A–O: de la letra P en adelante el globo sale GRIS (Competencia → Globos)"
+  add3 balloons warn "Balões sem cor a partir da letra P" "$nprob problemas e o default cobre A–O: da letra P em diante o balão sai CINZA (Evento › Balões)" \
+    "Balloons without a color from letter P on" "$nprob problems and the default covers A–O: from letter P on the balloon comes out GRAY (Event › Balloons)" \
+    "Globos sin color a partir de la letra P" "$nprob problemas y el default cubre A–O: de la letra P en adelante el globo sale GRIS (Evento › Globos)"
 else
-  add3 balloons ok "Cores dos balões (default ICPC)" "A–O no padrão da maratona; defina em Prova → Balões p/ mudar" \
-    "Balloon colors (ICPC default)" "A–O in the ICPC standard; set them in Contest → Balloons to change" \
-    "Colores de los globos (default ICPC)" "A–O en el estándar ICPC; defínelos en Competencia → Globos para cambiarlos"
+  add3 balloons ok "Cores dos balões (default ICPC)" "A–O no padrão da maratona; defina em Evento › Balões p/ mudar" \
+    "Balloon colors (ICPC default)" "A–O in the ICPC standard; set them in Event › Balloons to change" \
+    "Colores de los globos (default ICPC)" "A–O en el estándar ICPC; defínelos en Evento › Globos para cambiarlos"
 fi
 
 # --- contas ------------------------------------------------------------------------
@@ -550,7 +555,9 @@ if [[ "$src_users" != "$contest" ]]; then
   else
     who_pt="qualquer conta de lá entra"; who_en="any account from there gets in"; who_es="cualquier cuenta de allí entra"
   fi
-  add3 shared_users warn "Contas compartilhadas com \"$src_users\"" \
+  # warn só p/ PROVA (prioridade prova/super): numa lista/disciplina a conta do treino é o normal — aviso eterno não
+  _shl=warn; [[ "$(conf_value "$contest" CONTEST_PRIORITY)" =~ ^(prova|super)$ ]] || _shl=ok
+  add3 shared_users "$_shl" "Contas compartilhadas com \"$src_users\"" \
     "login e senha são os de \"$src_users\" ($who_pt); para uma prova, converta em contas próprias em Pessoas › Contas — senhas novas, sem volta" \
     "Accounts shared with \"$src_users\"" \
     "login and password are the \"$src_users\" ones ($who_en); for an exam, convert them into own accounts in People › Accounts — new passwords, no way back" \
@@ -610,9 +617,9 @@ if [[ "${MANUAL_VERDICT:-}" == 1 ]]; then
   _rq="${REVIEW_JUDGES:-2}"; [[ "$_rq" =~ ^[1-5]$ ]] || _rq=2
   _rst="$(rr_state "$contest")"
   if [[ "$_rst" == invalid ]]; then
-    add3 manual warn "Regras de revisão ilegíveis" "o auto-verdicts.json não é JSON válido, então TUDO vai para revisão — salve a tabela em Juízes › O que vai para revisão" \
-      "Unreadable review rules" "auto-verdicts.json is not valid JSON, so EVERYTHING goes to review — save the table in Judges › What goes to review" \
-      "Reglas de revisión ilegibles" "el auto-verdicts.json no es un JSON válido, así que TODO va a revisión — guarda la tabla en Jueces › Qué va a revisión"
+    add3 manual warn "Regras de revisão ilegíveis" "o auto-verdicts.json não é JSON válido, então TUDO vai para revisão — salve a tabela em Operação › Juízes › O que vai para revisão" \
+      "Unreadable review rules" "auto-verdicts.json is not valid JSON, so EVERYTHING goes to review — save the table in Operations › Judges › What goes to review" \
+      "Reglas de revisión ilegibles" "el auto-verdicts.json no es un JSON válido, así que TODO va a revisión — guarda la tabla en Operación › Jueces › Qué va a revisión"
   else
     _cids="$(for ((i=0; i+4<${#PROBS[@]}; i+=5)); do c="${PROBS[i+4]}"; [[ "$c" == *"#"* ]] || c="${PROBS[i+1]//\//#}"; printf '%s\n' "$c"; done | jq -R . | jq -cs 'map(select(length > 0))')"
     _rv='{"review":{},"langs":[]}'
@@ -620,11 +627,11 @@ if [[ "${MANUAL_VERDICT:-}" == 1 ]]; then
     read -r _rn _rx < <(jq -r '"\([.review[] | length] | add // 0) \([.langs[] | select(.to != "auto")] | length)"' <<<"$_rv")
     if (( ${_rn:-0} + ${_rx:-0} == 0 )); then
       add3 manual warn "Veredicto manual ligado, mas nada vai para revisão" \
-        "a tabela \"O que vai para revisão\" está vazia: todo veredicto sai automático (só erro do juiz é revisado). Marque o que os juízes revisam em Juízes › O que vai para revisão ou no painel do juiz-chefe" \
+        "a tabela \"O que vai para revisão\" está vazia: todo veredicto sai automático (só erro do juiz é revisado). Marque o que os juízes revisam em Operação › Juízes › O que vai para revisão ou no painel do juiz-chefe" \
         "Manual verdict is on, but nothing goes to review" \
-        "the \"What goes to review\" table is empty: every verdict is automatic (only judge errors are reviewed). Check what the judges review in Judges › What goes to review or in the chief judge panel" \
+        "the \"What goes to review\" table is empty: every verdict is automatic (only judge errors are reviewed). Check what the judges review in Operations › Judges › What goes to review or in the chief judge panel" \
         "Veredicto manual activado, pero nada va a revisión" \
-        "la tabla \"Qué va a revisión\" está vacía: todo veredicto sale automático (solo se revisan los errores del juez). Marca lo que revisan los jueces en Jueces › Qué va a revisión o en el panel del juez principal"
+        "la tabla \"Qué va a revisión\" está vacía: todo veredicto sale automático (solo se revisan los errores del juez). Marca lo que revisan los jueces en Operación › Jueces › Qué va a revisión o en el panel del juez principal"
     else
       add3 manual ok "Veredicto manual LIGADO" "${_rn:-0} combinação(ões) problema×veredicto vão para revisão$( (( ${_rx:-0} )) && echo " + ${_rx} exceção(ões) por linguagem"), com $_rq juiz(es) por decisão; o resto sai automático" \
         "Manual verdict ON" "${_rn:-0} problem×verdict combination(s) go to review$( (( ${_rx:-0} )) && echo " + ${_rx} per-language exception(s)"), $_rq judge(s) per decision; the rest is automatic" \
@@ -697,9 +704,9 @@ elif (( nch == 0 )); then
 else
   npriv="$(jq -r '[(.cohorts // [])[] | select(.public == false)] | length' <<<"$chj")"; npriv="${npriv//[^0-9]/}"
   if ch_released "$contest"; then
-    add3 cohorts warn "Resultados LIBERADOS" "todas as coortes aparecem no placar público — só depois da cerimônia (Pessoas → Coortes)" \
-      "Results RELEASED" "every cohort shows on the public scoreboard — only after the ceremony (People → Cohorts)" \
-      "Resultados LIBERADOS" "todas las cohortes aparecen en el marcador público — solo después de la ceremonia (Personas → Cohortes)"
+    add3 cohorts warn "Resultados LIBERADOS" "todas as coortes aparecem no placar público — só depois da cerimônia (Evento › Coortes)" \
+      "Results RELEASED" "every cohort shows on the public scoreboard — only after the ceremony (Event › Cohorts)" \
+      "Resultados LIBERADOS" "todas las cohortes aparecen en el marcador público — solo después de la ceremonia (Evento › Cohortes)"
   else
     add3 cohorts ok "Coortes configuradas" "$nch coorte(s), ${npriv:-0} privada(s) fora do placar público" \
       "Cohorts set up" "$nch cohort(s), ${npriv:-0} private one(s) off the public scoreboard" \
@@ -747,9 +754,9 @@ if mod_on "$contest" inscricoes && reg_enabled "$contest"; then
         "Warm-up with an open door" "any account gets in until round '$_rrnd' is promoted; at promotion whoever did not register loses the session" \
         "Calentamiento con puerta abierta" "cualquier cuenta entra hasta la promoción de la ronda '$_rrnd'; en la promoción quien no se inscribió pierde la sesión"
     else
-      add3 reg_warmup warn "Aquecimento sem prova planejada" "a inscrição fica SEM PRAZO (a âncora seria o início do aquecimento, já passado): planeje a rodada oficial em Prova → Rodadas" \
-        "Warm-up without a planned contest" "registration has NO DEADLINE (the anchor would be the start of the warm-up, already past): plan the official round in Contest → Rounds" \
-        "Calentamiento sin competencia planificada" "la inscripción queda SIN PLAZO (el ancla sería el inicio del calentamiento, ya pasado): planifica la ronda oficial en Competencia → Rondas"
+      add3 reg_warmup warn "Aquecimento sem prova planejada" "a inscrição fica SEM PRAZO (a âncora seria o início do aquecimento, já passado): planeje a rodada oficial em Evento › Rodadas" \
+        "Warm-up without a planned contest" "registration has NO DEADLINE (the anchor would be the start of the warm-up, already past): plan the official round in Event › Rounds" \
+        "Calentamiento sin competencia planificada" "la inscripción queda SIN PLAZO (el ancla sería el inicio del calentamiento, ya pasado): planifica la ronda oficial en Evento › Rondas"
     fi
   fi
   if (( ri > 0 )); then
@@ -788,9 +795,9 @@ if mod_on "$contest" inscricoes && reg_enabled "$contest"; then
   # coortes: o placar separado depende delas existirem (a semeadura pula quando o contest já
   # tinha coortes configuradas)
   mod_on "$contest" coortes && ! jq -e 'any(.cohorts[]; .id == "times") and any(.cohorts[]; .id == "individual")' <<<"$chj" >/dev/null 2>&1 \
-    && add3 reg_cohorts warn "Coortes de inscrição ausentes" "sem as coortes 'individual' e 'times' o placar não separa times de individuais (Pessoas → Coortes)" \
-      "Registration cohorts missing" "without the 'individual' and 'times' cohorts the scoreboard does not separate teams from individuals (People → Cohorts)" \
-      "Faltan las cohortes de inscripción" "sin las cohortes 'individual' y 'times' el marcador no separa equipos de individuales (Personas → Cohortes)"
+    && add3 reg_cohorts warn "Coortes de inscrição ausentes" "sem as coortes 'individual' e 'times' o placar não separa times de individuais (Evento › Coortes)" \
+      "Registration cohorts missing" "without the 'individual' and 'times' cohorts the scoreboard does not separate teams from individuals (Event › Cohorts)" \
+      "Faltan las cohortes de inscripción" "sin las cohortes 'individual' y 'times' el marcador no separa equipos de individuales (Evento › Cohortes)"
 fi
 
 # --- gate de navegador por sede ---------------------------------------------------------
@@ -811,9 +818,9 @@ _ugmode="$(jq -r '.mode // "off"' <<<"$ugj")"
 _ugcf=0; [[ -s "$(ug_file "$contest")" ]] && _ugcf=1
 if [[ "$_ugmode" == off ]] || [[ "$ug_has_rules" != true ]] || [[ -n "$_uglg" && "$_ugcf" == 0 ]]; then
   if [[ -n "$_uglg" && "$_ugmode" != off ]]; then
-    add3 ua_gate warn "Gate de navegador só no LOGIN_UA_SUBSTRING legado" "configure a regra por sede em Pessoas → Máquinas & gate" \
-      "Browser gate only on the legacy LOGIN_UA_SUBSTRING" "set up the per-site rule in People → Machines & gate" \
-      "Gate de navegador solo en el LOGIN_UA_SUBSTRING heredado" "configura la regla por sede en Personas → Máquinas y gate"
+    add3 ua_gate warn "Gate de navegador só no LOGIN_UA_SUBSTRING legado" "configure a regra por sede em Máquinas › Gate & trava" \
+      "Browser gate only on the legacy LOGIN_UA_SUBSTRING" "set up the per-site rule in Machines › Gate & lock" \
+      "Gate de navegador solo en el LOGIN_UA_SUBSTRING heredado" "configura la regla por sede en Máquinas › Gate y bloqueo"
   elif (( _ugcf == 0 )); then
     add3 ua_gate warn "Módulo Máquinas ligado SEM gate de navegador" "nenhuma regra foi gravada: qualquer navegador entra, a sessão única não vale e o painel não tem o esperado × visto — escolha Barrar ou Observar em Máquinas › Gate & trava (ou grave Desligado, se for de propósito)" \
       "Machines module on WITHOUT a browser gate" "no rule was saved: any browser gets in, single session does not apply and the panel has no expected × seen — choose Block or Observe in Machines › Gate & lock (or save Off, if this is intentional)" \
@@ -858,9 +865,9 @@ else
       "Gate armed but WITHOUT a matching rule" "enforce mode and no team has an expected UA — either the regex does not match the logins, or everyone is exempt" \
       "Gate armado pero SIN regla que coincida" "modo enforce y ningún equipo tiene UA esperado — o la regex no coincide con los logins, o todos están exentos"
   elif (( nu > 0 )); then
-    add3 ua_gate warn "Gate armado com $nu time(s) de fora" "$ng com UA esperado, $nu sem regra (entram de qualquer navegador; isentos declarados: $nx) — confira em Pessoas → Máquinas & gate" \
-      "Gate armed with $nu team(s) left out" "$ng with an expected UA, $nu without a rule (they get in from any browser; declared exempt: $nx) — check in People → Machines & gate" \
-      "Gate armado con $nu equipo(s) fuera" "$ng con UA esperado, $nu sin regla (entran desde cualquier navegador; exentos declarados: $nx) — revisa en Personas → Máquinas y gate"
+    add3 ua_gate warn "Gate armado com $nu time(s) de fora" "$ng com UA esperado, $nu sem regra (entram de qualquer navegador; isentos declarados: $nx) — confira em Máquinas › Gate & trava" \
+      "Gate armed with $nu team(s) left out" "$ng with an expected UA, $nu without a rule (they get in from any browser; declared exempt: $nx) — check in Machines › Gate & lock" \
+      "Gate armado con $nu equipo(s) fuera" "$ng con UA esperado, $nu sin regla (entran desde cualquier navegador; exentos declarados: $nx) — revisa en Máquinas › Gate y bloqueo"
   else
     add3 ua_gate ok "Gate de navegador por sede" "$ng time(s) presos à imagem da sede$( (( nx > 0 )) && echo ", $nx isento(s) por escolha")" \
       "Per-site browser gate" "$ng team(s) bound to the site image$( (( nx > 0 )) && echo ", $nx exempt by choice")" \
@@ -870,13 +877,13 @@ else
   # de prova ainda chega ao treino/outro contest pelo mesmo IP
   if sl_enabled "$contest"; then
     _nsl="$(sl_list "$contest" | jq -r '[.[] | select(.active)] | length' 2>/dev/null)"; _nsl="${_nsl//[^0-9]/}"; _nsl="${_nsl:-0}"
-    add3 site_lock ok "Trava de sede por IP" "ligada: $_nsl IP(s) preso(s) a este contest agora; reivindicações e bloqueios ficam no audit e em Pessoas → Sessões & anomalias" \
-      "Per-IP site lock" "on: $_nsl IP(s) bound to this contest right now; claims and blocks go to the audit and to People → Sessions & anomalies" \
-      "Bloqueo de sede por IP" "activado: $_nsl IP(s) atado(s) a esta competencia ahora; los reclamos y bloqueos quedan en el audit y en Personas → Sesiones y anomalías"
+    add3 site_lock ok "Trava de sede por IP" "ligada: $_nsl IP(s) preso(s) a este contest agora; reivindicações e bloqueios ficam no audit e em Máquinas › Anomalias" \
+      "Per-IP site lock" "on: $_nsl IP(s) bound to this contest right now; claims and blocks go to the audit and to Machines › Anomalies" \
+      "Bloqueo de sede por IP" "activado: $_nsl IP(s) atado(s) a esta competencia ahora; los reclamos y bloqueos quedan en el audit y en Máquinas › Anomalías"
   else
-    add3 site_lock warn "Trava de sede por IP DESLIGADA" "da máquina de prova, curl --resolve chega ao treino e a outros contests pelo mesmo IP do MOJ — ligue em Pessoas → Máquinas & gate (seção 🔒)" \
-      "Per-IP site lock OFF" "from a contest machine, curl --resolve reaches the training site and other contests through the same MOJ IP — turn it on in People → Machines & gate (🔒 section)" \
-      "Bloqueo de sede por IP DESACTIVADO" "desde la máquina de la competencia, curl --resolve llega al entrenamiento y a otras competencias por la misma IP del MOJ — actívalo en Personas → Máquinas y gate (sección 🔒)"
+    add3 site_lock warn "Trava de sede por IP DESLIGADA" "da máquina de prova, curl --resolve chega ao treino e a outros contests pelo mesmo IP do MOJ — ligue em Máquinas › Gate & trava (seção 🔒)" \
+      "Per-IP site lock OFF" "from a contest machine, curl --resolve reaches the training site and other contests through the same MOJ IP — turn it on in Machines › Gate & lock (🔒 section)" \
+      "Bloqueo de sede por IP DESACTIVADO" "desde la máquina de la competencia, curl --resolve llega al entrenamiento y a otras competencias por la misma IP del MOJ — actívalo en Máquinas › Gate y bloqueo (sección 🔒)"
   fi
   # sessão única por time (lib/session-index.sh): com gate ligado, login em outra máquina
   # derruba a anterior — desligar isso é escolha, mas merece aviso (time em 2 máquinas passa)
@@ -885,13 +892,13 @@ else
       "Single session: Block mode only" "in Observe mode a login on another machine does NOT end the previous session; sessions on 2 machines show up in Machines › Anomalies" \
       "Sesión única: solo en el modo Bloquear" "en el modo Observar un login en otra máquina NO termina la sesión anterior; las sesiones en 2 máquinas aparecen en Máquinas › Anomalías"
   elif [[ "$(jq -r '.single_session' <<<"$ugj")" == false ]]; then
-    add3 session_single warn "Sessão única por time DESLIGADA" "com o gate ligado, o time pode ficar logado em várias máquinas — ligue em Pessoas → Máquinas & gate; as anomalias aparecem em Pessoas → Sessões & anomalias" \
-      "Single session per team OFF" "with the gate on, a team can stay logged in on several machines — turn it on in People → Machines & gate; anomalies show up in People → Sessions & anomalies" \
-      "Sesión única por equipo DESACTIVADA" "con el gate activado, el equipo puede quedar conectado en varias máquinas — actívala en Personas → Máquinas y gate; las anomalías aparecen en Personas → Sesiones y anomalías"
+    add3 session_single warn "Sessão única por time DESLIGADA" "com o gate ligado, o time pode ficar logado em várias máquinas — ligue em Máquinas › Gate & trava; as anomalias aparecem em Máquinas › Anomalias" \
+      "Single session per team OFF" "with the gate on, a team can stay logged in on several machines — turn it on in Machines › Gate & lock; anomalies show up in Machines › Anomalies" \
+      "Sesión única por equipo DESACTIVADA" "con el gate activado, el equipo puede quedar conectado en varias máquinas — actívala en Máquinas › Gate y bloqueo; las anomalías aparecen en Máquinas › Anomalías"
   else
-    add3 session_single ok "Sessão única por time" "login em outra máquina derruba a sessão anterior; anomalias em Pessoas → Sessões & anomalias" \
-      "Single session per team" "logging in on another machine drops the previous session; anomalies in People → Sessions & anomalies" \
-      "Sesión única por equipo" "iniciar sesión en otra máquina cierra la sesión anterior; anomalías en Personas → Sesiones y anomalías"
+    add3 session_single ok "Sessão única por time" "login em outra máquina derruba a sessão anterior; anomalias em Máquinas › Anomalias" \
+      "Single session per team" "logging in on another machine drops the previous session; anomalies in Machines › Anomalies" \
+      "Sesión única por equipo" "iniciar sesión en otra máquina cierra la sesión anterior; anomalías en Máquinas › Anomalías"
   fi
 fi
 fi   # módulo maquinas
@@ -919,9 +926,9 @@ if mod_on "$contest" rodadas && [[ -s "$cdir/rounds.json" ]]; then
         "Next round: $nxt" "$_rb_en" \
         "Ronda siguiente: $nxt" "$_rb_es"
     else
-      add3 next_round ok "Rodada seguinte: $nxt" "pronta para promover (Prova → Rodadas)" \
-        "Next round: $nxt" "ready to promote (Contest → Rounds)" \
-        "Ronda siguiente: $nxt" "lista para promover (Competencia → Rondas)"
+      add3 next_round ok "Rodada seguinte: $nxt" "pronta para promover (Evento › Rodadas)" \
+        "Next round: $nxt" "ready to promote (Event › Rounds)" \
+        "Ronda siguiente: $nxt" "lista para promover (Evento › Rondas)"
     fi
   fi
 fi
@@ -1094,14 +1101,16 @@ if mod_on "$contest" telao; then
         "Big screen without an Animeitor key" \
         "the MOJ key only works on the default server ($AN_DEFAULT_URL) — save your own key on the big-screen page or go back to the default" \
         "Pantalla sin clave del Animeitor" \
-        "la clave del MOJ solo vale en el servidor predeterminado ($AN_DEFAULT_URL) — guarda una clave propia en la página de la pantalla o vuelve al predeterminado"
+        "la clave del MOJ solo vale en el servidor predeterminado ($AN_DEFAULT_URL) — guarda una clave propia en la página de la pantalla o vuelve al predeterminado" \
+        open_telao
     else
       add3 telao warn "Telão sem chave do Animeitor" \
         "grave usuário e token na mesa do telão (/contest/animeitor/)" \
         "Big screen without an Animeitor key" \
         "save user and token on the big-screen page (/contest/animeitor/)" \
         "Pantalla sin clave del Animeitor" \
-        "guarda usuario y token en la página de la pantalla (/contest/animeitor/)"
+        "guarda usuario y token en la página de la pantalla (/contest/animeitor/)" \
+        open_telao
     fi
   elif [[ "$_anst" == no_sites ]]; then
     add3 telao warn "Telão: nenhuma sede do reveleitor casa os times" \
@@ -1117,7 +1126,8 @@ if mod_on "$contest" telao; then
       "Big screen: the Animeitor does not have every submission" \
       "at the last check: $(jq -r '"\(.missing // 0) missing, \(.wrong // 0) different, \(.extra // 0) extra\(if .error then " — " + .error else "" end)"' <<<"$_anv") — the feeder has already resent them; check again on the big-screen page" \
       "Pantalla: el Animeitor no tiene todos los envíos" \
-      "en la última verificación: $(jq -r '"\(.missing // 0) faltantes, \(.wrong // 0) diferentes, \(.extra // 0) de más\(if .error then " — " + .error else "" end)"' <<<"$_anv") — el alimentador ya los reenvió; revisa de nuevo en la página de la pantalla"
+      "en la última verificación: $(jq -r '"\(.missing // 0) faltantes, \(.wrong // 0) diferentes, \(.extra // 0) de más\(if .error then " — " + .error else "" end)"' <<<"$_anv") — el alimentador ya los reenvió; revisa de nuevo en la página de la pantalla" \
+      open_telao
   elif [[ "$(jq -r '.final == true' <<<"$_anv")" == true ]]; then
     add3 telao ok "Telão validado" "o Animeitor tem todas as submissões e a prova acabou (conferência final)" \
       "Big screen validated" "the Animeitor has every submission and the contest is over (final check)" \

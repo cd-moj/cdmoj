@@ -108,9 +108,9 @@ if [[ "$REQUEST_METHOD" != POST ]]; then
   fi
   source "$_LIBDIR/cohorts.sh" 2>/dev/null || true
   if mod_on "$contest" coortes && declare -F ch_released >/dev/null 2>&1 && ! ch_released "$contest"; then
-    add3 cohorts warn "Coortes não liberadas" "convidados/extra-oficiais seguem fora do placar público (Pessoas › Coortes)" \
-      "Cohorts not released" "guests/unofficial teams remain off the public scoreboard (People › Cohorts)" \
-      "Cohortes no liberadas" "los invitados/extraoficiales siguen fuera del marcador público (Personas › Cohortes)"
+    add3 cohorts warn "Coortes não liberadas" "convidados/extra-oficiais seguem fora do placar público (Evento › Coortes)" \
+      "Cohorts not released" "guests/unofficial teams remain off the public scoreboard (Event › Cohorts)" \
+      "Cohortes no liberadas" "los invitados/extraoficiales siguen fuera del marcador público (Evento › Cohortes)"
   fi
   add3 report ok "Relatório final" "baixe o pacote offline em Operação › Situação" \
     "Final report" "download the offline package in Operations › Status" \

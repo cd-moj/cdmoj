@@ -1,5 +1,5 @@
 # lib/anomalies.sh — MOTOR de anomalias de uso de máquina DURANTE a prova (painel Pessoas ›
-# Sessões & anomalias; rota GET /contest/admin/anomalies).
+# Máquinas › Anomalias; rota GET /contest/admin/anomalies).
 # QUEM IDENTIFICA A MÁQUINA É O UA DO MLINUX (chave "m:"), não o gate (03/10/2026, TCP 2026: sem gate o
 # painel ficava VAZIO com times em 2–3 máquinas e um adaptador de rede USB espetado). As anomalias de
 # MÁQUINA (multi_session, machine_shared, sub_other_machine, switched, site_short) valem sempre que há chave

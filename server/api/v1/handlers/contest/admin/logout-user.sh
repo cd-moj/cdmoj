@@ -11,7 +11,7 @@ jq -e . >/dev/null 2>&1 <<<"$body" || fail 400 "JSON inválido" "bad_json"
 login="$(jq -r '.login // empty' <<<"$body")"
 [[ -n "$login" ]] || fail 400 "Informe o login" "missing"
 valid_id "$login" || fail 422 "login inválido" "login_invalid"
-# uma linha de evento por sessão removida (trilha do painel Sessões & anomalias)
+# uma linha de evento por sessão removida (trilha de Máquinas › Anomalias)
 removed=0
 while IFS=$'\t' read -r _tok _lg _mk; do
   [[ -n "$_tok" ]] || continue

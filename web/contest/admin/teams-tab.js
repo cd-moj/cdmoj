@@ -140,7 +140,7 @@ export function makeTeamsTab(CONTEST) {
       // contest com USERS_FROM, mas as rotas do .animeitor aceitam (foto/música são asset LOCAL).
       panel.append(el('div', { class: 'error-box' },
         T('Este contest usa usuários COMPARTILHADOS (users_from) — a gerência de times por-usuário não se aplica. ', 'This contest uses SHARED users (users_from) — per-user team management does not apply. ', 'Esta competencia usa usuarios COMPARTIDOS (users_from) — la gestión de equipos por usuario no aplica. '),
-        T('Use as regras por regex em Evento › Sedes & escolas (teams-meta/regiões).', 'Use the regex rules in Event › Sites & schools (teams-meta/regions).', 'Usa las reglas regex en Evento › Sedes & escuelas (teams-meta/regiones).')));
+        T('Use as regras por regex em Evento › Sedes & escolas (teams-meta/regiões).', 'Use the regex rules in Event › Sites & schools (teams-meta/regions).', 'Usa las reglas regex en Evento › Sedes y escuelas (teams-meta/regiones).')));
       panel.append(el('p', { class: 'note' },
         T('As fotos e músicas dos times continuam sendo geridas na mesa do telão: ',
           'Team photos and music are still managed from the big-screen desk: ',
@@ -198,7 +198,7 @@ export function makeTeamsTab(CONTEST) {
     // materializar matches (regex teams-meta/regions -> campos vazios, de uma vez)
     const mat = el('button', { class: 'btn ghost' }, T('🪄 Materializar matches', '🪄 Materialize matches', '🪄 Materializar coincidencias'));
     mat.addEventListener('click', async () => {
-      if (!confirm(T('Aplicar as regras por regex (Evento › Sedes & escolas: teams-meta + regiões) aos campos VAZIOS de cada time? Campos já preenchidos não mudam.', 'Apply the regex rules (Event › Sites & schools: teams-meta + regions) to the EMPTY fields of each team? Already-filled fields do not change.', '¿Aplicar las reglas regex (Evento › Sedes & escuelas: teams-meta + regiones) a los campos VACÍOS de cada equipo? Los campos ya llenos no cambian.'))) return;
+      if (!confirm(T('Aplicar as regras por regex (Evento › Sedes & escolas: teams-meta + regiões) aos campos VAZIOS de cada time? Campos já preenchidos não mudam.', 'Apply the regex rules (Event › Sites & schools: teams-meta + regions) to the EMPTY fields of each team? Already-filled fields do not change.', '¿Aplicar las reglas regex (Evento › Sedes y escuelas: teams-meta + regiones) a los campos VACÍOS de cada equipo? Los campos ya llenos no cambian.'))) return;
       mat.disabled = true; msg.className = 'small'; msg.textContent = T('Materializando…', 'Materializing…', 'Materializando…');
       try {
         const r = await apiPost('/contest/admin/teams?contest=' + enc(CONTEST), { action: 'materialize' }, G);
@@ -247,7 +247,7 @@ export function makeTeamsTab(CONTEST) {
       el('p', { class: 'muted small' },
         T('O NOME é um só: é o nome do time (ou do aluno — usuário de contest É o time). ', 'The NAME is a single one: it is the team name (or the student — a contest user IS the team). ', 'El NOMBRE es uno solo: es el nombre del equipo (o del estudiante — un usuario de la competencia ES el equipo). '),
         T('Cada linha é a identidade no account.json (placar, crachás e impressão leem daqui; ', 'Each row is the identity in account.json (scoreboard, badges and printing read from here; ', 'Cada fila es la identidad en account.json (el marcador, las etiquetas y la impresión leen de aquí; '),
-        T('o que faltar continua sendo completado pelas regras regex de Evento › Sedes & escolas). ', 'whatever is missing keeps being completed by the regex rules in Event › Sites & schools). ', 'lo que falte lo siguen completando las reglas regex de Evento › Sedes & escuelas). '),
+        T('o que faltar continua sendo completado pelas regras regex de Evento › Sedes & escolas). ', 'whatever is missing keeps being completed by the regex rules in Event › Sites & schools). ', 'lo que falte lo siguen completando las reglas regex de Evento › Sedes y escuelas). '),
         T('Fotos/brasões em lote: cada arquivo se chama <login>.<ext>.', 'Photos/logos in bulk: each file is named <login>.<ext>.', 'Fotos/logos en lote: cada archivo se llama <login>.<ext>.')),
       el('div', { class: 'row', style: 'gap:.5rem;flex-wrap:wrap;margin-bottom:.5rem' },
         save, mat,
