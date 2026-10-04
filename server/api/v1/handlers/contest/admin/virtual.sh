@@ -48,9 +48,10 @@ fi
 
 enabled=false; mod_on "$contest" virtual && enabled=true
 eligible=false; vr_load "$contest" && eligible=true; reason="$VR_REASON"
-# checklist: cada condição isolada (VR_IGNORE com todas as OUTRAS)
+# checklist: cada condição isolada (VR_IGNORE com todas as OUTRAS). TODA condição do portão entra: sem a de
+# problemas a lista vinha toda verde num contest sem problema e o virtual não abria (auditoria, 03/10/2026)
 ALL="module_off conf_unreadable secret type window running frozen no_problems problem_invalid problems_not_public"
-checks="$(for r in module_off secret type window running frozen problems_not_public; do
+checks="$(for r in module_off secret type window running frozen no_problems problem_invalid problems_not_public; do
   ok=true; VR_IGNORE="${ALL/$r/}" vr_load "$contest" || ok=false
   det=""; [[ "$r" == problems_not_public && "$ok" == false ]] && det="${VR_NPRIV/#-1/?}"
   jq -cn --arg id "$r" --argjson ok "$ok" --arg d "$det" '{id:$id, ok:$ok, detail:$d}'

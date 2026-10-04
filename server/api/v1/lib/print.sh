@@ -672,6 +672,34 @@ pr_balloon_color() {
   printf '%s' "$col"
 }
 
+# pr_recolor_pending_balloons <c> : as cores mudaram ⇒ a tarefa de balão AINDA NÃO IMPRESSA (status pending) passa à
+# cor nova (meta + PDF em cache apagado: o staff imprime a folha certa). A JÁ IMPRESSA (printed, não entregue) levou
+# o papel da cor antiga e não tem conserto — só é contada, p/ a tela avisar. Ecoa "<recoloridas> <impressas_velhas>".
+# (auditoria do painel, 03/10/2026: trocar a cor no meio da prova deixava a fila com a cor antiga, calada.)
+pr_recolor_pending_balloons() {
+  local c="$1" dir id short hex st nhex L n=0 old=0
+  dir="$(pr_dir "$c")"; [[ -d "$dir" ]] || { printf '0 0'; return 0; }
+  L="$(pr_lang "$c")"
+  local -A NEW=()
+  while IFS=$'\t' read -r id short hex st; do
+    [[ -n "$id" ]] || continue
+    [[ -n "${NEW[$short]:-}" ]] || NEW[$short]="$(pr_balloon_color "$c" "$short")"
+    nhex="${NEW[$short]}"
+    [[ "$nhex" == "$hex" ]] && continue
+    if [[ "$st" == pending ]]; then
+      local meta="$dir/$id.json" tmp="$dir/$id.json.rc.$BASHPID"
+      jq --arg h "$nhex" --arg n "$(pr_color_name "$nhex" "$L")" --arg l "$L" \
+         '.color_hex=$h | .color_name=$n | .color_lang=$l' "$meta" > "$tmp" 2>/dev/null \
+        && mv -f "$tmp" "$meta" && rm -f "$dir/$id.combined.pdf" && n=$((n+1))
+      rm -f "$tmp"
+    elif [[ "$st" == printed ]]; then old=$((old+1)); fi
+  done < <(find "$dir" -maxdepth 1 -name '*.json' -type f -print0 2>/dev/null \
+             | xargs -0r jq -r 'select(type == "object" and .kind == "balloon")
+                 | [(input_filename | split("/") | last | rtrimstr(".json")), (.short // "?"), (.color_hex // ""), (.status // "pending")]
+                 | join("\t")' 2>/dev/null)
+  printf '%s %s' "$n" "$old"
+}
+
 # pr_color_name <RRGGBB> [lang] : nome da cor por extenso no idioma do contest (pt|en|es; default pt).
 # Tabela dos 15 defaults ICPC; fora dela, a cor nomeada mais próxima por distância RGB, com o hex
 # entre parênteses. Em pt e es o nome inglês vai junto — o balão físico costuma vir rotulado em

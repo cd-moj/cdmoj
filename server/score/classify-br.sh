@@ -61,6 +61,13 @@ cl_init "$C" || exit 1
 [[ -s "$CD/regions.json" ]] || { echo "classify-br: sem regions.json" >&2; exit 1; }
 REGION="$(jq -r '.region // "Brasil"' "$CFG")"
 
+# a REGIÃO tem de ser um nó de 1º nível do regions.json: sem ele ninguém entra e a classificação saía VAZIA, calada
+# (auditoria do painel, 03/10/2026) — agora é erro de config com os nós que existem
+if ! jq -e --arg R "$REGION" 'any(.[]; .name == $R)' "$CD/regions.json" >/dev/null 2>&1; then
+  jq -cn --arg R "$REGION" --slurpfile g "$CD/regions.json" \
+    '{errors:["region: \"" + $R + "\" não existe no 1º nível do regions.json (há: " + ([$g[0][] | .name] | join(", ")) + ")"]}' >&2
+  exit 2
+fi
 # supersedes (nome → sedes membras) — filhos dos nós cujo nome está em config.supersedes
 jq -r --arg R "$REGION" '
   .[] | select(.name == $R) | (.subregions // [])[]
@@ -91,6 +98,13 @@ fi
 # --- config → TSVs ------------------------------------------------------------------------
 jq -r '(.sedes // {}) | to_entries[] | [.key, (.value|tostring)] | @tsv' "$CFG" > "$W/cfg-sedes.tsv"
 jq -r '(.supersedes // {}) | to_entries[] | [.key, (.value|tostring)] | @tsv' "$CFG" > "$W/cfg-super.tsv"
+# sede/supersede com vaga na config que NÃO existe na árvore: a vaga não ia a ninguém, calada — vira aviso
+miss_s="$(jq -c --slurpfile g "$CD/regions.json" '[ $g[0] | .. | objects | select(has("name")) | .name ] as $all
+  | [ (.sedes // {}) | keys[] | select(. as $k | $all | index($k) | not) ]' "$CFG" 2>/dev/null)"
+[[ -n "$miss_s" && "$miss_s" != "[]" ]] && cl_warn sede_missing "$(jq -cn --argjson l "$miss_s" '{sites:$l}')"
+miss_u="$(jq -c --slurpfile g "$CD/regions.json" --arg R "$REGION" '[ $g[0][] | select(.name == $R) | (.subregions // [])[] | .name ] as $all
+  | [ (.supersedes // {}) | keys[] | select(. as $k | $all | index($k) | not) ]' "$CFG" 2>/dev/null)"
+[[ -n "$miss_u" && "$miss_u" != "[]" ]] && cl_warn supersede_missing "$(jq -cn --argjson l "$miss_u" '{sites:$l}')"
 R1="$(jq -r '.r1 // 15' "$CFG")"
 F3="$(jq -r '.r4.f3 // 3' "$CFG")"; F2="$(jq -r '.r4.f2 // 2' "$CFG")"; F1="$(jq -r '.r4.f1 // 1' "$CFG")"
 

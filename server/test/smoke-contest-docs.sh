@@ -239,5 +239,45 @@ ck "editou: a cópia do contest vale (custom=true)" '[[ -s "$C/docs/cover.pt.md"
 adm '{"action":"config","cover_pt":""}'
 ck "vazio = volta ao padrão"            '[[ ! -e "$C/docs/cover.pt.md" ]]'
 
+echo "== auditoria do painel (03/10/2026): nada de \"publicado\"/\"gerado\" sem PDF de verdade =="
+conf "$((NOW+3600))" "$((NOW+10800))"        # ANTES do início
+printf '<html>só html</html>' > "$C/docs/times.en.html"
+adm '{"action":"publish","type":"times","lang":"en"}'
+ck "só HTML (sem PDF) não publica: 409 not_generated" '[[ "$OUT" == *"Status: 409"* && "$(J .error.code)" == not_generated ]]'
+adm '{"action":"unpublish","type":"contest","lang":"pt"}'; adm '{"action":"publish","type":"contest","lang":"pt"}'
+ck "caderno publicado antes do início: available=at_start" '[[ "$(J .available)" == at_start ]]'
+adm '{"action":"publish","type":"info-sheet","lang":"pt"}'
+ck "info sheet: available=now"        '[[ "$(J .available)" == now ]]'
+adm '{"action":"publish","type":"contest","lang":"pt","news":true}'
+ck "409 da notícia não promete a sede antes do início" '[[ "$(J .error.code)" == news_before_start && "$(J .error.message)" != *"liberado para a sede"* ]]'
+conf "$((NOW-600))" "$((NOW+10800))"         # COMEÇOU
+adm "{\"action\":\"upload\",\"type\":\"contest\",\"lang\":\"pt\",\"pdf_b64\":\"$(printf '%%PDF-1.4 ENVIADO\n%%%%EOF\n' | base64 -w0)\"}"
+ck "(prep) PDF enviado do caderno"    '[[ "$(J .saved)" == true ]]'
+adm '{"action":"publish","type":"contest","lang":"pt","news":true}'
+LBL="$(jq -r '[.[]|select(.doc=="contest.pt")][0].title' "$C/news.json")"
+mkdir -p "$C/news-files/legacy1"; printf x > "$C/news-files/legacy1/contest.pt.pdf"
+jq -c --arg t "$LBL" 'map(del(.doc)) + [{id:"legacy1", title:$t, text:"x", date:1, file:{name:"contest.pt.pdf", size:1}}]' "$C/news.json" > "$C/news.json.t" && mv "$C/news.json.t" "$C/news.json"
+adm '{"action":"unpublish","type":"contest","lang":"pt"}'
+ck "despublicar leva a notícia antiga (sem doc) do caderno" '[[ "$(J .news_removed)" -ge 1 && "$(jq "[.[]|select(.file.name==\"contest.pt.pdf\")]|length" "$C/news.json")" == 0 ]]'
+adm '{"action":"publish","type":"contest","lang":"pt","news":true}'
+NID="$(jq -r '[.[]|select(.doc=="contest.pt")][0].id' "$C/news.json")"
+ck "notícia anexa o PDF SERVIDO (o enviado) e leva doc" '[[ "$(J .news)" == true && "$NID" != null ]] && grep -q ENVIADO "$C/news-files/$NID/contest.pt.pdf"'
+adm '{"action":"unpublish","type":"contest","lang":"pt"}'
+ck "despublicar remove a notícia e o anexo" '[[ "$(J .news_removed)" == 1 && ! -d "$C/news-files/$NID" && "$(jq "[.[]|select(.doc==\"contest.pt\")]|length" "$C/news.json")" == 0 ]]'
+rm -f "$C/docs/contest.pt.pdf"; adm '{"action":"publish","type":"contest","lang":"pt"}'
+adm '{"action":"upload","type":"contest","lang":"pt","remove_upload":true}'
+ck "voltar ao gerado PUBLICADO sem PDF gerado: 409" '[[ "$OUT" == *"Status: 409"* && "$(J .error.code)" == published_no_generated && -s "$C/docs/contest.pt.uploaded.pdf" ]]'
+adm '{"action":"unpublish","type":"contest","lang":"pt"}'
+adm '{"action":"upload","type":"contest","lang":"pt","remove_upload":true}'
+ck "despublicado: remove o enviado" '[[ "$(J .removed)" == true && ! -e "$C/docs/contest.pt.uploaded.pdf" ]]'
+# conversão que FALHA: o PDF antigo continua, mas a geração não diz "gerado"
+FB="$(mktemp -d)"; printf '#!/bin/sh\nexit 1\n' > "$FB/soffice"; chmod +x "$FB/soffice"
+printf '%%PDF-velho' > "$C/docs/times.pt.pdf"; OLDAT="$(jq -r '.[]|select(.type=="times" and .lang=="pt")|.generated_at' "$C/docs/index.json")"
+OUT="$(PATH="$FB:$PATH" PATH_INFO=/contest/admin/docs REQUEST_METHOD=POST QUERY_STRING=contest=dprova HTTP_AUTHORIZATION="Bearer tok-adm" \
+  bash "$ROUTER" <<<'{"action":"generate","types":["times"],"langs":["pt"]}' 2>&1)"; BODY="$(printf '%s' "$OUT" | awk 'f{print} /^\r?$/{f=1}')"
+ck "PDF que não converte = falha com reason pdf (nada de \"gerado\")" '[[ "$(J .counts.ok)" == 0 && "$(J ".failed[0].reason")" == pdf ]]'
+ck "…o PDF anterior segue e o índice guarda a data DELE" '[[ "$(cat "$C/docs/times.pt.pdf")" == "%PDF-velho" && "$(jq -r ".[]|select(.type==\"times\" and .lang==\"pt\")|.generated_at" "$C/docs/index.json")" == "$OLDAT" ]]'
+rm -rf "$FB"
+
 echo; echo "passed=$pass failed=$fail"
 (( fail == 0 ))

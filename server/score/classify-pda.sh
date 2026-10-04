@@ -449,6 +449,8 @@ jq -n --arg contest "$C" --slurpfile cfg "$CFG" --rawfile cls "$W/cls.tsv" --raw
          ranking:map({rank:(.[2] | tonumber), country:.[3], teams:(.[4] | tonumber), institutions:(.[5] | tonumber),
                       quota:(.[6] | tonumber), filled:(.[7] | tonumber)})}}) | from_entries),
      reserve:{slots:([ $I[] | select(.[0] == "reserve") | .[2] | tonumber ] | add // 0)},
+     # o rótulo de cada faixa da lista de espera (a config o define; antes a tela mostrava só o id)
+     waitlist_tiers:([ ($C.waitlist.tiers // [])[] | select(.label != null) | {key:.id, value:.label} ] | from_entries),
      waitlist:(rows($wl) | map({pos:(.[0] | tonumber), tier:.[1], login:.[2], place:(.[3] | tonumber), total:(.[4] | tonumber),
                                 school:.[5], country:.[6], region:.[7], sede:.[8], team:.[9], univ:.[10]})),
      pre:(rows($pre) | map({login:.[0], place:(.[1] | tonumber), total:(.[2] | tonumber), school:.[3], country:.[4], region:.[5],

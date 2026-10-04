@@ -115,7 +115,7 @@ não tem título nesse idioma, o MOJ usa o título em português.
 |---|---|
 | **Rodadas** (`rodadas`) | **Aquecimento e prova oficial no MESMO contest**: planeja cada rodada (janela + problemas), mostra o checklist e promove — arquivando tudo o que aconteceu. A seção 6 explica. |
 | **Documentos** (`documentos`) | Gera, em PDF e HTML nos três idiomas (pt/en/es), os documentos da prova: **ambiente de julgamento** (info sheet), **caderno da prova** (capa + enunciados), **folha de time limits** e o **editorial** (só publica depois do FIM da prova). A seção 5 explica. |
-| **Balões** (`baloes`) | A cor de cada letra — é o que sai desenhado na folha do balão. O default cobre A–O; com mais de 15 problemas, defina as demais (senão saem cinza). São as cores da rodada no ar. Para dar cores próprias a outra rodada, use Evento › Rodadas. |
+| **Balões** (`baloes`) | A cor de cada letra — é o que sai desenhado na folha do balão. O default cobre A–O; com mais de 15 problemas, defina as demais (senão saem cinza). São as cores da rodada no ar. Para dar cores próprias a outra rodada, use Evento › Rodadas. Trocar uma cor passa as tarefas de balão ainda não impressas à cor nova; a tela avisa quantas folhas já foram impressas na cor antiga. |
 | **Classificação** (`classificacao`) | Quem se classifica para as próximas fases. Cada **etapa** (Final Brasileira, PDA, Mundial) tem o seu motor, escolhido no painel: prévia, rascunho, publicação (um chip 🎓 por etapa no placar) e o **override manual** — excluir do cálculo, retirar sem recalcular, promover à mão, sempre com motivo. Para contests menores (uma seletiva), o motor **Manual**: você diz quantos times sobem e qual é a próxima fase, e clica no placar em quem promover (motivo opcional). `docs/CLASSIFICACAO.md` explica. |
 | **Times** (`sedes` ou `telao`) | Identidade de cada conta no placar: nome do time, país/bandeira, sede, universidade, brasão e foto. Carga por CSV e "materializar matches". |
 | **Coortes** (`coortes`) | Times **convidados** (extra-oficiais, "CCL") separados dos oficiais: quem aparece no placar público, quem vê quem, e o **🔓 Liberar resultados** do pós-cerimônia. A seção 8 explica. |
@@ -341,9 +341,11 @@ prova — cada um em **PDF e HTML**, em **português, inglês e espanhol**:
    alterados; *voltar ao padrão* devolve o idioma da aba ao texto do MOJ.
 4. **Gere** (botão de cada linha, ou *Gerar todos (pt+en+es)*), **ou envie um PDF pronto**
    (botão *subir PDF* da linha). O PDF enviado é um documento completo: ele vence o gerado em
-   tudo que o MOJ serve e pode ser publicado sem gerar. *Voltar ao gerado* apaga só o enviado.
+   tudo que o MOJ serve e pode ser publicado sem gerar. *Voltar ao gerado* apaga só o enviado
+   (num documento publicado sem PDF gerado, o MOJ recusa: gere antes ou despublique).
    Converter os PDFs leva alguns segundos — o caderno é o mais demorado, porque junta um PDF
-   por problema.
+   por problema. Se a conversão para PDF falhar, a mensagem diz qual documento falhou e o PDF
+   anterior (se havia) continua o que todos baixam.
 5. **Confira**: cada linha tem **PDF**, **HTML** e **abrir**. Reveja antes de publicar.
    **Algo torto no PDF gerado** — espaço demais ou de menos entre os elementos, uma imagem
    grande — que o Markdown do enunciado causou? Cada documento gerado tem também o **✎ .odt**,
@@ -352,7 +354,7 @@ prova — cada um em **PDF e HTML**, em **português, inglês e espanhol**:
    do caderno traz a capa como página editável seguida dos enunciados; se a capa é um PDF
    enviado, ou um problema tem enunciado em PDF próprio, o `.odt` marca o lugar e você junta o
    PDF ao exportar. Só o admin e o juiz-chefe baixam o `.odt`.
-6. **Publique**. Publicar faz duas coisas: o documento passa a aparecer na seção **Prova** da
+6. **Publique** (só documento com PDF — gerado ou enviado). Publicar faz duas coisas: o documento passa a aparecer na seção **Prova** da
    página do contest e em **Documentos**. Quem vê o quê:
    - **Ambiente de julgamento**: publicado = visível para todos os papéis (é logística).
    - **Caderno e folha de time limits**: antes do INÍCIO da prova só `.admin`, `.cjudge` e
@@ -362,9 +364,9 @@ prova — cada um em **PDF e HTML**, em **português, inglês e espanhol**:
      notícia anexa o PDF).
    - **Editorial**: só publica depois do fim, e só os juízes o baixam antes de a prova acabar
      para TODAS as sedes.
-   Marcando **+ notícia**, o MOJ ainda cria uma notícia com o PDF anexado.
-   **Despublicar** desfaz (o link some; a notícia, se criada, continua — apague-a na aba de
-   notícias se for o caso).
+   Marcando **+ notícia**, o MOJ ainda cria uma notícia com o PDF anexado (o PDF que todos
+   baixam: o enviado, se houver).
+   **Despublicar** desfaz: o link some e a notícia com o anexo daquele documento também.
 
 **Regenerou? Publique de novo não é preciso** — o link publicado aponta para o documento atual,
 então gerar de novo já entrega a versão nova a quem baixar. Mas **avise a sede**: quem já

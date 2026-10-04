@@ -946,6 +946,26 @@ else
     "Documentos de la competencia" "$ndoc generado(s), $npub publicado(s) para la sede"
 fi
 
+# --- classificação (módulo classificacao): há estágio aplicado? ficou rascunho depois da prova? ----------
+# (auditoria do painel, 03/10/2026: a Central tinha o destino "classificacao" e nenhuma checagem com esse id)
+if mod_on "$contest" classificacao; then
+  _clj="$(jq -c '{n:((.stages // []) | length), p:([(.stages // [])[] | select(.status == "published")] | length)}' "$cdir/classification.json" 2>/dev/null)"
+  [[ -n "$_clj" ]] || _clj='{"n":0,"p":0}'
+  _cln="$(jq -r .n <<<"$_clj")"; _clp="$(jq -r .p <<<"$_clj")"
+  if (( _cln == 0 )); then
+    add3 classificacao warn "Classificação sem estágio" "o módulo está ligado mas nenhum estágio foi aplicado — configure, veja a prévia e aplique em Evento › Classificação" \
+      "Qualification without a stage" "the module is on but no stage was applied — configure, preview and apply it in Event › Qualification" \
+      "Clasificación sin etapa" "el módulo está activado pero no se aplicó ninguna etapa — configura, previsualiza y aplica en Evento › Clasificación"
+  elif (( _clp < _cln && EPOCHSECONDS > ${CONTEST_END:-0} )); then
+    add3 classificacao warn "Classificação em rascunho" "$((_cln - _clp)) estágio(s) não publicado(s) — publique depois da revelação (o chip só aparece no placar publicado)" \
+      "Qualification in draft" "$((_cln - _clp)) stage(s) not published — publish after the reveal (the chip only shows on the scoreboard once published)" \
+      "Clasificación en borrador" "$((_cln - _clp)) etapa(s) sin publicar — publica después de la revelación (el chip solo aparece en el marcador una vez publicado)"
+  else
+    add3 classificacao ok "Classificação" "$_cln estágio(s), $_clp publicado(s)" \
+      "Qualification" "$_cln stage(s), $_clp published" "Clasificación" "$_cln etapa(s), $_clp publicada(s)"
+  fi
+fi
+
 # --- esqueletos de código (módulo esqueletos, lib/esqueletos.sh) -------------------------
 # fail: módulo ligado com o editor embutido desligado (as portas recusam isso; aqui pega o conf editado à
 # mão). warn: modo ICPC (escolha legítima, mas o time da maratona espera o editor vazio) e Java

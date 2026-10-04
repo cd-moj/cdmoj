@@ -1452,7 +1452,7 @@
         ],
         "responses": {
           "200": {
-            "description": "{enabled,eligible,reason,checks:[{id,ok,detail}],url,virtuals}"
+            "description": "{enabled,eligible,reason,checks:[{id,ok,detail}],url,virtuals} — checks = toda condição do portão (module_off, secret, type, window, running, frozen, no_problems, problem_invalid, problems_not_public)"
           },
           "403": {
             "description": "admin_required"
@@ -5030,7 +5030,7 @@
         },
         "responses": {
           "200": {
-            "description": "{saved:true}"
+            "description": "{saved:true, balloons_recolored, balloons_printed_old} — trocar as cores passa as tarefas de balão ainda não impressas à cor nova; as já impressas (não entregues) são contadas"
           }
         }
       }
@@ -5703,7 +5703,7 @@
         "tags": [
           "contest-admin"
         ],
-        "summary": "add | set | problems | remove | publish | promote | undo (so admin) — undo {confirm:<id do contest>} desfaz a ÚLTIMA promoção se a rodada no ar não teve atividade (409 undo_blocked; 422 confirm_required)",
+        "summary": "add | set | problems | remove | publish | promote | undo (so admin) — undo {confirm:<id do contest>} desfaz a ÚLTIMA promoção se a rodada no ar não teve atividade (409 undo_blocked; 422 confirm_required). promote recusado = 409 not_ready com error.blockers (inclui round_no_problems, aviso que o force passa); set na ativa com colors responde balloons_recolored/balloons_printed_old",
         "security": [
           {
             "bearerAuth": []
@@ -6209,7 +6209,7 @@
         "tags": [
           "contest-admin"
         ],
-        "summary": "config | cover | logo ({image_b64}|{remove:true}: logo no topo das páginas do caderno/editorial e na capa gerada; PNG/JPEG/WebP/SVG até 5MB, 400 image_invalid) | upload (PDF pronto: vence o gerado; remove_upload volta) | generate | publish | unpublish",
+        "summary": "config | cover | logo ({image_b64}|{remove:true}: logo no topo das páginas do caderno/editorial e na capa gerada; PNG/JPEG/WebP/SVG até 5MB, 400 image_invalid) | upload (PDF pronto: vence o gerado; remove_upload volta — num publicado sem PDF gerado = 409 published_no_generated) | generate (failed[].reason: pdf = a conversão falhou e o PDF anterior segue) | publish (exige PDF servível: só HTML = 409 not_generated; responde {ok,published,news,news_removed,available:now|at_start}; a notícia anexa o PDF SERVIDO) | unpublish (leva junto a notícia do documento)",
         "security": [
           {
             "bearerAuth": []
@@ -6817,7 +6817,7 @@
     "/contest/admin/classify": {
       "post": {
         "tags": ["contest-admin"],
-        "summary": "Classificação p/ as próximas fases: estágios (final-br, pda, mundial…), cada um com o seu motor, e o OVERRIDE MANUAL. Placar congelado: publicar (ou mexer num publicado) = 409 freeze_locked antes do fim+1min; depois 409 board_frozen, force_frozen:true confirma",
+        "summary": "Classificação p/ as próximas fases: estágios (final-br, pda, mundial…), cada um com o seu motor, e o OVERRIDE MANUAL. Placar congelado: publicar (ou mexer num publicado) = 409 freeze_locked antes do fim+1min; depois 409 board_frozen, force_frozen:true confirma. Motor manual: apply com slots abaixo dos promovidos = 409 slots_below_promoted; name/venue/when/chip ENVIADOS vazios apagam; sbc-fase1 com region fora do regions.json = 422 config_invalid (avisos sede_missing/supersede_missing); latam-pda devolve result.waitlist_tiers",
         "description": "Motor por config.algorithm, pela allowlist CL_ENGINES (lib/classify.sh) + catálogo score/classify-catalog.json (fora = 422 algorithm_invalid). stage padrão: o do motor em preview/apply, final-br nas demais. preview roda o motor COM os overrides do estágio, sem gravar → {preview, stage, overrides, relation}. apply grava o estágio (config, result = saída pura do motor, chip, labels, via_order, teams composto); estágio de OUTRO motor = 409 stage_algorithm_mismatch (force:true troca). publish/unpublish/delete (delete só rascunho: 409 stage_published); estágio inexistente = 404 no_stage. Rc do motor: 2 = 422 config_invalid (errors[]), 3 = 422 engine_refused, outro = 422 engine_failed. OVERRIDES (motivo obrigatório, 422 reason_required; interno — só o painel o mostra; sobrevivem a um novo apply; um por time, 409 override_exists): exclude {login} tira do CÁLCULO e recalcula (o próximo herda a vaga); withdraw {login|ext} tira SEM recalcular (404 not_classified se não está); add {login | ext+team, via:manual|lista|reserva} promove à mão e conta como promovido p/ o motor (409 already_classified; 422 via_invalid/team_required); override_undo {id} desfaz (404 override_notfound); promote_next {reason}: o 1º da lista de espera do motor (recalculada contra o estágio atual) entra como add via lista (409 waitlist_unsupported/waitlist_empty); add via reserva além das vagas de reserva do motor = 409 reserve_full. Motor manual (seletiva: toda promoção à mão): o add aceita motivo vazio e no máximo config.slots promovidos (409 slots_full); result.ranking = o placar p/ o painel. Estágio antigo com times via comite: lidos como override add. Auditado classify / classify-override. Ver docs/CLASSIFICACAO.md",
         "parameters": [{"name": "contest", "in": "query", "required": true, "schema": {"type": "string"}}],
         "requestBody": {"content": {"application/json": {"schema": {"type": "object", "required": ["action"], "properties": {"action": {"type": "string", "enum": ["preview","apply","publish","unpublish","delete","exclude","withdraw","add","override_undo","promote_next"]}, "stage": {"type": "string"}, "config": {"type": "object"}, "name": {"type": "string"}, "venue": {"type": "string"}, "when": {"type": "string"}, "chip": {"type": "string"}, "force": {"type": "boolean"}, "login": {"type": "string"}, "ext": {"type": "string"}, "team": {"type": "string"}, "univ": {"type": "string"}, "via": {"type": "string", "enum": ["manual","lista","reserva"]}, "reason": {"type": "string"}, "id": {"type": "string"}}}}}},

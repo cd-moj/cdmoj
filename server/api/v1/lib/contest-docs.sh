@@ -228,7 +228,8 @@ doc_pending(){
   local c="$1" pub t l
   pub="$(doc_conf_get "$c" | jq -c '.published // []')"; [[ -n "$pub" ]] || pub='[]'
   for t in $DOC_TYPES; do for l in $DOC_LANGS; do
-    [[ -n "$(doc_pdf_served "$c" "$t" "$l")" || -s "$(doc_file "$c" "$t" "$l" html)" ]] || continue
+    # só o que tem PDF: o link publicado é o do PDF (HTML sozinho daria 404 aos times — mesma regra do publish)
+    [[ -n "$(doc_pdf_served "$c" "$t" "$l")" ]] || continue
     jq -e --arg k "$t.$l" 'index($k) != null' <<<"$pub" >/dev/null 2>&1 && continue
     printf '%s\t%s\n' "$t" "$l"
   done; done
@@ -1006,7 +1007,12 @@ doc_build(){
   [[ -s "$tmp" ]] || { rm -f "$tmp"; return 1; }
   mv -f "$tmp" "$html"
   # todo PDF gerado ganha o GÊMEO .odt (o intermediário editável — só a organização baixa; ver doc.sh)
-  if [[ "$t" == contest ]]; then _doc_pdf_contest "$c" "$l" "$pdf.tmp" "$odt.tmp" && mv -f "$pdf.tmp" "$pdf" || rm -f "$pdf.tmp"
+  # pdf_ok: a conversão DESTA geração produziu PDF. Sem ele o build devolve rc 3 — o PDF de antes (se havia) segue
+  # o servido, mas a geração não pode dizer "gerado agora" (auditoria do painel, 03/10/2026)
+  local pdf_ok=0
+  if [[ "$t" == contest ]]; then
+    _doc_pdf_contest "$c" "$l" "$pdf.tmp" "$odt.tmp" && [[ -s "$pdf.tmp" ]] && mv -f "$pdf.tmp" "$pdf" && pdf_ok=1
+    rm -f "$pdf.tmp"
   elif [[ "$t" == editorial ]]; then
     # um documento só, pela rota ODT (as soluções têm math); miolo sem <title>
     local mini="$d/.$t.$l.odtin.html"
@@ -1015,11 +1021,15 @@ doc_build(){
       printf '</body></html>'; } > "$mini"
     _doc_html2pdf_odt "$mini" "$pdf.tmp" "$odt.tmp" || _doc_html2pdf "$html" "$pdf.tmp" "$odt.tmp" || true
     rm -f "$mini"
-    if [[ -s "$pdf.tmp" ]]; then mv -f "$pdf.tmp" "$pdf"; else rm -f "$pdf.tmp"; fi
-  else _doc_html2pdf "$html" "$pdf.tmp" "$odt.tmp" && mv -f "$pdf.tmp" "$pdf" || rm -f "$pdf.tmp"; fi
+    if [[ -s "$pdf.tmp" ]]; then mv -f "$pdf.tmp" "$pdf" && pdf_ok=1; else rm -f "$pdf.tmp"; fi
+  else
+    _doc_html2pdf "$html" "$pdf.tmp" "$odt.tmp" && [[ -s "$pdf.tmp" ]] && mv -f "$pdf.tmp" "$pdf" && pdf_ok=1
+    rm -f "$pdf.tmp"
+  fi
   # o .odt acompanha o PDF DESTA geração; um .odt velho de outra geração não pode sobrar ao lado do PDF novo
-  if [[ -s "$odt.tmp" ]]; then mv -f "$odt.tmp" "$odt"; else rm -f "$odt.tmp" "$odt"; fi
+  if (( pdf_ok )) && [[ -s "$odt.tmp" ]]; then mv -f "$odt.tmp" "$odt"; else rm -f "$odt.tmp"; (( pdf_ok )) && rm -f "$odt"; fi
   rm -rf "$_DOC_TMPD" 2>/dev/null
+  (( pdf_ok )) || return 3
   jq -cn --arg t "$t" --arg l "$l" \
      --argjson bh "$(stat -c%s "$html" 2>/dev/null || echo 0)" \
      --argjson bp "$(stat -c%s "$pdf" 2>/dev/null || echo 0)" \

@@ -194,16 +194,26 @@ case "$action" in
       ok_json_slurp '$f[0]' f "$(cat "$W/resp.json")"
       exit 0
     fi
-    # apply: nome/local/quando/chip — o do pedido › o do estágio › o padrão do motor no catálogo
+    # motor manual: baixar as vagas abaixo dos já promovidos deixava "Promovidos 3 de 2" (auditoria, 03/10/2026)
+    if jq -e --arg a "$alg" 'any(.engines[]; .id == $a and .manual_slots == true)' "$CL_CATALOG" >/dev/null 2>&1; then
+      nadd="$(jq -r "$CL_JQ"'[ cl_ovs[] | select(.op == "add") ] | length' "$W/st.json" 2>/dev/null)"; nadd="${nadd:-0}"
+      nslots="$(jq -r '(.slots // -1) | tostring' "$W/cfg.json")"
+      [[ "$nslots" =~ ^[0-9]+$ ]] && (( nslots < nadd )) && FAIL_EXTRA="$(jq -cn --argjson p "$nadd" '{promoted:$p}')" \
+        fail 409 "Já há $nadd times promovidos: desfaça promoções antes de baixar as vagas para $nslots" "slots_below_promoted"
+    fi
+    # apply: nome/local/quando/chip — o do pedido › o do estágio › o padrão do motor no catálogo. Campo ENVIADO vazio
+    # APAGA (nome volta ao padrão; local/quando ficam vazios): antes o "" caía no valor gravado e não havia como limpar
     jq -c --slurpfile c "$CL_CATALOG" --slurpfile st "$W/st.json" --slurpfile cfg "$W/cfg.json" --arg a "$alg" --arg who "$SESSION_LOGIN" \
         --argjson now "$EPOCHSECONDS" '
-      def nz: if . == "" then null else . end;
+      def nz: if . == null then null else (tostring | gsub("^\\s+|\\s+$"; "")) | if . == "" then null else . end end;
       (first($c[0].engines[] | select(.id == $a)) // {}) as $E
-      | {config: $cfg[0], applied_at: $now, applied_by: $who,
-         name: ((.name | nz) // $st[0].name // $E.defaults.name // $st[0].id),
-         venue: ((.venue | nz) // $st[0].venue // $E.defaults.venue // ""),
-         when: ((.when | nz) // $st[0].when // $E.defaults.when // ""),
-         chip: ((.chip | nz) // $st[0].chip // $E.defaults.chip // null),
+      | . as $b
+      | def pick($k; $dft): if ($b | has($k)) then (($b[$k] | nz) // $dft) else ($st[0][$k] // $dft) end;
+        {config: $cfg[0], applied_at: $now, applied_by: $who,
+         name: pick("name"; ($E.defaults.name // $st[0].id)),
+         venue: pick("venue"; ($E.defaults.venue // "")),
+         when: pick("when"; ($E.defaults.when // "")),
+         chip: pick("chip"; ($E.defaults.chip // null)),
          next_stage: ($st[0].next_stage // $E.next_stage // null)}
       | with_entries(select(.value != null))' "$BF" > "$W/extra.json"
     _compose "$W/st.json" "$W/out.json" "$W/extra.json" > "$W/new.json" || fail 500 "Falha ao compor o estágio" "write_fail"

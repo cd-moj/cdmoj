@@ -134,6 +134,10 @@ ck "nada do virtual em contests/v1/users/"    '[[ ! -e "$C/users/ana" && ! -e "$
 echo "== moderação + módulo =="
 call adm /contest/admin/virtual GET contest=v1
 ck "painel: elegível, checklist ok, 2 virtuais" '[[ "$(jq -r .eligible <<<"$BODY")" == true && "$(jq -r "[.checks[].ok]|all" <<<"$BODY")" == true && "$(jq -r ".virtuals|length" <<<"$BODY")" == 2 ]]'
+cp "$C/conf" "$C/conf.bak"; sed -i 's/^PROBS=.*/PROBS=()/' "$C/conf"
+call adm /contest/admin/virtual GET contest=v1
+ck "sem problema: a checklist DIZ (antes vinha toda verde)" '[[ "$(jq -r .eligible <<<"$BODY")" == false && "$(jq -r ".checks[] | select(.id==\"no_problems\") | .ok" <<<"$BODY")" == false ]]'
+mv -f "$C/conf.bak" "$C/conf"
 call adm /contest/admin/virtual POST contest=v1 '{"action":"remove","login":"beto"}'
 call - /treino/virtual/board GET contest=v1;  ck "removido some do board" '[[ "$(jq -r "[.virtuals[].login]|join(\",\")" <<<"$BODY")" == ana ]]'
 ck "…e foi auditado"                          'grep -q "virtual-remove" "$C/var/admin-audit.log" 2>/dev/null || grep -rq "virtual-remove" "$C" 2>/dev/null'

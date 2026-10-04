@@ -84,6 +84,16 @@ ck(){ if jq -e "$1" "$OUT" >/dev/null 2>&1; then PASS=$((PASS+1)); else FAIL=$((
 via(){ jq -r --arg l "$1" '.classified[] | select(.login==$l) | .via' "$OUT"; }
 
 ck '.total == 10' "total de classificados = 10 (veio $(jq -r .total "$OUT"))"
+ck '[.warnings[]? | select(.code == "sede_missing" or .code == "supersede_missing")] | length == 0' "config com sedes que existem: sem aviso de sede ausente"
+# região que NÃO existe no regions.json: erro de config (rc 2), nunca classificação vazia calada (auditoria, 03/10/2026)
+jq '.region = "Brasl"' "$FIX/cfg.json" > "$FIX/cfg-bad.json"
+bash "$ROOT/score/classify-br.sh" cb "$FIX/cfg-bad.json" "$FIX/out-bad.json" 2>"$FIX/err-bad"; rcb=$?
+[[ "$rcb" == 2 ]] && grep -q 'Brasl' "$FIX/err-bad" && PASS=$((PASS+1)) || { FAIL=$((FAIL+1)); echo "FALHOU: região inexistente devia dar rc 2 (deu $rcb)"; }
+# sede/supersede com vaga que não existe na árvore: aviso (a vaga não vai a ninguém)
+jq '.sedes["XX, Lugar Nenhum"] = 1 | .supersedes["Supersede Fantasma"] = 1' "$FIX/cfg.json" > "$FIX/cfg-miss.json"
+bash "$ROOT/score/classify-br.sh" cb "$FIX/cfg-miss.json" "$FIX/out-miss.json" 2>/dev/null
+jq -e '([.warnings[] | select(.code == "sede_missing") | .data.sites[]] == ["XX, Lugar Nenhum"]) and ([.warnings[] | select(.code == "supersede_missing") | .data.sites[]] == ["Supersede Fantasma"])' \
+  "$FIX/out-miss.json" >/dev/null 2>&1 && PASS=$((PASS+1)) || { FAIL=$((FAIL+1)); echo "FALHOU: aviso de sede/supersede inexistente"; }
 [[ "$(via teamsp01)" == regra1 ]] && ok=1 || ok=0; (( ok )) && PASS=$((PASS+1)) || { FAIL=$((FAIL+1)); echo "FALHOU sp01 regra1"; }
 [[ "$(via teamsp02)" == regra1 ]] && PASS=$((PASS+1)) || { FAIL=$((FAIL+1)); echo "FALHOU sp02 regra1"; }
 [[ "$(via teamrj01)" == regra1 ]] && PASS=$((PASS+1)) || { FAIL=$((FAIL+1)); echo "FALHOU rj01 regra1 (cap USP devia pular sp03)"; }

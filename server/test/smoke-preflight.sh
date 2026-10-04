@@ -175,6 +175,12 @@ check "detalhe diz 'só visíveis'"        '[[ "$(det docs)" == *"só visíveis"
 printf '{"published":["times.pt"]}' > "$C/docs/config.json"; run
 check "publicado => ok"                  '[[ "$(lvl docs)" == ok ]]'
 
+echo "== classificação (destino da Central sem checagem até 03/10/2026) =="
+check "módulo ligado sem estágio => warn" '[[ "$(lvl classificacao)" == warn ]]'
+printf '{"version":1,"stages":[{"id":"final-br","status":"published"},{"id":"pda","status":"draft"}]}' > "$C/classification.json"; run
+check "1 de 2 publicado com a prova no ar => ok" '[[ "$(lvl classificacao)" == ok && "$(det classificacao)" == *"1 publicado"* ]]'
+rm -f "$C/classification.json"
+
 echo "== prorrogação × freeze =="
 printf '[{"regex":"^teambrspso","end":%s,"reason":"queda de energia"}]' "$((NOW+7200))" > "$C/time-overrides.json"; run
 check "prorrogação ativa => warn"          '[[ "$(lvl tov)" == warn ]]'

@@ -111,6 +111,9 @@ export function makeDocsTab(CONTEST, opts = {}) {
         if (d) {
           if (d.published) {
             line.append(el('button', { class: 'btn ghost', onclick: () => publish(t.id, lang, false) }, T('despublicar', 'unpublish', 'despublicar')));
+          } else if (!d.uploaded && !d.pdf_bytes) {
+            // só o HTML saiu (a conversão p/ PDF falhou): o link publicado é o do PDF — a API recusa publicar assim
+            line.append(el('span', { class: 'small muted' }, T('sem PDF — gere de novo ou envie um PDF para publicar', 'no PDF — generate again or upload a PDF to publish', 'sin PDF — genera de nuevo o sube un PDF para publicar')));
           } else {
             const chk = el('input', { type: 'checkbox', id: `news-${t.id}-${lang}` });
             line.append(el('label', { class: 'small row', style: 'gap:.25rem' }, chk, T('+ notícia', '+ news', '+ noticia')),
@@ -149,7 +152,12 @@ export function makeDocsTab(CONTEST, opts = {}) {
       el('button', { class: 'btn ghost', title: T('subir o PDF pronto deste documento (vence o gerado)', 'upload the finished PDF for this document (wins over the generated one)', 'sube el PDF terminado de este documento (gana al generado)'),
         onclick: () => inp.click() }, has ? T('trocar PDF', 'replace PDF', 'reemplazar PDF') : T('subir PDF', 'upload PDF', 'subir PDF')));
     if (has) box.append(el('button', { class: 'btn ghost', onclick: async () => {
-      if (!confirm(T('Voltar ao PDF gerado pelo MOJ?', 'Go back to the MOJ-generated PDF?', '¿Volver al PDF generado por MOJ?'))) return;
+      const d = (DATA.docs || []).find(x => x.type === type && x.lang === lang) || {};
+      const q = d.pdf_bytes ? T('Voltar ao PDF gerado pelo MOJ?', 'Go back to the MOJ-generated PDF?', '¿Volver al PDF generado por MOJ?')
+        : T('Não há PDF gerado deste documento: remover o enviado deixa o documento sem PDF. Continuar?',
+            'There is no generated PDF for this document: removing the uploaded one leaves the document without a PDF. Continue?',
+            'No hay PDF generado de este documento: quitar el subido deja el documento sin PDF. ¿Continuar?');
+      if (!confirm(q)) return;
       try {
         await api('/contest/admin/docs?contest=' + enc(CONTEST), { action: 'upload', type, lang, remove_upload: true });
         setMsg(T('✓ voltou ao gerado', '✓ back to the generated one', '✓ volvió al generado')); await load();
@@ -162,17 +170,31 @@ export function makeDocsTab(CONTEST, opts = {}) {
     setMsg(T('Gerando… (converter PDF pode levar alguns segundos)', 'Generating… (PDF conversion may take a few seconds)', 'Generando… (la conversión a PDF puede tardar unos segundos)'));
     try {
       const j = await api('/contest/admin/docs?contest=' + enc(CONTEST), { action: 'generate', types, langs });
+      // falha da conversão p/ PDF (reason "pdf") diz qual: o PDF de antes, se havia, continua o que os times baixam
+      const fails = (j.failed || []).map(f => `${f.type}.${f.lang}` + (f.reason === 'pdf'
+        ? T(' (a conversão p/ PDF falhou — segue o PDF anterior, se havia)', ' (PDF conversion failed — the previous PDF, if any, stays)', ' (falló la conversión a PDF — sigue el PDF anterior, si había)') : ''));
       setMsg(T(`✓ ${j.counts.ok} documento(s) gerado(s)`, `✓ ${j.counts.ok} document(s) generated`, `✓ ${j.counts.ok} documento(s) generado(s)`)
-        + (j.counts.fail ? T(` · ${j.counts.fail} falharam`, ` · ${j.counts.fail} failed`, ` · ${j.counts.fail} fallaron`) : ''), j.counts.fail ? 'error-box' : '');
+        + (j.counts.fail ? T(` · ${j.counts.fail} falharam: `, ` · ${j.counts.fail} failed: `, ` · ${j.counts.fail} fallaron: `) + fails.join(', ') : ''), j.counts.fail ? 'error-box' : '');
       await load();
     } catch (e) { setMsg(e.message || T('falha', 'failed', 'fallido'), 'error-box'); }
   }
   async function publish(type, lang, on, news) {
     try {
-      await api('/contest/admin/docs?contest=' + enc(CONTEST),
+      const j = await api('/contest/admin/docs?contest=' + enc(CONTEST),
         on ? { action: 'publish', type, lang, news: !!news } : { action: 'unpublish', type, lang });
-      setMsg(on ? T('✓ publicado (aparece na seção Prova e para a sede)', '✓ published (shown under Contest and to the site)', '✓ publicado (aparece en la sección Competencia y para la sede)')
-                : T('✓ despublicado', '✓ unpublished', '✓ despublicado'));
+      let m, cls = '';
+      if (!on) {
+        m = T('✓ despublicado', '✓ unpublished', '✓ despublicado');
+        if (j.news_removed) m += T(` — e ${j.news_removed} notícia(s) com o anexo removida(s)`, ` — and ${j.news_removed} news item(s) with the attachment removed`, ` — y ${j.news_removed} noticia(s) con el adjunto eliminada(s)`);
+      } else {
+        // caderno/times publicados ANTES do início só aparecem para a sede e os times no início (gate de fase)
+        m = j.available === 'at_start'
+          ? T('✓ publicado — aparece na seção Prova, para a sede e os times, no INÍCIO da prova', '✓ published — shown under Contest, to the site and the teams, when the contest STARTS', '✓ publicado — aparece en la sección Competencia, para la sede y los equipos, al INICIO de la competencia')
+          : T('✓ publicado (aparece na seção Prova e para a sede)', '✓ published (shown under Contest and to the site)', '✓ publicado (aparece en la sección Competencia y para la sede)');
+        if (news && !j.news) { m += T(' — mas a notícia NÃO foi criada', ' — but the news item was NOT created', ' — pero la noticia NO se creó'); cls = 'error-box'; }
+        else if (news) m += T(' + notícia com o PDF', ' + news item with the PDF', ' + noticia con el PDF');
+      }
+      setMsg(m, cls);
       await load();
     } catch (e) { setMsg(e.message || T('falha', 'failed', 'fallido'), 'error-box'); }
   }

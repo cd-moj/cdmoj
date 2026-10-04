@@ -22,7 +22,10 @@ regressão está no `smoke-classify-br.sh`, e o motor novo deu os mesmos 61 auto
 Quem disputa = quem ESTÁ no
 nó da região (`config.region`, padrão "Brasil") e a sede de cada time = a sede pela regra única de sedes
 (`lib/regions.sh`: a gravada vence, senão a regex mais funda; quem "parou no pai" fica sem sede). Até
-28/09/2026 eram a regex do nó da região e a 1ª folha pela regex, ignorando a sede gravada. Regras da 1ª
+28/09/2026 eram a regex do nó da região e a 1ª folha pela regex, ignorando a sede gravada. `config.region` que
+não é nó de 1º nível do regions.json = erro de config (rc 2, com os nós que existem); antes ninguém entrava e a
+classificação saía vazia, calada (03/10/2026). Sede ou supersede com vaga na config que não existe na árvore = aviso
+`sede_missing`/`supersede_missing` (a vaga não vai a ninguém). Regras da 1ª
 fase, aplicadas EM ORDEM (config define vagas; tudo editável no painel):
 
 - **regra 0** (elegibilidade): Total ≥ 3; o CAMPEÃO da sede (1º dela no ranking) é
@@ -58,7 +61,8 @@ escolhe quem sobe.
   linhas; se passar, avisa (`ranking_truncated`). Nada é automático (`classified: []`).
 - No painel, cada linha do placar tem "⬆ Promover". O campo do motivo (OPCIONAL neste motor) abre na própria linha.
   Cada promoção é um override `add` (via `manual`); ↩ desfaz.
-- Mais promoções que `slots` = 409 `slots_full`: o botão some e o painel manda aumentar o número.
+- Mais promoções que `slots` = 409 `slots_full`: o botão some e o painel manda aumentar o número. Baixar `slots` abaixo
+  dos já promovidos = 409 `slots_below_promoted` (desfaça promoções antes).
 - "🔄 Atualizar placar" re-aplica (re-lê o placar) e mantém as promoções.
 - O catálogo marca o motor com `reason_optional` e `manual_slots`. Fora do `add`, o motivo segue obrigatório.
 
@@ -216,8 +220,12 @@ Vale para TODO estágio. O cálculo do motor e as decisões manuais ficam SEPARA
   tabela oficial. Os outros motores usam um editor JSON semeado com a regra oficial do motor (`seed` do catálogo). O
   servidor valida.
 - 👁 **Prever** mostra os avisos do motor primeiro, depois a relação por via, já com os overrides do estágio.
-- ✔ **Aplicar** grava o estágio. Num estágio já PUBLICADO, aplicar muda o placar na hora, e o painel avisa. Estágio de
-  outro motor pede confirmação (409 `stage_algorithm_mismatch` → `force`).
+- ✔ **Aplicar** grava o estágio. Num estágio já PUBLICADO, aplicar muda o placar na hora, e o painel pede confirmação —
+  como em toda mudança num publicado (excluir, retirar, promover, desfazer, "🔄 Atualizar placar"). Estágio de
+  outro motor pede confirmação (409 `stage_algorithm_mismatch` → `force`). Nome, local e quando ENVIADOS vazios apagam
+  (o nome volta ao padrão do motor); o cabeçalho do estágio mostra a próxima fase da cadeia (`next_stage` do catálogo).
+- A **Central** tem o item `classificacao` (módulo ligado): sem estágio = aviso; estágio em rascunho depois do fim da
+  prova = aviso; senão ok.
 - 📢 **Publicar** exige o id do contest digitado. 🗑 apaga só rascunho.
 - **Placar congelado** (03/10/2026): o motor lê o placar COMPLETO e o estágio publicado aparece a todos (chip no
   placar, rota pública). Por isso, com freeze, publicar — ou recalcular/mexer num estágio já publicado — é recusado

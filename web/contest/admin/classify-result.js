@@ -48,6 +48,10 @@ export const WARN_T = () => ({
     'N_WF menor que el número de regiones: solo las primeras regiones tienen campeón clasificado.'),
   award_tie: T('Empate atravessa a faixa de medalha (a medalha vai a mais times):', 'A tie crosses a medal band (more teams get the medal):',
     'Un empate atraviesa la franja de medalla (la medalla va a más equipos):'),
+  sede_missing: T('Sedes com vaga na config que não existem no regions.json (a vaga não vai a ninguém):', 'Sites with slots in the config that do not exist in regions.json (the slot goes to nobody):',
+    'Sedes con cupos en la config que no existen en regions.json (el cupo no va a nadie):'),
+  supersede_missing: T('Supersedes com vaga na config que não existem sob a região no regions.json (a vaga não vai a ninguém):', 'Super-sites with slots in the config that do not exist under the region in regions.json (the slot goes to nobody):',
+    'Supersedes con cupos en la config que no existen bajo la región en regions.json (el cupo no va a nadie):'),
   school_key_collision: T('A mesma chave de escola com nomes completos diferentes — confira se são a mesma instituição:',
     'The same school key with different full names — check that they are the same institution:',
     'La misma clave de escuela con nombres completos distintos — revisa si son la misma institución:'),
@@ -60,7 +64,7 @@ function fmtData(d, L) {
     place: T('posição', 'place', 'posición'), last: T('entrou', 'in', 'entró'), next: T('ficou de fora', 'left out', 'quedó fuera'),
     overflow: T('a mais', 'over', 'de más'), allocated: T('alocadas', 'allocated', 'asignados'), medal: T('medalha', 'medal', 'medalla'),
     teams: T('times', 'teams', 'equipos'), places: T('posições', 'places', 'posiciones'), countries: T('países', 'countries', 'países'),
-    node: T('nó', 'node', 'nodo'), regions: T('regiões', 'regions', 'regiones') });
+    node: T('nó', 'node', 'nodo'), regions: T('regiões', 'regions', 'regiones'), sites: T('sedes', 'sites', 'sedes') });
   const k = K();
   return Object.entries(d || {}).map(([key, v]) => {
     let val = Array.isArray(v) ? v.map((x) => (typeof x === 'object' ? JSON.stringify(x) : String(x))).join(', ') : (typeof v === 'object' ? JSON.stringify(v) : String(v));
@@ -175,7 +179,8 @@ export function resultDetails(p, labels) {
     box.append(el('h4', { style: 'margin:.7rem 0 .2rem' }, T('Lista de espera', 'Waiting list', 'Lista de espera') + ' — ' + p.waitlist.length),
       p.waitlist.length
         ? table([['#', 1], [T('Faixa', 'Tier', 'Franja')], [T('Time', 'Team', 'Equipo')], [T('Escola', 'School', 'Escuela')], [T('Posição', 'Place', 'Posición'), 1]],
-          p.waitlist.map((w) => [[n2(w.pos), 1], [w.tier], [(w.team || w.login) + ' · ' + w.login], [w.univ || w.school || ''], [n2(w.place), 1]]))
+          p.waitlist.map((w) => [[n2(w.pos), 1], [(p.waitlist_tiers && p.waitlist_tiers[w.tier]) ? pickLabel(p.waitlist_tiers[w.tier]) : w.tier],
+            [(w.team || w.login) + ' · ' + w.login], [w.univ || w.school || ''], [n2(w.place), 1]]))
         : el('p', { class: 'small muted' }, T('Vazia.', 'Empty.', 'Vacía.')));
   }
   return box.children.length ? box : null;

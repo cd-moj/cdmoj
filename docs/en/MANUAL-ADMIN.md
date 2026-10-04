@@ -1,4 +1,4 @@
-<!-- i18n-source: MANUAL-ADMIN.md blob:6b0682e893595e22d7ced47d71bbf07d9e362d16 -->
+<!-- i18n-source: MANUAL-ADMIN.md blob:ca2b8e199394b8b6015de3ff84a26bead6e49571 -->
 # MOJ: Organizer manual (the contest .admin panel)
 
 > **Translation note.** This manual is a translation of the Portuguese original. The command-line tools (`moj`, `moj-contest`, `moj-comp`) print their messages in Portuguese, and the command examples below are identical to the original.
@@ -121,7 +121,7 @@ contest offers it). If the problem has no title in that language, MOJ uses the P
 |---|---|
 | **Rounds** (`rodadas`) | **Warm-up and official contest in the SAME contest**: plans each round (window + problems), shows the checklist and promotes. The promotion archives all that happened. Section 6 explains it. |
 | **Documents** (`documentos`) | Generates the contest documents, in PDF and HTML, in the three languages (pt/en/es): **Judging environment** (info sheet), **problem set** (cover + statements), **time limits sheet** and the **editorial** (it is published only after the END of the contest). Section 5 explains it. |
-| **Balloons** (`baloes`) | The color of each letter. This is the color on the balloon sheet. The default covers A–O. With more than 15 problems, set the other colors (if not, they are gray). These are the colors of the live round. To give its own colors to another round, use Event › Rounds. |
+| **Balloons** (`baloes`) | The color of each letter. This is the color on the balloon sheet. The default covers A–O. With more than 15 problems, set the other colors (if not, they are gray). These are the colors of the live round. To give its own colors to another round, use Event › Rounds. When you change a color, the balloon tasks that are not printed yet get the new color; the screen tells how many sheets were already printed with the old color. |
 | **Qualification** (`classificacao`) | Who qualifies for the next stages. Each **stage** (Brazilian Final, PDA, World Finals) has its own engine, which you select in the panel: preview, draft, publication (one 🎓 chip per stage on the scoreboard) and the **manual override** — exclude from the computation, withdraw without recomputing, promote by hand, always with a reason. For smaller contests (a selection contest), the **Manual** engine: you set how many teams advance and what the next stage is, and you click on the scoreboard to promote teams (reason optional). `docs/CLASSIFICACAO.md` explains it. |
 | **Teams** (`sedes` or `telao`) | The identity of each account on the scoreboard: team name, country/flag, site, university, crest and photo. Load from CSV and "materialize matches". |
 | **Cohorts** (`coortes`) | **Guest** teams (unofficial, "CCL") separated from the official teams: who appears on the public scoreboard, who sees whom, and the **🔓 Release results** of the post-ceremony. Section 8 explains it. |
@@ -360,8 +360,11 @@ documents, each in **PDF and HTML**, in **Portuguese, English and Spanish**:
 4. **Generate** (the button of each line, or *⚙️ Generate all (pt+en+es)*), **or upload a finished
    PDF** (the *upload PDF* button of the line). The uploaded PDF is a complete document. It
    overrides the generated one in all that MOJ serves, and you can publish it without generating.
-   *back to generated* deletes only the uploaded file. The conversion to PDF takes some seconds.
-   The problem set takes the longest, because it joins one PDF per problem.
+   *back to generated* deletes only the uploaded file (on a published document with no generated
+   PDF, MOJ refuses: generate first or unpublish). The conversion to PDF takes some seconds.
+   The problem set takes the longest, because it joins one PDF per problem. If the conversion to
+   PDF fails, the message tells which document failed, and the previous PDF (if there was one)
+   stays the file that all persons download.
 5. **Check**: each line has **PDF**, **HTML** and **open**. Review before you publish.
    **Something wrong in the generated PDF**, such as too much or too little space between the
    elements, or a large image, caused by the Markdown of the statement? Each generated document
@@ -371,7 +374,7 @@ documents, each in **PDF and HTML**, in **Portuguese, English and Spanish**:
    problem set has the cover as an editable page, followed by the statements. If the cover is an
    uploaded PDF, or a problem has its own PDF statement, the `.odt` marks the place, and you join
    the PDF when you export. Only the admin and the chief judge can download the `.odt`.
-6. **Publish**. Publishing does two things: the document appears in the **Contest** section of
+6. **Publish** (only a document with a PDF, generated or uploaded). Publishing does two things: the document appears in the **Contest** section of
    the contest page and in **Documents**. Who sees what:
    - **Judging environment**: published = visible to all roles (it is logistics).
    - **Problem set and time limits sheet**: before the START of the contest, only `.admin`,
@@ -381,9 +384,10 @@ documents, each in **PDF and HTML**, in **Portuguese, English and Spanish**:
      documents is refused before the start, because the news item attaches the PDF).
    - **Editorial**: it is published only after the end, and only the judges can download it
      before the contest ends for ALL sites.
-   If you check **+ news**, MOJ also creates a news item with the PDF attached.
-   **Unpublish** undoes this (the link disappears; the news item, if MOJ created one, stays:
-   delete it in the news tab if necessary).
+   If you check **+ news**, MOJ also creates a news item with the PDF attached (the PDF that all
+   persons download: the uploaded one, if there is one).
+   **Unpublish** undoes this: the link disappears, and the news item with the attachment of that
+   document disappears too.
 
 **Did you generate again? You do not need to publish again.** The published link points to the
 current document, so a new generation delivers the new version to the next person who downloads

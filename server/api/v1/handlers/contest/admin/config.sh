@@ -44,11 +44,18 @@ fi
 # Toda escrita/remoção derruba o cache de /contest/balloons (o frescor por -nt não vê arquivo
 # apagado; a lista de presença em resp_cache_fresh também cobre, mas o explícito é grátis).
 # (escritor único: cc_balloons_write/clear em lib/contest-create.sh — a troca de rodada usa o mesmo)
+# Cor mudou ⇒ a tarefa de balão ainda NÃO impressa passa à cor nova; a já impressa é contada p/ a tela avisar.
+recolored=0; printed_old=0
 if jq -e 'has("colors")' >/dev/null 2>&1 <<<"$body"; then
   c="$(jq -c '.colors' <<<"$body")"
-  if [[ "$c" == null ]]; then cc_balloons_clear "$contest"
+  wrote=false
+  if [[ "$c" == null ]]; then cc_balloons_clear "$contest"; wrote=true
   elif [[ "$(jq 'if type=="object" then length else 0 end' <<<"$c" 2>/dev/null)" -gt 0 ]]; then
-    cc_balloons_write "$contest" "$c" || fail 500 "Falha ao gravar as cores" "colors_write"
+    cc_balloons_write "$contest" "$c" || fail 500 "Falha ao gravar as cores" "colors_write"; wrote=true
+  fi
+  if [[ "$wrote" == true ]]; then
+    source "$_LIBDIR/print.sh"
+    read -r recolored printed_old <<<"$(pr_recolor_pending_balloons "$contest")"
   fi
 fi
 if jq -e 'has("regions")' >/dev/null 2>&1 <<<"$body"; then
@@ -81,4 +88,4 @@ if jq -e 'has("basic")' >/dev/null 2>&1 <<<"$body"; then
   if [[ "$(jq -r '.basic.login_enabled' <<<"$body")" == "false" ]]; then cc_set_conf_var "$contest" LOGIN_ENABLED n; else cc_del_conf_var "$contest" LOGIN_ENABLED; fi
 fi
 audit_log_to "$contest" config "$(jq -cr 'keys|join(",")' <<<"$body" 2>/dev/null | head -c 200)"
-ok_json '{saved:true}'
+ok_json '{saved:true, balloons_recolored:$r, balloons_printed_old:$o}' --argjson r "${recolored:-0}" --argjson o "${printed_old:-0}"

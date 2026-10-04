@@ -17,6 +17,8 @@ const CHECKS = () => ({
   window: [T('Início e fim definidos', 'Start and end set', 'Inicio y fin definidos'), T('sem janela não há duração para refazer', 'without a window there is no duration to redo', 'sin ventana no hay duración para rehacer')],
   running: [T('Prova encerrada para todas as sedes', 'Contest over for every site', 'Competencia terminada para todas las sedes'), T('abre sozinho quando a última prorrogação acabar', 'opens by itself when the last extension ends', 'se abre solo cuando termina la última prórroga')],
   frozen: [T('Placar final descongelado', 'Final scoreboard unfrozen', 'Marcador final descongelado'), T('encerre o evento (Central) para publicar o resultado final', 'finish the event (Home) to publish the final result', 'termina el evento (Central) para publicar el resultado final')],
+  no_problems: [T('A prova tem problemas', 'The contest has problems', 'La competencia tiene problemas'), T('sem problema não há o que refazer', 'without problems there is nothing to redo', 'sin problemas no hay nada que rehacer')],
+  problem_invalid: [T('Ids de problema válidos', 'Valid problem ids', 'Ids de problema válidos'), T('algum problema da prova tem id inválido (confira em Prova › Problemas)', 'some contest problem has an invalid id (check Contest › Problems)', 'algún problema de la competencia tiene un id inválido (revisa Competencia › Problemas)')],
   problems_not_public: [T('Todos os problemas públicos no treino', 'All problems public in training', 'Todos los problemas públicos en el entrenamiento'), T('problema(s) ainda não público(s)', 'problem(s) not public yet', 'problema(s) todavía no público(s)')],
 });
 

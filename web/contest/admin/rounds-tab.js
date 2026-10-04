@@ -11,6 +11,7 @@ import { makeBankPanel, makeColorsEditor, toLocalDT, dtToEpoch } from '/shared/c
 import { T } from '/shared/i18n.js';
 import { fmtEpoch as fmt, downloadAuthed } from '/shared/admin-ui.js';
 import { makeTitleChips } from '/shared/problem-titles.js';
+import { recolorNote } from './balloons-tab.js';
 
 const enc = encodeURIComponent;
 // funções, não const de módulo: T() no topo congela o idioma ANTES do setLang(LOCALE)
@@ -84,8 +85,9 @@ export function makeRoundsTab(CONTEST, opts = {}) {
                  `✓ “${j.from}” archivada (${j.archived.submissions} envíos de ${j.archived.users} cuentas) — “${j.to}” está activa`));
         await load();
       } catch (e) {
-        const bl = (e && e.body && e.body.blockers) || [];
-        setMsg((e.message || T('falha', 'failed', 'fallido')) + (bl.length ? ': ' + bl.map(b => b.code).join(', ') : ''), 'error-box');
+        // os bloqueadores vêm DENTRO do error (ApiError.data) — e.body nunca existiu, e a mensagem saía sem eles
+        const bl = (e && e.data && e.data.blockers) || [];
+        setMsg((e.message || T('falha', 'failed', 'fallido')) + (bl.length ? ': ' + bl.map((b) => T(b.detail || b.code, b.detail_en || null, b.detail_es || null)).join(' · ') : ''), 'error-box');
         await load();
       }
     } }, T('🚀 Promover agora', '🚀 Promote now', '🚀 Promover ahora'));
@@ -126,8 +128,8 @@ export function makeRoundsTab(CONTEST, opts = {}) {
                  `✓ “${j.restored}” is live again (${j.submissions} submissions) — “${j.pending}” is planned again`,
                  `✓ “${j.restored}” vuelve a estar en vigor (${j.submissions} envíos) — “${j.pending}” vuelve a planificada`));
       } catch (e) {
-        const bl = (e && e.body && e.body.blockers) || [];
-        setMsg((e.message || T('falha', 'failed', 'fallido')) + (bl.length ? ': ' + bl.map((b) => b.code).join(', ') : ''), 'error-box');
+        const bl = (e && e.data && e.data.blockers) || [];
+        setMsg((e.message || T('falha', 'failed', 'fallido')) + (bl.length ? ': ' + bl.map((b) => T(b.detail || b.code, b.detail_en || null, b.detail_es || null)).join(' · ') : ''), 'error-box');
       }
       await load();
     } }, T('↩ Desfazer a última promoção', '↩ Undo the last promotion', '↩ Deshacer la última promoción')));
@@ -215,7 +217,9 @@ export function makeRoundsTab(CONTEST, opts = {}) {
     const saveC = el('button', { class: 'btn', onclick: () => {
       const v = ced.getValue();
       if (!Object.keys(v).length) { cmsg.textContent = T('nada mudou', 'nothing changed', 'nada cambió'); return; }
-      act({ action: 'set', slug: r.slug, colors: v }, T('✓ cores da rodada salvas', '✓ round colours saved', '✓ colores de la ronda guardados'));
+      act({ action: 'set', slug: r.slug, colors: v }, T('✓ cores da rodada salvas', '✓ round colours saved', '✓ colores de la ronda guardados'))
+        .then(j => { const m = recolorNote(j); if (m) setMsg(T('✓ cores da rodada salvas', '✓ round colours saved', '✓ colores de la ronda guardados') + m, j.balloons_printed_old ? 'error-box' : ''); })
+        .catch(() => {});
     } }, T('salvar cores', 'save colours', 'guardar colores'));
     const inherit = (r.state === 'active') ? null : el('button', { class: 'btn ghost', onclick: () => {
       if (!confirm(T('Esta rodada passa a herdar as cores que estiverem em vigor quando for promovida. Continuar?',

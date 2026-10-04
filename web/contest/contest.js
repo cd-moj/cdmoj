@@ -408,7 +408,15 @@ const DOC_NAME = {
 };
 
 function renderResources(items) {
-  if (!Array.isArray(items) || !items.length) { hide('resourcesSection'); return; }
+  // a lista de recursos e o link das rodadas encerradas (renderRoundsLink) chegam por duas buscas em PARALELO: o
+  // `innerHTML = ''`/hide daqui apagava o link quando os recursos chegavam depois — o único caminho do time até a
+  // rodada publicada sumia de vez em quando (auditoria do painel, 03/10/2026). O link volta a cada render.
+  if (!Array.isArray(items) || !items.length) {
+    const ul0 = document.getElementById('resourcesList'); if (ul0) ul0.innerHTML = '';
+    document.querySelectorAll('#resourcesSection .doc-lines').forEach((n) => n.remove());
+    if (ARCHIVED_ROUNDS && ARCHIVED_ROUNDS.length) appendRoundsLink(); else hide('resourcesSection');
+    return;
+  }
   show('resourcesSection');
   const ul = document.getElementById('resourcesList'); ul.innerHTML = '';
   // renderResources pode rodar de novo (recarga): tira as linhas de documento da rodada anterior
@@ -448,6 +456,7 @@ function renderResources(items) {
       ul.append(el('li', { style: 'margin:.3rem 0' }, el('a', { href: url, target: '_blank' }, label)));
     }
   });
+  appendRoundsLink();   // o link das rodadas encerradas volta depois de refazer a lista
 }
 
 // ---- notificações ao usuário: novidades (notícias) + clarifications respondidas ----------
@@ -982,12 +991,16 @@ function renderRoundBanner() {
         'Esta ronda sirve para probar el entorno y tu cuenta: su marcador NO es el de la competencia.')));
 }
 
-function renderRoundsLink(archived) {
+let ARCHIVED_ROUNDS = null;
+function renderRoundsLink(archived) { ARCHIVED_ROUNDS = archived || []; appendRoundsLink(); }
+function appendRoundsLink() {
+  const archived = ARCHIVED_ROUNDS;
   if (!archived || !archived.length) return;
   const ul = document.getElementById('resourcesList');
   if (!ul) return;
   show('resourcesSection');
-  ul.append(el('li', { style: 'margin:.3rem 0' },
+  const old = document.getElementById('roundsLinkLi'); if (old) old.remove();
+  ul.append(el('li', { id: 'roundsLinkLi', style: 'margin:.3rem 0' },
     el('a', { href: '/contest/rounds/?c=' + encodeURIComponent(CONTEST), target: '_blank' },
       '🔁 ' + T('Rodadas encerradas (placar e submissões do aquecimento)',
                 'Finished rounds (warm-up scoreboard and submissions)',

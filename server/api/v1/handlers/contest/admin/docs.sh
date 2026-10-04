@@ -159,6 +159,12 @@ case "$action" in
       f="$(doc_cover_pdf "$contest" "$lang")"; what="cover"; _rm_flag='.remove == true'
     fi
     if jq -e "$_rm_flag" "$bodyf" >/dev/null 2>&1; then
+      # "voltar ao gerado" num documento PUBLICADO sem PDF gerado deixaria o link dos times em 404 com a tela
+      # dizendo "publicado" (auditoria do painel, 03/10/2026): gere antes ou despublique.
+      if [[ "$action" == upload && -s "$f" && ! -s "$(doc_file "$contest" "$t" "$lang" pdf)" ]] \
+         && jq -e --arg k "$t.$lang" '((.published // []) | index($k)) != null' <<<"$(doc_conf_get "$contest")" >/dev/null 2>&1; then
+        fail 409 "Este documento está publicado e não há PDF gerado: gere o documento antes de voltar ao gerado, ou despublique" "published_no_generated"
+      fi
       rm -f "$f"; audit_log_to "$contest" docs-cover "$what lang=$lang remove"; ok_json '{removed:true}'; exit 0
     fi
     jq -r '.pdf_b64 // ""' "$bodyf" | base64 -d > "$f.tmp" 2>/dev/null
@@ -184,11 +190,15 @@ case "$action" in
       case "$t" in info-sheet|contest|times|editorial) ;; *) continue;; esac
       for l in "${langs[@]}"; do
         doc_lang_ok "$l" || continue
-        if e="$(doc_build "$contest" "$t" "$l")" && [[ -n "$e" ]]; then
+        # rc 3 = o HTML saiu mas a conversão p/ PDF FALHOU: é falha (o PDF anterior, se havia, continua o servido e o
+        # índice guarda a data DELE — antes a tela dizia "gerado" agora com o PDF velho; auditoria do painel, 03/10/2026)
+        e="$(doc_build "$contest" "$t" "$l")"; rc=$?
+        if (( rc == 0 )) && [[ -n "$e" ]]; then
           doc_index_upsert "$contest" "$e"
           done_list="$(jq -c --argjson d "$done_list" --argjson e "$e" '$d + [$e]' <<<'null')"
         else
-          failed="$(jq -c --argjson f "$failed" --arg t "$t" --arg l "$l" '$f + [{type:$t, lang:$l}]' <<<'null')"
+          why=build; (( rc == 3 )) && why=pdf
+          failed="$(jq -c --argjson f "$failed" --arg t "$t" --arg l "$l" --arg w "$why" '$f + [{type:$t, lang:$l, reason:$w}]' <<<'null')"
         fi
       done
     done
@@ -204,9 +214,10 @@ case "$action" in
     key="$t.$l"
     cfg="$(doc_conf_get "$contest")"
     if [[ "$action" == publish ]]; then
-      # PDF ENVIADO conta como documento pronto — publicar sem gerar é o caso de uso dele
-      [[ -n "$(doc_pdf_served "$contest" "$t" "$l")" || -s "$(doc_file "$contest" "$t" "$l" html)" ]] \
-        || fail 409 "Gere (ou envie) o documento antes de publicar" "not_generated"
+      # PDF ENVIADO conta como documento pronto — publicar sem gerar é o caso de uso dele. Tem de haver PDF: o link
+      # publicado (seção Prova, notícia) é o do PDF, e só com o HTML ele dava 404 aos times (auditoria, 03/10/2026)
+      [[ -n "$(doc_pdf_served "$contest" "$t" "$l")" ]] \
+        || fail 409 "Gere (ou envie) o PDF do documento antes de publicar" "not_generated"
       source "$_DIR/lib/contest-gate.sh"
       # EDITORIAL é a solução da prova: só publica quando o contest terminou PARA TODOS
       # (inclusive prorrogações por sede — time-overrides.json).
@@ -218,7 +229,7 @@ case "$action" in
       if jq -e '.news == true' "$bodyf" >/dev/null 2>&1; then
         case "$t" in contest|times)
           [[ "$(contest_phase "$contest")" == before ]] \
-            && fail 409 "Antes do início, publique SEM notícia (a notícia anexa o PDF e os times a leem) — o documento já fica liberado para a sede" "news_before_start" ;;
+            && fail 409 "Antes do início, publique SEM notícia (a notícia anexa o PDF e os times a leem) — o documento aparece para a sede e os times no início da prova" "news_before_start" ;;
         esac
       fi
       doc_publish "$contest" "$t" "$l" || fail 500 "Falha ao publicar" "publish_fail"
@@ -230,25 +241,46 @@ case "$action" in
     cfg="$(doc_conf_get "$contest")"
     label="$(_doc_label "$t" "$l")"
 
-    # notícia com o PDF anexado (opcional) — reusa o formato de news.json/news-files
-    news_created=false
+    # notícia com o PDF anexado (opcional) — reusa o formato de news.json/news-files. O anexo é o PDF SERVIDO (o
+    # enviado vence o gerado, como no link); `doc` liga a notícia ao documento p/ o despublicar levá-la junto.
+    news_created=false; news_removed=0
+    nj="$CONTESTSDIR/$contest/news.json"
     if [[ "$action" == publish ]] && jq -e '.news == true' "$bodyf" >/dev/null 2>&1; then
-      pdf="$(doc_file "$contest" "$t" "$l" pdf)"
+      pdf="$(doc_pdf_served "$contest" "$t" "$l")"
       if [[ -s "$pdf" ]]; then
         nid="$(printf '%s%s%s' "$contest" "$EPOCHSECONDS" "$RANDOM" | md5sum | cut -c1-32)"
         nf="$CONTESTSDIR/$contest/news-files/$nid"; mkdir -p "$nf" 2>/dev/null
         fname="$t.$l.pdf"; cp -f "$pdf" "$nf/$fname"
-        nj="$CONTESTSDIR/$contest/news.json"; [[ -s "$nj" ]] || printf '[]' > "$nj"
-        jq -c --arg id "$nid" --arg ti "$label" --arg tx "$(_doc_t "$l" news_doc)" \
+        [[ -s "$nj" ]] || printf '[]' > "$nj"
+        jq -c --arg id "$nid" --arg ti "$label" --arg tx "$(_doc_t "$l" news_doc)" --arg k "$key" \
            --arg fn "$fname" --argjson sz "$(stat -c%s "$nf/$fname" 2>/dev/null || echo 0)" --argjson dt "$EPOCHSECONDS" \
-           '. + [{id:$id, title:$ti, text:$tx, date:$dt, file:{name:$fn, size:$sz}}]' "$nj" > "$nj.tmp" \
+           '. + [{id:$id, title:$ti, text:$tx, date:$dt, doc:$k, file:{name:$fn, size:$sz}}]' "$nj" > "$nj.tmp" \
           && mv -f "$nj.tmp" "$nj" && news_created=true
       fi
     fi
+    # DESPUBLICAR leva junto a notícia com o anexo: senão o PDF seguia baixável por ela (auditoria do painel,
+    # 03/10/2026). Notícia antiga, sem `doc`, casa pelo título + nome do anexo que o publish dá.
+    if [[ "$action" == unpublish && -s "$nj" ]]; then
+      mapfile -t rm_ids < <(jq -r --arg k "$key" --arg ti "$label" --arg fn "$t.$l.pdf" \
+        '.[] | select(.doc == $k or (.doc == null and .title == $ti and (.file.name // "") == $fn)) | .id' "$nj" 2>/dev/null)
+      if (( ${#rm_ids[@]} )); then
+        jq -c --arg k "$key" --arg ti "$label" --arg fn "$t.$l.pdf" \
+          'map(select((.doc == $k or (.doc == null and .title == $ti and (.file.name // "") == $fn)) | not))' "$nj" > "$nj.tmp" \
+          && mv -f "$nj.tmp" "$nj" && {
+            for i in "${rm_ids[@]}"; do [[ "$i" =~ ^[A-Za-z0-9]+$ ]] && rm -rf "$CONTESTSDIR/$contest/news-files/$i"; done
+            news_removed=${#rm_ids[@]}; }
+      fi
+    fi
+    # QUANDO o time vê: caderno/times publicados antes do início só aparecem no início (gate de fase do /contest/doc)
+    avail=now
+    if [[ "$action" == publish ]]; then
+      case "$t" in contest|times) [[ "$(contest_phase "$contest")" == before ]] && avail=at_start ;; esac
+    fi
     [[ "$action" == publish ]] && mod_enable "$contest" documentos
-    audit_log_to "$contest" "docs-$action" "type=$t lang=$l news=$news_created"
-    ok_json '{ok:true, published:($cfgp), news:$n}' \
-      --argjson cfgp "$(jq -c '.published // []' <<<"$cfg")" --argjson n "$news_created"
+    audit_log_to "$contest" "docs-$action" "type=$t lang=$l news=$news_created news_removed=$news_removed"
+    ok_json '{ok:true, published:($cfgp), news:$n, news_removed:$nr, available:$av}' \
+      --argjson cfgp "$(jq -c '.published // []' <<<"$cfg")" --argjson n "$news_created" \
+      --argjson nr "$news_removed" --arg av "$avail"
     ;;
   *) fail 400 "action inválida" "action_invalid";;
 esac

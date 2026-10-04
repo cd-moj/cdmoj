@@ -146,6 +146,7 @@ RD '{"action":"set","slug":"prova","colors":{"A":"AA0000","enableSonic":false}}'
 # o fluxo de verdade: a rodada no ar é o AQUECIMENTO (a janela dele aqui é degenerada, então vai direto ao conf)
 sed -i '/^ROUND_KIND=/d' "$C/conf"; printf 'ROUND_KIND=warmup\n' >> "$C/conf"
 mkdir -p "$C/docs"; printf '%%PDF-enviado' > "$C/docs/info-sheet.pt.uploaded.pdf"; printf '%%PDF-gerado' > "$C/docs/info-sheet.pt.pdf"
+printf '%%PDF-caderno-do-aquecimento' > "$C/docs/contest.pt.uploaded.pdf"; printf 'PNG' > "$C/docs/header-logo.png"
 sed -i '/^CONTEST_PRIORITY=/d' "$C/conf"; printf 'CONTEST_PRIORITY=prova\n' >> "$C/conf"   # o automático é só de PROVA
 AUTO_WARM_JUDGES=1 RD '{"action":"promote","to":"prova"}'
 ck "promoveu"                      '[[ "$(J .promoted)" == true ]]'
@@ -153,6 +154,9 @@ ck "promoveu"                      '[[ "$(J .promoted)" == true ]]'
 for _w in 1 2 3 4 5 6 7 8 9 10; do grep -q "warm-judges.*by=promote:" "$C/var/admin-audit.log" 2>/dev/null && break; sleep 0.5; done
 ck "promoção dispara o aquecimento (destacado, auditado by=promote:<login>)" 'grep -q "	promote:boss.admin	warm-judges	sent=0 by=promote:boss.admin" "$C/var/admin-audit.log"'
 ck "PDF ENVIADO (config à mão) volta após a promoção; o gerado fica só no arquivo" '[[ -f "$C/docs/info-sheet.pt.uploaded.pdf" && ! -f "$C/docs/info-sheet.pt.pdf" && -f "$C/rounds/oficial/docs/info-sheet.pt.pdf" ]]'
+# auditoria do painel (03/10/2026): o caderno ENVIADO é da rodada (os problemas mudam) — voltar fazia o do aquecimento
+# valer na prova (o enviado vence o gerado); o logo do cabeçalho é config e volta
+ck "caderno ENVIADO do aquecimento NÃO volta (fica no arquivo); o logo volta" '[[ ! -f "$C/docs/contest.pt.uploaded.pdf" && -f "$C/rounds/oficial/docs/contest.pt.uploaded.pdf" && -f "$C/docs/header-logo.png" ]]'
 ck "balloons.json = cores da rodada que entrou" '[[ "$(jq -r .A "$C/balloons.json")" == AA0000 ]]'
 ck "arquivo da rodada que saiu guardou as cores dela" '[[ "$(jq -r .A "$C/rounds/oficial/balloons.json")" == 0000FF ]]'
 call /contest/balloons GET '' cadm "$Q"
@@ -166,8 +170,11 @@ mkdir -p "$C/clarifications"; printf '{"id":"q1","answer":""}' > "$C/clarificati
 # TCP 2026 (03/10/2026): promover a partir da PROVA OFICIAL encerrada arquiva o resultado — vira aviso
 call /contest/admin/rounds GET '' cadm "$Q"
 ck "prova oficial encerrada no ar: bloqueador official_over, trilíngue" '[[ "$(J "[.promote_ready.blockers[] | select(.code==\"official_over\") | .detail_en, .detail_es] | map(select(length > 0)) | length")" == 2 && "$(J "$BLK_I18N")" == 0 ]]'
+# auditoria do painel (03/10/2026): a extra NÃO tem problemas — a do aquecimento seguiria no ar com "tudo pronto"
+ck "rodada sem problemas: bloqueador round_no_problems (aviso, o force passa)" '[[ "$(J "[.promote_ready.blockers[] | select(.code==\"round_no_problems\")] | length")" == 1 ]]'
 RD '{"action":"promote","to":"extra"}'
 ck "…sem 'ignorar', a promoção é recusada (409 not_ready)" '[[ "$OUT" == *"Status: 409"* && "$(J .error.code)" == not_ready ]]'
+ck "…e os bloqueadores vêm DENTRO do error (a tela lê ApiError.data)" '[[ "$(J ".error.blockers | length")" -ge 2 ]]'
 sed -i 's/^CONTEST_PRIORITY=.*/CONTEST_PRIORITY=lista-publica/' "$C/conf"   # LISTA: o automático não roda
 AUTO_WARM_JUDGES=1 RD '{"action":"promote","to":"extra","force":true}'
 ck "promoveu p/ a extra"           '[[ "$(J .promoted)" == true ]]'

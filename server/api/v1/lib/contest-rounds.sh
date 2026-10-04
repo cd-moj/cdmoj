@@ -131,6 +131,13 @@ rd_promote_blockers(){
   [[ -n "$next" ]] || _add no_next_round "nenhuma rodada planejada: crie a próxima antes de promover" \
     "no round planned: create the next one before promoting" \
     "ninguna ronda planificada: crea la siguiente antes de promover"
+  # rodada SEM problemas: o rd_apply_obj não mexe no PROBS e os problemas da rodada no ar (o aquecimento) seguiam na
+  # "prova" — com "✓ tudo pronto" na tela (auditoria do painel, 03/10/2026). AVISO: o `force` passa (às vezes é isso)
+  if [[ -n "$next" ]] && [[ "$(rd_round "$c" "$next" | jq -r '(.problems // []) | length' 2>/dev/null)" == 0 ]]; then
+    _add round_no_problems "a rodada \"$next\" não tem problemas: os da rodada no ar continuam valendo — defina a lista em Problemas da rodada, ou marque \"ignorar os bloqueadores\" se é isso mesmo" \
+      "round \"$next\" has no problems: the live round's problems stay in force — set the list in Round problems, or tick \"ignore blockers\" if that is what you want" \
+      "la ronda \"$next\" no tiene problemas: los de la ronda activa siguen vigentes — define la lista en Problemas de la ronda, o marca \"ignorar los bloqueadores\" si es eso lo que quieres"
+  fi
 
   # (ERA um bloqueador: "USERS_FROM ⇒ arquivar mexeria no store de outro contest". Não mexe —
   #  o arquivamento itera `$cdir/users/*/`, que são os diretórios LOCAIS deste contest, e a
@@ -444,8 +451,11 @@ rd_promote(){
   if [[ -d "$ad/docs" ]]; then
     mkdir -p "$cdir/docs"
     ( set +o noglob; shopt -s nullglob
-      # (o PDF ENVIADO pelo admin também é config feita à mão: volta — 2026-09-14)
-      for f in "$ad/docs"/*.md "$ad/docs"/cover.*.pdf "$ad/docs"/*.uploaded.pdf; do cp -f "$f" "$cdir/docs/" 2>/dev/null; done )
+      # o PDF ENVIADO do INFO SHEET (o ambiente não muda entre rodadas) e o logo do cabeçalho são config: voltam
+      # (2026-09-14). O caderno, a folha de TL e o editorial ENVIADOS são da rodada (os problemas mudam): ficam no
+      # arquivo — voltar fazia o caderno do aquecimento valer na prova, porque o enviado vence o gerado (auditoria do
+      # painel, 03/10/2026)
+      for f in "$ad/docs"/*.md "$ad/docs"/cover.*.pdf "$ad/docs"/info-sheet.*.uploaded.pdf "$ad/docs"/header-logo.png; do cp -f "$f" "$cdir/docs/" 2>/dev/null; done )
     [[ -f "$ad/docs/config.json" ]] && jq -c 'del(.published)' "$ad/docs/config.json" \
       > "$cdir/docs/config.json" 2>/dev/null
   fi

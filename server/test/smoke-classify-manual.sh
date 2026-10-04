@@ -65,6 +65,16 @@ eqk "$(stj '[.teams | keys[]] | sort | join(",")')" "alfa,delta" "desfazer liber
 eqk "$(stj '.overrides[] | select(.login=="delta") | .reason')" "melhor calouro" "motivo guardado (interno)"
 calla POST '{"action":"apply","stage":"seletiva","config":{"algorithm":"manual","slots":2}}'
 eqk "$(stj '"\(.teams | length)|\(.name)"')" "2|Maratona SBC — 1ª fase" "atualizar o placar (re-apply) mantém promoções e a próxima fase"
+# auditoria do painel (03/10/2026): baixar as vagas abaixo dos promovidos = 409 (era "Promovidos 2 de 1")
+calla POST '{"action":"apply","stage":"seletiva","config":{"algorithm":"manual","slots":1}}'
+eqk "$(J '"\(.error.code) \(.error.promoted)"')" "slots_below_promoted 2" "vagas abaixo dos promovidos = 409 slots_below_promoted"
+eqk "$(stj '.config.slots')" "2" "…e nada gravado"
+# nome/local/quando ENVIADOS vazios apagam (nome volta ao padrão do motor); ausentes mantêm
+calla POST '{"action":"apply","stage":"seletiva","config":{"algorithm":"manual","slots":2},"venue":"Brasília","when":"novembro"}'
+eqk "$(stj '"\(.venue)|\(.when)"')" "Brasília|novembro" "local e quando gravados"
+calla POST '{"action":"apply","stage":"seletiva","config":{"algorithm":"manual","slots":2},"name":"","venue":"","when":""}'
+eqk "$(stj '"\(.name != "Maratona SBC — 1ª fase")|\(.venue)|\(.when)"')" "true||" "enviados vazios: nome volta ao padrão, local/quando limpos"
+calla POST '{"action":"apply","stage":"seletiva","config":{"algorithm":"manual","slots":2},"name":"Maratona SBC — 1ª fase"}'
 calla POST '{"action":"publish","stage":"seletiva"}'
 PUB="$(PATH_INFO=/contest/classification REQUEST_METHOD=GET QUERY_STRING="contest=sel" CONTESTSDIR="$FIX" SESSIONDIR="$SESS" bash "$ROUTER" 2>/dev/null | awk 'f{print} /^\r?$/{f=1}')"
 eqk "$(jq -r '.stages[0] | "\(.chip) \(.teams | keys | join(",")) \(.teams.alfa.via) \(.labels.manual.short.pt)"' <<<"$PUB")" "SBC alfa,delta manual escolha da organização" "placar público: chip da próxima fase e a via \"escolha da organização\""

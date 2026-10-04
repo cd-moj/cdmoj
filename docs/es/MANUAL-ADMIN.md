@@ -1,4 +1,4 @@
-<!-- i18n-source: MANUAL-ADMIN.md blob:6b0682e893595e22d7ced47d71bbf07d9e362d16 -->
+<!-- i18n-source: MANUAL-ADMIN.md blob:ca2b8e199394b8b6015de3ff84a26bead6e49571 -->
 # MOJ: Manual del organizador (el panel .admin de la competencia)
 
 > **Nota de traducción.** Este manual es una traducción del original en portugués. Las herramientas de línea de comandos (`moj`, `moj-contest`, `moj-comp`) muestran sus mensajes en portugués, y los ejemplos de comandos son idénticos al original.
@@ -120,7 +120,7 @@ portugués.
 |---|---|
 | **Rondas** (`rodadas`) | **Calentamiento y competencia oficial en la MISMA competencia**: planifica cada ronda (ventana + problemas), muestra el checklist y promueve, archivando todo lo que pasó. La sección 6 lo explica. |
 | **Documentos** (`documentos`) | Genera, en PDF y HTML en los tres idiomas (pt/en/es), los documentos de la competencia: **Entorno de evaluación** (info sheet), **Cuadernillo de la competencia** (portada + enunciados), **Hoja de límites de tiempo** y el **editorial** (solo se publica después del FIN de la competencia). La sección 5 lo explica. |
-| **Globos** (`baloes`) | El color de cada letra: es lo que sale dibujado en la hoja del globo. El predeterminado cubre A–O; con más de 15 problemas, define los demás (si no, salen grises). Son los colores de la ronda en vivo. Para dar colores propios a otra ronda, usa Evento › Rondas. |
+| **Globos** (`baloes`) | El color de cada letra: es lo que sale dibujado en la hoja del globo. El predeterminado cubre A–O; con más de 15 problemas, define los demás (si no, salen grises). Son los colores de la ronda en vivo. Para dar colores propios a otra ronda, usa Evento › Rondas. Cambiar un color pasa al color nuevo las tareas de globo todavía no impresas; la pantalla avisa cuántas hojas ya se imprimieron con el color anterior. |
 | **Clasificación** (`classificacao`) | Quién se clasifica para las próximas etapas. Cada **etapa** (Final Brasileña, PDA, Mundial) tiene su motor, elegido en el panel: vista previa, borrador, publicación (un chip 🎓 por etapa en el marcador) y el **override manual** — excluir del cálculo, retirar sin recalcular, promover a mano, siempre con motivo. Para competencias menores (una selectiva), el motor **Manual**: indicas cuántos equipos avanzan y cuál es la próxima etapa, y haces clic en el marcador en quién promover (motivo opcional). `docs/CLASSIFICACAO.md` lo explica. |
 | **Equipos** (`sedes` o `telao`) | Identidad de cada cuenta en el marcador: nombre del equipo, país/bandera, sede, universidad, escudo y foto. Carga por CSV y "materializar coincidencias". |
 | **Cohortes** (`coortes`) | Equipos **invitados** (extraoficiales, "CCL") separados de los oficiales: quién aparece en el marcador público, quién ve a quién, y el **🔓 Liberar resultados** de después de la ceremonia. La sección 8 lo explica. |
@@ -348,9 +348,11 @@ competencia, cada uno en **PDF y HTML**, en **portugués, inglés y español**:
    modificados; *restaurar predeterminado* devuelve el idioma de la pestaña al texto del MOJ.
 4. **Genera** (botón de cada fila, o *⚙️ Generar todo (pt+en+es)*), **o sube un PDF listo**
    (botón *subir PDF* de la fila). El PDF subido es un documento completo: gana al generado en
-   todo lo que el MOJ sirve y se puede publicar sin generar. *volver al generado* borra solo el subido.
+   todo lo que el MOJ sirve y se puede publicar sin generar. *volver al generado* borra solo el subido
+   (en un documento publicado sin PDF generado, el MOJ lo rechaza: genera antes o despublica).
    Convertir los PDF lleva algunos segundos; el cuadernillo es el que más tarda, porque junta un PDF
-   por problema.
+   por problema. Si falla la conversión a PDF, el mensaje dice qué documento falló y el PDF anterior
+   (si había) sigue siendo el que todos descargan.
 5. **Revisa**: cada fila tiene **PDF**, **HTML** y **abrir**. Revísalo antes de publicar.
    ¿**Algo torcido en el PDF generado** (demasiado espacio o muy poco entre los elementos, una imagen
    grande) que causó el Markdown del enunciado? Cada documento generado tiene también el **✎ .odt**,
@@ -359,7 +361,7 @@ competencia, cada uno en **PDF y HTML**, en **portugués, inglés y español**:
    del cuadernillo trae la portada como página editable seguida de los enunciados; si la portada es un PDF
    subido, o un problema tiene el enunciado en un PDF propio, el `.odt` marca el lugar y tú unes el
    PDF al exportar. Solo el admin y el juez principal descargan el `.odt`.
-6. **Publica**. Publicar hace dos cosas: el documento pasa a aparecer en la sección **Competencia** de la
+6. **Publica** (solo un documento con PDF, generado o subido). Publicar hace dos cosas: el documento pasa a aparecer en la sección **Competencia** de la
    página de la competencia y en **Documentos**. Quién ve qué:
    - **Entorno de evaluación**: publicado = visible para todos los roles (es logística).
    - **Cuadernillo y hoja de límites de tiempo**: antes del INICIO de la competencia solo los descargan `.admin`, `.cjudge` y
@@ -369,9 +371,9 @@ competencia, cada uno en **PDF y HTML**, en **portugués, inglés y español**:
      noticia adjunta el PDF).
    - **Editorial**: solo se publica después del fin, y solo los jueces lo descargan antes de que la competencia termine
      para TODAS las sedes.
-   Si marcas **+ noticia**, el MOJ además crea una noticia con el PDF adjunto.
-   **Despublicar** lo deshace (el enlace desaparece; la noticia, si se creó, sigue; bórrala en la pestaña de
-   noticias si corresponde).
+   Si marcas **+ noticia**, el MOJ además crea una noticia con el PDF adjunto (el PDF que todos
+   descargan: el subido, si lo hay).
+   **Despublicar** lo deshace: el enlace desaparece y la noticia con el adjunto de ese documento también.
 
 **¿Lo regeneraste? No hace falta publicar de nuevo**: el enlace publicado apunta al documento actual,
 así que generar de nuevo ya entrega la versión nueva a quien lo descargue. Pero **avisa a la sede**: quien ya

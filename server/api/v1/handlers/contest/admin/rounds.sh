@@ -121,7 +121,7 @@ case "$action" in
       if [[ "$cl" == null ]]; then cur="$(jq -c 'del(.colors)' <<<"$cur")"
       elif [[ "$(jq 'if type=="object" then length else -1 end' <<<"$cl")" -gt 0 ]]; then
         jq -e 'to_entries | all(.[]; (.key == "enableSonic" and (.value|type) == "boolean")
-                 or ((.key|test("^[A-Z][A-Z0-9]{0,2}$")) and ((.value|type) == "string") and (.value|test("^[0-9A-Fa-f]{6}$"))))'           <<<"$cl" >/dev/null 2>&1 || fail 422 "colors: chaves = letras (RRGGBB) e enableSonic (bool)" "colors_invalid"
+                 or ((.key|test("^[A-Z0-9]{1,3}$")) and ((.value|type) == "string") and (.value|test("^[0-9A-Fa-f]{6}$"))))'           <<<"$cl" >/dev/null 2>&1 || fail 422 "colors: chaves = letras (RRGGBB) e enableSonic (bool)" "colors_invalid"
         cur="$(jq -c --argjson cl "$cl" '.colors=$cl' <<<"$cur")"
       elif [[ "$cl" != '{}' ]]; then fail 422 "colors deve ser objeto ou null" "colors_invalid"; fi
     fi
@@ -135,10 +135,22 @@ case "$action" in
     rd_save "$contest" "$j"
     # a rodada ATIVA vive no conf: aplica na hora, a partir do OBJETO editado (passar pelo slug
     # releria via rd_sync_active, que re-espelha a janela do conf por cima — edição no-op)
-    [[ "$(jq -r '.active' <<<"$j")" == "$slug" ]] && { rd_apply_obj "$contest" "$cur" || fail 500 "Falha ao gravar no conf" "conf_write"; }
+    if [[ "$(jq -r '.active' <<<"$j")" == "$slug" ]]; then
+      _w0="$(conf_value "$contest" CONTEST_START):$(conf_value "$contest" CONTEST_END):$(conf_value "$contest" FREEZE_TIME)"
+      rd_apply_obj "$contest" "$cur" || fail 500 "Falha ao gravar no conf" "conf_write"
+      # janela/freeze mudou na rodada no ar: recompute FORÇADO, como Regras e config (o gatilho passivo perde p/ um
+      # build em voo — a corrida do incidente de 29/08; auditoria do painel, 03/10/2026)
+      [[ "$(conf_value "$contest" CONTEST_START):$(conf_value "$contest" CONTEST_END):$(conf_value "$contest" FREEZE_TIME)" != "$_w0" ]] \
+        && score_kick_rebuild "$contest"
+      # cores novas na rodada no ar: a tarefa de balão ainda não impressa passa à cor nova (como em Prova › Balões)
+      if jq -e '.colors | type == "object"' <<<"$cur" >/dev/null 2>&1; then
+        source "$_LIBDIR/print.sh"; read -r rcol rold <<<"$(pr_recolor_pending_balloons "$contest")"
+      fi
+    fi
     mod_enable "$contest" rodadas
     audit_log_to "$contest" round-set "slug=$slug"
-    ok_json '{saved:true, round:$r}' --argjson r "$cur"
+    ok_json '{saved:true, round:$r, balloons_recolored:$rc, balloons_printed_old:$ro}' --argjson r "$cur" \
+      --argjson rc "${rcol:-0}" --argjson ro "${rold:-0}"
     ;;
   problems)
     rd_valid_slug "$slug" || fail 422 "slug inválido" "slug_invalid"
@@ -218,7 +230,7 @@ case "$action" in
     if [[ "$force" == true ]]; then blk="$hard"; else blk="$bl"; fi
     if [[ "$(jq 'length' <<<"$blk")" != 0 ]]; then
       emit_json 409 Conflict
-      jq -cn --argjson bl "$blk" '{success:false, error:{message:"A rodada não está pronta para ser promovida", code:"not_ready"}, blockers:$bl}'
+      jq -cn --argjson bl "$blk" '{success:false, error:{message:"A rodada não está pronta para ser promovida", code:"not_ready", blockers:$bl}, blockers:$bl}'
       exit 0
     fi
     mkdir -p "$CONTESTSDIR/$contest/var" 2>/dev/null
@@ -263,7 +275,7 @@ case "$action" in
     un="$(rd_undo_info "$contest")"
     if [[ "$(jq -r '.possible' <<<"$un")" != true ]]; then
       emit_json 409 Conflict
-      jq -cn --argjson u "$un" '{success:false, error:{message:"Não dá para desfazer a última promoção", code:"undo_blocked"}, blockers:$u.blockers}'
+      jq -cn --argjson u "$un" '{success:false, error:{message:"Não dá para desfazer a última promoção", code:"undo_blocked", blockers:$u.blockers}, blockers:$u.blockers}'
       exit 0
     fi
     res="$(rd_undo "$contest" "${SESSION_LOGIN:-}")" || fail 500 "Falha ao desfazer (confira rounds/.desfeitas/)" "undo_failed"

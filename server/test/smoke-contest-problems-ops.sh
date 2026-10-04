@@ -43,4 +43,17 @@ done; wait
 ck "9 problemas depois de 6 adições paralelas (eram perdidas)" '( PROBS=(); source "$C/conf"; (( ${#PROBS[@]} == 45 )) )'
 ck "letras únicas" '[[ "$(letters | tr " " "\n" | sed "/^$/d" | cut -d= -f2 | sort | uniq -d)" == "" ]]'
 
+echo "== Balões: trocar a cor passa as tarefas NÃO impressas à cor nova; as impressas são avisadas =="
+mkdir -p "$C/print-requests"
+printf '{"id":"b1","kind":"balloon","short":"A","color_hex":"0000FF","color_name":"azul","status":"pending"}' > "$C/print-requests/b1.json"
+printf 'PDF-velho' > "$C/print-requests/b1.combined.pdf"
+printf '{"id":"b2","kind":"balloon","short":"B","color_hex":"FF0000","color_name":"vermelho","status":"printed"}' > "$C/print-requests/b2.json"
+printf '{"id":"b3","kind":"balloon","short":"C","color_hex":"00FF00","color_name":"verde","status":"delivered"}' > "$C/print-requests/b3.json"
+call /contest/admin/config POST '{"colors":{"A":"FFFF00","B":"FFFF00","C":"FFFF00","enableSonic":false}}'
+ck "1 pendente recolorida, 1 impressa avisada (a entregue não conta)" '[[ "$(jq -r .balloons_recolored <<<"$BODY")" == 1 && "$(jq -r .balloons_printed_old <<<"$BODY")" == 1 ]]'
+ck "a pendente tem a cor nova e o PDF em cache foi descartado" '[[ "$(jq -r .color_hex "$C/print-requests/b1.json")" == FFFF00 && "$(jq -r .color_name "$C/print-requests/b1.json")" != azul && ! -e "$C/print-requests/b1.combined.pdf" ]]'
+ck "a impressa fica como estava" '[[ "$(jq -r .color_hex "$C/print-requests/b2.json")" == FF0000 ]]'
+call /contest/admin/config POST '{"colors":null}'
+ck "cores padrão: a pendente volta à paleta ICPC (A=FFFFFF)" '[[ "$(jq -r .color_hex "$C/print-requests/b1.json")" == FFFFFF && "$(jq -r .balloons_recolored <<<"$BODY")" == 1 ]]'
+
 echo; echo "RESULT: $pass passed, $fail failed"; (( fail == 0 ))

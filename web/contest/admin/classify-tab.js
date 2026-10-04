@@ -122,7 +122,21 @@ export function makeClassifyTab(CONTEST) {
     const r = prompt(txt + '\n' + T('Motivo (obrigatório; fica só no painel):', 'Reason (required; shown only in this panel):', 'Motivo (obligatorio; queda solo en este panel):'));
     return r == null ? null : r.trim();
   };
-  const act = async (body) => { clearMsg(); try { await call(Object.assign({ stage: NEW ? NEW.id : SEL }, body)); await load(); } catch (e) { showErr(e); } };
+  // estágio PUBLICADO: toda mudança (excluir, retirar, promover, desfazer, atualizar o placar) aparece para todos na
+  // hora — pergunta antes (auditoria do painel, 03/10/2026: era feito sem aviso)
+  const confirmPublished = (stageId) => {
+    const st = stageOf(stageId);
+    return !(st && st.status === 'published') || confirm(T(
+      `“${st.name || st.id}” está PUBLICADO: esta mudança aparece no placar para todos na hora. Continuar?`,
+      `“${st.name || st.id}” is PUBLISHED: this change shows on the scoreboard for everyone right away. Continue?`,
+      `“${st.name || st.id}” está PUBLICADA: este cambio aparece en el marcador para todos de inmediato. ¿Continuar?`));
+  };
+  const act = async (body) => {
+    clearMsg();
+    const sid = body.stage || (NEW ? NEW.id : SEL);
+    if (!['publish', 'unpublish', 'delete'].includes(body.action) && !confirmPublished(sid)) return;
+    try { await call(Object.assign({ stage: sid }, body)); await load(); } catch (e) { showErr(e); }
+  };
 
   // --- tabela da relação, agrupada por via na ordem do estágio (via fora da ordem aparece no fim, pelo id) ---
   function relationTable(rel, labels, order, withActions) {
@@ -224,6 +238,7 @@ export function makeClassifyTab(CONTEST) {
     const promoted = new Set(rel.filter((t) => !t.withdrawn).map((t) => t.login));
     const k = promoted.size;
     const full = k >= slots;
+    const over = k > slots;   // vagas baixadas à mão abaixo dos promovidos (a API recusa hoje; contest antigo pode ter)
     const rows = ((st.result || {}).ranking || []);
     const tb = el('tbody');
     rows.forEach((t) => {
@@ -250,6 +265,8 @@ export function makeClassifyTab(CONTEST) {
     });
     return el('div', {},
       el('p', {}, el('b', {}, T('Promovidos: ', 'Promoted: ', 'Promovidos: ') + k + T(' de ', ' of ', ' de ') + slots),
+        over ? el('span', { class: 'small', style: 'color:var(--danger,#b42318)' }, ' — ' + T(`${k - slots} acima das vagas: desfaça promoções ou aumente o número em "Regras e vagas".`,
+          `${k - slots} over the slots: undo promotions or raise the number in "Rules and slots".`, `${k - slots} por encima de los cupos: deshaz promociones o aumenta el número en "Reglas y cupos".`)) :
         full ? el('span', { class: 'small muted' }, ' — ' + T('todas as vagas preenchidas; para promover mais, aumente o número em "Regras e vagas".',
           'all slots filled; to promote more, raise the number in "Rules and slots".', 'todos los cupos ocupados; para promover más, aumenta el número en "Reglas y cupos".')) : null),
       el('div', { class: 'row', style: 'gap:.5rem;align-items:center;margin:.3rem 0' },
@@ -282,7 +299,9 @@ export function makeClassifyTab(CONTEST) {
         : el('b', { style: 'color:var(--warn,#a66a00)' }, T('📝 RASCUNHO (só o admin vê)', '📝 DRAFT (admin only)', '📝 BORRADOR (solo admin)')),
         el('span', { class: 'small muted' }, ' · chip “🎓 ' + (st.chip || st.id) + '” · ' + n + T(' time(s)', ' team(s)', ' equipo(s)') +
           ' · ' + T('motor: ', 'engine: ', 'motor: ') + (alg ? pickLabel(alg.name) : ((st.config && st.config.algorithm) || T('nenhum (só manual)', 'none (manual only)', 'ninguno (solo manual)'))) +
-          (st.applied_at ? ' · ' + T('aplicado em ', 'applied on ', 'aplicado el ') + fmtEpoch(st.applied_at) : ''))),
+          (st.applied_at ? ' · ' + T('aplicado em ', 'applied on ', 'aplicado el ') + fmtEpoch(st.applied_at) : '') +
+          // a próxima fase da cadeia (catálogo: final-br → pda → mundial) — para onde vão estes times
+          (st.next_stage ? ' · ' + T('próxima fase: ', 'next stage: ', 'siguiente etapa: ') + ((stageOf(st.next_stage) || {}).name || st.next_stage) : ''))),
       el('div', { class: 'row', style: 'gap:.5rem;flex-wrap:wrap;align-items:center' },
         el('button', { class: pub ? 'btn ghost danger' : 'btn', onclick: async () => {
           if (pub) { if (!confirm(T('DESPUBLICAR do placar?', 'UNPUBLISH from the scoreboard?', '¿DESPUBLICAR del marcador?'))) return; }
@@ -405,6 +424,7 @@ export function makeClassifyTab(CONTEST) {
       if (!/^[a-z0-9-]{1,32}$/.test(stageId || '')) { showErr({ message: T('Informe o id da etapa (minúsculas, dígitos e -).', 'Enter the stage id (lowercase, digits and -).', 'Indica el id de la etapa (minúsculas, dígitos y -).') }); return; }
       const body = { action: 'apply', stage: stageId, config: cfg, name: fName.value, venue: fVenue.value, when: fWhen.value, chip: fChip.value };
       if (force) body.force = true;
+      else if (!confirmPublished(stageId)) return;
       try { await call(body); SEL = stageId; NEW = null; delete PICK[stageId]; prevBox.innerHTML = ''; await load(); }
       catch (e) {
         if (e && e.data && e.data.code === 'stage_algorithm_mismatch' && !force) {
