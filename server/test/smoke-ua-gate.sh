@@ -23,6 +23,8 @@ cat > "$C/ua-gate.json" <<'EOF'
   "by_regex":[{"regex":"^conv","expect":"convidado"}],
   "exempt":["^ccl","time-reserva-07"] }
 EOF
+# o legado (LOGIN_UA_SUBSTRING) é lido pelo conf_value do common.sh (fiel ao source: sem o escape do %q)
+_CD="$CONTESTSDIR"; source "$ROOT/api/v1/lib/common.sh" >/dev/null 2>&1; CONTESTSDIR="$_CD"
 source "$ROOT/api/v1/lib/ua-gate.sh"
 
 pass=0; fail=0
