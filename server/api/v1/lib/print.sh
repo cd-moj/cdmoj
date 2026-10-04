@@ -824,6 +824,10 @@ pr_site_first_map() {
   s="$(mktemp)" || return 1
   rg_sites_json "$c" "$s" 2>/dev/null || printf '{}' > "$s"
   { jq -c 'to_entries[] | {k:"r", login:.key, region:.value}' "$s" 2>/dev/null
+    # desclassificado não leva a ★ de primeiro da sede (linhas `d`, um grep — auditoria 03/10/2026)
+    find "$d" -mindepth 2 -maxdepth 2 -name account.json -print0 2>/dev/null \
+      | xargs -0 -r grep -lE '"disqualified": *true' 2>/dev/null \
+      | awk -F/ '{ printf "{\"k\":\"d\",\"login\":\"%s\"}\n", $(NF-1) }'
     find "$d" -mindepth 2 -maxdepth 2 -name metrics.json -print0 2>/dev/null \
       | xargs -0 -r jq -c '(input_filename|split("/")|.[-2]) as $l
           | (.by_problem // {}) | to_entries[]
@@ -834,11 +838,12 @@ pr_site_first_map() {
     true
   } | jq -rs '
       def isrole: test("\\.(admin|judge|cjudge|staff|cstaff|mon|animeitor)$");
-      (map(select(.k == "r")) | map(select((.login|isrole)|not) | select(.region != ""))) as $R
+      (map(select(.k == "d") | {(.login): true}) | add // {}) as $DQ
+      | (map(select(.k == "r")) | map(select((.login|isrole)|not) | select(.region != ""))) as $R
       | ($R | map({(.login): .region}) | add // {}) as $REG
       | (map(select(.k == "m"))
          # contas de PAPEL não ganham balão nem roubam o primeiro lugar (lista do reconciliador)
-         | map(select((.login|isrole)|not))
+         | map(select((.login|isrole)|not)) | map(select($DQ[.login] | not))
          | map(. + {region: ($REG[.login] // "")}) | map(select(.region != ""))
          | group_by([.region, .prob])
          | map( (map(select(.fac > 0))) as $acs
@@ -1036,6 +1041,12 @@ pr_reconcile_balloons() {
       done < <(jq -r '[.login, .problem, (.sub_epoch // 0), (.since // 0)] | @tsv' "$hold" 2>/dev/null)
     fi
 
+    # DESCLASSIFICADO não ganha balão (o placar já o tirava; a fila do staff seguia entregando — auditoria do painel,
+    # 03/10/2026). Um grep sobre os account.json, só quando há histórico novo (este bloco já é o caminho raro).
+    local -A _DQ=(); local _dqf
+    while IFS= read -r _dqf; do _dqf="${_dqf%/account.json}"; _DQ["${_dqf##*/}"]=1
+    done < <(find "$CONTESTSDIR/$c/users" -mindepth 2 -maxdepth 2 -name account.json -print0 2>/dev/null \
+               | xargs -0 -r grep -lE '"disqualified": *true' 2>/dev/null)
     # O sub_epoch é o campo NF-1 e o veredicto PODE conter ':' (5 linhas em produção) — por isso
     # o awk, e não um `read` posicional. emit_history_sorted ordena por sub_epoch, então o `seq`
     # do lote sai cronológico. Veredicto por ÚLTIMO no TSV: no modo heurístico ele contém TAB.
@@ -1047,6 +1058,7 @@ pr_reconcile_balloons() {
       case "$verdict" in Accepted*) ;; *) continue;; esac
       case "$verdict" in *" (Ignored)") continue;; esac   # ignorada não conta no placar nem ganha balão
       case "$login" in *.admin|*.judge|*.cjudge|*.staff|*.cstaff|*.mon|*.animeitor) continue;; esac
+      [[ -n "${_DQ[$login]:-}" ]] && continue
       _bln_try "$login" "$cid" "$sub_epoch" || true
     done < <(emit_history_stream_since "$c" "$prev" \
                | awk -F: 'NF>=7{ v=$5; for(i=6;i<=NF-2;i++) v=v ":" $i; sub(/¦.*$/, "", v);

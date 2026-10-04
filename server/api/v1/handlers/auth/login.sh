@@ -73,7 +73,12 @@ fi
 actor=""
 if reg_enabled "$contest"; then
   _team="$(reg_team_of "$contest" "$u")"
-  if [[ -n "$_team" ]] && user_exists "$contest" "$_team"; then actor="$u"; u="$_team"; fi
+  if [[ -n "$_team" ]] && user_exists "$contest" "$_team"; then
+    # TIME desabilitado (Pessoas › Contas): o membro autentica com a credencial DELE, então a senha `!…` do time não
+    # barrava ninguém — quem barra é a marca (mesma resposta de senha errada: não confirma nada)
+    [[ "$(account_field "$contest" "$_team" '.disabled')" == true ]] && fail 401 "Wrong user or password" "bad_creds"
+    actor="$u"; u="$_team"
+  fi
 fi
 
 name="$(user_fullname "$contest" "$u")"

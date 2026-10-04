@@ -24,11 +24,16 @@ if ! sess_index_seeded "$contest"; then
   if exec {_sfd}>"$_sd/.seed.lock" 2>/dev/null && flock -n "$_sfd" 2>/dev/null; then _seed=1; fi
 fi
 tmpf="$(mktemp)"
+# sessão de conta APAGADA não é sessão ativa (o _session_account_alive já a recusa com 401) — a lista a mostrava como
+# se a pessoa estivesse dentro (auditoria do painel, 03/10/2026). Conta = dir local OU account.json da fonte.
+_src="$(_users_source "$contest" 2>/dev/null)"; [[ "$_src" == "$contest" ]] && _src=""
 while IFS= read -r -d '' f; do
   [[ -f "$f" ]] || continue
   CONTEST=""; LOGIN=""; USERFULLNAME=""; LOGINAT=""; IP=""; UA_B64=""; MKEY=""
   source "$f" 2>/dev/null
   [[ "$CONTEST" == "$contest" && -n "$LOGIN" ]] || continue
+  [[ -f "$CONTESTSDIR/$contest/users/$LOGIN/account.json" ]] \
+    || { [[ -n "$_src" && -f "$CONTESTSDIR/$_src/users/$LOGIN/account.json" ]]; } || continue
   [[ "$LOGINAT" =~ ^[0-9]+$ ]] || LOGINAT=0
   (( _seed )) && valid_id "$LOGIN" && printf '%s\n' "${f##*/}" >> "$_sd/$LOGIN" 2>/dev/null
   printf '%s\x01%s\x01%s\x01%s\x01%s\x01%s\n' "$LOGIN" "$USERFULLNAME" "$IP" "$UA_B64" "$LOGINAT" "$MKEY" >> "$tmpf"

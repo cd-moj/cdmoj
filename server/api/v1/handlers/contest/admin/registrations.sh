@@ -65,11 +65,19 @@ _emit(){   # [<json-extra p/ mesclar na resposta>]
       --argjson tok "$(reg_teams_allowed "$contest" && echo true || echo false)" \
       --argjson remind "$(reg_remind_on "$contest" && echo true || echo false)" \
       --arg tz "$(contest_tz "$contest")" \
+      --arg rop "$(conf_value "$contest" REG_OPEN)" --arg rcl "$(conf_value "$contest" REG_CLOSE)" \
+      --arg rlm "$(conf_value "$contest" REG_LATE_MINUTES)" \
       --slurpfile tgs <(printf '%s' "${tgs:-[]}") --slurpfile inv "$invf" '
     (($inv[0].items) // {}) as $im
     | { success:true, enabled:$en, teams_allowed:$tok, team_max:$max, remind:$remind, tz:$tz,
+      # o que está GRAVADO (o painel edita isto): sem eles a tela mostrava o "fecha" HERDADO no campo e o fixava ao
+      # salvar, e calculava o atraso como late_until − closes_at (o servidor ancora no INÍCIO da prova) — cada
+      # "Salvar janela" somava a diferença (30 → 1470 → 2910 min; auditoria do painel, 03/10/2026)
       window:{state:$st, opens_at:$op, closes_at:$cl, late_until:$lt,
-              official_start:$anc, official_round:$rnd},
+              official_start:$anc, official_round:$rnd,
+              open_set:(if ($rop | test("^[0-9]+$")) then ($rop | tonumber) else null end),
+              close_set:(if ($rcl | test("^[0-9]+$")) then ($rcl | tonumber) else null end),
+              late_minutes:(if ($rlm | test("^[0-9]+$")) then ($rlm | tonumber) else 0 end)},
       round_kind:$kind, gate_active:$gate,
       teams: [ .teams | to_entries[] | .key as $tm | .value as $v
                | {login:$tm, name:$v.name, captain:$v.captain,
@@ -119,11 +127,20 @@ flock 9
 
 case "$action" in
   enable)
-    reg_enabled "$contest" || { reg_save "$contest" '{"version":1,"teams":{},"entries":{}}'; reg_seed_cohorts "$contest"; }
+    # religar DEVOLVE o roster que o Desligar guardou em .off (antes gravava um roster vazio e os inscritos levavam
+    # 403 not_registered — auditoria do painel, 03/10/2026)
+    if ! reg_enabled "$contest"; then
+      if [[ -s "$(reg_file "$contest").off" ]]; then mv -f "$(reg_file "$contest").off" "$(reg_file "$contest")"
+      else reg_save "$contest" '{"version":1,"teams":{},"entries":{}}'; reg_seed_cohorts "$contest"; fi
+    fi
     mod_enable "$contest" inscricoes
     audit_log_to "$contest" reg-enable "" ;;
   disable)
-    [[ -f "$(reg_file "$contest")" ]] && mv -f "$(reg_file "$contest")" "$(reg_file "$contest").off"
+    # o .off guarda o roster p/ o religar; um 2º Desligar (já desligado) NÃO o sobrescreve
+    if [[ -f "$(reg_file "$contest")" ]]; then
+      [[ -s "$(reg_file "$contest").off" ]] && cp -f "$(reg_file "$contest").off" "$(reg_file "$contest").off.$EPOCHSECONDS"
+      mv -f "$(reg_file "$contest")" "$(reg_file "$contest").off"
+    fi
     audit_log_to "$contest" reg-disable "" ;;
   window)
     # epochs no conf, no mesmo caminho do settings (cc_set_conf_var)
@@ -168,6 +185,9 @@ case "$action" in
     login="$(jq -r '.login // empty' <<<"$body")"
     valid_id "$login" || fail 400 "Login inválido" "login_invalid"
     out="$(reg_cancel "$contest" "$login")" || fail 409 "Não deu p/ remover ($out)" "$out"
+    # a sessão de quem saiu do roster cai junto: no contest compartilhado o _session_account_alive acha a conta da
+    # FONTE e o token seguia valendo (auditoria do painel, 03/10/2026)
+    remove_contest_sessions "$contest" "$login" >/dev/null 2>&1
     audit_log_to "$contest" reg-rm "login=$login" ;;
   team-add)
     name="$(jq -r '.name // empty' <<<"$body")"
@@ -176,13 +196,25 @@ case "$action" in
     reg_enabled "$contest" || { reg_save "$contest" '{"version":1,"teams":{},"entries":{}}'; reg_seed_cohorts "$contest"; }
     cap="${_mem[0]}"
     valid_id "$cap" || fail 400 "Login inválido: $cap" "login_invalid"
+    # confere TODOS os membros ANTES de criar: antes as falhas de convite eram engolidas — membro além do
+    # tamanho máximo sumia calado e um time só com logins inexistentes nascia (linha fantasma no placar), sempre
+    # com "Time criado." (auditoria do painel, 03/10/2026)
+    (( ${#_mem[@]} <= $(reg_team_max "$contest") )) || fail 422 "Time com mais membros que o máximo ($(reg_team_max "$contest"))" "team_too_big"
+    _bad=""; _src="$(reg_source_of "$contest")"
+    for m in "${_mem[@]}"; do
+      valid_id "$m" && { user_exists "$_src" "$m" || user_exists "$contest" "$m"; } || _bad+="${_bad:+ }$m"
+    done
+    [[ -z "$_bad" ]] || { FAIL_EXTRA="$(jq -cn --arg b "$_bad" '{logins:($b|split(" "))}')" fail 422 "Conta não encontrada: $_bad" "user_notfound"; }
     t="$(reg_team_create "$contest" "$cap" "$name")" || fail 409 "Não deu p/ criar o time ($t)" "$t"
+    _rej=""
     for m in "${_mem[@]:1}"; do
-      valid_id "$m" || continue
-      reg_team_invite "$contest" "$cap" "$m" >/dev/null 2>&1 && reg_team_accept "$contest" "$m" "$t" >/dev/null 2>&1
+      if ! { o="$(reg_team_invite "$contest" "$cap" "$m" 2>&1)" && o="$(reg_team_accept "$contest" "$m" "$t" 2>&1)"; }; then
+        _rej+="${_rej:+ }$m:${o:-erro}"
+      fi
     done
     mod_enable "$contest" inscricoes
-    audit_log_to "$contest" reg-team-add "team=$t membros=${_mem[*]}" ;;
+    audit_log_to "$contest" reg-team-add "team=$t membros=${_mem[*]}${_rej:+ recusados=$_rej}"
+    [[ -n "$_rej" ]] && extra="$(jq -cn --arg r "$_rej" '{rejected:($r|split(" ")|map(split(":")|{login:.[0], reason:(.[1:]|join(":"))}))}')" ;;
   team-meta)
     t="$(jq -r '.team // empty' <<<"$body")"
     valid_id "$t" || fail 400 "Time inválido" "team_invalid"

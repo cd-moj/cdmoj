@@ -10,7 +10,7 @@
 import { el } from '/shared/ui.js';
 import { apiGet, apiPost } from '/shared/api.js';
 import { fmtDate, todayStr, stamp, toCsv, downloadText, swapIf, sigOf, everyVisible } from '/shared/admin-ui.js';
-import { T } from '/shared/i18n.js';
+import { T, uiLocale } from '/shared/i18n.js';
 import { REFRESH_MS, mk, makeLogoutUser } from './sessions-common.js';
 
 const enc = encodeURIComponent;
@@ -26,7 +26,9 @@ export function makeSessionsTab(CONTEST, opts = {}) {
   function massLogout() {
     const st = LOGALL || {};
     const box = el('div', {});
-    const open = st.login_enabled !== false;
+    // "aberto" de verdade = ligado E já passou da abertura do login (servidor antigo: só o ligado)
+    const open = ('login_open_now' in st) ? st.login_open_now === true : st.login_enabled !== false;
+    const waitsStart = st.login_enabled !== false && !open;
     const msg = el('span', { class: 'small' });
     const closeChk = el('input', { type: 'checkbox', checked: true });
     const run = async (body, label) => {
@@ -52,7 +54,9 @@ export function makeSessionsTab(CONTEST, opts = {}) {
         + (has('rodadas') ? T('É a troca de rodada: entre os dois passos, promova a rodada em Evento › Rodadas. ', 'That is the round switch: between the two steps, promote the round in Event › Rounds. ', 'Ese es el cambio de ronda: entre los dos pasos, promueve la ronda en Evento › Rondas. ') : '')
         + T('Nunca derruba admin, juízes, chefe, monitor nem telão.', 'Never logs out admin, judges, chief, monitor or the big screen.', 'Nunca desconecta a admin, jueces, jefe, monitor ni pantalla.')),
       el('div', { class: 'row', style: 'gap:.6rem;align-items:center;flex-wrap:wrap' },
-        el('span', { class: 'pill ' + (open ? 'ok' : 'bad') }, open ? T('login ABERTO', 'login OPEN', 'login ABIERTO') : T('login FECHADO', 'login CLOSED', 'login CERRADO')),
+        el('span', { class: 'pill ' + (open ? 'ok' : 'bad') }, open ? T('login ABERTO', 'login OPEN', 'login ABIERTO')
+          : waitsStart ? T('login abre ', 'login opens ', 'el login abre ') + new Date(st.login_start * 1000).toLocaleString(uiLocale())
+          : T('login FECHADO', 'login CLOSED', 'login CERRADO')),
         el('span', { class: 'small muted' }, T(`sessões: ${s.competitors || 0} competidores · ${s.staff || 0} staff/cstaff · ${s.privileged || 0} organização`,
           `sessions: ${s.competitors || 0} competitors · ${s.staff || 0} staff/cstaff · ${s.privileged || 0} organization`,
           `sesiones: ${s.competitors || 0} competidores · ${s.staff || 0} staff/cstaff · ${s.privileged || 0} organización`)),
@@ -139,7 +143,7 @@ export function makeSessionsTab(CONTEST, opts = {}) {
       accessSection());
   }
   function render() {
-    swapIf(SK.mass, sigOf(LOGALL && LOGALL.login_enabled, LOGALL && LOGALL.sessions, has('rodadas')), massLogout);
+    swapIf(SK.mass, sigOf(LOGALL && LOGALL.login_enabled, LOGALL && LOGALL.login_open_now, LOGALL && LOGALL.sessions, has('rodadas')), massLogout);
     renderSessions();
   }
   async function fetchAll() {

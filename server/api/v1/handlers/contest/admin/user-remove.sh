@@ -21,6 +21,19 @@ if ! user_exists "$contest" "$login"; then
   { [[ "$shared" == true ]] && { [[ -d "$ud" ]] || [[ -f "$CONTESTSDIR/$(_users_source "$contest")/users/$login/account.json" ]]; }; } \
     || fail 404 "Usuário não encontrado" "notfound"
 fi
+# TIME de inscrição (conta local `is_team`, senha `!<uuid>`): mover o dir deixava o membro entrar como ELE MESMO (o
+# alias não acha mais o time) — linha nova no placar; e o tombstone pela fonte dava 500 depois do mv (o time não existe
+# no treino). Fica uma LÁPIDE no lugar: desabilitado (o alias barra) + desclassificado (sai do placar). O time sai do
+# roster em Pessoas › Inscrições (auditoria do painel, 03/10/2026).
+if [[ "$(account_field "$contest" "$login" '.is_team' 2>/dev/null)" == true ]]; then
+  account_merge "$contest" "$login" '.disabled=true | .disqualified=true | .removed_at=$t | .updated_at=$t' \
+    --argjson t "$EPOCHSECONDS" || fail 500 "Falha ao gravar a lápide do time" "write_fail"
+  remove_contest_sessions "$contest" "$login" >/dev/null
+  touch "$CONTESTSDIR/$contest/var/.score-dirty" 2>/dev/null
+  audit_log_to "$contest" user-remove "login=$login team=1"
+  ok_json '{removed:true, login:$l, team:true}' --arg l "$login"
+  exit 0
+fi
 trash="$CONTESTSDIR/$contest/.removed-users"; mkdir -p "$trash"
 if [[ -d "$ud" ]]; then mv "$ud" "$trash/$login-$EPOCHSECONDS" || fail 500 "Falha ao remover" "write_fail"; fi
 if [[ "$shared" == true ]]; then

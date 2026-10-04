@@ -52,11 +52,14 @@ export function makeUsersTab(CONTEST) {
     const acts = el('div', { class: 'row-actions' });
     acts.append(el('button', { class: 'btn ghost', title: T('encerrar sessões', 'end sessions', 'finalizar sesiones'), onclick: async () => { try { await call('logout-user', { login: u.login }); } catch (e) { alert(e.message); } } }, T('deslogar', 'log out', 'cerrar sesión')));
     // compartilhado desabilitado: {undo} apaga o bloqueio e ele volta a entrar com a senha do treino
-    if (u.shared && u.disabled) acts.append(el('button', { class: 'btn ghost', onclick: async () => { try { await call('user-disable', { login: u.login, undo: true }); loadList(); } catch (e) { alert(e.message); } } }, T('reabilitar', 're-enable', 'reactivar')));
-    if (!u.admin && !u.disabled) acts.append(el('button', { class: 'btn ghost', onclick: async () => { if (!confirm(T('Desabilitar ', 'Disable ', 'Deshabilitar ') + u.login + '?')) return; try { await call('user-disable', { login: u.login }); loadList(); } catch (e) { alert(e.message); } } }, T('desabilitar', 'disable', 'deshabilitar')));
+    // TIME de inscrição desabilitado também reabilita assim (a marca `disabled`; a senha do time nunca foi a dele)
+    if ((u.shared || u.is_team) && u.disabled) acts.append(el('button', { class: 'btn ghost', onclick: async () => { try { await call('user-disable', { login: u.login, undo: true }); loadList(); } catch (e) { alert(e.message); } } }, T('reabilitar', 're-enable', 'reactivar')));
+    // conta de PAPEL (.judge/.staff/…): o servidor recusa desabilitar/desclassificar (403 privileged) — sem o botão
+    const role = u.admin || PRIV.test(u.login || '');
+    if (!role && !u.disabled) acts.append(el('button', { class: 'btn ghost', onclick: async () => { if (!confirm(T('Desabilitar ', 'Disable ', 'Deshabilitar ') + u.login + '?')) return; try { await call('user-disable', { login: u.login }); loadList(); } catch (e) { alert(e.message); } } }, T('desabilitar', 'disable', 'deshabilitar')));
     // desclassificar ≠ desabilitar: a conta continua existindo/logando, mas some do
     // placar E da estatística (flag .disqualified — mesma população nas duas telas)
-    if (!u.admin) acts.append(el('button', { class: 'btn ghost', onclick: async () => {
+    if (!role) acts.append(el('button', { class: 'btn ghost', onclick: async () => {
       const undo = !!u.disqualified;
       const msg = undo ? T('Reverter a desclassificação de ', 'Undo disqualification of ', '¿Revertir la descalificación de ')
                        : T('Desclassificar ', 'Disqualify ', '¿Descalificar ');

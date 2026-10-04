@@ -28,7 +28,11 @@ if [[ "$REQUEST_METHOD" == GET ]]; then
     for f in "$(_sidx_dir "$contest")"/*; do
       [[ -f "$f" && "$f" != *.lock ]] || continue
       LOGIN="${f##*/}"; n=0
-      while IFS= read -r t; do [[ -n "$t" ]] && valid_id "$t" && [[ -f "$SESSIONDIR/$t" ]] && n=$((n+1)); done < "$f"
+      # token REPETIDO no índice (a semeadura é só apêndice — sessions.sh e anomalies.sh semeiam) contava 2× (6/2/4
+      # com 3/1/2 reais; auditoria do painel, 03/10/2026)
+      unset _seen; declare -A _seen=()
+      while IFS= read -r t; do [[ -n "$t" && -z "${_seen[$t]:-}" ]] && valid_id "$t" && [[ -f "$SESSIONDIR/$t" ]] && { _seen[$t]=1; n=$((n+1)); }; done < "$f"
+      unset _seen
       (( n )) || continue
       case "$(_cls "$LOGIN")" in competitor) nc=$((nc+n));; staff) ns=$((ns+n));; *) np=$((np+n));; esac
     done
@@ -42,8 +46,10 @@ if [[ "$REQUEST_METHOD" == GET ]]; then
   fi
   shopt -u nullglob
   le=false; _login_enabled && le=true
-  ok_json '{login_enabled:$le, sessions:{competitors:$c, staff:$s, privileged:$p}}' \
-    --argjson le "$le" --argjson c "$nc" --argjson s "$ns" --argjson p "$np"
+  # a abertura do login (LOGIN_START_TIME) também fecha a porta p/ os times — a pílula dizia "ABERTO" antes dela
+  ls_at="$(conf_value "$contest" LOGIN_START_TIME)"; ls_at="${ls_at//[^0-9]/}"; ls_at="${ls_at:-0}"
+  ok_json '{login_enabled:$le, login_start:$ls, login_open_now:($le and ($ls == 0 or $ls <= now)), sessions:{competitors:$c, staff:$s, privileged:$p}}' \
+    --argjson le "$le" --argjson c "$nc" --argjson s "$ns" --argjson p "$np" --argjson ls "$ls_at"
   exit 0
 fi
 

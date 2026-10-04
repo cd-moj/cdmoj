@@ -17,7 +17,8 @@ if [[ -d "$d" ]]; then
   users="$( { find "$d" -mindepth 2 -maxdepth 2 -name account.json -print0 2>/dev/null \
       | xargs -0 -r jq -c --arg sh "$shared" '{login:(.login//""), fullname:(.fullname//""), email:(.email//""),
                           admin:((.login//"")|endswith(".admin")),
-                          disabled:((.password//"")|startswith("!")),
+                          disabled:((.disabled == true) or (((.password//"")|startswith("!")) and (.is_team != true))),
+                          is_team:(.is_team == true),
                           disqualified:(.disqualified == true),
                           shared:($sh != "" and ((.shared_overlay == true) or ((.password//"") == "")))}'
     if [[ -n "$shared" ]]; then

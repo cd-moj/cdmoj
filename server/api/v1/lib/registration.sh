@@ -252,11 +252,20 @@ reg_materialize_login(){
     name="$(jq -r '.fullname // ""' "$CONTESTSDIR/$src/users/$l/account.json" 2>/dev/null)"
     [[ -n "$name" ]] || name="$l"
     jq -n --arg l "$l" --arg n "$name" --arg co "$co" --argjson meta "$meta" \
-      --argjson t "$EPOCHSECONDS" \
+      --argjson t "$EPOCHSECONDS" --argjson keep "$(_reg_keep_marks "$f")" \
       '{login:$l, fullname:$n, status:"active", registered_at:$t, updated_at:$t,
-        team:({cohort:$co} + $meta)}' > "$f.tmp" 2>/dev/null && mv -f "$f.tmp" "$f"
+        team:({cohort:$co} + $meta)} + $keep' > "$f.tmp" 2>/dev/null && mv -f "$f.tmp" "$f"
   fi
   _score_dirty "$c"
+}
+
+# _reg_keep_marks <account.json> -> {disqualified?, disabled?} — as MARCAS do admin que a re-materialização reescreve
+# do zero: sem isto o Re-materializar, o rg_assign e o team-rename/team-meta do capitão DESFAZIAM a desclassificação
+# e o time se re-classificava sozinho (auditoria do painel, 03/10/2026)
+_reg_keep_marks(){
+  local k; k="$(jq -c '{} + (if .disqualified == true then {disqualified:true} else {} end)
+                         + (if .disabled == true then {disabled:true} else {} end)' "$1" 2>/dev/null)"
+  printf '%s' "${k:-{\}}"
 }
 
 # reg_unmaterialize_login <c> <login> — desfaz o overlay (só o NOSSO: sem senha e com
@@ -293,7 +302,7 @@ reg_materialize_team(){
   # Gravar o prefixo TAMBÉM no fullname duplicava a sigla na tela ("[UFSC] [UFSC] Nome" —
   # pago no 1º time inscrito do esquenta). A declaração de IA vai em .team.ai e sai no
   # diretório /contest/teams (o placar marca 🤖).
-  jq -n --argjson x "$j" --arg t "$t" --arg pw "$pw" --argjson ts "$EPOCHSECONDS" \
+  jq -n --argjson x "$j" --arg t "$t" --arg pw "$pw" --argjson ts "$EPOCHSECONDS" --argjson keep "$(_reg_keep_marks "$f")" \
     '($x.univ // "") as $u
      | {login:$t, password:$pw, fullname:($x.name),
         status:"active", is_team:true,
@@ -302,7 +311,7 @@ reg_materialize_team(){
               + (if $u != "" then {univ_short:$u} else {} end)
               + (if (($x.flag // "") != "") then {flag:$x.flag} else {} end)
               + (if ($x.ai != null) then {ai:$x.ai} else {} end)
-              + (if (($x.region // "") != "") then {region:$x.region} else {} end))}' \
+              + (if (($x.region // "") != "") then {region:$x.region} else {} end))} + $keep' \
     > "$f.tmp" 2>/dev/null && mv -f "$f.tmp" "$f"
   _score_dirty "$c"
 }

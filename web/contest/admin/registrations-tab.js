@@ -58,10 +58,14 @@ export function makeRegistrationsTab(CONTEST) {
 
   function windowBox() {
     const w = DATA.window || {};
-    const op = el('input', { type: 'datetime-local', value: toLocalDT(w.opens_at) });
-    const cl = el('input', { type: 'datetime-local', value: toLocalDT(w.closes_at) });
+    // os campos mostram o que está GRAVADO (open_set/close_set/late_minutes): o "fecha" herdado vinha preenchido e
+    // salvar o fixava; e o atraso era late_until − closes_at, que o servidor ancora no INÍCIO da prova — cada Salvar
+    // somava a diferença. Servidor antigo (sem os campos): cai no de antes.
+    const hasRaw = ('close_set' in w);
+    const op = el('input', { type: 'datetime-local', value: toLocalDT(hasRaw ? w.open_set : w.opens_at) });
+    const cl = el('input', { type: 'datetime-local', value: toLocalDT(hasRaw ? w.close_set : w.closes_at) });
     const lm = el('input', { type: 'number', min: '0', style: 'width:6rem',
-      value: String(Math.max(0, Math.round(((w.late_until || 0) - (w.closes_at || 0)) / 60))) });
+      value: String(hasRaw ? (w.late_minutes || 0) : Math.max(0, Math.round(((w.late_until || 0) - (w.closes_at || 0)) / 60))) });
     const mx = el('input', { type: 'number', min: '1', max: '9', style: 'width:5rem', value: String(DATA.team_max || 3) });
     const tm = el('input', { type: 'checkbox' }); tm.checked = DATA.teams_allowed !== false;
     const rm = el('input', { type: 'checkbox' }); rm.checked = DATA.remind !== false;
@@ -93,7 +97,8 @@ export function makeRegistrationsTab(CONTEST) {
                  'el día antes de que cierre, mojinho envía UN DM por cada invitación aún pendiente'),
       }, rm, ' ' + T('lembrete automático', 'automatic reminder', 'recordatorio automático'))),
       el('button', { class: 'btn', onclick: () => act({
-        action: 'window', open: dtToEpoch(op.value) || undefined,
+        // vazio APAGA (null), como o "fecha": antes `undefined` não mandava nada e a abertura não saía mais
+        action: 'window', open: op.value ? dtToEpoch(op.value) : null,
         // `null` (não `undefined`) APAGA o REG_CLOSE: é o que faz a promessa do "deixe vazio para
         // herdar o início da prova" valer depois que o valor já foi gravado uma vez
         close: cl.value ? dtToEpoch(cl.value) : null,
@@ -201,8 +206,13 @@ export function makeRegistrationsTab(CONTEST) {
               T('🔥 aquecimento: entrada livre', '🔥 warm-up: open door', '🔥 calentamiento: puerta abierta'))
           : '',
         el('div', { class: 'spacer' }),
-        el('button', { class: 'btn ghost', onclick: () => act({ action: DATA.enabled ? 'disable' : 'enable' },
-          DATA.enabled ? T('Inscrição desligada.', 'Registration off.', 'Inscripción desactivada.') : T('Inscrição ligada.', 'Registration on.', 'Inscripción activada.')) },
+        el('button', { class: 'btn ghost', onclick: () => {
+          if (DATA.enabled && !confirm(T('Desligar a inscrição? O roster fica guardado e volta se você religar; enquanto isso, o login não confere inscrição.',
+            'Turn registration off? The roster is kept and comes back if you turn it on again; meanwhile, the login does not check registration.',
+            '¿Desactivar la inscripción? El roster queda guardado y vuelve si la reactivas; mientras tanto, el inicio de sesión no verifica la inscripción.'))) return;
+          act({ action: DATA.enabled ? 'disable' : 'enable' },
+            DATA.enabled ? T('Inscrição desligada.', 'Registration off.', 'Inscripción desactivada.') : T('Inscrição ligada.', 'Registration on.', 'Inscripción activada.'));
+        } },
           DATA.enabled ? T('Desligar', 'Turn off', 'Desactivar') : T('Ligar inscrição', 'Turn on', 'Activar')),
         DATA.enabled && (t.invites || 0) > 0
           ? el('button', { class: 'btn ghost',
@@ -263,7 +273,10 @@ export function makeRegistrationsTab(CONTEST) {
         el('button', { class: 'btn ghost', onclick: () => act({
           action: 'team-add', name: tname.value.trim(),
           members: tmem.value.split(',').map((s) => s.trim()).filter(Boolean),
-        }, T('Time criado.', 'Team created.', 'Equipo creado.')) }, T('Criar time', 'Create team', 'Crear equipo'))),
+        }, (d) => ((d && d.rejected) || []).length
+          // membro que não entrou (já em outro time, conta de outro contest…) aparece — antes sumia calado
+          ? T('Time criado, mas sem: ', 'Team created, but without: ', 'Equipo creado, pero sin: ') + d.rejected.map((r) => r.login + ' (' + r.reason + ')').join(', ')
+          : T('Time criado.', 'Team created.', 'Equipo creado.')) }, T('Criar time', 'Create team', 'Crear equipo'))),
       el('div', { class: 'row', style: 'margin-top:.6rem' },
         el('button', { class: 'btn ghost', onclick: () => {
           const rows = [[T('tipo', 'kind', 'tipo'), 'login', T('nome', 'name', 'nombre'), T('membros', 'members', 'miembros'), T('coorte', 'cohort', 'cohorte'), 'univ', 'IA', T('bandeira', 'flag', 'bandera'), T('foto', 'photo', 'foto')]];

@@ -23,14 +23,19 @@ case "$pass$full$email" in *:*) fail 422 "senha/nome/email não podem conter ':'
 
 # account.json é a fonte (auth/placar leem direto dele)
 teamj="$(team_fields_json "$body")"
+RESET=0
 if user_exists "$contest" "$login"; then
-  account_merge "$contest" "$login" '.password=$p|.fullname=$f|.email=$e|.updated_at=$t' \
+  # reset de senha = reabilitar (tira a marca `disabled`) E derrubar as sessões abertas: o token antigo de uma conta
+  # com senha vazada seguia valendo (auditoria do painel, 03/10/2026)
+  account_merge "$contest" "$login" '.password=$p|.fullname=$f|.email=$e|.updated_at=$t|del(.disabled)' \
     --arg p "$pass" --arg f "$full" --arg e "$email" --argjson t "$EPOCHSECONDS" \
     || fail 500 "Falha ao gravar" "write_fail"
+  RESET=1
 else
   user_create "$contest" "$login" "$full" "$pass" "$email" || fail 500 "Falha ao criar" "write_fail"
 fi
 account_team_merge "$contest" "$login" "$teamj" || fail 500 "Falha ao gravar time" "write_fail"
-audit_log_to "$contest" user-add "login=$login"
+(( RESET )) && [[ "$login" != "$SESSION_LOGIN" ]] && remove_contest_sessions "$contest" "$login" >/dev/null 2>&1
+audit_log_to "$contest" user-add "login=$login$( (( RESET )) && echo ' reset=1')"
 ok_json '{saved:true, user:{login:$l, password:$p, fullname:$f, email:$e}}' \
   --arg l "$login" --arg p "$pass" --arg f "$full" --arg e "$email"
