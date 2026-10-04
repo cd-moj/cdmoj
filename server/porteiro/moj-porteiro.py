@@ -365,11 +365,28 @@ def r_score(contest, q, params):
     slogin = sess[1] if (sess and sess[0] == contest) else ""
     var = os.path.join(CONTESTSDIR, contest, "var")
 
+    start = conf_int(contest, "CONTEST_START")
+    now = time.time()
+    # PLACAR ANÔNIMO (espelho do score.sh, 03/10/2026): fora da organização (admin/chefe/juiz/.mon/.animeitor) só o
+    # AGREGADO — nenhum login nem nome; SCORE_FULL_USERS não fura, coorte e scope=mine colapsam no público.
+    anon = conf_value(contest, "SCORE_ANON") == "1"
+    org = bool(slogin) and (is_judge(slogin) or slogin.endswith((".mon", ".animeitor")))
+    if anon and not org:
+        pre = start > 0 and now < start
+        txt = os.path.join(var, "placar-prestart.txt" if pre else "placar.txt")
+        aj = os.path.join(var, "placar-prestart-anon.json" if pre else "placar-anon.json")
+        _score_freshness_or_decline(contest, txt)
+        ma, mt = mtime_ns(aj), mtime_ns(txt)
+        if ma is None or (mt is not None and mt > ma):
+            raise Decline("agregado anônimo ausente/velho")   # o bash refaz
+        fz = conf_int(contest, "FREEZE_TIME")
+        frozen = b"1" if (not pre and fz > 0 and now >= fz) else b"0"
+        with open(aj, "rb") as fh:
+            return cgi(fh.read(), extra=b"X-MOJ-Anon: 1\r\nX-MOJ-Frozen: " + frozen + b"\r\n")
+
     if q.get("scope") == "mine":
         raise Decline("scope=mine é recorte do bash")
 
-    start = conf_int(contest, "CONTEST_START")
-    now = time.time()
     if start > 0 and now < start:                       # pré-início: vitrine
         if slogin and (is_judge(slogin) or slogin.endswith(".animeitor")):
             raise Decline("privilegiado no pré-início")

@@ -202,6 +202,9 @@ case "$action" in
     # COORTES: o relatório da rodada traz o placar ABERTO com todos os times. Publicá-lo para os
     # times antes de liberar os resultados entregaria os convidados de graça.
     if [[ "$on" == true ]]; then
+      # PLACAR ANÔNIMO: o site da rodada traz o placar com nomes e notas (03/10/2026)
+      [[ "$(conf_value "$contest" SCORE_ANON)" == 1 ]] \
+        && fail 409 "o placar deste contest é anônimo e o relatório da rodada mostra os nomes e o desempenho de cada time" "score_anon"
       source "$_DIR/lib/cohorts.sh"
       if ch_enabled "$contest" && ! ch_released "$contest"; then
         fail 409 "o contest tem coorte de convidados e os resultados não foram liberados — o relatório da rodada mostra todos os times" "cohorts_not_released"

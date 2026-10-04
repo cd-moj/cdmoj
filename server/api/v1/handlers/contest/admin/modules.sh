@@ -30,6 +30,7 @@ for m in "${ON[@]}"; do
   case "$VR_REASON" in
     problems_not_public) _vmsg="há problema(s) NÃO público(s) no treino (${VR_NPRIV/#-1/?}) — a participação virtual só existe para prova com todos os problemas públicos" ;;
     secret)  _vmsg="contest secreto não pode ter participação virtual" ;;
+    score_anon) _vmsg="o placar é anônimo e o virtual compara com o placar oficial, com nomes — desligue o placar anônimo nas Regras" ;;
     type)    _vmsg="por ora só contests no modo ICPC" ;;
     window)  _vmsg="o contest precisa de início e fim definidos" ;;
     *)       _vmsg="contest não elegível ($VR_REASON)" ;;

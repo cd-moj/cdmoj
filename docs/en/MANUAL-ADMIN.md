@@ -1,4 +1,4 @@
-<!-- i18n-source: MANUAL-ADMIN.md blob:b447d136745deae99e54687f9812eb8a5f84be0b -->
+<!-- i18n-source: MANUAL-ADMIN.md blob:8af669069350b2bb65285f26622cb0daf433e46a -->
 # MOJ: Organizer manual (the contest .admin panel)
 
 > **Translation note.** This manual is a translation of the Portuguese original. The command-line tools (`moj`, `moj-contest`, `moj-comp`) print their messages in Portuguese, and the command examples below are identical to the original.
@@ -240,7 +240,11 @@ in a course list or a course exam, when the skeleton helps the student.
 - **In-browser code editor available**: the editor side by side with the statement.
 - **Show problems' time limit to users**: shows the TLs per language in the statement.
 - **Allow file backup by users** / **Allow print requests by users (.staff)**: enable the backup upload by the student and the print requests (which go to the staff queue).
-- **Anonymous scoreboard**: hides the individual performance (the student sees only his or her own position).
+- **Anonymous scoreboard**: hides the individual performance: a person who is not in the organization gets from MOJ
+  only the summary (how many solved how many problems, solvers per problem, quartiles), with no name and no score of
+  any team. The organization (admin, chief judge, judges, `.mon`, `.animeitor`) sees the full scoreboard. While it is
+  on, you cannot publish the report, the archived round site stays closed, the qualification does not show and
+  virtual participation does not open.
 - **Login gate by UA substring**: only browsers whose identification contains the substring can log in (locked contest machine). Privileged roles are exempt.
 - **🕵️ SUPER SECRET**: the contest disappears from home/archive/status, and even the scoreboard requires login. For contests that must not even be known to exist.
 

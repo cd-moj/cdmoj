@@ -10,6 +10,12 @@ require_contest "$contest"
 require_not_secret_or_auth "$contest"
 CF="$CONTESTSDIR/$contest/classification.json"
 if [[ ! -s "$CF" ]]; then ok_json '{stages:[]}'; exit 0; fi
+# PLACAR ANÔNIMO (03/10/2026): quem se classificou é desempenho individual — fora da organização, nenhum estágio
+if [[ "$(conf_value "$contest" SCORE_ANON)" == 1 ]]; then
+  _org=false
+  load_session 2>/dev/null && [[ "$SESSION_CONTEST" == "$contest" ]] && { is_admin || is_judge || is_mon || is_animeitor; } && _org=true
+  [[ "$_org" == true ]] || { ok_json '{stages:[]}'; exit 0; }
+fi
 # ADMIN do contest enxerga também os RASCUNHOS (marcados draft:true — o placar rende o
 # chip esmaecido "(rascunho)"): é a pré-visualização de como fica antes do Publicar.
 # Sessão OPCIONAL, molde do /contest/score — anônimo/competidor segue só com published.

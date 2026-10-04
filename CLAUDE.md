@@ -47,7 +47,7 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   Também DECLINA (03/10/2026) IP preso pela trava de sede (`RUNDIR/site-lock/<ip>`: o 403 e a isenção de papel
   são do bash) e sessão de PAPEL cuja conta só existe na fonte `USERS_FROM` (o `_shared_role_ok` é do bash).
   ⚠ As VARIANTES espelhadas nele são REGRAS DE SEGURANÇA (papel da nav, coorte, autor da
-  lista, congelado×completo) — mudou a regra no handler/lib bash ⇒ mude no porteiro E rode
+  lista, congelado×completo, anônimo×nominal) — mudou a regra no handler/lib bash ⇒ mude no porteiro E rode
   `smoke-porteiro.sh` (25 asserções: variantes + declines + computadas, com cliente FCGI
   embutido) e o
   diferencial (`molde-diff.sh`). Rota liga/desliga por `server/bin/molde-route.sh add|rm
@@ -432,6 +432,13 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   pós-freeze saía IGUAL nas duas visões e só os ACs ganhavam "?" (TCP 2026: a plateia sabia quem NÃO tinha
   acertado). Leitores do TXT casam o PREFIXO `tentativas/-` (report-gen, `cellWait`, `cellTitle`,
   `sc_board_rows`); o `c-frz` faz o celular mostrar "?" em vez de ✗. Teste: `smoke-score-reveal.sh`.
+- **PLACAR ANÔNIMO É CORTADO NA API** (`SCORE_ANON=1`, 03/10/2026, decisão do Ribas; era só a TELA — o TXT com nomes ia
+  a todos): fora da ORGANIZAÇÃO (o conjunto da estatística: admin, chefe, juiz, `.mon`, `.animeitor`) o `/contest/score`
+  responde o agregado `var/placar-anon.json` (`X-MOJ-Anon: 1`; `gen_anon` no `build.sh`, do placar PÚBLICO; antes do
+  início `placar-prestart-anon.json`, só `n`) — `SCORE_FULL_USERS`, coorte e `scope=mine` não furam; porteiro espelha.
+  As outras portas do placar fecham: relatório/rodada publicados (409 `score_anon`), site da rodada (404), classificação
+  pública (vazia), virtual (portão `score_anon`). `aggregateOf` (score.js) é o gêmeo do `gen_anon` p/ o "Anônimo" local
+  da organização — mexeu num, mexa no outro (`smoke-score-anon.gjs.sh` compara). Teste: `smoke-score-anon.sh`.
 - **O PLACAR É SERVIDO PRÉ-COMPRIMIDO**: o `build.sh` grava um `.gz` ao lado de cada
   `placar*.txt` (mesma receita do `/contest/problems`) e o handler o serve direto — 175 KB por
   requisição, no corpo mais servido do dia, é 7% da vazão da rota em recompressão do MESMO

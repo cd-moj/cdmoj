@@ -162,6 +162,51 @@ gen_pair() {
   fi
 }
 
+# PLACAR ANÔNIMO (SCORE_ANON=1; 03/10/2026, decisão do Ribas: cortar na API). Quem não é da organização recebe SÓ
+# o agregado — nenhum login, nome nem linha de time: var/placar-anon.json (do placar PÚBLICO congelado) e, antes do
+# início, var/placar-prestart-anon.json (só quantos). Mesmo parser do sc_board_rows: problemas = colunas entre
+# "univ full" e "Total"; ICPC resolvido = `N/T` (o `N/-?` do freeze NÃO é resolvido); OBI = nota > 0. Os quartis
+# saem prontos (uma lista de notas por time, ordenada, ainda seria nota individual numa turma de 8).
+ANON=0; [[ "$(sed -n 's/^[[:space:]]*SCORE_ANON=//p' "$CONF" | tail -1 | tr -cd '0-9')" == 1 ]] && ANON=1
+gen_anon() { # <placar.txt> <out.json> <frozen 0|1>
+  local in="$1" out="$2" fz="${3:-0}" tmp
+  [[ -f "$in" ]] || return 0
+  tmp="$(mktemp "$out.XXXXXX")" || return 0
+  awk -F: -v FZ="$fz" '
+    function trim(s){ gsub(/^[ \t]+|[ \t]+$/,"",s); return s }
+    NR==1{ split($0, M, " "); mode=M[1]; next }
+    NR==2{ n=split($0,H,":"); s=1
+      while (s<=n) { h=trim(tolower(H[s])); if (h=="desc"||h=="asc") s++; else break }
+      for(i=s;i<=n;i++){ h=trim(tolower(H[i]))
+        if(h=="univ full")iuf=i-s+1; else if(h=="total")itot=i-s+1; else if(h=="guest")ig=i-s+1 }
+      off=s-1; pf=(iuf?iuf+1:0); pl=(itot?itot-1:0)
+      for(i=pf;pl>=pf && i<=pl;i++){ np++; P[np]=trim(H[i+off]) }
+      next }
+    NF==0{ next }
+    { g=(ig ? trim($(ig)) : ""); if (g!="" && g!="0" && tolower(g)!="false" && tolower(g)!="no") { guests++; next }
+      teams++; k=0
+      for(j=1;j<=np;j++){ c=trim($(pf+j-1))
+        ok=(mode=="obi") ? (c!="" && c+0>0) : (c ~ /^[0-9]+\/[0-9]+\/?\*?$/)
+        if (ok) { k++; PC[j]++ } }
+      S[teams]=k }
+    END{
+      printf "M\t%s\t%d\t%d\t%s\n", mode, teams+0, guests+0, FZ
+      for(j=1;j<=np;j++) printf "P\t%s\t%d\n", P[j], PC[j]+0
+      for(t=1;t<=teams;t++) printf "S\t%d\n", S[t] }' "$in" 2>/dev/null \
+  | jq -Rn '[inputs | split("\t")] as $L
+      | ($L | map(select(.[0]=="M")) | first) as $m
+      | ([$L[] | select(.[0]=="S") | .[1] | tonumber] | sort | reverse) as $s
+      | ($s | length) as $n
+      | def at($q): if $n == 0 then 0 else $s[[($n - 1), (($q * $n) | floor)] | min] end;
+      { anon: true, mode: ($m[1] // ""), n: $n, guests: (($m[3] // "0") | tonumber), frozen: (($m[4] // "0") == "1"),
+        supported: (($m[1] // "") == "icpc" or ($m[1] // "") == "obi"),
+        problems: [$L[] | select(.[0]=="P") | .[1]],
+        per_problem: ([$L[] | select(.[0]=="P") | {key: .[1], value: (.[2] | tonumber)}] | from_entries),
+        dist: ($s | group_by(.) | map({key: (.[0] | tostring), value: length}) | from_entries),
+        q: {p25: at(0.25), median: at(0.5), p75: at(0.75), max: ($s[0] // 0)} }' > "$tmp" 2>/dev/null
+  if [[ -s "$tmp" ]]; then mv -f "$tmp" "$out"; else rm -f "$tmp"; fi
+}
+
 # COORTES (times oficiais × convidados): quando o contest tem coorte NÃO-pública, cada VISÃO
 # ganha o seu par de placares — `var/placar[-full].txt` continua sendo a visão pública (nada
 # mudou de nome para quem já lia), e cada visão extra vira `var/placar-view-<id>[-full].txt`.
@@ -186,6 +231,7 @@ if (( PRESTART )); then
     VIEW_UNRANKED="$(ch_unranked_of_view "$CONTEST" public | tr '\n' ' ' | sed 's/ *$//')"
   fi
   MOJ_PRESTART=1 gen_one "$PRE" 1
+  if (( ANON )); then gen_anon "$PRE" "$CONTESTDIR/var/placar-prestart-anon.json" 0; else rm -f "$CONTESTDIR/var/placar-prestart-anon.json"; fi
   echo "$PRE"
   exit 0
 fi
@@ -214,5 +260,10 @@ else
   fi
   gen_pair "$OUT" "$FULL"
 fi
+# o agregado do anônimo vem do placar PÚBLICO (o congelado, quando há freeze valendo)
+if (( ANON )); then
+  _afz=0; [[ -n "$FREEZE_RAW" ]] && (( FREEZE_RAW > 0 && EPOCHSECONDS >= FREEZE_RAW )) && _afz=1
+  gen_anon "$OUT" "$CONTESTDIR/var/placar-anon.json" "$_afz"
+else rm -f "$CONTESTDIR/var/placar-anon.json"; fi
 
 echo "$OUT"

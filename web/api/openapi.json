@@ -2544,7 +2544,7 @@
     "/contest/admin/report-publish": {
       "get": {"tags": ["contest-admin"], "summary": "Estado do relatório estático PUBLICADO (histórico em /relatorio/<c>/)", "security": [{"bearerAuth": []}], "parameters": [{"$ref": "#/components/parameters/contest"}],
         "responses": {"200": {"description": "{published, url, at, by, pages, bytes, job:{state:running|done|error, by, started, updated, error?}|null, rounds:[{slug,name,kind,public,url}]}"}}},
-      "post": {"tags": ["contest-admin"], "summary": "Publica (job destacado; gera + troca atômica + REPORT_PUBLISHED no conf) ou despublica o relatório estático. Publicar recusa: antes do início (409 not_started), placar congelado antes do fim+1min (409 freeze_locked; depois 409 board_frozen, force_frozen:true confirma) e coorte PRIVADA não liberada (409 cohorts_not_released, também no publish-round)", "security": [{"bearerAuth": []}], "parameters": [{"$ref": "#/components/parameters/contest"}],
+      "post": {"tags": ["contest-admin"], "summary": "Publica (job destacado; gera + troca atômica + REPORT_PUBLISHED no conf) ou despublica o relatório estático. Publicar recusa: antes do início (409 not_started), placar congelado antes do fim+1min (409 freeze_locked; depois 409 board_frozen, force_frozen:true confirma) e coorte PRIVADA não liberada (409 cohorts_not_released, também no publish-round) Com SCORE_ANON=1: 409 score_anon (publish e publish-round).", "security": [{"bearerAuth": []}], "parameters": [{"$ref": "#/components/parameters/contest"}],
         "requestBody": {"content": {"application/json": {"schema": {"type": "object", "properties": {"action": {"type": "string", "enum": ["publish", "unpublish", "publish-round", "unpublish-round"]}, "round": {"type": "string", "description": "slug da rodada ARQUIVADA (publish-round/unpublish-round): liga o symlink relatorio-rodadas/<slug> servido em /relatorio/<c>/rodada/<slug>/"}}, "required": ["action"]}}}},
         "responses": {"200": {"description": "mesmo corpo do GET (com job.state=running logo após publish)"}, "409": {"description": "busy — geração em andamento"}}}
     },
@@ -2690,7 +2690,7 @@
         "tags": [
           "contest"
         ],
-        "summary": "Serve o relatorio arquivado de uma rodada (site estatico)",
+        "summary": "Serve o relatorio arquivado de uma rodada (site estatico) — com SCORE_ANON=1, fora da organização = 404",
         "description": "Admin/juiz/chief/staff/cstaff/mon sempre; demais logins so rodada publicada (404 not_published). O caminho e confinado ao diretorio do relatorio.",
         "security": [
           {
@@ -2828,7 +2828,7 @@
         "tags": [
           "contest"
         ],
-        "summary": "Placar (TXT, 1ª linha = modo); antes do início serve a VITRINE (times sem colunas de problema — o placar nunca revela a quantidade de problemas antes de a competição começar; is_judge vê o completo); privilegiado recebe o completo — view=public força o congelado (usado pela cerimônia de revelação); scope=mine (só .cstaff) recorta à sede",
+        "summary": "Placar (TXT, 1ª linha = modo); antes do início serve a VITRINE (times sem colunas de problema — o placar nunca revela a quantidade de problemas antes de a competição começar; is_judge vê o completo); privilegiado recebe o completo — view=public força o congelado (usado pela cerimônia de revelação); scope=mine (só .cstaff) recorta à sede — com SCORE_ANON=1, quem não é da organização (admin/chefe/juiz/.mon/.animeitor) recebe só o agregado JSON {anon, mode, n, guests, frozen, supported, problems, per_problem, dist, q} com X-MOJ-Anon: 1 (nem SCORE_FULL_USERS, coorte ou scope=mine furam)",
         "parameters": [
           {
             "$ref": "#/components/parameters/contest"
@@ -6687,7 +6687,7 @@
     "/contest/classification": {
       "get": {
         "tags": ["contest"],
-        "summary": "Classificação PUBLICADA p/ as próximas fases (um chip por estágio no placar)",
+        "summary": "Classificação PUBLICADA p/ as próximas fases (um chip por estágio no placar) — com SCORE_ANON=1, fora da organização = {stages:[]}",
         "parameters": [{"name": "contest", "in": "query", "required": true, "schema": {"type": "string"}}],
         "responses": {"200": {"description": "{stages:[{id,name,venue,when,chip,labels:{via:{pt,en,es,short}},via_order,teams:{login:{via,sede}}}]} — só estágios published (o admin logado vê também os rascunhos, com draft:true); vazio sem publicação. Nunca traz config, motivo de override nem os times de fora do placar (chave ext:). Estágio antigo sem chip/labels leva os do catálogo (score/classify-catalog.json). Gate de contest secreto igual ao do placar."}}
       }

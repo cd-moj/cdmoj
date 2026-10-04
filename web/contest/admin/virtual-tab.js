@@ -13,6 +13,7 @@ const enc = encodeURIComponent;
 const CHECKS = () => ({
   module_off: [T('Módulo ligado', 'Module on', 'Módulo activado'), T('ligue em Central › Módulos', 'turn it on in Home › Modules', 'actívalo en Central › Módulos')],
   secret: [T('Contest não é secreto', 'Contest is not secret', 'La competencia no es secreta'), T('contest secreto nunca vira virtual', 'a secret contest never becomes virtual', 'una competencia secreta nunca se vuelve virtual')],
+  score_anon: [T('Placar não é anônimo', 'Scoreboard is not anonymous', 'El marcador no es anónimo'), T('o virtual compara com o placar oficial, com nomes — desligue o placar anônimo nas Regras', 'virtual compares against the official scoreboard, with names — turn off the anonymous scoreboard in Rules', 'el virtual compara con el marcador oficial, con nombres — desactiva el marcador anónimo en Reglas')],
   type: [T('Modo ICPC', 'ICPC mode', 'Modo ICPC'), T('por ora só placar ICPC', 'only the ICPC scoreboard for now', 'por ahora solo el marcador ICPC')],
   window: [T('Início e fim definidos', 'Start and end set', 'Inicio y fin definidos'), T('sem janela não há duração para refazer', 'without a window there is no duration to redo', 'sin ventana no hay duración para rehacer')],
   running: [T('Prova encerrada para todas as sedes', 'Contest over for every site', 'Competencia terminada para todas las sedes'), T('abre sozinho quando a última prorrogação acabar', 'opens by itself when the last extension ends', 'se abre solo cuando termina la última prórroga')],

@@ -230,7 +230,11 @@ costume). Use em lista ou prova de disciplina, quando o esqueleto ajuda o aluno.
 - **Editor no browser** — o editor lado a lado com o enunciado.
 - **Mostrar time-limit** — exibe os TLs por linguagem no enunciado.
 - **Backup** / **Impressão** — habilitam o upload de backup pelo aluno e os pedidos de impressão (que caem na fila do staff).
-- **Placar anônimo** — esconde o desempenho individual (só a posição do próprio aluno).
+- **Placar anônimo** — esconde o desempenho individual: quem não é da organização recebe do MOJ só o resumo
+  (quantos resolveram quantos problemas, resolvedores por problema, quartis), sem nome nem nota de ninguém. A
+  organização (admin, juiz-chefe, juízes, `.mon`, `.animeitor`) vê o placar completo. Ligado, o relatório não pode
+  ser publicado, o site da rodada arquivada fica fechado, a classificação não aparece e a participação virtual não
+  abre.
 - **Gate de login por UA** — só navegadores cuja identificação contém a substring conseguem logar (máquina de prova travada). Papéis privilegiados são isentos.
 - **🕵️ SUPER SECRETO** — o contest some da home/arquivo/status e até o placar exige login. Para provas que não podem nem constar que existem.
 

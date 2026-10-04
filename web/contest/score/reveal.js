@@ -189,6 +189,10 @@ async function main() {
     // quem decide qual placar foi servido é o SERVIDOR (X-MOJ-Frozen): 1 na chamada "completa" =
     // a API não liberou o full p/ este login (o .cstaff antes do fim geral ou da liberação)
     fullFrozen = (fullMeta.headers && fullMeta.headers.get('X-MOJ-Frozen')) === '1';
+    // placar ANÔNIMO (SCORE_ANON): fora da organização a API manda só o agregado — não há cerimônia
+    if ((fullMeta.headers && fullMeta.headers.get('X-MOJ-Anon')) === '1') {
+      app.textContent = T('Placar anônimo: a cerimônia de revelação fica só com a organização.', 'Anonymous scoreboard: the reveal ceremony is for the organization only.', 'Marcador anónimo: la ceremonia de revelación es solo para la organización.'); return;
+    }
   } catch (e) { app.textContent = T('Falha ao carregar o placar: ', 'Failed to load the scoreboard: ', 'Error al cargar el marcador: ') + (e.message || T('erro', 'error', 'error')); return; }
   const fl = frozenTxt.split('\n'), ul = fullTxt.split('\n');
   // linha 1 pode trazer a flag `s` (célula em SEGUNDOS, R6) — o parseICPC converte a

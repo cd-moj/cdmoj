@@ -415,7 +415,14 @@ Em 28/09/2026, sobre os dados de produção (LATAM, mdp-teste e esquenta): **zer
   resolvida p/ o nó; sem nó correspondente, vale o casamento antigo (nome OU regex).
 - **Modo anônimo** (`SCORE_ANON=1` no conf, ou toggle local): esconde o desempenho individual e
   mostra agregado — participantes, **quartis** por nº de problemas resolvidos, distribuição e
-  resolvedores por problema. Forçado para não-admins quando `SCORE_ANON=1`.
+  resolvedores por problema. **Com `SCORE_ANON=1` o corte é da API** (03/10/2026): quem não é da organização
+  (o conjunto da estatística: admin, chefe, juiz, `.mon`, `.animeitor`) recebe do `/contest/score` SÓ o agregado
+  (`var/placar-anon.json`, `X-MOJ-Anon: 1`; antes do início `var/placar-prestart-anon.json`, só `n`) — nunca o TXT
+  com logins e nomes; `SCORE_FULL_USERS`, coorte e `scope=mine` não furam. O `build.sh` gera o agregado do placar
+  PÚBLICO (`gen_anon`, mesmo parser do `sc_board_rows`); o `aggregateOf` do `score.js` é o gêmeo p/ o "Anônimo" local
+  da organização (`smoke-score-anon.gjs.sh` compara os dois). Fecham junto: relatório publicado e rodada (409
+  `score_anon`), site da rodada arquivada (404 fora da organização), classificação pública (vazia) e participação
+  virtual (portão `score_anon`). O porteiro espelha (`smoke-porteiro.sh`). Teste: `smoke-score-anon.sh`.
 - **Cores dos balões** (`balloons.json`, `GET /contest/balloons`): mapa letra→cor (default ICPC
   A–O). Campo `enableSonic` ativa o **modo secreto do Sonic** (GIFs locais em `/shared/assets/sonic/`).
 - **Estatísticas** ricas em `/contest/statistics/` (admin/judge/mon) e similaridade em

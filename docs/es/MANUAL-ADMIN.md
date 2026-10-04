@@ -1,4 +1,4 @@
-<!-- i18n-source: MANUAL-ADMIN.md blob:b447d136745deae99e54687f9812eb8a5f84be0b -->
+<!-- i18n-source: MANUAL-ADMIN.md blob:8af669069350b2bb65285f26622cb0daf433e46a -->
 # MOJ: Manual del organizador (el panel .admin de la competencia)
 
 > **Nota de traducción.** Este manual es una traducción del original en portugués. Las herramientas de línea de comandos (`moj`, `moj-contest`, `moj-comp`) muestran sus mensajes en portugués, y los ejemplos de comandos son idénticos al original.
@@ -235,7 +235,11 @@ habituales). Úsalo en una lista o un examen de curso, cuando el esqueleto ayuda
 - **Editor de código en el navegador disponible**: el editor lado a lado con el enunciado.
 - **Mostrar el tiempo límite de los problemas a los usuarios**: muestra los TL por lenguaje en el enunciado.
 - **Permitir el backup de archivos por los usuarios** / **Permitir solicitudes de impresión por los usuarios (.staff)**: habilitan la subida de respaldos por el alumno y las solicitudes de impresión (que van a la cola del staff).
-- **Marcador anónimo**: oculta el desempeño individual (solo la posición del propio alumno).
+- **Marcador anónimo**: oculta el desempeño individual: quien no es de la organización recibe del MOJ solo el resumen
+  (cuántos resolvieron cuántos problemas, solucionadores por problema, cuartiles), sin nombre ni nota de nadie. La
+  organización (admin, juez principal, jueces, `.mon`, `.animeitor`) ve el marcador completo. Activado, el informe no
+  se puede publicar, el sitio de la ronda archivada queda cerrado, la clasificación no aparece y la participación
+  virtual no se abre.
 - **Filtro de inicio de sesión por substring de UA**: solo los navegadores cuya identificación contiene la substring pueden iniciar sesión (máquina de competencia bloqueada). Los roles privilegiados están exentos.
 - **🕵️ SUPER SECRETO**: la competencia desaparece de la página de inicio/archivo/estado e incluso el marcador exige iniciar sesión. Para competencias de las que ni siquiera puede constar que existen.
 

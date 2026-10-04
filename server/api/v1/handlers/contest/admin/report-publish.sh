@@ -58,6 +58,9 @@ _pub_state(){
 #   - coorte PRIVADA com resultados não liberados: 409 cohorts_not_released (ch_private_unreleased).
 # A rodada arquivada (publish-round) passa só pela regra das coortes: o relatório dela é o da rodada já encerrada.
 _cohort_guard(){
+  # PLACAR ANÔNIMO: o relatório publicado traz o placar com nomes e notas de cada time (03/10/2026)
+  [[ "$(conf_value "$contest" SCORE_ANON)" == 1 ]] \
+    && fail 409 "O placar deste contest é ANÔNIMO e o relatório publicado mostra os nomes e o desempenho de cada time — desligue o placar anônimo (Regras) se quiser publicá-lo" "score_anon"
   source "$_LIBDIR/cohorts.sh"
   if ch_private_unreleased "$contest"; then
     fail 409 "O contest tem coorte PRIVADA e os resultados não foram liberados — o relatório público mostra todos os times" "cohorts_not_released"

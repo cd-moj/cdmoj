@@ -22,6 +22,7 @@ condições **a cada requisição**:
 
 1. módulo `virtual` ligado;
 2. contest **não é secreto** (`SECRET`);
+2½. placar **não é anônimo** (`SCORE_ANON`; 03/10/2026 — o feed são as linhas do placar oficial, com nomes);
 3. modo **ICPC** (versão 1);
 4. início e fim definidos;
 5. prova **encerrada para todas as sedes** (`contest_over_for_all`: fim + maior prorrogação);

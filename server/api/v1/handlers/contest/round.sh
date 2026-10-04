@@ -23,6 +23,11 @@ r="$(rd_round "$contest" "$round")"
 
 priv=false
 { is_admin || is_judge || is_chief || is_staff || is_cstaff || is_mon; } && priv=true
+# PLACAR ANÔNIMO (03/10/2026): o site da rodada traz o placar com nomes e notas — só a ORGANIZAÇÃO (o conjunto da
+# estatística) o abre; o resto recebe o mesmo 404 de rodada não publicada
+if [[ "$(conf_value "$contest" SCORE_ANON)" == 1 ]] && ! { is_admin || is_judge || is_mon || is_animeitor; }; then
+  fail 404 "Rodada não disponível" "not_published"
+fi
 if [[ "$priv" != true ]]; then
   jq -e '.state == "archived" and .published == true' <<<"$r" >/dev/null 2>&1 \
     || fail 404 "Rodada não disponível" "not_published"
