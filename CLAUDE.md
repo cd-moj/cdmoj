@@ -1236,6 +1236,10 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   usuário; a própria do contest vence. Credencial COMPARTILHADA ⇒ o serviço não separa mais os contests: o registro
   `run/animeitor/events.json` (`an_reg_set`, flock) é o dono de verdade — nome de evento de outro contest = 409
   `event_taken` ANTES de qualquer request, e a chave do MOJ não faz `adopt` de evento de fora (`adopt_forbidden`).
+  **Prefixo `moj-`** (04/10/2026, regra do Emilio): com a chave do MOJ o evento NOVO nasce `moj-<nome>` — aplicado
+  SÓ no `an_cfg` (o `event` é o efetivo; `event_set` = o digitado); evento que o `managed` diz ser deste contest
+  (`x` ou `moj-x`) segue com o nome, mesmo trocando de chave; o `config` confere o nome efetivo antes de gravar e o
+  `an_publish` barra o resto (`event_prefix_required`).
   Caminho novo que toca evento lá ⇒ passa pelo registro. (10) **CONFERÊNCIA** (`an_verify`): rota PÚBLICA
   `runs_secret` com Bearer = a chave da sede (o `secret` do `revelation_urls`, ao vivo, nunca gravado); compara as runs
   vivas + as removidas (X) sede a sede (regex da sede por `grep -P` sobre os logins; mesmo regex = 1 consulta), marca

@@ -1,4 +1,4 @@
-<!-- i18n-source: MANUAL-ANIMEITOR.md blob:983b0a1581d7ed57e48341070bf52de1c5cda3c2 -->
+<!-- i18n-source: MANUAL-ANIMEITOR.md blob:683e095b4d33ed3f92a48c9e5b0d4bac0812fa56 -->
 # MOJ: Big-screen manual (`.animeitor`)
 
 > **Translation note.** This manual is a translation of the Portuguese original. The command-line tools (`moj`, `moj-contest`, `moj-comp`) print their messages in Portuguese, and the command examples below are identical to the original.
@@ -64,7 +64,9 @@ comes from there. The Animeitor animates the comeback and keeps the freeze until
    scoreboard does not have it or when a site has no teams.
 4. Click **📡 publish to the big screen** and **▶ start the feeder** (the clock every second and the
    submissions every 2 s). The event name is the contest id. MOJ refuses a name that already belongs to
-   another MOJ contest.
+   another MOJ contest. With the MOJ key, a new event starts with `moj-` (`moj-<contest>`): this is an
+   Animeitor rule for the shared key, and MOJ adds the prefix on its own — including to a name you type. With
+   your own key, the name is free. An event that already exists keeps its name (the reveal links stay valid).
 5. **Check.** MOJ asks the Animeitor, site by site, if it has **all** the submissions, with the correct
    answer. MOJ does this automatically every 5 minutes during the contest and, after the end, until the
    **final check**. MOJ automatically resends anything that is missing or different. The "Check" line of

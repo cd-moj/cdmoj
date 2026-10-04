@@ -56,7 +56,10 @@ virada e segura o congelamento até a hora da revelação.
    **+ sede Geral (todos os times)** no placar. O link dela é só seu e do admin: nenhum chefe de sede o recebe.
    A Central do admin avisa quando o placar geral está sem ela ou quando uma sede ficou sem times.
 4. **📡 publicar no telão** e **▶ ligar o alimentador** (relógio a cada segundo e submissões a cada 2 s). O nome
-   do evento é o id do contest; um nome que já é de outro contest do MOJ é recusado.
+   do evento é o id do contest; um nome que já é de outro contest do MOJ é recusado. Com a chave do MOJ,
+   o evento novo começa com `moj-` (`moj-<contest>`): é uma regra do Animeitor para a chave compartilhada, e o
+   MOJ põe o prefixo sozinho — inclusive no nome que você digitar. Com uma chave sua, o nome é livre. Um evento
+   já criado segue com o nome dele (os links de revelação continuam valendo).
 5. **Conferência.** O MOJ pergunta ao Animeitor, sede a sede, se ele tem **todas** as submissões, com a resposta
    certa — sozinho, a cada 5 minutos durante a prova e, depois do fim, até a **conferência final**. O que faltar
    ou divergir é reenviado sozinho. A linha "Conferência" do estado diz o último resultado; **🔎 conferir agora**

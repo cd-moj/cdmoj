@@ -1,4 +1,4 @@
-<!-- i18n-source: MANUAL-ANIMEITOR.md blob:983b0a1581d7ed57e48341070bf52de1c5cda3c2 -->
+<!-- i18n-source: MANUAL-ANIMEITOR.md blob:683e095b4d33ed3f92a48c9e5b0d4bac0812fa56 -->
 # MOJ: Manual de la pantalla (`.animeitor`)
 
 > **Nota de traducción.** Este manual es una traducción del original en portugués. Las herramientas de línea de comandos (`moj`, `moj-contest`, `moj-comp`) muestran sus mensajes en portugués, y los ejemplos de comandos son idénticos al original.
@@ -60,6 +60,9 @@ remontada y mantiene el congelamiento hasta la hora de la revelación.
    La Central del admin avisa cuando el marcador general no la tiene o cuando una sede quedó sin equipos.
 4. **📡 publicar en la pantalla** e **▶ iniciar el alimentador** (reloj cada segundo y envíos cada 2 s). El nombre
    del evento es el id de la competencia; un nombre que ya pertenece a otra competencia del MOJ se rechaza.
+   Con la clave del MOJ, el evento nuevo empieza con `moj-` (`moj-<competencia>`): es una regla del Animeitor
+   para la clave compartida, y el MOJ agrega el prefijo solo — también al nombre que escribas. Con una clave
+   tuya, el nombre es libre. Un evento ya creado mantiene su nombre (los enlaces de revelación siguen valiendo).
 5. **Verificación.** El MOJ le pregunta al Animeitor, sede por sede, si tiene **todos** los envíos, con la respuesta
    correcta — automáticamente, cada 5 minutos durante la competencia y, después del final, hasta la **verificación final**. Lo que falte
    o no coincida se reenvía automáticamente. La línea "Verificación" del estado muestra el último resultado; **🔎 verificar ahora**

@@ -56,8 +56,10 @@ const NOW=Math.floor(Date.now()/1000);
   DATA=base(); let s=makeApiSection('c',{}); await s.load(); let t=s.node.textContent;
   ck('chave do MOJ: "nada a configurar", a própria recolhida e nenhum usuário', t.includes('Chave do MOJ') && t.includes('não há nada a configurar') && t.includes('usar uma chave própria') && !t.includes('Chave própria:'), t.slice(0,400));
   ck('estado: ainda não conferido', t.includes('Conferência: ainda não conferido'));
+  ck('chave do MOJ: o campo do evento avisa do prefixo moj-', t.includes('evento novo começa com moj-'));
   DATA=base({cred_source:'contest', user:'fulano'}); s=makeApiSection('c',{}); await s.load(); t=s.node.textContent;
   ck('chave própria: campos + botão de voltar à do MOJ', t.includes('Chave própria:') && !!btn(s.node,'apagar e usar a chave do MOJ'));
+  ck('chave própria: sem o aviso do prefixo (o nome é livre)', !t.includes('começa com moj-'));
   POSTS=[]; await btn(s.node,'apagar e usar a chave do MOJ').click(); await flush();
   ck('voltar à do MOJ manda user/token vazios', JSON.stringify(POSTS[0])===JSON.stringify({action:'config',user:'',token:''}), JSON.stringify(POSTS));
   DATA=base({cred_source:'none', configured:false, has_cred:false, url:'https://outro.exemplo'}); s=makeApiSection('c',{}); await s.load(); t=s.node.textContent;
@@ -76,7 +78,7 @@ const NOW=Math.floor(Date.now()/1000);
   const b1=verifyBadge({at:NOW, final:true, final_at:NOW, ok:true}), b2=verifyBadge({at:NOW, ok:true, final:false}), b3=verifyBadge({at:NOW, ok:false, final:false}), b4=verifyBadge({});
   ck('selo da sede: validado · conferido · divergência · ainda não', b1.textContent.includes('Validado') && b2.textContent.includes('Conferido às') && b3.className==='error-box' && b4.textContent.includes('ainda não conferiu'));
   LANG='en'; DATA=base(); s=makeApiSection('c',{}); await s.load(); t=s.node.textContent;
-  ck('em inglês', t.includes('MOJ key') && t.includes('there is nothing to configure') && t.includes('Check: not checked yet') && verifyBadge({at:NOW, final:true, ok:true}).textContent.includes('Validated'));
+  ck('em inglês', t.includes('MOJ key') && t.includes('there is nothing to configure') && t.includes('Check: not checked yet') && t.includes('a new event starts with moj-') && verifyBadge({at:NOW, final:true, ok:true}).textContent.includes('Validated'));
 })().catch(e=>{ print('  FAIL: exceção '+e+'\n'+e.stack); fail++; }).finally(()=>{ print(''); print('RESULT: '+pass+' passed, '+fail+' failed'); if (fail) imports.system.exit(1); });
 EOF
 } > "$JS"

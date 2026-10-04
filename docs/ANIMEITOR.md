@@ -89,6 +89,24 @@ registro `$RUNDIR/animeitor/events.json` (`{url: {evento: contest}}`, sob flock)
   como antes (a credencial é do operador);
 - o `reset` libera o nome.
 
+### Prefixo `moj-` (04/10/2026)
+
+Regra do Emilio p/ a chave compartilhada: **evento que o MOJ cria com a chave do MOJ começa com `moj-`**. Com a
+chave PRÓPRIA do contest o nome é livre. Quem aplica é o `an_cfg` — um lugar só, herdado por publicar, links,
+conferência, alimentador, `GET` (o `event` é o nome EFETIVO; o `event_set` gravado continua sendo o digitado):
+
+- chave do MOJ (sem chave própria, URL = a padrão) e nome sem o prefixo ⇒ `moj-<nome>` — o padrão (`moj-<contest>`,
+  `moj-<contest>-<rodada>`) e o digitado;
+- **evento que já existe não muda de nome** (decisão do Ribas): se o `managed` diz que este contest criou `x` ou
+  `moj-x`, o nome segue sendo esse — o contest que publicou antes da regra continua no evento dele (links de
+  revelação valendo), e trocar de chave no meio do caminho não abandona o evento lá. O `reset` apaga o evento e
+  o próximo nasce com o prefixo;
+- o `config` confere o nome que o evento TERÁ (URL + nome + chave do mesmo pedido) antes de gravar qualquer coisa:
+  passou de 64 com o prefixo = `422 event_invalid`; mudar o nome efetivo com o alimentador ligado = `409 feeding`
+  (trocar só a chave, sem mudar o nome, passa);
+- o `an_publish` barra o que escapar disso (chave do MOJ, evento novo sem o prefixo) com `409
+  event_prefix_required`, antes de qualquer request.
+
 ## Publicar (`an_publish`)
 
 `POST /contest/animeitor/api {action:"publish"}`: evento → placares → sedes, e apaga lá os placares e
@@ -261,19 +279,22 @@ chega ao `.cstaff`/`.staff` assim (decisões do Ribas, 21/09/2026):
 
 - `server/test/animeitor-mock.py` — mock **estrito**, escrito do OpenAPI e conferido no serviço real
   (401 sem Basic, 409, 404 sem pai, `PUT` zera o omitido, `PATCH` vazio/campo desconhecido = 400,
-  `invalid_regex`, `unknown_team` com o texto real, problema desconhecido = 400 no lote, `keep_runs`).
+  `invalid_regex`, `unknown_team` com o texto real, problema desconhecido = 400 no lote, `keep_runs`;
+  `AN_MOCK_PREFIX` = o usuário do MOJ só cria evento com o prefixo, `AN_MOCK_USER2` = a chave própria de alguém).
 - `server/test/smoke-animeitor-api.sh` (96, com a prorrogação por sede): gates, token write-only, proposta (regex × lista),
   publicação idempotente SEM `PUT` e com os salts preservados, evento alheio intocado, delta de runs
   com id estável, relógio negativo/teto, alimentador (`--once`: relógio, só-o-que-mudou, time tardio,
   serviço fora do ar, instância única, desliga em 24 h), rodada nova = evento novo, links, reveleitor nas sedes (antes/depois da liberação, region:, escopo por regex, sem sede, sede renomeada, recolher, botão na barra), reset. `smoke-animeitor.sh` prende
   a paridade do pacote BOCA e o mapa de ids. `admin-inplace.gjs.sh`: o estado ao vivo atualiza EM
   LUGAR sem reconstruir a tabela em edição.
-- `server/test/smoke-animeitor-verify.sh` (37): chave do MOJ (padrão invisível, própria vence, apagar volta, nunca
+- `server/test/smoke-animeitor-verify.sh` (56): chave do MOJ (padrão invisível, própria vence, apagar volta, nunca
   vai a outra URL), registro de posse (`event_taken` sem request, `adopt_forbidden`, própria pode, reset libera),
+  prefixo `moj-` (padrão e digitado ganham, própria livre, trocar de chave não renomeia, evento anterior à regra
+  segue, reset ⇒ prefixo, 422 acima de 64, `feeding` pelo nome efetivo sem meia troca, `event_prefix_required`),
   conferência (antes do início, ok, perdida/diferente/a mais/removida reparadas e 2ª conferência ok, mesmo regex =
   1 consulta, final × pendente, `final_at` estável, reveleitor da sede, alimentador destacado, nada secreto em disco).
   `smoke-animeitor-key-verify.gjs.sh`: a mesa (chave do MOJ × própria × URL fora do padrão, estado da conferência,
-  "conferir agora", conferência antes de liberar) e o selo da sede. `smoke-preflight.sh`: o item `telao`.
+  aviso do prefixo, "conferir agora", conferência antes de liberar) e o selo da sede. `smoke-preflight.sh`: o item `telao`.
 - Servidor real: só num evento de teste próprio, apagado no fim. **Nunca** tocar evento alheio.
 
 ## O que o Emilio respondeu (21/09/2026) — e o que ainda está aberto

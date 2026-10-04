@@ -69,23 +69,46 @@ an_moj_cred_available(){ [[ -s "$(an_moj_credfile)" ]]; }
 an_url_ok(){ [[ "$1" =~ ^https://[A-Za-z0-9.-]+(:[0-9]{1,5})?$ || "$1" =~ ^http://127\.0\.0\.1(:[0-9]{1,5})?$ ]]; }
 an_name_ok(){ [[ -n "$1" && ${#1} -le 64 && "$1" != *"/"* && "$1" != *$'\n'* && "$1" != *$'\t'* && "$1" != "." && "$1" != ".." ]]; }
 
-# an_cfg <c> -> animeitor.json NORMALIZADO (nunca vazio)
+# an_cfg <c> [config-crua] [chave-própria 0|1] -> animeitor.json NORMALIZADO (nunca vazio). Os dois opcionais
+# avaliam uma config CANDIDATA sem tocar no disco (o `config` da API confere o nome que o evento TERIA antes de
+# gravar qualquer coisa); sem eles valem o animeitor.json e a chave gravados.
+#
+# PREFIXO moj- (04/10/2026, pedido do Emilio Wuerges): com a chave do MOJ (a compartilhada, no servidor
+# padrão) o evento que o MOJ CRIA lá tem de começar com `moj-` — o MOJ põe o prefixo no nome (o padrão e o
+# digitado). Com a chave PRÓPRIA do contest o nome é livre. Evento que já existe NÃO muda de nome: se o
+# `managed` diz que este contest criou `x` ou `moj-x`, o nome segue sendo esse — os links de revelação
+# continuam valendo, e trocar de chave no meio do caminho não abandona o evento lá (decisão do Ribas).
+AN_EVENT_PREFIX="moj-"
+_AN_CFG_JQ='
+  ((.url // "") | if . == "" then $du else . end) as $url
+  | ((.event // "") | if . == "" then $c else . end) as $cand
+  | ([ try ($mr | fromjson | .event | strings) catch empty ] | .[0] // "") as $mev
+  | (if $mev != "" and ($mev == $cand or $mev == $px + $cand) then $mev
+     elif $mk == "1" and $url == $du and ($cand | startswith($px) | not) then $px + $cand
+     else $cand end) as $ev
+  | { version: 1, url: $url, event: $ev, event_set: (.event // ""),
+      moj_base_url: (.moj_base_url // ""), enabled: (.enabled == true),
+      feed: { clock_s: ((.feed.clock_s // 1) | if . < 1 then 1 else . end), runs_s: ((.feed.runs_s // 2) | if . < 1 then 1 else . end),
+              verify_s: ((.feed.verify_s // 300) | if . < 30 then 30 else . end) },
+      reveal: { released: (.reveal.released == true), at: (.reveal.at // 0), by: (.reveal.by // "") },
+      contests: (if (.contests | type) == "array" then .contests else null end) }'
+_an_cfg_norm(){ jq -c --arg c "$1" --arg du "$AN_DEFAULT_URL" --arg mk "$2" --arg px "$AN_EVENT_PREFIX" --rawfile mr "$3" "$_AN_CFG_JQ"; }
 an_cfg(){
-  local f rf dflt="$1" slug; f="$(an_cfg_file "$1")"
+  local f rf dflt="$1" slug own=0 mk mf
+  f="$CONTESTSDIR/$1/animeitor.json"
   # com RODADAS (aquecimento + prova no mesmo contest) o nome-padrão do evento leva a rodada ativa: a
   # promoção zera os history, e a API do Animeitor não limpa o histórico do stream — rodada nova tem de
   # ser EVENTO novo. (Nome gravado à mão pelo operador vence.)
   rf="$CONTESTSDIR/$1/rounds.json"
   if [[ -s "$rf" ]]; then slug="$(jq -r '.active // ""' "$rf" 2>/dev/null)"; [[ "$slug" =~ ^[a-z0-9][a-z0-9_-]{0,31}$ ]] && dflt="$1-$slug"; fi
-  { [[ -s "$f" ]] && cat "$f" || printf '{}'; } | jq -c --arg c "$dflt" --arg du "$AN_DEFAULT_URL" '
-    { version: 1, url: ((.url // "") | if . == "" then $du else . end), event: ((.event // "") | if . == "" then $c else . end),
-      event_set: (.event // ""),
-      moj_base_url: (.moj_base_url // ""), enabled: (.enabled == true),
-      feed: { clock_s: ((.feed.clock_s // 1) | if . < 1 then 1 else . end), runs_s: ((.feed.runs_s // 2) | if . < 1 then 1 else . end),
-              verify_s: ((.feed.verify_s // 300) | if . < 30 then 30 else . end) },
-      reveal: { released: (.reveal.released == true), at: (.reveal.at // 0), by: (.reveal.by // "") },
-      contests: (if (.contests | type) == "array" then .contests else null end) }' 2>/dev/null \
-  || jq -cn --arg c "$1" --arg du "$AN_DEFAULT_URL" '{version:1, url:$du, event:$c, event_set:"", moj_base_url:"", enabled:false, feed:{clock_s:1, runs_s:2, verify_s:300}, reveal:{released:false, at:0, by:""}, contests:null}'
+  # a chave em uso, sem chamar o an_cred_source (ele chama o an_cfg): a do MOJ vale se o contest não tem
+  # a própria e a URL é a padrão (esta, o jq confere)
+  if [[ -n "${3:-}" ]]; then own="$3"; elif [[ -s "$CONTESTSDIR/$1/secrets/animeitor.cred" ]]; then own=1; fi
+  mk=0; [[ "$own" != 1 && -s "${ANIMEITOR_CRED_FILE:-${RUNDIR:-/home/ribas/moj/run}/secrets/animeitor.cred}" ]] && mk=1
+  mf="$CONTESTSDIR/$1/var/animeitor-managed.json"; [[ -s "$mf" ]] || mf=/dev/null
+  { if [[ -n "${2:-}" ]]; then printf '%s' "$2"; elif [[ -s "$f" ]]; then cat "$f"; else printf '{}'; fi; } \
+    | _an_cfg_norm "$dflt" "$mk" "$mf" 2>/dev/null \
+  || _an_cfg_norm "$dflt" "$mk" "$mf" <<<'{}'
 }
 # (`event` no arquivo é o que o operador DIGITOU — vazio = nome-padrão, que o an_cfg resolve a cada leitura;
 #  gravar o nome resolvido congelaria `<contest>-<rodada>` na rodada errada)
@@ -382,6 +405,13 @@ an_publish(){
     an_fail_note "$c" publish 409 "nome de evento de outro contest"; return 1
   fi
   man="$(an_managed "$c")"; mev="$(jq -r .event <<<"$man")"
+  # com a chave do MOJ, evento NOVO só nasce com `moj-` (o an_cfg já põe o prefixo; isto barra o que escapar
+  # dele — ex.: AN_URL apontando p/ o servidor padrão com outra URL gravada)
+  if [[ "$csrc" == moj && "$ev" != "$AN_EVENT_PREFIX"* && "$mev" != "$ev" ]]; then
+    rm -rf "$W"
+    jq -cn --arg n "$ev" --arg p "$AN_EVENT_PREFIX" '{ok:false, event:{name:$n, action:"error", http:"409", code:"event_prefix_required", error:"com a chave do MOJ o nome de um evento novo tem de começar com \($p)"}}' > "$out"
+    an_fail_note "$c" publish 409 "evento novo sem o prefixo $AN_EVENT_PREFIX"; return 1
+  fi
   if [[ "$mev" != "$ev" ]]; then
     # evento NOVO (renomeado, ou rodada nova): começa do zero lá — inclusive as runs. Sem zerar o `sent`,
     # as submissões da rodada anterior (que sumiram do history) iriam p/ o evento novo como "removidas" (X).

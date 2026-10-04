@@ -116,7 +116,12 @@ export function makeApiSection(CONTEST, G) {
       el('h3', {}, T('Conexão', 'Connection', 'Conexión')),
       row(T('Servidor do Animeitor:', 'Animeitor server:', 'Servidor del Animeitor:'), url, T('só https', 'https only', 'solo https')),
       keyRow,
-      row(T('Nome do evento lá:', 'Event name there:', 'Nombre del evento allá:'), ev, S.secret_contest ? T('⚠ contest secreto: este NOME fica público na página inicial do Animeitor', '⚠ secret contest: this NAME is public on the Animeitor landing page', '⚠ competencia secreta: este NOMBRE queda público en la página inicial del Animeitor') : ''),
+      // com a chave do MOJ o evento NOVO nasce `moj-<nome>` (regra do Animeitor p/ a chave compartilhada): o
+      // servidor põe o prefixo e a tela mostra o nome efetivo; evento que já existe segue com o nome dele
+      row(T('Nome do evento lá:', 'Event name there:', 'Nombre del evento allá:'), ev, [
+        S.cred_source === 'moj' ? T('com a chave do MOJ, evento novo começa com moj- (o MOJ põe o prefixo)', 'with the MOJ key, a new event starts with moj- (MOJ adds the prefix)', 'con la clave del MOJ, un evento nuevo empieza con moj- (el MOJ agrega el prefijo)') : '',
+        S.secret_contest ? T('⚠ contest secreto: este NOME fica público na página inicial do Animeitor', '⚠ secret contest: this NAME is public on the Animeitor landing page', '⚠ competencia secreta: este NOMBRE queda público en la página inicial del Animeitor') : '',
+      ].filter(Boolean).join(' · ')),
       row(T('URL pública do MOJ:', 'MOJ public URL:', 'URL pública del MOJ:'), base, T('de onde o telão busca a foto e a música de cada time', 'where the big screen fetches each team photo and music', 'de donde la pantalla obtiene la foto y la música de cada equipo')),
       el('div', { class: 'row', style: 'gap:.5rem;margin:.4rem 0' },
         el('button', { class: 'btn', onclick: () => save(true) }, T('gravar e testar', 'save and test', 'guardar y probar')),

@@ -15,6 +15,9 @@ mock que aceita qualquer coisa esconde bug — este recusa o que o serviço recu
     conhecido = 400 invalid_value no lote INTEIRO; reenvio idêntico não conta em `updated`
   · remover time/problema com runs → 409 (time: ?keep_runs=true passa)
   · nome do corpo ≠ nome do caminho → 400
+  · AN_MOCK_PREFIX (ex. "moj-"): o usuário AN_MOCK_USER só CRIA evento com esse prefixo → 403 (a regra do
+    Emilio p/ a chave compartilhada do MOJ, 04/10/2026); AN_MOCK_USER2/AN_MOCK_TOKEN2 = um 2º usuário (a chave
+    PRÓPRIA de alguém), livre do prefixo
 
 Envelope: {"data":…[, "warnings":[…]]} | {"errors":[{code,message}]}. 204 sem corpo.
 Estado em <dir>/state.json (regravado a cada escrita); <dir>/requests.log = uma linha JSON por
@@ -34,6 +37,9 @@ from urllib.parse import urlparse, parse_qs, unquote
 FIX, PORTFILE = sys.argv[1], sys.argv[2]
 USER = os.environ.get("AN_MOCK_USER", "moj")
 TOKEN = os.environ.get("AN_MOCK_TOKEN", "tok-mock-123")
+USER2 = os.environ.get("AN_MOCK_USER2", "")
+TOKEN2 = os.environ.get("AN_MOCK_TOKEN2", "")
+PREFIX = os.environ.get("AN_MOCK_PREFIX", "")
 LOCK = threading.Lock()
 STATE = {"events": {}}          # events[e] = {state, contests:{c:{config, sites:{s:config}}}, runs:{id:run}}
 
@@ -149,7 +155,8 @@ class H(BaseHTTPRequestHandler):
         if h.startswith("Basic "):
             try:
                 u, _, t = base64.b64decode(h[6:]).decode().partition(":")
-                return u == USER and t == TOKEN
+                self.user = u
+                return (u == USER and t == TOKEN) or (USER2 != "" and u == USER2 and t == TOKEN2)
             except Exception:
                 return False
         return False
@@ -263,6 +270,8 @@ class H(BaseHTTPRequestHandler):
             if m == "POST":
                 if name in ev:
                     raise Err(409, "conflict", "evento já existe")
+                if PREFIX and self.user == USER and not name.startswith(PREFIX):
+                    raise Err(403, "forbidden", f"este usuário só cria evento com o prefixo {PREFIX}")
                 st = _full(body, EVENT_FIELDS, EVENT_REQ, EVENT_DEF, name)
                 _check_teams(st["teams"])
                 ev[name] = {"state": st, "contests": {}, "runs": {}}
