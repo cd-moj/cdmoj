@@ -252,13 +252,20 @@ case "$action" in
       # fazer") e SÓ DEPOIS regrava o enunciado do contest (PT e traduções) a partir do json novo. Antes apagava os
       # arquivos na hora e reindexava em background: um /contest/problems no meio rematerializava o enunciado VELHO,
       # e pacote que não reindexava ficava sem nada (auditoria 03/10/2026). Destacado (pandoc leva segundos).
+      # Reindexar que FALHA (pacote quebrado, ou sem pacote) não deixa de "atualizar do banco": regrava a partir do json
+      # que o banco já serve — o mesmo que a re-materialização preguiçosa fazia antes. MOJ_JOBS_SYNC=1 = na hora (testes).
       lib="$_DIR/lib"
-      ( setsid env CONTESTSDIR="$CONTESTSDIR" RUNDIR="$RUNDIR" TL_STORE_DIR="${TL_STORE_DIR:-}" MOJ_PROBLEMS_DIR="$MOJ_PROBLEMS_DIR" \
-          MOJTOOLS_DIR="$MOJTOOLS_DIR" bash -c '
-          source "$1/common.sh" >/dev/null 2>&1; source "$1/tl-store.sh"; source "$1/contest-statement.sh"
-          index_problem_now "$2" 0 || exit 0
+      _rf_job='source "$1/common.sh" >/dev/null 2>&1; source "$1/tl-store.sh"; source "$1/contest-statement.sh"
+          index_problem_now "$2" 0 >/dev/null 2>&1 || true
           bf="$(cs_bank_json "$2")" && cs_bank_write "$bf" "$CONTESTSDIR/$3" "$4" all
-          touch "$CONTESTSDIR/$3/var/.problems-dirty"' _ "$lib" "$cid" "$contest" "$skey" </dev/null >/dev/null 2>&1 & ) 2>/dev/null
+          touch "$CONTESTSDIR/$3/var/.problems-dirty"'
+      if [[ "${MOJ_JOBS_SYNC:-0}" == 1 ]]; then
+        env CONTESTSDIR="$CONTESTSDIR" RUNDIR="$RUNDIR" TL_STORE_DIR="${TL_STORE_DIR:-}" MOJ_PROBLEMS_DIR="$MOJ_PROBLEMS_DIR" \
+          MOJTOOLS_DIR="$MOJTOOLS_DIR" bash -c "$_rf_job" _ "$lib" "$cid" "$contest" "$skey" </dev/null >/dev/null 2>&1
+      else
+        ( setsid env CONTESTSDIR="$CONTESTSDIR" RUNDIR="$RUNDIR" TL_STORE_DIR="${TL_STORE_DIR:-}" MOJ_PROBLEMS_DIR="$MOJ_PROBLEMS_DIR" \
+            MOJTOOLS_DIR="$MOJTOOLS_DIR" bash -c "$_rf_job" _ "$lib" "$cid" "$contest" "$skey" </dev/null >/dev/null 2>&1 & ) 2>/dev/null
+      fi
       did="$did refresh"
     fi
     [[ -n "$did" ]] || fail 422 "Nada a fazer (envie html_b64/pdf_b64, remove_*, ou refresh)" "noop"

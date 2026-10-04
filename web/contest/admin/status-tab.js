@@ -184,7 +184,7 @@ export function makeStatusTab(CONTEST, opts = {}) {
       el('td', {}, el('span', { class: x.online ? '' : 'flag-anom', title: pool.includes(x.host) ? T('no pool do contest', 'in the contest pool', 'en el pool de la competencia') : '' },
         (pool.includes(x.host) ? '⭐ ' : '') + (x.status === 'disabled' ? '⛔ ' : x.online ? '🟢 ' : '🔴 ') + x.host)),
       // estado com os SLOTS em uso (multi-slot: "free" com slot ocupado parecia ocioso)
-      el('td', { class: 'small' }, (x.state || '—') + ((x.total_slots || 1) > 1 ? ' · ' + (x.used_slots || 0) + '/' + x.total_slots + T(' slots', ' slots', ' slots') : '')),
+      el('td', { class: 'small' }, (x.state || '—') + ((x.total_slots || 1) > 1 ? ' · ' + (x.used_slots || 0) + '/' + x.total_slots + T(' vagas', ' slots', ' cupos') : '')),
       el('td', { class: 'small' + (x.online ? '' : ' flag-anom') }, x.status === 'disabled' ? T('desabilitado', 'disabled', 'deshabilitado')
         : x.online ? 'online' : (T('offline há ', 'offline for ', 'fuera de línea hace ') + fmtS(x.age_s))),
       el('td', { class: 'small' }, String(x.problems_count || 0) + ' probs'),

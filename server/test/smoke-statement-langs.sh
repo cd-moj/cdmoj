@@ -236,10 +236,14 @@ call /contest/admin/problems POST sl.admin "contest=sl" '{"action":"statement","
 ck "upload com lang inválido = 400"      '[[ "$(code)" == "400 Bad Request" ]]'
 call /contest/admin/problems POST sl.admin "contest=sl" '{"action":"statement","letter":"A","lang":"es","remove_html":true}'
 ck "remove_html es apaga só o ES"        '[[ ! -f "$C/enunciados/col#pa.es.html" && -f "$C/enunciados/col#pa.en.html" && -f "$C/enunciados/col#pa.html" ]]'
-call /contest/admin/problems POST sl.admin "contest=sl" '{"action":"statement","letter":"A","refresh":true}'
-ck "refresh apaga PT e traduções (volta a buscar do banco)" '[[ ! -f "$C/enunciados/col#pa.html" && ! -f "$C/enunciados/col#pa.en.html" ]]'
+# refresh = regravar PT e traduções A PARTIR DO BANCO (reindexa antes; sem pacote, o json que o banco já serve).
+# Desde 03/10/2026 nada é apagado antes (um /contest/problems no meio re-materializava o enunciado VELHO);
+# MOJ_JOBS_SYNC=1 faz o job destacado rodar na hora.
+printf '<html><body><p>EDITADO A MAO</p></body></html>' > "$C/enunciados/col#pa.html"
+call /contest/admin/problems POST sl.admin "contest=sl" '{"action":"statement","letter":"A","refresh":true}' "MOJ_JOBS_SYNC=1"
+ck "refresh regrava o PT a partir do banco (o editado à mão sai)" '[[ -s "$C/enunciados/col#pa.html" && -s "$C/enunciados/col#pa.en.html" ]] && ! grep -q "EDITADO A MAO" "$C/enunciados/col#pa.html"'
 call /contest/problems GET time01 "contest=sl"
-ck "…e a lista re-materializa PT e EN do banco" '[[ -s "$C/enunciados/col#pa.html" && -s "$C/enunciados/col#pa.en.html" && "$(jq -c ".problems[0].statement_langs" <<<"$BODY")" == "[\"pt\",\"en\"]" ]]'
+ck "…e a lista mostra os idiomas que o BANCO tem (pt + traduções do json)" '[[ "$(jq -c ".problems[0].statement_langs" <<<"$BODY")" == "$(jq -c "[\"pt\"] + ((.statements // {}) | keys | map(select(. != \"pt\")) | sort_by({pt:0,en:1,es:2}[.] // 9))" "$J")" ]]'
 
 echo "== tirar o idioma da lista fecha a porta na hora (cache invalidado) =="
 call /contest/admin/statement-langs POST sl.admin "contest=sl" '{"langs":["pt"]}'
