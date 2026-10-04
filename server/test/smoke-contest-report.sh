@@ -311,6 +311,24 @@ J="$(callj /contest/admin/report-publish GET adm 'contest=rp')"
 ck "GET: ainda não publicado, url pronta"        '[[ "$(jq -r .published <<<"$J")" == false && "$(jq -r .url <<<"$J")" == "/relatorio/rp/" ]]'
 J="$(callj /contest/admin/report-publish POST usr 'contest=rp' '{"action":"publish"}')"
 ck "competidor não publica (403)"                 '[[ "$(jq -r .error.code <<<"$J")" == admin_required ]]'
+# PORTÃO (auditoria do painel, 03/10/2026; decisão do Ribas): o relatório é público e traz placar completo,
+# enunciados e coortes — antes do início, congelado ou com coorte privada não liberada, recusa
+cp "$C/conf" "$FIX/conf.pub"; cp "$C/cohorts.json" "$FIX/cohorts.pub"
+sed -i "s/^CONTEST_START=.*/CONTEST_START=$(( $(date +%s) + 3600 ))/" "$C/conf"
+J="$(callj /contest/admin/report-publish POST adm 'contest=rp' '{"action":"publish"}')"
+ck "antes do início: 409 not_started (enunciados públicos)" '[[ "$(jq -r .error.code <<<"$J")" == not_started && ! -e "$C/relatorio" ]]'
+cp "$FIX/conf.pub" "$C/conf"; printf 'FREEZE_TIME=%s\n' "$FZ" >> "$C/conf"
+J="$(callj /contest/admin/report-publish POST adm 'contest=rp' '{"action":"publish"}')"
+ck "congelado antes do fim+1min: 409 freeze_locked (com release_at)" '[[ "$(jq -r .error.code <<<"$J")" == freeze_locked && "$(jq -r .error.release_at <<<"$J")" -gt 0 ]]'
+sed -i "s/^CONTEST_END=.*/CONTEST_END=$(( $(date +%s) - 120 ))/" "$C/conf"
+J="$(callj /contest/admin/report-publish POST adm 'contest=rp' '{"action":"publish"}')"
+ck "depois do fim, placar AINDA congelado: 409 board_frozen (pede confirmação)" '[[ "$(jq -r .error.code <<<"$J")" == board_frozen && "$(jq -r .error.can_force <<<"$J")" == true && ! -e "$C/relatorio" ]]'
+cp "$FIX/conf.pub" "$C/conf"
+jq '.cohorts += [{id:"conv", name:"Convidados", regex:"^zz", public:false, sees:["conv"]}]' "$FIX/cohorts.pub" > "$C/cohorts.json"
+J="$(callj /contest/admin/report-publish POST adm 'contest=rp' '{"action":"publish"}')"
+ck "coorte PRIVADA não liberada: 409 cohorts_not_released" '[[ "$(jq -r .error.code <<<"$J")" == cohorts_not_released ]]'
+jq '.results_released = true' "$C/cohorts.json" > "$C/co.tmp" && mv "$C/co.tmp" "$C/cohorts.json"
+J="$(callj /contest/admin/report-publish GET adm 'contest=rp')"   # (liberada: o publish abaixo passa)
 J="$(callj /contest/admin/report-publish POST adm 'contest=rp' '{"action":"publish"}')"
 ck "publish: publicado, job done, ≥7 páginas"     '[[ "$(jq -r .published <<<"$J")" == true && "$(jq -r .job.state <<<"$J")" == done && "$(jq -r .pages <<<"$J")" -ge 7 && "$(jq -r .by <<<"$J")" == rp.admin ]]'
 ck "site em contests/rp/relatorio/ (index, statistics)" '[[ -s "$C/relatorio/index.html" && -s "$C/relatorio/statistics.html" && ! -e "$C/relatorio.tmp" ]]'
@@ -328,6 +346,10 @@ J="$(callj /contest/admin/report-publish GET adm 'contest=rp')"
 ck "GET lista a rodada arquivada com relatório (public=false)" '[[ "$(jq -c ".rounds | map({slug, public})" <<<"$J")" == "[{\"slug\":\"aq\",\"public\":false}]" ]]'
 J="$(callj /contest/admin/report-publish POST adm 'contest=rp' '{"action":"publish-round","round":"oficial"}')"
 ck "rodada ativa não é publicável (409)"           '[[ "$(jq -r .error.code <<<"$J")" == not_archived ]]'
+jq '.results_released = false' "$C/cohorts.json" > "$C/co.tmp" && mv "$C/co.tmp" "$C/cohorts.json"
+J="$(callj /contest/admin/report-publish POST adm 'contest=rp' '{"action":"publish-round","round":"aq"}')"
+ck "publish-round com coorte PRIVADA não liberada: 409" '[[ "$(jq -r .error.code <<<"$J")" == cohorts_not_released && ! -e "$C/relatorio-rodadas/aq" ]]'
+cp "$FIX/cohorts.pub" "$C/cohorts.json"
 J="$(callj /contest/admin/report-publish POST adm 'contest=rp' '{"action":"publish-round","round":"aq"}')"
 ck "publish-round: symlink relatorio-rodadas/aq → rounds/aq/relatorio" '[[ "$(jq -r ".rounds[0].public" <<<"$J")" == true && -L "$C/relatorio-rodadas/aq" && "$(cat "$C/relatorio-rodadas/aq/index.html")" == *aq* ]]'
 ck "audit: report-publish-round"                    'grep -q "report-publish-round	slug=aq" "$C/var/admin-audit.log"'

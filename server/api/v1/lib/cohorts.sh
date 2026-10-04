@@ -72,6 +72,12 @@ ch_is_ranking_view(){
     <<<"$(ch_get "$1")" >/dev/null 2>&1
 }
 ch_released(){ jq -e '.results_released == true' <<<"$(ch_get "$1")" >/dev/null 2>&1; }
+# ch_private_unreleased <c> -> 0 se há coorte PRIVADA (public:false) e os resultados ainda não foram liberados — o
+# que um relatório PÚBLICO (placar aberto com todos os times) entregaria. Coorte pública, mesmo com placar próprio,
+# já é visível a todos.
+ch_private_unreleased(){
+  jq -e '([.cohorts[]? | select(.public == false)] | length > 0) and (.results_released != true)' <<<"$(ch_get "$1")" >/dev/null 2>&1
+}
 
 # ch_default <c> -> id da coorte default (a 1ª marcada, senão a 1ª da lista, senão "oficial")
 ch_default(){

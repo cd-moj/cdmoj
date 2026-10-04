@@ -1,4 +1,4 @@
-<!-- i18n-source: MANUAL-ADMIN.md blob:9d32e7e06e32ae5785fe239f614c3c2849a73b5f -->
+<!-- i18n-source: MANUAL-ADMIN.md blob:8d949d3137f70ccbd4a7a0b67e724d26e0d438dd -->
 # MOJ: Organizer manual (the contest .admin panel)
 
 > **Translation note.** This manual is a translation of the Portuguese original. The command-line tools (`moj`, `moj-contest`, `moj-comp`) print their messages in Portuguese, and the command examples below are identical to the original.
@@ -557,6 +557,15 @@ cards. The **archived rounds** (warm-up, for example) have their own button in C
 **🌐 publish** puts the report that the promotion generated at
 `/relatorio/<contest>/rodada/<slug>/`. When the main report is (re)published, its home page links
 the public rounds in "Earlier rounds of this event".
+
+MOJ refuses to publish the report when it would show what is not public yet:
+
+- **Before the contest starts.** The report contains the statements.
+- **With the scoreboard frozen, until the end of the contest for all sites + 1 minute.** The report shows the
+  full scoreboard. After that, if the scoreboard is still frozen (the reveal did not occur), the panel asks for
+  confirmation.
+- **With a PRIVATE cohort and the results not released.** The report shows all the teams. This also applies to
+  the report of an archived round. Release the results in Event › Cohorts.
 
 ## 6¾. Virtual participation (Event › Virtual — module `virtual`)
 

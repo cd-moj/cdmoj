@@ -31,11 +31,32 @@ export function makeReportTab(CONTEST, opts = {}) {
   // --- 2. publicação (caixa persistente) ---------------------------------------------------
   const pubBox = el('div', { class: 'row', style: 'gap:.5rem;align-items:center;flex-wrap:wrap' });
   const pubMsg = el('div', { class: 'small' });
+  // PORTÃO DA PUBLICAÇÃO (auditoria 03/10/2026): o relatório é público e traz o placar completo, os enunciados e as
+  // coortes — o servidor recusa antes do início, com o placar congelado (até o fim + 1 min; depois pede confirmação)
+  // e com coorte não liberada. Aqui só se traduz e se confirma.
+  const pubError = (e) => {
+    const d = (e && e.data) || {};
+    if (d.code === 'not_started') return T('A prova ainda não começou: o relatório traz os enunciados e ficaria público antes do início.', 'The contest has not started yet: the report has the statements and would be public before the start.', 'La competencia todavía no empezó: el informe trae los enunciados y quedaría público antes del inicio.');
+    if (d.code === 'freeze_locked') {
+      const at = d.release_at ? fmtDate(d.release_at) : '';
+      return T(`Com o placar congelado, o relatório só pode ser publicado a partir de ${at} (fim da prova para todas as sedes + 1 min): ele mostra o placar completo.`, `With the scoreboard frozen, the report can only be published from ${at} (end of the contest for all sites + 1 min): it shows the full scoreboard.`, `Con el marcador congelado, el informe solo se puede publicar a partir de ${at} (fin de la competencia para todas las sedes + 1 min): muestra el marcador completo.`);
+    }
+    if (d.code === 'cohorts_not_released') return T('O contest tem coorte PRIVADA e os resultados não foram liberados: o relatório público mostra todos os times. Libere os resultados em Evento › Coortes.', 'The contest has a PRIVATE cohort and the results were not released: the public report shows every team. Release the results in Event › Cohorts.', 'La competencia tiene una cohorte PRIVADA y los resultados no se liberaron: el informe público muestra todos los equipos. Libera los resultados en Evento › Cohortes.');
+    return (e && e.message) || T('falha', 'failed', 'fallido');
+  };
   async function act(action, msg, extra) {
     if (msg && !confirm(msg)) return;
     pubMsg.className = 'small muted'; pubMsg.textContent = '…';
     try { P = await apiPost(PUB, Object.assign({ action }, extra || {}), G); pubMsg.textContent = ''; render(); }
-    catch (e) { pubMsg.className = 'small error-box'; pubMsg.textContent = e.message || T('falha', 'failed', 'fallido'); pubRefresh(); }
+    catch (e) {
+      if (e && e.data && e.data.code === 'board_frozen' && !(extra && extra.force_frozen)
+          && confirm(T('O placar ainda está CONGELADO: o relatório público mostra o placar completo antes da revelação. Publicar mesmo assim?',
+            'The scoreboard is still FROZEN: the public report shows the full scoreboard before the reveal. Publish anyway?',
+            'El marcador todavía está CONGELADO: el informe público muestra el marcador completo antes de la revelación. ¿Publicar de todos modos?'))) {
+        return act(action, null, Object.assign({}, extra || {}, { force_frozen: true }));
+      }
+      pubMsg.className = 'small error-box'; pubMsg.textContent = pubError(e); pubRefresh();
+    }
   }
   function pubRender() {
     const p = P, job = (p && p.job) || null;

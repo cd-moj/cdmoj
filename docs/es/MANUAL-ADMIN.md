@@ -1,4 +1,4 @@
-<!-- i18n-source: MANUAL-ADMIN.md blob:9d32e7e06e32ae5785fe239f614c3c2849a73b5f -->
+<!-- i18n-source: MANUAL-ADMIN.md blob:8d949d3137f70ccbd4a7a0b67e724d26e0d438dd -->
 # MOJ: Manual del organizador (el panel .admin de la competencia)
 
 > **Nota de traducción.** Este manual es una traducción del original en portugués. Las herramientas de línea de comandos (`moj`, `moj-contest`, `moj-comp`) muestran sus mensajes en portugués, y los ejemplos de comandos son idénticos al original.
@@ -535,6 +535,15 @@ archivadas** (el calentamiento, por ejemplo) tienen su propio botón en Competen
 pone el informe generado en la promoción en
 `/relatorio/<contest>/rodada/<slug>/`, y la página de inicio del informe principal, al ser
 (re)publicada, pasa a enlazar las rondas públicas en "Rondas anteriores de este evento".
+
+MOJ se niega a publicar el informe cuando mostraría lo que todavía no es público:
+
+- **Antes del inicio de la competencia.** El informe trae los enunciados.
+- **Con el marcador congelado, hasta el fin de la competencia para todas las sedes + 1 minuto.** El informe
+  muestra el marcador completo. Después de eso, si el marcador sigue congelado (la revelación no ocurrió), el
+  panel pide confirmación.
+- **Con una cohorte PRIVADA y los resultados no liberados.** El informe muestra todos los equipos. Vale también
+  para el informe de una ronda archivada. Libera los resultados en Evento › Cohortes.
 
 ## 6¾. Participación virtual (Evento › Virtual, módulo `virtual`)
 

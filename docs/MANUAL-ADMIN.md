@@ -528,6 +528,15 @@ arquivadas** (aquecimento, por exemplo) têm o próprio botão em Prova › Rela
 `/relatorio/<contest>/rodada/<slug>/` — e a página inicial do relatório principal, ao ser
 (re)publicada, passa a linkar as rodadas públicas em "Rodadas anteriores deste evento".
 
+O MOJ recusa publicar o relatório quando ele mostraria o que ainda não é público:
+
+- **Antes do início da prova.** O relatório traz os enunciados.
+- **Com o placar congelado, até o fim da prova para todas as sedes + 1 minuto.** O relatório mostra o placar
+  completo. Depois disso, se o placar ainda estiver congelado (a revelação não aconteceu), o painel pede
+  confirmação.
+- **Com coorte PRIVADA e os resultados não liberados.** O relatório mostra todos os times. Vale também para o
+  relatório de uma rodada arquivada. Libere os resultados em Evento › Coortes.
+
 ## 6¾. Participação virtual (Evento › Virtual — módulo `virtual`)
 
 Com a prova encerrada, qualquer conta do Treino Livre pode **refazer o contest uma vez**, no próprio

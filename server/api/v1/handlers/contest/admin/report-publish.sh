@@ -50,6 +50,42 @@ _pub_state(){
     --argjson p "$pub" --arg u "/relatorio/$contest/" --argjson s "$stamp" --argjson j "$job" --argjson r "$rounds"
 }
 
+# PORTÃO DA PUBLICAÇÃO (auditoria do painel, 03/10/2026; decisão do Ribas: recusar até liberar). O relatório é
+# PÚBLICO (nginx, sem sessão) e traz o placar ABERTO (placar-full), os enunciados e as visões de coorte:
+#   - antes do início: 409 not_started (os enunciados ficariam públicos);
+#   - FREEZE_TIME>0 antes do fim geral + 1 min: 409 freeze_locked (release_at); depois, com o placar AINDA
+#     congelado (revelação por fazer): 409 board_frozen, `force_frozen:true` publica mesmo assim;
+#   - coorte PRIVADA com resultados não liberados: 409 cohorts_not_released (ch_private_unreleased).
+# A rodada arquivada (publish-round) passa só pela regra das coortes: o relatório dela é o da rodada já encerrada.
+_cohort_guard(){
+  source "$_LIBDIR/cohorts.sh"
+  if ch_private_unreleased "$contest"; then
+    fail 409 "O contest tem coorte PRIVADA e os resultados não foram liberados — o relatório público mostra todos os times" "cohorts_not_released"
+  fi
+}
+_publish_guard(){
+  local st fz at
+  source "$_LIBDIR/contest-gate.sh"
+  st="$(conf_value "$contest" CONTEST_START)"; st="${st//[^0-9]/}"
+  if [[ -n "$st" ]] && (( st > EPOCHSECONDS )); then
+    FAIL_EXTRA="$(jq -cn --argjson s "$st" '{start:$s}')" \
+      fail 409 "A prova ainda não começou: o relatório traz os enunciados e ficaria público antes do início" "not_started"
+  fi
+  fz="$(conf_value "$contest" FREEZE_TIME)"; fz="${fz//[^0-9]/}"
+  if [[ -n "$fz" ]] && (( fz > 0 )); then
+    at="$(freeze_release_at "$contest")"
+    if ! freeze_release_ok "$contest"; then
+      FAIL_EXTRA="$(jq -cn --argjson a "${at:-0}" '{release_at:$a}')" \
+        fail 409 "Com o placar congelado o relatório só pode ser publicado a partir de $(fmt_epoch "$at" '%d/%m %H:%M' "$contest") (fim da prova para todas as sedes + 1 min): ele mostra o placar completo" "freeze_locked"
+    fi
+    if [[ "$(jq -r '.force_frozen // false' <<<"$body" 2>/dev/null)" != true ]]; then
+      FAIL_EXTRA='{"can_force":true}' \
+        fail 409 "O placar ainda está congelado: o relatório mostra o placar completo antes da revelação. Descongele (Central › Encerrar evento) ou confirme para publicar mesmo assim" "board_frozen"
+    fi
+  fi
+  _cohort_guard
+}
+
 if [[ "$REQUEST_METHOD" == GET ]]; then _pub_state; exit 0; fi
 require_method POST
 body="$(read_body)"; action="$(jq -r '.action // empty' <<<"$body" 2>/dev/null)"
@@ -59,6 +95,7 @@ case "$action" in
        && ! ( exec 9>"$CD/var/.report.lock"; flock -n 9 ) 2>/dev/null; then
       fail 409 "Relatório já está sendo gerado" "busy"
     fi
+    _publish_guard
     # balões em dia ANTES do snapshot (mesma reconciliação preguiçosa do download tar.gz)
     source "$_LIBDIR/print.sh"; pr_reconcile_balloons "$contest" || true
     audit_log_to "$contest" report-publish "start by=$SESSION_LOGIN"
@@ -83,6 +120,7 @@ case "$action" in
     [[ "$(jq -r '.state' <<<"$r")" == archived ]] || fail 409 "só rodada arquivada tem relatório publicável" "not_archived"
     if [[ "$action" == publish-round ]]; then
       [[ -s "$CD/rounds/$slug/relatorio/index.html" ]] || fail 404 "Rodada sem relatório arquivado" "no_report"
+      _cohort_guard
       bash "$SCOREDIR/report-publish.sh" "$contest" "$SESSION_LOGIN" --round "$slug" >/dev/null 2>&1 || fail 500 "Falha ao publicar a rodada" "round_publish_failed"
       audit_log_to "$contest" report-publish-round "slug=$slug by=$SESSION_LOGIN"
     else
