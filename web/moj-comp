@@ -13,7 +13,7 @@
 #   moj-comp statement <letra> [--lang en|es]   Baixa um enunciado. Sem --lang, todos os idiomas.
 #   moj-comp samples <letra> [--dir D]    Baixa os exemplos do problema como arquivos: ./samples/<letra>/<nome>.in e .out.
 #                                         `fetch` já faz isso para todos os problemas (pasta samples/ do kit).
-#   moj-comp score                        Mostra o placar.
+#   moj-comp score                        Mostra o placar (anônimo: só o resumo, sem nomes).
 #   moj-comp submit <letra> <arquivo> [--no-wait]   Envia e espera o veredicto. Ctrl-C para de esperar;
 #                                         a submissão fica. Sem rede, empacota sozinho.
 #   moj-comp wait [id…]                   Espera o veredicto das submissões pendentes.
@@ -48,7 +48,7 @@
 MOJ_TOOL="${MOJ_TOOL:-moj}"
 # carimbo de build: "dev" no repo; o mkdist.sh troca pelo <git-short>-<data> nos artefatos
 # distribuídos (é o que `moj version`/`doctor` comparam com o /moj.build do servidor)
-MOJ_CLI_BUILD="1362fd7-20261003"
+MOJ_CLI_BUILD="8ad0f13-20261004"
 die(){ printf '%s: %s\n' "$MOJ_TOOL" "$*" >&2; exit 1; }
 # bash>=4 ANTES de qualquer bashismo (mapfile, read -i, ${x^^}): o /bin/bash do macOS é 3.2
 [ "${BASH_VERSINFO[0]:-0}" -ge 4 ] || die "preciso de bash >= 4 (macOS: brew install bash e rode com ele)"
@@ -770,6 +770,18 @@ cmd_score(){ need_contest
   local r
   r="$(_api_net GET "/contest/score$(qc)")" || die "sem rede."
   _anchor >/dev/null 2>&1 &
+  # placar ANÔNIMO (SCORE_ANON; 03/10/2026): a API manda ao competidor SÓ o agregado (JSON) — nenhum nome nem nota
+  if [[ "${r:0:1}" == "{" ]] && jq -e '.anon == true' <<<"$r" >/dev/null 2>&1; then
+    jq -r '"placar anônimo — o MOJ mostra só o resumo (nenhum nome nem nota individual)",
+      "participantes: \(.n // 0)",
+      (if (.supported // false) then
+         "resolveram (problemas → times): " + ((.dist // {}) | to_entries | sort_by(.key | tonumber) | map("\(.key) → \(.value)") | join(", ")),
+         "por problema: " + ((.problems // []) as $p | (.per_problem // {}) as $c | $p | map("\(.)=\($c[.] // 0)") | join(" ")),
+         "quartis: top 25% ≥ \(.q.p25 // 0) · mediana \(.q.median // 0) · 75% ≥ \(.q.p75 // 0) · máximo \(.q.max // 0)"
+       else empty end),
+      (if .frozen then "(placar congelado)" else empty end)' <<<"$r"
+    wait; return 0
+  fi
   # linha 1 `icpc s` (2026-08-30) = célula em SEGUNDOS; o terminal exibe minutos, como a
   # web. Colunas de problema = 6..NF-3 (flag:username:univ short:team name:univ full à
   # esquerda; Total:Penalty:LastAC[:guest] à direita) — só elas são convertidas, então
