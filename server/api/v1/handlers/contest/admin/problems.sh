@@ -1,5 +1,5 @@
 # GET/POST /contest/admin/problems?contest=<id>  (admin DO contest)
-# GET  -> {problems:[{source,problem_id,name,letter,statement_key,languages,judges,titles?}], name_lang}
+# GET  -> {problems:[{source,problem_id,name,letter,statement_key,languages,judges,titles?}], name_lang, phase}
 #         na ordem atual. `titles` {pt,en,es} = os títulos do banco quando há MAIS DE UM (enunciado
 #         traduzido): as opções de nome da tela. `name_lang` = o idioma do nome padrão (cc_prob_lang).
 # POST {action, ...}: add | remove | reorder | rename | apply_titles | langs | judges | statement.
@@ -27,7 +27,8 @@ if [[ "${REQUEST_METHOD:-GET}" == GET ]]; then
           | $p + {languages: ($pl[$cid] // []), judges: ($pj[$cid] // [])}
                + (if ([$x[]] | unique | length) > 1 then {titles: $x} else {} end) ]' <<<"$cur")"
   rm -f "$tmf"
-  ok_json '{problems:$p, name_lang:$l}' --argjson p "$out" --arg l "$(cc_prob_lang "$contest")"
+  source "$_LIBDIR/contest-gate.sh"   # phase: a tela confirma o reordenar (troca de letras) com a prova no ar
+  ok_json '{problems:$p, name_lang:$l, phase:$ph}' --argjson p "$out" --arg l "$(cc_prob_lang "$contest")" --arg ph "$(contest_phase "$contest")"
   exit 0
 fi
 
@@ -35,6 +36,11 @@ require_method POST
 body="$(read_body)"
 jq -e . >/dev/null 2>&1 <<<"$body" || fail 400 "JSON inválido" "bad_json"
 action="$(jq -r '.action // empty' <<<"$body")"
+# TRAVA por contest: toda ação LÊ o PROBS, monta o novo e REGRAVA o conf. Sem ela, o "+ adicionar todos" (um POST
+# por problema, todos de uma vez) perdia problemas: 6 adições respondiam 200 e só 1 ficava (auditoria 03/10/2026).
+mkdir -p "$CONTESTSDIR/$contest/var" 2>/dev/null
+exec {PLK}>"$CONTESTSDIR/$contest/var/.problems.lock"
+flock -w 20 "$PLK" || fail 409 "Outra alteração de problemas em andamento — tente de novo" "busy"
 cur="$(cc_probs_json "$contest")"
 new=""
 
@@ -149,6 +155,24 @@ case "$action" in
       | ($cur | map({(.letter): .}) | add) as $by
       | [ $order | to_entries[] | . as $e | ($by[$e.value] // empty)
           | (if $auto then .letter = letter($e.key) else . end) ]')"
+    # letras AUTOMÁTICAS são re-letradas pela posição: a cor do balão (balloons.json) e as clarifications são
+    # chaveadas pela LETRA e ficavam no problema errado (auditoria 03/10/2026). Mapa letra velha → nova pelo id
+    # canônico, aplicado às duas — uma permutação, então a troca é simultânea.
+    LMAP="$(jq -cn --argjson cur "$cur" --argjson new "$new" "$CC_PROB_CID_JQ"'
+      ($new | map({key:(cid), value:.letter}) | from_entries) as $N
+      | [ $cur[] | {key:.letter, value:($N[cid] // .letter)} | select(.key != .value) ] | from_entries')"
+    if [[ -n "$LMAP" && "$LMAP" != '{}' ]]; then
+      bf="$CONTESTSDIR/$contest/balloons.json"
+      if [[ -s "$bf" ]]; then
+        jq -c --argjson m "$LMAP" 'with_entries(.key = ($m[.key] // .key))' "$bf" > "$bf.tmp" 2>/dev/null && mv -f "$bf.tmp" "$bf" || rm -f "$bf.tmp"
+        rm -f "$CONTESTSDIR/$contest/var/balloons-cache.json" "$CONTESTSDIR/$contest/var/balloons-cache.json.inputs" 2>/dev/null
+      fi
+      while IFS= read -r -d '' cf; do
+        jq -e --argjson m "$LMAP" '(.problem // "") as $p | $m | has($p)' "$cf" >/dev/null 2>&1 || continue
+        jq -c --argjson m "$LMAP" '.problem = $m[.problem]' "$cf" > "$cf.tmp" 2>/dev/null && mv -f "$cf.tmp" "$cf" || rm -f "$cf.tmp"
+      done < <(find "$CONTESTSDIR/$contest/clarifications" -maxdepth 1 -name '*.json' -print0 2>/dev/null)
+      audit_log_to "$contest" problems-reletter "$(jq -r 'to_entries | map(.key + "→" + .value) | join(" ")' <<<"$LMAP")"
+    fi
     ;;
   langs)
     # linguagens permitidas POR problema (ids canônicos minúsculos). Chaveado pelo id
@@ -224,13 +248,17 @@ case "$action" in
     [[ "$(jq -r '.remove_html // false' <<<"$body")" == true ]] && { rm -f "$edir/$skey$sfx.html"; did="$did -html$sfx"; }
     [[ "$(jq -r '.remove_pdf  // false' <<<"$body")" == true ]] && { rm -f "$edir/$skey$sfx.pdf";  did="$did -pdf$sfx"; }
     if [[ "$(jq -r '.refresh // false' <<<"$body")" == true && -n "$cid" ]]; then
-      # remove o cache (PT e TODAS as traduções) -> /contest/problems volta a buscar/cachear do banco
-      rm -f "$edir/$skey.html"
-      for _l in $(stmt_langs_all); do [[ "$_l" == pt ]] || rm -f "$edir/$skey.$_l.html"; done
-      # reindexa NO SERVIDOR (o antigo idx_request enfileirava kind=index p/ o juiz, que responde
-      # "legado, nada a fazer" — era no-op e o "refresh" não refrescava nada).
-      source "$_DIR/lib/tl-store.sh" 2>/dev/null || true
-      declare -F index_problem_bg >/dev/null && index_problem_bg "$cid" 1 >/dev/null 2>&1 || true
+      # reindexa NO SERVIDOR (o antigo idx_request enfileirava kind=index p/ o juiz, que responde "legado, nada a
+      # fazer") e SÓ DEPOIS regrava o enunciado do contest (PT e traduções) a partir do json novo. Antes apagava os
+      # arquivos na hora e reindexava em background: um /contest/problems no meio rematerializava o enunciado VELHO,
+      # e pacote que não reindexava ficava sem nada (auditoria 03/10/2026). Destacado (pandoc leva segundos).
+      lib="$_DIR/lib"
+      ( setsid env CONTESTSDIR="$CONTESTSDIR" RUNDIR="$RUNDIR" TL_STORE_DIR="${TL_STORE_DIR:-}" MOJ_PROBLEMS_DIR="$MOJ_PROBLEMS_DIR" \
+          MOJTOOLS_DIR="$MOJTOOLS_DIR" bash -c '
+          source "$1/common.sh" >/dev/null 2>&1; source "$1/tl-store.sh"; source "$1/contest-statement.sh"
+          index_problem_now "$2" 0 || exit 0
+          bf="$(cs_bank_json "$2")" && cs_bank_write "$bf" "$CONTESTSDIR/$3" "$4" all
+          touch "$CONTESTSDIR/$3/var/.problems-dirty"' _ "$lib" "$cid" "$contest" "$skey" </dev/null >/dev/null 2>&1 & ) 2>/dev/null
       did="$did refresh"
     fi
     [[ -n "$did" ]] || fail 422 "Nada a fazer (envie html_b64/pdf_b64, remove_*, ou refresh)" "noop"

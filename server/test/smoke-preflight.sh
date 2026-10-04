@@ -261,6 +261,12 @@ run
 check "modo obi (pontua por teste) => checagem ausente" '[[ "$(lvl stop_first)" == "(ausente)" ]]'
 sed -i 's/^CONTEST_TYPE=.*/CONTEST_TYPE=icpc/' "$C/conf"; rm -f "$FIX/treino/var/jsons/col#p0.json"
 
+echo "== daemon de julgamento (auditoria 03/10/2026: spool vazio + daemon morto saía verde) =="
+JUDGED_PGREP_PAT='nao-existe-processo-assim-xyz' JUDGED_ALIVE_FILE="$FIX/sem-heartbeat" run
+check "daemon morto (sem processo, sem heartbeat) => fail" '[[ "$(lvl daemon)" == fail ]]'
+touch "$FIX/heartbeat"; JUDGED_PGREP_PAT='nao-existe-processo-assim-xyz' JUDGED_ALIVE_FILE="$FIX/heartbeat" run
+check "heartbeat fresco => não é fail" '[[ "$(lvl daemon)" != fail ]]'
+
 echo "== nome do problema × idioma da prova (prob_names, 03/10/2026; TCP 2026: LOCALE=es com os nomes em PT) =="
 printf '{"id":"col#p0","title":"Prob A","public":true,"statements":{"es":{"title":"Problema A en ES"}}}' > "$FIX/treino/var/jsons/col#p0.json"
 run

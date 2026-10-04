@@ -1,4 +1,4 @@
-<!-- i18n-source: MANUAL-ADMIN.md blob:9c017257e7fa3ccd9309696ad3593d964c0488cd -->
+<!-- i18n-source: MANUAL-ADMIN.md blob:6b0682e893595e22d7ced47d71bbf07d9e362d16 -->
 # MOJ: Manual del organizador (el panel .admin de la competencia)
 
 > **Nota de traducción.** Este manual es una traducción del original en portugués. Las herramientas de línea de comandos (`moj`, `moj-contest`, `moj-comp`) muestran sus mensajes en portugués, y los ejemplos de comandos son idénticos al original.
@@ -55,7 +55,7 @@ panel de un módulo **desactivado** lleva a **Central › Módulos**, con un avi
 
 | Panel | Qué hace |
 |---|---|
-| **Problemas** | La competencia en sí: renombrar/reordenar/quitar, **editar el identificador** (la "letra": puede ser `W1`, `Q`…; reordenar conserva el identificador personalizado y el color del globo se mueve con él), restringir lenguajes o el pool de jueces POR problema, actualizar el enunciado desde el banco (o enviar HTML/PDF, **por idioma**), el panel **🌐 Idiomas del enunciado** (abajo) y **🏦 Agregar del banco** (búsqueda y sorteo). |
+| **Problemas** | La competencia en sí: renombrar/reordenar/quitar, **editar el identificador** (la "letra": puede ser `W1`, `Q`…; reordenar conserva el identificador personalizado y el color del globo se mueve con él; con las letras automáticas A, B, C…, reordenar cambia las letras, y el color del globo y las aclaraciones acompañan a cada problema; con la competencia en curso, el panel pide confirmación), restringir lenguajes o el pool de jueces POR problema, actualizar el enunciado desde el banco (el MOJ reindexa el problema y cambia el enunciado en unos segundos; el actual queda hasta entonces), enviar o quitar HTML/PDF **por idioma**, el panel **🌐 Idiomas del enunciado** (abajo) y **🏦 Agregar del banco** (búsqueda y sorteo). |
 | **Informe** | El informe estático de la competencia en un solo lugar: descargar el `tar.gz` navegable, **publicar como histórico** en `/relatorio/<contest>/` (republicar, despublicar) y publicar el informe de cada ronda archivada. La sección 6½ lo explica. |
 
 **🌐 Idiomas del enunciado.** Un problema del banco puede tener el enunciado en portugués, inglés y

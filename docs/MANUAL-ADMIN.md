@@ -52,7 +52,7 @@ painel de módulo **desligado** cai em **Central › Módulos** com um aviso diz
 
 | Painel | O que faz |
 |---|---|
-| **Problemas** | A prova em si: renomear/reordenar/remover, **editar o identificador** (a "letra" — pode ser `W1`, `Q`…; reordenar preserva identificador customizado e a cor do balão migra junto), restringir linguagens ou o pool de juízes POR problema, atualizar o enunciado a partir do banco (ou enviar HTML/PDF, **por idioma**), o painel **🌐 Idiomas do enunciado** (abaixo) e **🏦 Adicionar do banco** (busca e sorteio). |
+| **Problemas** | A prova em si: renomear/reordenar/remover, **editar o identificador** (a "letra" — pode ser `W1`, `Q`…; reordenar preserva identificador customizado e a cor do balão migra junto; com as letras automáticas A, B, C…, reordenar troca as letras, e a cor do balão e as clarifications acompanham cada problema — com a prova no ar, o painel pede confirmação), restringir linguagens ou o pool de juízes POR problema, atualizar o enunciado a partir do banco (o MOJ reindexa o problema e troca o enunciado em alguns segundos; o atual fica até lá), enviar ou remover HTML/PDF **por idioma**, o painel **🌐 Idiomas do enunciado** (abaixo) e **🏦 Adicionar do banco** (busca e sorteio). |
 | **Relatório** | O relatório estático da prova num lugar só: baixar o `tar.gz` navegável, **publicar como histórico** em `/relatorio/<contest>/` (republicar, despublicar) e publicar o relatório de cada rodada arquivada. A seção 6½ explica. |
 
 **🌐 Idiomas do enunciado.** Um problema do banco pode ter o enunciado em português, inglês e

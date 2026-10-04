@@ -77,10 +77,12 @@ export function makeBankPanel({ api, onAdd, searchLabel, searchPlaceholder, noQu
     : '';
   // "+ adicionar todos" põe o enunciado na frente dos participantes sem revisão: com privado no
   // meio, confirma antes
-  const addAll = (probs) => {
+  // UM POR VEZ (await): no painel do admin cada onAdd é um POST que regrava a lista do contest — todos de uma vez
+  // se atropelavam e só 1 problema ficava (auditoria 03/10/2026; o servidor também trava agora)
+  const addAll = async (probs) => {
     const np = probs.filter((x) => x.private).length;
     if (np && !confirm(np + T(' problema(s) PRIVADO(S) no sorteio. Adicionar todos mesmo assim?', ' PRIVATE problem(s) in the draw. Add all anyway?', ' problema(s) PRIVADO(S) en el sorteo. ¿Agregar todos de todos modos?'))) return;
-    probs.forEach((p2) => onAdd(p2));
+    for (const p2 of probs) await onAdd(p2);
   };
 
   async function doDraw(reshuffle) {

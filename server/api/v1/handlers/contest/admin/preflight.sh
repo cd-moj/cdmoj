@@ -572,7 +572,14 @@ while IFS= read -r f; do
   m="$(stat -c %Y "$f" 2>/dev/null)"; [[ "$m" =~ ^[0-9]+$ ]] || continue
   (( oldest == 0 || m < oldest )) && oldest=$m
 done < <(find "$SPOOLDIR" -type f 2>/dev/null | head -50)
-if (( oldest > 0 && now - oldest > 120 )); then
+# o daemon VIVO primeiro (daemon_judged_alive: processo local ou heartbeat run/judged.alive, como os alertas e o
+# /index/status): com o spool vazio, daemon morto saía "spool sendo consumido" — verde justo no pré-prova
+# (auditoria do painel, 03/10/2026)
+if ! daemon_judged_alive; then
+  add3 daemon fail "Daemon de julgamento parado" "o moj-judged não dá sinal de vida (heartbeat em run/judged.alive) — nenhuma submissão será julgada; reinicie o serviço" \
+    "Judging daemon stopped" "moj-judged gives no sign of life (heartbeat in run/judged.alive) — no submission will be judged; restart the service" \
+    "Daemon de evaluación detenido" "moj-judged no da señales de vida (heartbeat en run/judged.alive) — ningún envío será evaluado; reinicia el servicio"
+elif (( oldest > 0 && now - oldest > 120 )); then
   add3 daemon fail "Spool travado" "submissão esperando há $(( (now-oldest)/60 )) min — o daemon moj-judged está rodando?" \
     "Spool stuck" "a submission has been waiting for $(( (now-oldest)/60 )) min — is the moj-judged daemon running?" \
     "Spool trabado" "un envío lleva $(( (now-oldest)/60 )) min esperando — ¿el daemon moj-judged está corriendo?"

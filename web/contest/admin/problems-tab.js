@@ -16,16 +16,17 @@ export function makeProblemsTab(CONTEST) {
   const G = { contest: CONTEST, auth: true };
   const panel = el('div', { class: 'section' }, el('h2', {}, T('📚 Problemas', '📚 Problems', '📚 Problemas')));
   const list = el('div', {});
+  let PHASE = 'running';   // before | running | ended (GET admin/problems) — reordenar confirma fora do "before"
 
   async function act(p) {
     try { await apiPost('/contest/admin/problems?contest=' + enc(CONTEST), p, G); loadList(); }
     catch (e) { alert(e.message || T('falha', 'failed', 'fallido')); }
   }
-  async function postProb(payload, msgEl, reload) {
+  async function postProb(payload, msgEl, reload, okText) {
     if (msgEl) { msgEl.className = 'small'; msgEl.textContent = T('Salvando…', 'Saving…', 'Guardando…'); }
     try {
       await apiPost('/contest/admin/problems?contest=' + enc(CONTEST), payload, G);
-      if (msgEl) msgEl.textContent = T('✓ salvo', '✓ saved', '✓ guardado');
+      if (msgEl) msgEl.textContent = okText || T('✓ salvo', '✓ saved', '✓ guardado');
       if (reload) loadList();
     } catch (e) {
       if (msgEl) { msgEl.className = 'small error-box'; msgEl.textContent = e.message || T('falha', 'failed', 'fallido'); }
@@ -33,6 +34,14 @@ export function makeProblemsTab(CONTEST) {
     }
   }
 
+  // reordenar com letras AUTOMÁTICAS troca as letras (A↔B): cor de balão e clarifications acompanham o problema
+  // (servidor), mas os times conhecem os problemas pela letra — com a prova no ar, confirma antes
+  const reorder = (o) => {
+    if (PHASE !== 'before' && !confirm(T('A prova já começou: reordenar troca as LETRAS dos problemas (cores de balão e clarifications acompanham cada problema). Os times passam a ver as letras novas. Continuar?',
+      'The contest has already started: reordering changes the problem LETTERS (balloon colours and clarifications follow each problem). Teams will see the new letters. Continue?',
+      'La competencia ya empezó: reordenar cambia las LETRAS de los problemas (los colores de globo y las aclaraciones acompañan a cada problema). Los equipos verán las letras nuevas. ¿Continuar?'))) return;
+    act({ action: 'reorder', order: o });
+  };
   function problemAccordion(p, i, ps, letters) {
     const body = el('div', { class: 'acc-body hidden' });
     const tog = el('span', { class: 'acc-tog' }, '▶');
@@ -41,8 +50,8 @@ export function makeProblemsTab(CONTEST) {
       tog, el('b', {}, p.letter), ' ', el('span', {}, p.name || ''),
       el('span', { class: 'small muted', style: 'font-family:var(--mono); margin-left:.4rem' }, (p.source || 'cdmoj') + '/' + p.problem_id),
       el('span', { style: 'flex:1' }),
-      el('button', { class: 'btn ghost', title: T('subir', 'move up', 'subir'), onclick: (e) => { stop(e); if (i > 0) { const o = letters.slice(); [o[i - 1], o[i]] = [o[i], o[i - 1]]; act({ action: 'reorder', order: o }); } } }, '↑'),
-      el('button', { class: 'btn ghost', title: T('descer', 'move down', 'bajar'), onclick: (e) => { stop(e); if (i < ps.length - 1) { const o = letters.slice(); [o[i + 1], o[i]] = [o[i], o[i + 1]]; act({ action: 'reorder', order: o }); } } }, '↓'),
+      el('button', { class: 'btn ghost', title: T('subir', 'move up', 'subir'), onclick: (e) => { stop(e); if (i > 0) { const o = letters.slice(); [o[i - 1], o[i]] = [o[i], o[i - 1]]; reorder(o); } } }, '↑'),
+      el('button', { class: 'btn ghost', title: T('descer', 'move down', 'bajar'), onclick: (e) => { stop(e); if (i < ps.length - 1) { const o = letters.slice(); [o[i + 1], o[i]] = [o[i], o[i + 1]]; reorder(o); } } }, '↓'),
       el('button', { class: 'btn danger', title: T('remover', 'remove', 'quitar'), onclick: (e) => { stop(e); if (confirm(T('Remover ', 'Remove ', 'Quitar ') + p.letter + '?')) act({ action: 'remove', letter: p.letter }); } }, '✕'));
     head.addEventListener('click', () => { const hid = body.classList.toggle('hidden'); tog.textContent = hid ? '▶' : '▼'; });
 
@@ -85,18 +94,24 @@ export function makeProblemsTab(CONTEST) {
         jPicker.el, el('div', { class: 'row' }, el('button', { class: 'btn', onclick: () => postProb({ action: 'judges', letter: p.letter, judges: jPicker.get() }, jMsg, false) }, T('Salvar máquinas', 'Save machines', 'Guardar máquinas')), jMsg)),
       el('div', { style: 'margin:.5rem 0' }, el('div', { class: 'small muted' }, T('📄 Enunciado:', '📄 Statement:', '📄 Enunciado:')),
         el('div', { class: 'row', style: 'flex-wrap:wrap; gap:.4rem' },
-          el('button', { class: 'btn ghost', title: T('Re-buscar do banco de problemas (regenera o enunciado em todos os idiomas)', 'Re-fetch from the problem bank (regenerates the statement in every language)', 'Volver a traer del banco de problemas (regenera el enunciado en todos los idiomas)'), onclick: () => sendStmt({ refresh: true }).then(loadList) }, T('↻ Atualizar do banco', '↻ Refresh from bank', '↻ Actualizar desde el banco')),
+          el('button', { class: 'btn ghost', title: T('Re-buscar do banco de problemas (regenera o enunciado em todos os idiomas)', 'Re-fetch from the problem bank (regenerates the statement in every language)', 'Volver a traer del banco de problemas (regenera el enunciado en todos los idiomas)'),
+            onclick: () => postProb({ action: 'statement', letter: p.letter, refresh: true }, sMsg, false,
+              T('✓ atualização pedida — o MOJ reindexa o problema e troca o enunciado em alguns segundos (o atual fica até lá)', '✓ refresh requested — MOJ reindexes the problem and swaps the statement in a few seconds (the current one stays until then)', '✓ actualización solicitada — el MOJ reindexa el problema y cambia el enunciado en unos segundos (el actual queda hasta entonces)')) }, T('↻ Atualizar do banco', '↻ Refresh from bank', '↻ Actualizar desde el banco')),
           el('span', { class: 'small muted' }, T('Idioma:', 'Language:', 'Lenguaje:')), langSel,
           el('span', { class: 'small muted' }, 'HTML:'), htmlIn,
           el('button', { class: 'btn ghost', onclick: async () => { if (!htmlIn.files[0]) { sMsg.className = 'small error-box'; sMsg.textContent = T('Escolha um .html', 'Choose a .html', 'Elige un .html'); return; } sendStmt({ html_b64: await fileToBase64(htmlIn.files[0]) }); } }, T('Enviar HTML', 'Send HTML', 'Enviar HTML')),
           el('span', { class: 'small muted' }, 'PDF:'), pdfIn,
-          el('button', { class: 'btn ghost', onclick: async () => { if (!pdfIn.files[0]) { sMsg.className = 'small error-box'; sMsg.textContent = T('Escolha um .pdf', 'Choose a .pdf', 'Elige un .pdf'); return; } sendStmt({ pdf_b64: await fileToBase64(pdfIn.files[0]) }); } }, T('Enviar PDF', 'Send PDF', 'Enviar PDF'))), sMsg));
+          el('button', { class: 'btn ghost', onclick: async () => { if (!pdfIn.files[0]) { sMsg.className = 'small error-box'; sMsg.textContent = T('Escolha um .pdf', 'Choose a .pdf', 'Elige un .pdf'); return; } sendStmt({ pdf_b64: await fileToBase64(pdfIn.files[0]) }); } }, T('Enviar PDF', 'Send PDF', 'Enviar PDF')),
+          // a API sempre aceitou remover o arquivo de um idioma (remove_html/remove_pdf), mas a tela não tinha o botão
+          el('button', { class: 'btn ghost danger', title: T('Apaga o HTML e o PDF deste idioma no contest (o enunciado volta ao do banco na próxima abertura)', 'Deletes this language’s HTML and PDF in the contest (the statement goes back to the bank one at the next opening)', 'Borra el HTML y el PDF de este idioma en la competencia (el enunciado vuelve al del banco en la próxima apertura)'),
+            onclick: () => { if (confirm(T('Remover o HTML e o PDF deste idioma (', 'Remove the HTML and PDF of this language (', '¿Quitar el HTML y el PDF de este idioma (') + langSel.value + ')?')) sendStmt({ remove_html: true, remove_pdf: true }); } },
+            T('🗑 remover arquivos do idioma', '🗑 remove language files', '🗑 quitar archivos del idioma'))), sMsg));
     return el('div', { class: 'acc-item' }, head, body);
   }
 
   async function loadList() {
     list.innerHTML = ''; let r;
-    try { r = await apiGet('/contest/admin/problems?contest=' + enc(CONTEST), G); }
+    try { r = await apiGet('/contest/admin/problems?contest=' + enc(CONTEST), G); PHASE = r.phase || 'running'; }
     catch { list.append(el('div', { class: 'error-box' }, T('Falha.', 'Failed.', 'Falló.'))); return; }
     const ps = r.problems || [];
     if (!ps.length) { list.append(el('div', { class: 'muted' }, T('Sem problemas.', 'No problems.', 'Sin problemas.'))); return; }

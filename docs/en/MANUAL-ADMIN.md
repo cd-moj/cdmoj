@@ -1,4 +1,4 @@
-<!-- i18n-source: MANUAL-ADMIN.md blob:9c017257e7fa3ccd9309696ad3593d964c0488cd -->
+<!-- i18n-source: MANUAL-ADMIN.md blob:6b0682e893595e22d7ced47d71bbf07d9e362d16 -->
 # MOJ: Organizer manual (the contest .admin panel)
 
 > **Translation note.** This manual is a translation of the Portuguese original. The command-line tools (`moj`, `moj-contest`, `moj-comp`) print their messages in Portuguese, and the command examples below are identical to the original.
@@ -56,7 +56,7 @@ turn on.
 
 | Panel | What it does |
 |---|---|
-| **Problems** | The contest itself: rename/reorder/remove problems. **Edit the identifier** (the "letter": it can be `W1`, `Q`…; reordering keeps a custom identifier, and the balloon color moves with it). Restrict the languages or the judge pool PER problem. Update the statement from the bank (or send HTML/PDF, **per language**). The **🌐 Statement languages** panel (below) and **🏦 Add from bank** (search and random draw). |
+| **Problems** | The contest itself: rename/reorder/remove problems. **Edit the identifier** (the "letter": it can be `W1`, `Q`…; reordering keeps a custom identifier, and the balloon color moves with it. With the automatic letters A, B, C…, reordering changes the letters, and the balloon color and the clarifications follow each problem. When the contest is live, the panel asks for confirmation). Restrict the languages or the judge pool PER problem. Update the statement from the bank (MOJ reindexes the problem and replaces the statement in a few seconds; the current one stays until then). Send or remove HTML/PDF **per language**. The **🌐 Statement languages** panel (below) and **🏦 Add from bank** (search and random draw). |
 | **Report** | The static contest report in one place: download the browsable `tar.gz`, **publish it as history** at `/relatorio/<contest>/` (republish, unpublish) and publish the report of each archived round. Section 6½ explains it. |
 
 **🌐 Statement languages.** A problem from the bank can have its statement in Portuguese, English

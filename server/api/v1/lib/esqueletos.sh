@@ -59,5 +59,17 @@ esq_lang_allowed(){
   [[ " ${PLATFORM_LANGS:-} " == *" $l "* ]] && return 0
   w="$(conf_value "$c" LANGUAGES)"; w="${w//,/ }"; [[ " ${w//\\/} " == *" $l "* ]] && return 0
   [[ -s "$CONTESTSDIR/$c/problem-langs.json" ]] \
-    && jq -e --arg l "$l" '[.. | strings] | index($l) != null' "$CONTESTSDIR/$c/problem-langs.json" >/dev/null 2>&1
+    && jq -e --arg l "$l" '[.. | strings] | index($l) != null' "$CONTESTSDIR/$c/problem-langs.json" >/dev/null 2>&1 && return 0
+  # …e as que o PACOTE de um problema da prova declara (`languages` do json servível): a tela as lista, e
+  # salvar dava 422 lang_invalid (auditoria do painel, 03/10/2026). Só no caminho de escrita do admin.
+  local files
+  files="$( ( PROBS=(); source "$CONTESTSDIR/$c/conf" 2>/dev/null; local i k f
+    for ((i=0; i+4<${#PROBS[@]}; i+=5)); do
+      k="${PROBS[i+4]}"; [[ "$k" == *"#"* ]] || k="${PROBS[i+1]//\//#}"
+      f="$CONTESTSDIR/treino/var/jsons/$k.json"; [[ -f "$f" ]] || f="$CONTESTSDIR/treino/var/jsons-private/$k.json"
+      [[ -f "$f" ]] && printf '%s\n' "$f"
+    done ) )"
+  [[ -n "$files" ]] || return 1
+  # shellcheck disable=SC2086
+  jq -n --arg l "$l" 'any(inputs; (.languages // []) | map(ascii_downcase) | index($l) != null)' $files 2>/dev/null | grep -qx true
 }

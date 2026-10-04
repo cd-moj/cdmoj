@@ -80,6 +80,11 @@ ck "exótica não declarada pelo contest: 422"  '[[ "$(J .error.code)" == lang_i
 printf '{"p#a":["pddl"]}' > "$E/problem-langs.json"
 call /contest/admin/esqueletos POST '{"action":"set","lang":"pddl","code":"(define)"}' adm-ev 'contest=ev'
 ck "exótica declarada por problema: aceita"   '[[ "$(J ".langs.pddl.mode")" == custom ]]'
+# exótica declarada só pelo PACOTE do problema (languages do json servível): a tela a lista — salvar dava 422
+printf '{"id":"p#a","title":"Prob A","public":true,"languages":["grepe"]}' > "$FIX/treino/var/jsons/p#a.json"
+call /contest/admin/esqueletos POST '{"action":"set","lang":"grepe","code":"x"}' adm-ev 'contest=ev'
+ck "exótica declarada pelo PACOTE do problema: aceita" '[[ "$(J ".langs.grepe.mode")" == custom ]]'
+rm -f "$FIX/treino/var/jsons/p#a.json"
 head -c 70000 /dev/zero | tr '\0' 'x' > "$RUN/big"
 call /contest/admin/esqueletos POST "$(jq -cn --rawfile c "$RUN/big" '{action:"set",lang:"rs",code:$c}')" adm-ev 'contest=ev'
 ck "acima de 64 KB: 422 code_too_big"         '[[ "$(J .error.code)" == code_too_big ]]'

@@ -78,8 +78,9 @@ fmt_epoch(){
 : "${RUNDIR:=/home/ribas/moj/run}"
 : "${JUDGED_ALIVE_FILE:=$RUNDIR/judged.alive}"
 : "${JUDGED_ALIVE_TTL:=120}"          # s; o daemon re-drena (e bate) a cada WATCH_REDRAIN_SECS=30
+: "${JUDGED_PGREP_PAT:=server/daemons/judged.sh}"   # o teste troca por um padrão impossível p/ simular o daemon morto
 daemon_judged_alive() {
-  pgrep -f 'server/daemons/judged.sh' >/dev/null 2>&1 && return 0
+  pgrep -f "$JUDGED_PGREP_PAT" >/dev/null 2>&1 && return 0
   local m; m="$(stat -c %Y "$JUDGED_ALIVE_FILE" 2>/dev/null)"
   [[ -n "$m" ]] || return 1
   (( EPOCHSECONDS - m <= JUDGED_ALIVE_TTL ))
