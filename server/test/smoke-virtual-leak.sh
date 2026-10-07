@@ -88,6 +88,23 @@ for c in $BAD; do
 done
 ck "nenhuma submissão virtual entrou na fila" '[[ -z "$(find "$SPOOLDIR" -type f)" ]]'
 
+echo "== /contest/virtual (o aviso do placar, público): só diz SIM/NÃO, nunca o motivo =="
+# rota nova do virtual ⇒ linha nesta matriz (CLAUDE.md). Ela NÃO usa o vr_gate (404) de propósito: o placar é público e
+# pergunta "mostro o link?"; o que não pode vazar é o MOTIVO (rodando, congelado, problema privado…) nem segredo algum.
+call - /contest/virtual GET contest=naoexiste
+ck "inexistente: 404 (require_contest), sem segredo" '[[ "$OUT" == *"Status: 404"* && "$OUT" != *SEGREDO* ]]'
+for c in $BAD; do
+  call - /contest/virtual GET "contest=$c"; V="$OUT"; VB="$BODY"
+  if grep -q '^SECRET=1' "$FIX/$c/conf"; then
+    call - /contest/regions GET "contest=$c"
+    ck "$c (secreto, sem sessão): mesmo status do /contest/regions, sem segredo" '[[ "${V%%$'"'"'\r'"'"'*}" == "${OUT%%$'"'"'\r'"'"'*}" && "$V" != *SEGREDO* && "$V" != *available* ]]'
+  else
+    ck "$c: corpo BYTE-IDÊNTICO {available:false}, sem motivo nem segredo" '[[ "$VB" == "{\"success\":true,\"available\":false}" && "$V" != *SEGREDO* && "$V" != *timesegredo* ]]'
+  fi
+done
+call - /contest/virtual GET contest=vok
+ck "vok (elegível): available=true com a url" '[[ "$BODY" == *"\"available\":true"* && "$BODY" == *"/treino/virtual/?c=vok"* ]]'
+
 echo "== id hostil =="
 # (`%00` some na decodificação: `vsec%00` É `vsec` — tem de cair no mesmo 404)
 for c in '../vok' 'vok/../vsec' 'VOK' 'treino' '' 'vsec%00' 'vsec%2F..%2Fvok' 'v*'; do
