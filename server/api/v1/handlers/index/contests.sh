@@ -41,6 +41,9 @@ TSVC="$RUNDIR/index-contests.tsv"
 _tsv_fresco(){
   [[ -s "$TSVC" ]] || return 1
   [[ "$CONTESTSDIR" -nt "$TSVC" ]] && return 1
+  # o CÓDIGO que monta o TSV também é entrada: um deploy que muda a regra (07/10/2026: o "Inscreva-se" passou a exigir
+  # a inscrição em vigor) refaz o cache no 1º acesso, em vez de servir a regra velha até algum conf mudar
+  [[ "${BASH_SOURCE[0]}" -nt "$TSVC" || "$_LIBDIR/registration.sh" -nt "$TSVC" ]] && return 1
   [[ -z "$(find "$CONTESTSDIR" -maxdepth 2 -name conf -newer "$TSVC" -print -quit 2>/dev/null)" ]]
 }
 if _tsv_fresco; then
