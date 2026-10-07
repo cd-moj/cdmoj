@@ -1,4 +1,4 @@
-<!-- i18n-source: MANUAL-ADMIN.md blob:5f54d4aaf23be4fd94f083b2b20b935db4d2ca35 -->
+<!-- i18n-source: MANUAL-ADMIN.md blob:b27e1836f708986b9e7d6ced286e90e541b9957c -->
 # MOJ: Organizer manual (the contest .admin panel)
 
 > **Translation note.** This manual is a translation of the Portuguese original. The command-line tools (`moj`, `moj-contest`, `moj-comp`) print their messages in Portuguese, and the command examples below are identical to the original.
@@ -206,29 +206,24 @@ the in-browser code editor (Rules). The module card shows a lock and what is mis
 on without the prerequisite, the **Home** checklist warns (and, without the training accounts, the "registered only" rule
 does not apply). Converting shared accounts into own accounts (section 8¾) turns registration off as well.
 
-**Cheat sheet: what each module needs.** `<──` = MOJ does not turn the module on without it; `<─>` = it
-applies in both directions. The 3rd column is what the module needs, when it is on, to do something.
+**Cheat sheet: what each module needs.** On the left, what MOJ requires to turn the module on (↔ = it applies in both
+directions); on the right, what the module needs, when it is on, to do something.
 
-```
-MODULE            TO TURN ON, IT NEEDS                       WHEN ON, IT ACTS WITH
-─────────────     ────────────────────────────────────────   ──────────────────────────────
-inscricoes    <── the Free Training accounts (USERS_FROM)    registration on (People › Registrations)
-                    └ converting to own accounts turns the module off
-esqueletos    <─> the in-browser code editor (Rules)         — (default skeleton for each language)
-                    └ while the module is on, the editor stays on
-virtual       <── ICPC mode · contest not secret             contest ended for all sites
-                  scoreboard not anonymous · start and end   and scoreboard unfrozen (Finish event)
-                  all problems public in the training
-                    └ the panel and the CLI refuse; if created like this, it stays inert (§6¾)
-sedes             —                                          the site tree (Event › Sites & schools)
-maquinas          —                                          gate: a rule · mlinux: the NutellaBoot key
-rodadas           —                                          the round plan (Event › Rounds)
-documentos        —                                          — (made from what the contest has)
-baloes            —                                          — (ICPC colors by default)
-coortes           —                                          the cohorts (Event › Cohorts)
-telao             —                                          big screen: the event published in Animeitor
-classificacao     —                                          the engine of each stage (Event › Qualification)
-```
+<div class="deps">
+<div class="deps-row deps-hrow"><div class="deps-h r">To turn on, it needs</div><div></div><div class="deps-h c">Module</div><div></div><div class="deps-h">When on, it acts with</div></div>
+<div class="deps-row"><div class="deps-req"><span class="deps-b req">the Free Training accounts (<code>USERS_FROM</code>)</span><span class="deps-note">converting to own accounts turns the module off</span></div><div class="deps-ar">→</div><div class="deps-mod"><span class="deps-b mod"><code>inscricoes</code></span></div><div class="deps-ar">→</div><div class="deps-act"><span class="deps-b act">registration on (People › Registrations)</span></div></div>
+<div class="deps-row"><div class="deps-req"><span class="deps-b req">the in-browser code editor (Rules)</span><span class="deps-note">while the module is on, the editor stays on</span></div><div class="deps-ar">↔</div><div class="deps-mod"><span class="deps-b mod"><code>esqueletos</code></span></div><div class="deps-ar">→</div><div class="deps-act"><span class="deps-none">nothing: the default skeleton of each language</span></div></div>
+<div class="deps-row"><div class="deps-req"><span class="deps-b req">ICPC mode</span><span class="deps-b req">not secret</span><span class="deps-b req">scoreboard not anonymous</span><span class="deps-b req">start and end</span><span class="deps-b req">all problems public in the training</span><span class="deps-note">the panel and the CLI refuse; if created like this, it stays inert (§6¾)</span></div><div class="deps-ar">→</div><div class="deps-mod"><span class="deps-b mod"><code>virtual</code></span></div><div class="deps-ar">→</div><div class="deps-act"><span class="deps-b act">contest ended for all sites</span><span class="deps-b act">scoreboard unfrozen (Finish event)</span></div></div>
+<div class="deps-sep"></div>
+<div class="deps-row"><div class="deps-req nil"><span class="deps-none">—</span></div><div class="deps-ar empty"></div><div class="deps-mod"><span class="deps-b mod"><code>sedes</code></span></div><div class="deps-ar">→</div><div class="deps-act"><span class="deps-b act">the site tree (Event › Sites &amp; schools)</span></div></div>
+<div class="deps-row"><div class="deps-req nil"><span class="deps-none">—</span></div><div class="deps-ar empty"></div><div class="deps-mod"><span class="deps-b mod"><code>maquinas</code></span></div><div class="deps-ar">→</div><div class="deps-act"><span class="deps-b act">gate: a rule</span><span class="deps-b act">mlinux: the NutellaBoot key</span></div></div>
+<div class="deps-row"><div class="deps-req nil"><span class="deps-none">—</span></div><div class="deps-ar empty"></div><div class="deps-mod"><span class="deps-b mod"><code>rodadas</code></span></div><div class="deps-ar">→</div><div class="deps-act"><span class="deps-b act">the round plan (Event › Rounds)</span></div></div>
+<div class="deps-row"><div class="deps-req nil"><span class="deps-none">—</span></div><div class="deps-ar empty"></div><div class="deps-mod"><span class="deps-b mod"><code>documentos</code></span></div><div class="deps-ar">→</div><div class="deps-act"><span class="deps-none">nothing: made from what the contest has</span></div></div>
+<div class="deps-row"><div class="deps-req nil"><span class="deps-none">—</span></div><div class="deps-ar empty"></div><div class="deps-mod"><span class="deps-b mod"><code>baloes</code></span></div><div class="deps-ar">→</div><div class="deps-act"><span class="deps-none">nothing: ICPC colors by default</span></div></div>
+<div class="deps-row"><div class="deps-req nil"><span class="deps-none">—</span></div><div class="deps-ar empty"></div><div class="deps-mod"><span class="deps-b mod"><code>coortes</code></span></div><div class="deps-ar">→</div><div class="deps-act"><span class="deps-b act">the cohorts (Event › Cohorts)</span></div></div>
+<div class="deps-row"><div class="deps-req nil"><span class="deps-none">—</span></div><div class="deps-ar empty"></div><div class="deps-mod"><span class="deps-b mod"><code>telao</code></span></div><div class="deps-ar">→</div><div class="deps-act"><span class="deps-b act">big screen: the event published in Animeitor</span></div></div>
+<div class="deps-row"><div class="deps-req nil"><span class="deps-none">—</span></div><div class="deps-ar empty"></div><div class="deps-mod"><span class="deps-b mod"><code>classificacao</code></span></div><div class="deps-ar">→</div><div class="deps-act"><span class="deps-b act">the engine of each stage (Event › Qualification)</span></div></div>
+</div>
 
 ### Code skeletons (module `esqueletos`)
 

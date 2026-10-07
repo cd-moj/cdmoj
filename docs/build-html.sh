@@ -37,6 +37,31 @@ nav.moj-nav .moj-langs{margin-left:auto;display:flex;gap:.5rem}
 nav.moj-nav .moj-langs b{color:var(--fg)}
 nav.moj-nav .moj-tech{flex-basis:100%;color:var(--mut);font-size:.85em;display:flex;gap:.7rem;flex-wrap:wrap}
 nav.moj-nav .moj-tech a{font-weight:400}
+/* cola de dependências em QUADRINHOS (MANUAL-ADMIN §1½; molde do .cycle do tutorial de problemas): HTML cru no .md,
+   grade de 5 colunas (precisa → módulo → age com); no celular cada módulo vira uma linha de quadrinhos que quebra */
+.deps{display:grid;grid-template-columns:minmax(0,1fr) 1.3rem auto 1.3rem minmax(0,1fr);gap:.5rem .4rem;align-items:center;margin:1rem 0 1.5rem;font-size:.9em}
+.deps-row{display:contents}
+.deps-h{font-size:.72em;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--mut)}
+.deps-h.r{text-align:right}.deps-h.c{text-align:center}
+.deps-req,.deps-act{display:flex;flex-wrap:wrap;gap:.3rem;align-items:center}
+.deps-req{justify-content:flex-end}
+.deps-mod{text-align:center}
+.deps-b{display:inline-block;border:1px solid var(--fg);border-radius:.5rem;padding:.22rem .6rem;font-weight:600;line-height:1.35;background:#fff}
+.deps-b.mod{border:2px solid var(--ac);color:var(--ac)}
+.deps-b code{background:none;padding:0;font-size:.9em}
+.deps-b.mod code{color:inherit;font-weight:700;font-size:.95em}
+.deps-b.act{border:1px dashed #94a3b8;color:#334155;font-weight:500}
+.deps-ar{text-align:center;color:var(--mut);font-weight:700}
+.deps-none{color:var(--mut);font-size:.9em}
+.deps-note{flex-basis:100%;text-align:right;font-size:.8em;color:var(--mut);line-height:1.3}
+.deps-sep{grid-column:1/-1;border-top:1px dashed var(--bd)}
+@media (max-width:640px){
+  .deps{display:flex;flex-direction:column;align-items:stretch;gap:.5rem}
+  .deps-row{display:flex;flex-wrap:wrap;align-items:center;gap:.35rem;padding-bottom:.5rem;border-bottom:1px solid var(--bd)}
+  .deps-hrow,.deps-sep,.deps-ar.empty,.deps-req.nil{display:none}
+  .deps-req{justify-content:flex-start}
+  .deps-note{text-align:left}
+}
 CSS
 
 ORDER=(OVERVIEW.md FLOW.md API.md PACOTE.md ENUNCIADO.md MANUAL-ORGS-COLECOES.md SCOREBOARD.md VIRTUAL.md I18N.md DEPLOY.md PULL-REQUESTS.md ADMIN.md MANUAL-ADMIN.md MANUAL-TREINO.md MANUAL-CONTEST.md MANUAL-LINGUAGENS.md MANUAL-STAFF.md MANUAL-JUIZ.md MANUAL-ANIMEITOR.md WEBCAST.md PLAN.md README.md)

@@ -196,29 +196,24 @@ O cartão do módulo mostra o cadeado e o que falta. Se um contest já estava co
 **Central** avisa (e, sem as contas do treino, a regra "só inscrito entra" não vale). Converter as contas compartilhadas
 em próprias (seção 8¾) desliga a inscrição junto.
 
-**Cola: o que cada módulo precisa.** `<──` = o MOJ recusa ligar o módulo sem isso; `<─>` = vale nos dois
-sentidos. A 3ª coluna é o que o módulo precisa, já ligado, para fazer alguma coisa.
+**Cola: o que cada módulo precisa.** À esquerda, o que o MOJ exige para ligar o módulo (↔ = vale nos dois sentidos);
+à direita, o que ele precisa, já ligado, para fazer alguma coisa.
 
-```
-MÓDULO            PARA LIGAR, PRECISA DE                  LIGADO, AGE QUANDO TEM
-─────────────     ─────────────────────────────────────   ──────────────────────────────
-inscricoes    <── contas do Treino Livre (USERS_FROM)     a inscrição ligada (Pessoas › Inscrições)
-                    └ converter em contas próprias desliga o módulo
-esqueletos    <─> editor de código no browser (Regras)    — (esqueleto padrão de cada linguagem)
-                    └ com o módulo ligado, o editor não desliga
-virtual       <── modo ICPC · contest não secreto         prova encerrada para todas as sedes
-                  placar não anônimo · início e fim       e placar descongelado (Encerrar evento)
-                  todos os problemas públicos no treino
-                    └ o painel e a CLI recusam; criado assim, fica inerte (§6¾)
-sedes             —                                       a árvore de sedes (Evento › Sedes & escolas)
-maquinas          —                                       gate: uma regra · mlinux: a chave do NutellaBoot
-rodadas           —                                       o plano de rodadas (Evento › Rodadas)
-documentos        —                                       — (gerados do que o contest já tem)
-baloes            —                                       — (cores do ICPC por padrão)
-coortes           —                                       as coortes (Evento › Coortes)
-telao             —                                       telão: o evento publicado no Animeitor
-classificacao     —                                       o motor de cada etapa (Evento › Classificação)
-```
+<div class="deps">
+<div class="deps-row deps-hrow"><div class="deps-h r">Para ligar, precisa de</div><div></div><div class="deps-h c">Módulo</div><div></div><div class="deps-h">Ligado, age quando tem</div></div>
+<div class="deps-row"><div class="deps-req"><span class="deps-b req">contas do Treino Livre (<code>USERS_FROM</code>)</span><span class="deps-note">converter em contas próprias desliga o módulo</span></div><div class="deps-ar">→</div><div class="deps-mod"><span class="deps-b mod"><code>inscricoes</code></span></div><div class="deps-ar">→</div><div class="deps-act"><span class="deps-b act">a inscrição ligada (Pessoas › Inscrições)</span></div></div>
+<div class="deps-row"><div class="deps-req"><span class="deps-b req">editor de código no browser (Regras)</span><span class="deps-note">com o módulo ligado, o editor não desliga</span></div><div class="deps-ar">↔</div><div class="deps-mod"><span class="deps-b mod"><code>esqueletos</code></span></div><div class="deps-ar">→</div><div class="deps-act"><span class="deps-none">nada: vem o esqueleto padrão de cada linguagem</span></div></div>
+<div class="deps-row"><div class="deps-req"><span class="deps-b req">modo ICPC</span><span class="deps-b req">não secreto</span><span class="deps-b req">placar não anônimo</span><span class="deps-b req">início e fim</span><span class="deps-b req">todos os problemas públicos no treino</span><span class="deps-note">o painel e a CLI recusam; criado assim, fica inerte (§6¾)</span></div><div class="deps-ar">→</div><div class="deps-mod"><span class="deps-b mod"><code>virtual</code></span></div><div class="deps-ar">→</div><div class="deps-act"><span class="deps-b act">prova encerrada para todas as sedes</span><span class="deps-b act">placar descongelado (Encerrar evento)</span></div></div>
+<div class="deps-sep"></div>
+<div class="deps-row"><div class="deps-req nil"><span class="deps-none">—</span></div><div class="deps-ar empty"></div><div class="deps-mod"><span class="deps-b mod"><code>sedes</code></span></div><div class="deps-ar">→</div><div class="deps-act"><span class="deps-b act">a árvore de sedes (Evento › Sedes &amp; escolas)</span></div></div>
+<div class="deps-row"><div class="deps-req nil"><span class="deps-none">—</span></div><div class="deps-ar empty"></div><div class="deps-mod"><span class="deps-b mod"><code>maquinas</code></span></div><div class="deps-ar">→</div><div class="deps-act"><span class="deps-b act">gate: uma regra</span><span class="deps-b act">mlinux: a chave do NutellaBoot</span></div></div>
+<div class="deps-row"><div class="deps-req nil"><span class="deps-none">—</span></div><div class="deps-ar empty"></div><div class="deps-mod"><span class="deps-b mod"><code>rodadas</code></span></div><div class="deps-ar">→</div><div class="deps-act"><span class="deps-b act">o plano de rodadas (Evento › Rodadas)</span></div></div>
+<div class="deps-row"><div class="deps-req nil"><span class="deps-none">—</span></div><div class="deps-ar empty"></div><div class="deps-mod"><span class="deps-b mod"><code>documentos</code></span></div><div class="deps-ar">→</div><div class="deps-act"><span class="deps-none">nada: gera do que o contest já tem</span></div></div>
+<div class="deps-row"><div class="deps-req nil"><span class="deps-none">—</span></div><div class="deps-ar empty"></div><div class="deps-mod"><span class="deps-b mod"><code>baloes</code></span></div><div class="deps-ar">→</div><div class="deps-act"><span class="deps-none">nada: cores do ICPC por padrão</span></div></div>
+<div class="deps-row"><div class="deps-req nil"><span class="deps-none">—</span></div><div class="deps-ar empty"></div><div class="deps-mod"><span class="deps-b mod"><code>coortes</code></span></div><div class="deps-ar">→</div><div class="deps-act"><span class="deps-b act">as coortes (Evento › Coortes)</span></div></div>
+<div class="deps-row"><div class="deps-req nil"><span class="deps-none">—</span></div><div class="deps-ar empty"></div><div class="deps-mod"><span class="deps-b mod"><code>telao</code></span></div><div class="deps-ar">→</div><div class="deps-act"><span class="deps-b act">telão: o evento publicado no Animeitor</span></div></div>
+<div class="deps-row"><div class="deps-req nil"><span class="deps-none">—</span></div><div class="deps-ar empty"></div><div class="deps-mod"><span class="deps-b mod"><code>classificacao</code></span></div><div class="deps-ar">→</div><div class="deps-act"><span class="deps-b act">o motor de cada etapa (Evento › Classificação)</span></div></div>
+</div>
 
 ### Esqueletos de código (módulo `esqueletos`)
 

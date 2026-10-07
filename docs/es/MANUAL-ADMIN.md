@@ -1,4 +1,4 @@
-<!-- i18n-source: MANUAL-ADMIN.md blob:5f54d4aaf23be4fd94f083b2b20b935db4d2ca35 -->
+<!-- i18n-source: MANUAL-ADMIN.md blob:b27e1836f708986b9e7d6ced286e90e541b9957c -->
 # MOJ: Manual del organizador (el panel .admin de la competencia)
 
 > **Nota de traducción.** Este manual es una traducción del original en portugués. Las herramientas de línea de comandos (`moj`, `moj-contest`, `moj-comp`) muestran sus mensajes en portugués, y los ejemplos de comandos son idénticos al original.
@@ -202,29 +202,24 @@ La tarjeta del módulo muestra un candado y lo que falta. Si una competencia ya 
 la **Central** avisa (y, sin las cuentas del entrenamiento, la regla "solo inscritos entran" no se aplica). Convertir las
 cuentas compartidas en propias (sección 8¾) también desactiva la inscripción.
 
-**Guía rápida: lo que necesita cada módulo.** `<──` = el MOJ no activa el módulo sin eso; `<─>` = vale en
-los dos sentidos. La 3.ª columna es lo que el módulo necesita, ya activado, para hacer algo.
+**Guía rápida: lo que necesita cada módulo.** A la izquierda, lo que el MOJ exige para activar el módulo (↔ = vale en
+los dos sentidos); a la derecha, lo que el módulo necesita, ya activado, para hacer algo.
 
-```
-MÓDULO            PARA ACTIVARLO, NECESITA                           ACTIVADO, ACTÚA CUANDO HAY
-─────────────     ────────────────────────────────────────────────   ──────────────────────────────
-inscricoes    <── las cuentas del Entrenamiento Libre (USERS_FROM)   la inscripción activada (Personas › Inscripciones)
-                    └ convertir a cuentas propias desactiva el módulo
-esqueletos    <─> el editor de código en el navegador (Reglas)       — (esqueleto predeterminado de cada lenguaje)
-                    └ con el módulo activado, el editor no se desactiva
-virtual       <── modo ICPC · competencia no secreta                 competencia terminada en todas las sedes
-                  marcador no anónimo · inicio y fin                 y marcador descongelado (Terminar evento)
-                  todos los problemas públicos en el entrenamiento
-                    └ el panel y la CLI lo rechazan; creado así, queda inerte (§6¾)
-sedes             —                                                  el árbol de sedes (Evento › Sedes y escuelas)
-maquinas          —                                                  gate: una regla · mlinux: la clave de NutellaBoot
-rodadas           —                                                  el plan de rondas (Evento › Rondas)
-documentos        —                                                  — (se generan de lo que la competencia ya tiene)
-baloes            —                                                  — (colores del ICPC por defecto)
-coortes           —                                                  las cohortes (Evento › Cohortes)
-telao             —                                                  pantalla: el evento publicado en Animeitor
-classificacao     —                                                  el motor de cada etapa (Evento › Clasificación)
-```
+<div class="deps">
+<div class="deps-row deps-hrow"><div class="deps-h r">Para activarlo, necesita</div><div></div><div class="deps-h c">Módulo</div><div></div><div class="deps-h">Activado, actúa cuando hay</div></div>
+<div class="deps-row"><div class="deps-req"><span class="deps-b req">las cuentas del Entrenamiento Libre (<code>USERS_FROM</code>)</span><span class="deps-note">convertir a cuentas propias desactiva el módulo</span></div><div class="deps-ar">→</div><div class="deps-mod"><span class="deps-b mod"><code>inscricoes</code></span></div><div class="deps-ar">→</div><div class="deps-act"><span class="deps-b act">la inscripción activada (Personas › Inscripciones)</span></div></div>
+<div class="deps-row"><div class="deps-req"><span class="deps-b req">el editor de código en el navegador (Reglas)</span><span class="deps-note">con el módulo activado, el editor no se desactiva</span></div><div class="deps-ar">↔</div><div class="deps-mod"><span class="deps-b mod"><code>esqueletos</code></span></div><div class="deps-ar">→</div><div class="deps-act"><span class="deps-none">nada: el esqueleto predeterminado de cada lenguaje</span></div></div>
+<div class="deps-row"><div class="deps-req"><span class="deps-b req">modo ICPC</span><span class="deps-b req">no secreta</span><span class="deps-b req">marcador no anónimo</span><span class="deps-b req">inicio y fin</span><span class="deps-b req">todos los problemas públicos en el entrenamiento</span><span class="deps-note">el panel y la CLI lo rechazan; creado así, queda inerte (§6¾)</span></div><div class="deps-ar">→</div><div class="deps-mod"><span class="deps-b mod"><code>virtual</code></span></div><div class="deps-ar">→</div><div class="deps-act"><span class="deps-b act">competencia terminada en todas las sedes</span><span class="deps-b act">marcador descongelado (Terminar evento)</span></div></div>
+<div class="deps-sep"></div>
+<div class="deps-row"><div class="deps-req nil"><span class="deps-none">—</span></div><div class="deps-ar empty"></div><div class="deps-mod"><span class="deps-b mod"><code>sedes</code></span></div><div class="deps-ar">→</div><div class="deps-act"><span class="deps-b act">el árbol de sedes (Evento › Sedes y escuelas)</span></div></div>
+<div class="deps-row"><div class="deps-req nil"><span class="deps-none">—</span></div><div class="deps-ar empty"></div><div class="deps-mod"><span class="deps-b mod"><code>maquinas</code></span></div><div class="deps-ar">→</div><div class="deps-act"><span class="deps-b act">gate: una regla</span><span class="deps-b act">mlinux: la clave de NutellaBoot</span></div></div>
+<div class="deps-row"><div class="deps-req nil"><span class="deps-none">—</span></div><div class="deps-ar empty"></div><div class="deps-mod"><span class="deps-b mod"><code>rodadas</code></span></div><div class="deps-ar">→</div><div class="deps-act"><span class="deps-b act">el plan de rondas (Evento › Rondas)</span></div></div>
+<div class="deps-row"><div class="deps-req nil"><span class="deps-none">—</span></div><div class="deps-ar empty"></div><div class="deps-mod"><span class="deps-b mod"><code>documentos</code></span></div><div class="deps-ar">→</div><div class="deps-act"><span class="deps-none">nada: se generan de lo que la competencia ya tiene</span></div></div>
+<div class="deps-row"><div class="deps-req nil"><span class="deps-none">—</span></div><div class="deps-ar empty"></div><div class="deps-mod"><span class="deps-b mod"><code>baloes</code></span></div><div class="deps-ar">→</div><div class="deps-act"><span class="deps-none">nada: colores del ICPC por defecto</span></div></div>
+<div class="deps-row"><div class="deps-req nil"><span class="deps-none">—</span></div><div class="deps-ar empty"></div><div class="deps-mod"><span class="deps-b mod"><code>coortes</code></span></div><div class="deps-ar">→</div><div class="deps-act"><span class="deps-b act">las cohortes (Evento › Cohortes)</span></div></div>
+<div class="deps-row"><div class="deps-req nil"><span class="deps-none">—</span></div><div class="deps-ar empty"></div><div class="deps-mod"><span class="deps-b mod"><code>telao</code></span></div><div class="deps-ar">→</div><div class="deps-act"><span class="deps-b act">pantalla: el evento publicado en Animeitor</span></div></div>
+<div class="deps-row"><div class="deps-req nil"><span class="deps-none">—</span></div><div class="deps-ar empty"></div><div class="deps-mod"><span class="deps-b mod"><code>classificacao</code></span></div><div class="deps-ar">→</div><div class="deps-act"><span class="deps-b act">el motor de cada etapa (Evento › Clasificación)</span></div></div>
+</div>
 
 ### Esqueletos de código (módulo `esqueletos`)
 
