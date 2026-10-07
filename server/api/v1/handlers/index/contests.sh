@@ -67,7 +67,9 @@ for d in "$CONTESTSDIR"/*/; do
     # INSCRIÇÃO (roster existe = ligada): manda as DATAS, não o estado — quem decide "aberta
     # / atrasada / fechada" é o relógio do cliente, sem duplicar a regra do lib/registration.sh
     reg=0; ro=0; rc=0; rl=0; warm=0; osec=0
-    if [[ -s "$c/registrations.json" ]]; then
+    # o botão "Inscreva-se" só com a inscrição EM VIGOR (lib/registration.sh reg_in_force: roster ∧ módulo ligado ∧
+    # contas do treino) — o roster guardado de um contest com o módulo desligado não convida ninguém (07/10/2026)
+    if reg_in_force "$id"; then
       reg=1
       # a âncora é o início da PROVA OFICIAL, não o da rodada corrente: o aquecimento pode ficar
       # dias no ar (lib/registration.sh `reg_official_window` — mesma regra do resto do sistema).
@@ -86,9 +88,9 @@ for d in "$CONTESTSDIR"/*/; do
     # relatório estático PUBLICADO (admin/report-publish grava REPORT_PUBLISHED no conf — e o
     # mtime do conf é o que invalida este cache): vira `report_url` no card (histórico)
     rep=0; [[ -n "$REPORT_PUBLISHED" && -s "$c/relatorio/index.html" ]] && rep=1
-    # PARTICIPAÇÃO VIRTUAL: o card só sabe o que o CONF diz (módulo ligado, ICPC, sem freeze) —
-    # este cache é invalidado pelo conf, e "todo problema é público" não mora nele. O botão é
-    # conveniência e pode ficar defasado: quem decide é o portão de lib/virtual.sh, a cada requisição.
+    # PARTICIPAÇÃO VIRTUAL: aqui só o CANDIDATO (o que o conf diz: módulo ligado, ICPC, sem freeze) — este cache é
+    # invalidado pelo conf, e "todo problema é público" não mora nele. O veredito do PORTÃO vem do cache ao lado
+    # (index-virtual.tsv, abaixo), que também acompanha a publicação dos problemas.
     virt=0
     if [[ ",${CONTEST_MODULES//\\/}," == *",virtual,"* && "${CONTEST_TYPE:-icpc}" == icpc ]] \
        && { [[ -z "${FREEZE_TIME//[!0-9]/}" ]] || (( ${FREEZE_TIME//[!0-9]/} == 0 )); }; then virt=1; fi
@@ -102,11 +104,30 @@ cp -f "$TSV" "$TSVC.tmp.${BASHPID}" 2>/dev/null && mv -f "$TSVC.tmp.${BASHPID}" 
   || rm -f "$TSVC.tmp.${BASHPID}" 2>/dev/null
 fi
 
+# ---- PARTICIPAÇÃO VIRTUAL: o botão só quando o PORTÃO deixa (07/10/2026) ---------------------------------
+# Antes bastava o conf, e o card do `blablabla` (problema privado no treino) mostrava um botão que levava a
+# "indisponível". O veredito é o do vr_load (lib/virtual.sh) menos a prova rodando — o jq abaixo já só mostra o
+# botão de contest encerrado. Cache por EVENTO, só dos candidatos (poucos): refeito quando o TSV muda (conf) ou quando
+# algum problema é publicado/despublicado (treino/var/.treino-list-dirty, tocado por quem cria/remove json servível).
+VOKC="$RUNDIR/index-virtual.tsv"; VSTAMP="$CONTESTSDIR/treino/var/.treino-list-dirty"
+if [[ -f "$VOKC" && ! "$TSV" -nt "$VOKC" ]] && { [[ ! -e "$VSTAMP" ]] || [[ ! "$VSTAMP" -nt "$VOKC" ]]; }; then :; else
+  declare -F vr_load >/dev/null || source "$_LIBDIR/virtual.sh"
+  mkdir -p "${VOKC%/*}" 2>/dev/null
+  _vt="$VOKC.tmp.${BASHPID}"
+  while IFS="$US" read -r _s _id _t _e _np _r _ro _rc _rl _w _os _rep _virt; do
+    [[ "$_virt" == 1 ]] || continue
+    if ( VR_IGNORE="running" vr_load "$_id" ) >/dev/null 2>&1; then printf '%s\t1\n' "$_id"; else printf '%s\t0\n' "$_id"; fi
+  done < "$TSV" > "$_vt" 2>/dev/null && mv -f "$_vt" "$VOKC" 2>/dev/null || rm -f "$_vt" 2>/dev/null
+fi
+[[ -f "$VOKC" ]] || : > "$VOKC" 2>/dev/null
+VOKF="$VOKC"; [[ -r "$VOKF" ]] || VOKF=/dev/null
+
 # O jq faz TUDO que depende da hora (ver o cabeçalho): a classificação, o problems_count que o
 # pré-início esconde e a inscrição sem prazo do aquecimento. Assim o TSV cacheado nunca envelhece.
 body="$(jq -R -s -c \
-  --argjson page "$PAGE" --argjson pp "$PERPAGE" --argjson all "$ALLMODE" --argjson now "$NOW" '
-  split("\n")
+  --argjson page "$PAGE" --argjson pp "$PERPAGE" --argjson all "$ALLMODE" --argjson now "$NOW" --rawfile vok "$VOKF" '
+  ($vok | split("\n") | map(select(length > 0) | split("\t") | {key:.[0], value:.[1]}) | from_entries) as $vm
+  | split("\n")
   | map(select(length>0) | split("\u001f") | select(length>=11)
       | (.[0]|tonumber? // 0) as $start | (.[3]|tonumber? // 0) as $end
       | (if   $end   <= $now then "e"
@@ -131,7 +152,7 @@ body="$(jq -R -s -c \
                                        url:("/contests/inscricao/?c=" + .[1]) } }
                 else {} end)
              + (if (.[11] // "0") == "1" then { report_url:("/relatorio/" + .[1] + "/") } else {} end)
-             + (if ((.[12] // "0") == "1") and ($st == "e") then { virtual_url:("/treino/virtual/?c=" + .[1]) } else {} end)) })
+             + (if ((.[12] // "0") == "1") and ($st == "e") and ($vm[.[1]] == "1") then { virtual_url:("/treino/virtual/?c=" + .[1]) } else {} end)) })
   | (map(select(.st=="r") | .obj)) as $open
   | (map(select(.st=="u") | .obj)) as $up
   | (map(select(.st=="e") | .obj)) as $closed

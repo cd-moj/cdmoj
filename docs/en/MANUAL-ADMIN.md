@@ -1,4 +1,4 @@
-<!-- i18n-source: MANUAL-ADMIN.md blob:b27e1836f708986b9e7d6ced286e90e541b9957c -->
+<!-- i18n-source: MANUAL-ADMIN.md blob:2bde4899a08888d147c83494cab2d72c94e06b4d -->
 # MOJ: Organizer manual (the contest .admin panel)
 
 > **Translation note.** This manual is a translation of the Portuguese original. The command-line tools (`moj`, `moj-contest`, `moj-comp`) print their messages in Portuguese, and the command examples below are identical to the original.
@@ -167,7 +167,7 @@ you turn it on again, all comes back.
 
 **While a module is off, its rule does NOT apply**, also with the configuration saved: **Machines** turns off the
 browser gate, the single session and the site lock (the pinned IPs are released at once); **Sites** turns off the
-per-site extension; **Registration** lets in persons who did not register (a team member still enters as the team);
+per-site extension; **Registration** lets in persons who did not register (a team member still enters as the team), removes the **Register** button from the home page and nobody can register;
 **Cohorts** puts all teams on the public scoreboard; **Balloons** stops creating balloon tasks (turning it on again
 creates the missing ones). Before you turn off a module of a contest that is running, make sure that this is what you
 want.
@@ -213,9 +213,9 @@ directions); on the right, what the module needs, when it is on, to do something
 <div class="deps-row deps-hrow"><div class="deps-h r">To turn on, it needs</div><div></div><div class="deps-h c">Module</div><div></div><div class="deps-h">When on, it acts with</div></div>
 <div class="deps-row"><div class="deps-req"><span class="deps-b req">the Free Training accounts (<code>USERS_FROM</code>)</span><span class="deps-note">converting to own accounts turns the module off</span></div><div class="deps-ar">→</div><div class="deps-mod"><span class="deps-b mod"><code>inscricoes</code></span></div><div class="deps-ar">→</div><div class="deps-act"><span class="deps-b act">registration on (People › Registrations)</span></div></div>
 <div class="deps-row"><div class="deps-req"><span class="deps-b req">the in-browser code editor (Rules)</span><span class="deps-note">while the module is on, the editor stays on</span></div><div class="deps-ar">↔</div><div class="deps-mod"><span class="deps-b mod"><code>esqueletos</code></span></div><div class="deps-ar">→</div><div class="deps-act"><span class="deps-none">nothing: the default skeleton of each language</span></div></div>
-<div class="deps-row"><div class="deps-req"><span class="deps-b req">ICPC mode</span><span class="deps-b req">not secret</span><span class="deps-b req">scoreboard not anonymous</span><span class="deps-b req">start and end</span><span class="deps-b req">all problems public in the training</span><span class="deps-note">the panel and the CLI refuse; if created like this, it stays inert (§6¾)</span></div><div class="deps-ar">→</div><div class="deps-mod"><span class="deps-b mod"><code>virtual</code></span></div><div class="deps-ar">→</div><div class="deps-act"><span class="deps-b act">contest ended for all sites</span><span class="deps-b act">scoreboard unfrozen (Finish event)</span></div></div>
+<div class="deps-row"><div class="deps-req"><span class="deps-b req">ICPC mode</span><span class="deps-b req">not secret</span><span class="deps-b req">scoreboard not anonymous</span><span class="deps-b req">start and end</span><span class="deps-b req">all problems public in the training</span><span class="deps-note">at creation, it starts off and the screen tells why (§6¾)</span></div><div class="deps-ar">→</div><div class="deps-mod"><span class="deps-b mod"><code>virtual</code></span></div><div class="deps-ar">→</div><div class="deps-act"><span class="deps-b act">contest ended for all sites</span><span class="deps-b act">scoreboard unfrozen (Finish event)</span></div></div>
 <div class="deps-sep"></div>
-<div class="deps-row"><div class="deps-req nil"><span class="deps-none">—</span></div><div class="deps-ar empty"></div><div class="deps-mod"><span class="deps-b mod"><code>sedes</code></span></div><div class="deps-ar">→</div><div class="deps-act"><span class="deps-b act">the site tree (Event › Sites &amp; schools)</span></div></div>
+<div class="deps-row"><div class="deps-req nil"><span class="deps-none">—</span></div><div class="deps-ar empty"></div><div class="deps-mod"><span class="deps-b mod"><code>sedes</code></span></div><div class="deps-ar">→</div><div class="deps-act"><span class="deps-b act">the site tree (Event › Sites & schools)</span></div></div>
 <div class="deps-row"><div class="deps-req nil"><span class="deps-none">—</span></div><div class="deps-ar empty"></div><div class="deps-mod"><span class="deps-b mod"><code>maquinas</code></span></div><div class="deps-ar">→</div><div class="deps-act"><span class="deps-b act">gate: a rule</span><span class="deps-b act">mlinux: the NutellaBoot key</span></div></div>
 <div class="deps-row"><div class="deps-req nil"><span class="deps-none">—</span></div><div class="deps-ar empty"></div><div class="deps-mod"><span class="deps-b mod"><code>rodadas</code></span></div><div class="deps-ar">→</div><div class="deps-act"><span class="deps-b act">the round plan (Event › Rounds)</span></div></div>
 <div class="deps-row"><div class="deps-req nil"><span class="deps-none">—</span></div><div class="deps-ar empty"></div><div class="deps-mod"><span class="deps-b mod"><code>documentos</code></span></div><div class="deps-ar">→</div><div class="deps-act"><span class="deps-none">nothing: made from what the contest has</span></div></div>
@@ -623,13 +623,20 @@ reference: `docs/VIRTUAL.md`.
 
 1. the contest **is not secret**;
 2. the mode is **ICPC**;
-3. **all the problems are already public in the training**. If one is not, the response is an
+3. the scoreboard **is not anonymous**;
+4. the contest has a **start and an end**;
+5. **all the problems are already public in the training**. If one is not, the response is an
    error that tells how many are missing. Publish the problems first (problem management) and turn
    the module on again.
 
-You can turn on the module before the end of the contest. It stays **inactive** and opens
-automatically when the contest ends for all sites **and** the scoreboard is unfrozen (the
-**Finish event** button).
+The module card shows a lock and what is missing, and the **Home** checklist warns about a module that is already on
+without it. At creation (spec, template or copy), a contest that does not meet these conditions starts with the module
+**off**, and the result screen (or the CLI) tells why: turn it on later in Home › Modules.
+
+You can turn on the module before the end of the contest (with the problems already public). It stays **inactive** and
+opens automatically when the contest ends for all sites **and** the scoreboard is unfrozen (the **Finish event**
+button). The **Virtual** button on the contest card and the notice on the scoreboard show only when virtual
+participation is possible.
 
 **Caution:** this module makes the final scoreboard and the problem list visible to training
 accounts. A contest that must not be seen from outside must not turn on this module.

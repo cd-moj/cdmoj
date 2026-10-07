@@ -1,4 +1,4 @@
-<!-- i18n-source: MANUAL-ADMIN.md blob:b27e1836f708986b9e7d6ced286e90e541b9957c -->
+<!-- i18n-source: MANUAL-ADMIN.md blob:2bde4899a08888d147c83494cab2d72c94e06b4d -->
 # MOJ: Manual del organizador (el panel .admin de la competencia)
 
 > **Nota de traducción.** Este manual es una traducción del original en portugués. Las herramientas de línea de comandos (`moj`, `moj-contest`, `moj-comp`) muestran sus mensajes en portugués, y los ejemplos de comandos son idénticos al original.
@@ -165,7 +165,7 @@ correspondientes; **desactivar oculta, sin borrar nada**: reactivar restaura tod
 **Desactivado, la regla del módulo NO se aplica**, aunque la configuración esté guardada: **Máquinas** desactiva el
 gate de navegador, la sesión única y el bloqueo de sede (las IP fijadas se sueltan de inmediato); **Sedes** desactiva
 la prórroga por sede; **Inscripciones** deja entrar a quien no se inscribió (el miembro de equipo sigue entrando como el
-equipo); **Cohortes** pone a todos en el marcador público; **Globos** deja de crear tareas de globo (reactivarlo crea
+equipo), quita el botón **Inscríbete** de la página de inicio y nadie puede inscribirse; **Cohortes** pone a todos en el marcador público; **Globos** deja de crear tareas de globo (reactivarlo crea
 las que faltaron). Antes de desactivar un módulo de una competencia en curso, confirma que eso es lo que quieres.
 
 | Módulo | Qué activa | Detectado por |
@@ -209,7 +209,7 @@ los dos sentidos); a la derecha, lo que el módulo necesita, ya activado, para h
 <div class="deps-row deps-hrow"><div class="deps-h r">Para activarlo, necesita</div><div></div><div class="deps-h c">Módulo</div><div></div><div class="deps-h">Activado, actúa cuando hay</div></div>
 <div class="deps-row"><div class="deps-req"><span class="deps-b req">las cuentas del Entrenamiento Libre (<code>USERS_FROM</code>)</span><span class="deps-note">convertir a cuentas propias desactiva el módulo</span></div><div class="deps-ar">→</div><div class="deps-mod"><span class="deps-b mod"><code>inscricoes</code></span></div><div class="deps-ar">→</div><div class="deps-act"><span class="deps-b act">la inscripción activada (Personas › Inscripciones)</span></div></div>
 <div class="deps-row"><div class="deps-req"><span class="deps-b req">el editor de código en el navegador (Reglas)</span><span class="deps-note">con el módulo activado, el editor no se desactiva</span></div><div class="deps-ar">↔</div><div class="deps-mod"><span class="deps-b mod"><code>esqueletos</code></span></div><div class="deps-ar">→</div><div class="deps-act"><span class="deps-none">nada: el esqueleto predeterminado de cada lenguaje</span></div></div>
-<div class="deps-row"><div class="deps-req"><span class="deps-b req">modo ICPC</span><span class="deps-b req">no secreta</span><span class="deps-b req">marcador no anónimo</span><span class="deps-b req">inicio y fin</span><span class="deps-b req">todos los problemas públicos en el entrenamiento</span><span class="deps-note">el panel y la CLI lo rechazan; creado así, queda inerte (§6¾)</span></div><div class="deps-ar">→</div><div class="deps-mod"><span class="deps-b mod"><code>virtual</code></span></div><div class="deps-ar">→</div><div class="deps-act"><span class="deps-b act">competencia terminada en todas las sedes</span><span class="deps-b act">marcador descongelado (Terminar evento)</span></div></div>
+<div class="deps-row"><div class="deps-req"><span class="deps-b req">modo ICPC</span><span class="deps-b req">no secreta</span><span class="deps-b req">marcador no anónimo</span><span class="deps-b req">inicio y fin</span><span class="deps-b req">todos los problemas públicos en el entrenamiento</span><span class="deps-note">al crear, nace desactivado y la pantalla dice por qué (§6¾)</span></div><div class="deps-ar">→</div><div class="deps-mod"><span class="deps-b mod"><code>virtual</code></span></div><div class="deps-ar">→</div><div class="deps-act"><span class="deps-b act">competencia terminada en todas las sedes</span><span class="deps-b act">marcador descongelado (Terminar evento)</span></div></div>
 <div class="deps-sep"></div>
 <div class="deps-row"><div class="deps-req nil"><span class="deps-none">—</span></div><div class="deps-ar empty"></div><div class="deps-mod"><span class="deps-b mod"><code>sedes</code></span></div><div class="deps-ar">→</div><div class="deps-act"><span class="deps-b act">el árbol de sedes (Evento › Sedes y escuelas)</span></div></div>
 <div class="deps-row"><div class="deps-req nil"><span class="deps-none">—</span></div><div class="deps-ar empty"></div><div class="deps-mod"><span class="deps-b mod"><code>maquinas</code></span></div><div class="deps-ar">→</div><div class="deps-act"><span class="deps-b act">gate: una regla</span><span class="deps-b act">mlinux: la clave de NutellaBoot</span></div></div>
@@ -598,11 +598,19 @@ tiempo, contra el marcador oficial. El marcador oficial **no cambia**. Referenci
 
 1. la competencia **no es secreta**;
 2. el modo es **ICPC**;
-3. **todos los problemas ya son públicos en el entrenamiento**. Si alguno no lo es, la respuesta es un error que dice
+3. el marcador **no es anónimo**;
+4. la competencia tiene **inicio y fin**;
+5. **todos los problemas ya son públicos en el entrenamiento**. Si alguno no lo es, la respuesta es un error que dice
    cuántos faltan. Publica los problemas primero (gestión de problemas) y actívalo de nuevo.
 
-Puedes activar el módulo antes del fin de la competencia. Queda **inactivo** y se abre solo cuando la competencia
-termina para todas las sedes **y** el marcador se descongela (botón **Terminar evento**).
+La tarjeta del módulo muestra el candado y lo que falta, y la **Central** avisa si ya está activado sin eso. Al crear
+(spec, plantilla o copia), una competencia que no cumple estas condiciones nace con el módulo **desactivado**, y la
+pantalla del resultado (o la CLI) dice por qué: actívalo después en Central › Módulos.
+
+Puedes activar el módulo antes del fin de la competencia (con los problemas ya públicos). Queda **inactivo** y se abre
+solo cuando la competencia termina para todas las sedes **y** el marcador se descongela (botón **Terminar evento**). El
+botón **Virtual** en la tarjeta de la competencia y el aviso en el marcador solo aparecen cuando la participación
+virtual se puede hacer.
 
 **Atención:** activar este módulo hace que el marcador final y la lista de problemas sean visibles para las cuentas del
 entrenamiento. Una competencia que no puede verse desde fuera no debe activar el módulo.

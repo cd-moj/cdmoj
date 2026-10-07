@@ -8,6 +8,7 @@ import { el } from '/shared/ui.js';
 import { apiGet, apiPost } from '/shared/api.js';
 import { T } from '/shared/i18n.js';
 import { MODULES, PRESETS, esqErrorText } from './modules.js';
+import { requiresText } from '/shared/module-requires.js';
 
 const enc = encodeURIComponent;
 
@@ -29,20 +30,13 @@ export function makeModulesTab(CONTEST) {
   }
 
   const rowOf = (id) => ((DATA && DATA.modules) || []).find((m) => m.id === id) || {};
-  // texto de cada pré-requisito não atendido, pelo CÓDIGO que a API manda (o mesmo do 422)
-  const REQ_TXT = {
-    requires_shared_users: () => T('A inscrição usa as contas do Treino Livre (cada aluno se inscreve com a conta dele no treino), e este contest tem contas próprias: ligada, ela barraria todo aluno. Com contas próprias, distribua as credenciais em Pessoas › Contas.',
-      'Registration uses the Free Training accounts (each student registers with their own training account), and this contest has its own accounts: turned on, it would block every student. With own accounts, hand out the credentials in People › Accounts.',
-      'La inscripción usa las cuentas del Entrenamiento Libre (cada alumno se inscribe con su cuenta del entrenamiento), y esta competencia tiene cuentas propias: activada, bloquearía a todos los alumnos. Con cuentas propias, entrega las credenciales en Personas › Cuentas.'),
-    editor_required: () => T('Precisa do editor de código no browser: ligue em Regras antes.', 'Needs the in-browser code editor: turn it on in Rules first.', 'Necesita el editor de código en el navegador: actívalo en Reglas antes.'),
-  };
   function card(m) {
     const r = rowOf(m.id);
     const cb = el('input', { type: 'checkbox' }); cb.checked = !!r.on; checks[m.id] = cb;
     // PRÉ-REQUISITO (lib/modules.sh mod_requires_ok, 07/10/2026): desligado e sem o que precisa = não liga (a API recusa
     // com 422); a tela diz por quê. Ligado sem ele: o checkbox fica (desligar sempre pode) e o aviso aparece.
     const req = r.requires || { ok: true };
-    const reqMsg = req.ok ? '' : (REQ_TXT[req.code] ? REQ_TXT[req.code]() : (req.message || ''));
+    const reqMsg = req.ok ? '' : requiresText(req);
     if (!req.ok && !r.on) cb.disabled = true;
     const dataPill = r.detected
       ? el('span', { class: 'pill ok', title: r.reason || '' }, T('dados presentes', 'data present', 'datos presentes'))

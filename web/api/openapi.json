@@ -367,7 +367,7 @@
         "tags": [
           "index"
         ],
-        "summary": "Contests (abertos/por vir/encerrados); problems_count é 0 em contest por vir (não revela a quantidade de problemas antes do início)",
+        "summary": "Contests (abertos/por vir/encerrados); problems_count é 0 em contest por vir (não revela a quantidade de problemas antes do início). virtual_url só quando o portão do virtual passa (vr_load); registration só com a inscrição em vigor (roster + módulo inscricoes + contas do treino)",
         "parameters": [
           {
             "name": "page",
@@ -1516,7 +1516,7 @@
         "tags": [
           "treino"
         ],
-        "summary": "Inscrição do próprio login num contest que usa as contas do treino (individual ou time de até 3 contas existentes): janela ancorada na PROVA OFICIAL (o aquecimento pode ficar dias no ar), minha situação, meu time e convites recebidos. Nome de time (team-create/team-rename): ':' vira '∶', até 48 caracteres; login time-<slug> sem acento",
+        "summary": "Inscrição do próprio login num contest que usa as contas do treino (individual ou time de até 3 contas existentes): janela ancorada na PROVA OFICIAL (o aquecimento pode ficar dias no ar), minha situação, meu time e convites recebidos. Nome de time (team-create/team-rename): ':' vira '∶', até 48 caracteres; login time-<slug> sem acento. enabled = inscrição em vigor (roster + módulo inscricoes + contas do treino); POST fora disso = 409 registration_off",
         "security": [
           {
             "bearerAuth": []
@@ -2823,6 +2823,24 @@
         }
       }
     },
+    "/contest/virtual": {
+      "get": {
+        "tags": [
+          "contest"
+        ],
+        "summary": "Participação virtual disponível agora? {available:true,url} ou {available:false} — o portão inteiro (vr_load); usado pelo aviso do placar. Público (contest secreto: Bearer do contest)",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ok"
+          }
+        }
+      }
+    },
     "/contest/score": {
       "get": {
         "tags": [
@@ -3541,7 +3559,7 @@
         "tags": [
           "contest-create"
         ],
-        "summary": "Cria e publica o contest (no ar na hora) SPEC UNIFICADO (2026-09-05): modules:{<id>: true | {on?, …seção…}} leva os DADOS de cada módulo — sedes{regions,teams_meta,time_overrides}, baloes{colors,during_freeze}, coortes{cohorts}, maquinas{ua_gate,site_lock{enabled,grace},nutella_url}, rodadas{active,rounds}, documentos{config}, inscricoes{enabled,window}, telao{views} (chaves NOVAS de webcast), classificacao{algorithm,config} ou {stages:[{id?,algorithm,config,name?,venue?,when?,chip?}]} (motor pela allowlist + config pelo --check do motor). Seção presente = módulo ligado (salvo on:false); tipo errado = 422 modules_spec_invalid; segredo nunca entra. colors/regions/teams_meta no topo continuam aceitos (compat). Letra de problema: sem letter = a 1ª LIVRE; repetida (sem diferenciar caixa) = 422 letter_dup (numa rodada do spec, 422 modules_spec_invalid). Módulo esqueletos: {langs:{<lang>:{mode:custom,code}|{mode:off}}} grava o esqueletos.json e exige show_editor (senão 422 editor_required; vale p/ criar, duplicar e template). Nomes (admin e users[]) com ':' são gravados com '∶'; senha/email de usuário com ':' = 422 user_colon, senha do admin = 422 colon. modules.inscricoes ligado sem users_from (contas próprias) = 422 requires_shared_users.",
+        "summary": "Cria e publica o contest (no ar na hora) SPEC UNIFICADO (2026-09-05): modules:{<id>: true | {on?, …seção…}} leva os DADOS de cada módulo — sedes{regions,teams_meta,time_overrides}, baloes{colors,during_freeze}, coortes{cohorts}, maquinas{ua_gate,site_lock{enabled,grace},nutella_url}, rodadas{active,rounds}, documentos{config}, inscricoes{enabled,window}, telao{views} (chaves NOVAS de webcast), classificacao{algorithm,config} ou {stages:[{id?,algorithm,config,name?,venue?,when?,chip?}]} (motor pela allowlist + config pelo --check do motor). Seção presente = módulo ligado (salvo on:false); tipo errado = 422 modules_spec_invalid; segredo nunca entra. colors/regions/teams_meta no topo continuam aceitos (compat). Letra de problema: sem letter = a 1ª LIVRE; repetida (sem diferenciar caixa) = 422 letter_dup (numa rodada do spec, 422 modules_spec_invalid). Módulo esqueletos: {langs:{<lang>:{mode:custom,code}|{mode:off}}} grava o esqueletos.json e exige show_editor (senão 422 editor_required; vale p/ criar, duplicar e template). Nomes (admin e users[]) com ':' são gravados com '∶'; senha/email de usuário com ':' = 422 user_colon, senha do admin = 422 colon. modules.inscricoes ligado sem users_from (contas próprias) = 422 requires_shared_users. virtual sem as condições: criado com o módulo desligado e modules_skipped:[{id,code,reason,message}]",
         "requestBody": {
           "required": true,
           "content": {
@@ -6799,7 +6817,7 @@
     "/contest/admin/modules": {
       "get": {
         "tags": ["contest-admin"],
-        "summary": "Módulos do contest (grupos de recursos ligáveis): catálogo, ligado/desligado, dados presentes · requires:{ok, code?, message?} por módulo = o pré-requisito (a tela trava a caixa)",
+        "summary": "Módulos do contest (grupos de recursos ligáveis): catálogo, ligado/desligado, dados presentes · requires:{ok, code?, message?} por módulo = o pré-requisito (a tela trava a caixa). virtual não elegível = 422 virtual_not_eligible com error.reason; o catálogo traz requires.reason",
         "description": "Catálogo ÚNICO em lib/modules.sh (espelho em web/contest/admin/modules.js): sedes, maquinas, rodadas, documentos, baloes, coortes, inscricoes, telao, classificacao, virtual, esqueletos. detected = há artefato do módulo no contest (regions.json, ua-gate.json/SITE_LOCK/LOGIN_UA_SUBSTRING/chave nutellaboot, rounds.json, docs/config.json, balloons.json, cohorts.json, registrations.json, webcast.json/fotos, classification.json, virtual/runs, esqueletos.json) e reason diz qual. Decide o que o painel mostra E, desde 03/10/2026, se a REGRA vale: desligado, maquinas (gate/sessão única/trava), sedes (prorrogação), inscricoes (só inscrito entra), coortes (corte do placar) e baloes (tarefas) não valem, com o arquivo no disco. O acesso continua cortado em cada rota. Contests anteriores a 2026-09-05: server/bin/contest-modules-detect.sh [--apply].",
         "parameters": [{"$ref": "#/components/parameters/contest"}],
         "security": [{"bearerAuth": []}],

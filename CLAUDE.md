@@ -1136,8 +1136,17 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   (07/10/2026)**: módulo que não funciona sem outra configuração NÃO LIGA sem ela por NENHUM caminho (painel Módulos, ação
   que grava o artefato e religa o módulo, criação/duplicar/template, CLI) — `mod_requires_ok` é a fonte única (catálogo
   GET `requires`, 422 com o código, Central `modules_requires`): `inscricoes` exige `USERS_FROM` (contas do treino;
-  `requires_shared_users` — sem elas `reg_gate_active` também não vale) e `esqueletos` exige o editor
-  (`editor_required`); a conversão p/ contas próprias desliga `inscricoes` junto. Dependência nova entra lá. O módulo decide
+  `requires_shared_users` — sem elas `reg_gate_active` também não vale), `esqueletos` exige o editor
+  (`editor_required`) e `virtual` exige um contest que PODE virar virtual (`virtual_not_eligible` + `reason`: o portão
+  `vr_load` menos módulo desligado/prova rodando/placar congelado — era um laço à parte no `admin/modules.sh`); a
+  conversão p/ contas próprias desliga `inscricoes` junto. A CRIAÇÃO decide `inscricoes`/`esqueletos` pelo spec (422)
+  mas o `virtual` só com o contest no disco: depois do `mv`, se não puder, o módulo nasce DESLIGADO e a resposta traz
+  `modules_skipped` (web e CLI mostram). **Mostrar o botão = a regra que DEIXA fazer**, nunca o conf/arquivo sozinho
+  (07/10/2026: o `blablabla` mostrava o Virtual com problema privado; o `ta_fac_profs_202602` o "Inscreva-se" com o
+  módulo desligado): `virtual_url` do `/index/contests` = `vr_load` num cache por evento (`run/index-virtual.tsv`,
+  conf + carimbo `.treino-list-dirty`), o placar pergunta ao `GET /contest/virtual`, e a inscrição usa `reg_in_force`
+  (roster ∧ módulo ∧ `USERS_FROM`; base do `reg_gate_active`) na home e na rota do competidor. Textos pt/en/es dos
+  pré-requisitos: `web/shared/module-requires.js`. Dependência nova entra lá. O módulo decide
   nav/painéis/checagens/cartões **E, desde 03/10/2026 (decisão do Ribas), se a REGRA vale**: desligado, o artefato no
   disco não vale — `maquinas` (gate de UA inclusive o `LOGIN_UA_SUBSTRING` legado, sessão única, trava de sede; o
   `admin/modules` solta os IPs presos ao desligar), `sedes` (prorrogação), `inscricoes` (o roster "só inscrito entra"; o

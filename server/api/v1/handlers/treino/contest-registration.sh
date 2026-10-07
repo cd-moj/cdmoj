@@ -73,13 +73,15 @@ _emit(){  # estado completo, p/ o front redesenhar com UMA chamada
   [[ -n "$s" ]] || fail 500 "Falha ao montar a inscrição" "reg_render_failed"
   ok_json '{enabled:$en, contest:$c, contest_name:$n, start_time:$st, end_time:$et} + $s' \
     --arg c "$contest" --arg n "$nm" --argjson st "$st" --argjson et "$et" \
-    --argjson en "$(reg_enabled "$contest" && echo true || echo false)" \
+    --argjson en "$(reg_in_force "$contest" && echo true || echo false)" \
     --argjson s "$s"
 }
 
 [[ "$REQUEST_METHOD" == POST ]] || { _emit; exit 0; }
 
-reg_enabled "$contest" || fail 409 "Este contest não usa inscrição" "registration_off"
+# a inscrição EM VIGOR (roster ∧ módulo `inscricoes` ligado ∧ contas do treino): com o módulo desligado o roster é só
+# guardado (o admin ainda o vê) e ninguém se inscreve — a regra "só inscrito entra" também não vale (07/10/2026)
+reg_in_force "$contest" || fail 409 "Este contest não usa inscrição" "registration_off"
 jq -e . >/dev/null 2>&1 <<<"$body" || fail 400 "JSON inválido" "bad_json"
 action="$(jq -r '.action // empty' <<<"$body")"
 [[ -n "$action" ]] || fail 400 "Informe a ação" "action_missing"

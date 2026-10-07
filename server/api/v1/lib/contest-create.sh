@@ -437,6 +437,18 @@ cc_create(){
 
   mv -T "$stg" "$CONTESTSDIR/$id" 2>/dev/null || { rm -rf "$stg"; fail 500 "Falha ao publicar o contest (id pode ter sido criado em paralelo)" "publish_fail"; }
 
+  # PRÉ-REQUISITO do `virtual` (lib/modules.sh mod_requires_ok, 07/10/2026): o portão precisa do contest NO DISCO
+  # (problemas públicos no treino, placar anônimo, modo…), então a criação não o consulta antes do mv como faz com
+  # `inscricoes`/`esqueletos` (que se decidem pelo spec). Confere aqui, já publicado: se o contest não pode virar
+  # virtual, o módulo NASCE DESLIGADO e a resposta diz por quê (`modules_skipped`) — explica em vez de recusar, porque
+  # o caso comum é a prova nova com os problemas ainda privados (liga-se depois de publicá-los, em Central › Módulos).
+  local skipped='[]'
+  if mod_on "$id" virtual && ! mod_requires_ok "$id" virtual; then
+    local _ccm=",$(mod_raw "$id"),"; mod_set "$id" "${_ccm//,virtual,/,}"
+    skipped="$(jq -cn --arg c "$MOD_REQ_CODE" --arg r "$MOD_REQ_REASON" --arg m "$MOD_REQ_MSG" '[{id:"virtual", code:$c, reason:$r, message:$m}]')"
+    audit_log_to "$id" modules-skipped "virtual code=$MOD_REQ_CODE reason=$MOD_REQ_REASON"
+  fi
+
   # a prioridade de nascimento entra na trilha (o contest e a central do treino) — as mudanças depois também
   # entram (cc_set_priority), então "quem pôs esta prova nesta banda" sempre tem resposta
   audit_log_to "$id" priority "de=— para=$priority via=criação"
@@ -446,11 +458,11 @@ cc_create(){
   local users_json='[]'
   [[ -n "${CREDS[@]+x}" ]] && users_json="$(printf '%s\n' "${CREDS[@]}" | jq -cs '.')"
   CC_RESULT="$(jq -cn --arg id "$id" --arg al "$adminlogin" --arg pw "$adminpass" --argjson np "$np" \
-    --argjson users "$users_json" --arg shared "$shared" --argjson reused "$admin_reused" \
+    --argjson users "$users_json" --arg shared "$shared" --argjson reused "$admin_reused" --argjson sk "$skipped" \
     '{contest_id:$id, admin_login:$al, admin_reused:$reused,
       admin_password:(if $reused then null else $pw end), problems:$np,
       users_from:(if $shared=="" then null else $shared end),
-      users:$users, users_count:($users|length),
+      users:$users, users_count:($users|length), modules_skipped:$sk,
       url:("/contest/?c="+$id), scoreboard_url:("/contest/score/?c="+$id)}')"
 }
 

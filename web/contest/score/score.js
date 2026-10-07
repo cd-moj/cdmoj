@@ -463,13 +463,18 @@ async function boot() {
   document.getElementById('contestTitle').textContent = basic.contest_name || 'Contest';
   document.getElementById('backBtn').href = '/contest/?c=' + encodeURIComponent(CONTEST);
   startCountdown();
-  // PARTICIPAÇÃO VIRTUAL: prova encerrada + módulo ligado ⇒ link p/ a página (no site PRINCIPAL:
-  // por subdomínio o token do treino não existe aqui). Conveniência — quem decide é a API de lá.
+  // PARTICIPAÇÃO VIRTUAL: o link (p/ o site PRINCIPAL: por subdomínio o token do treino não existe aqui) só aparece
+  // quando o PORTÃO deixa — /contest/virtual roda o mesmo vr_load das rotas do virtual. Antes bastava "módulo ligado +
+  // prova encerrada" e o link aparecia num contest com problema privado (07/10/2026). Só pergunta quando pode dar
+  // certo (módulo ligado, prova encerrada), e não segura o placar: roda à parte.
   if ((basic.modules || []).includes('virtual') && basic.end_time && Date.now() / 1000 > basic.end_time) {
-    const sub = location.host.toLowerCase().startsWith(String(CONTEST).toLowerCase() + '.');
-    const base = sub ? location.protocol + '//' + location.host.replace(/^[^.]+\./, '') : '';
-    document.getElementById('virtualLink').href = base + '/treino/virtual/?c=' + encodeURIComponent(CONTEST);
-    document.getElementById('virtualNotice').classList.remove('hidden');
+    apiGet('/contest/virtual?contest=' + encodeURIComponent(CONTEST), {}).then((v) => {
+      if (!v || v.available !== true) return;
+      const sub = location.host.toLowerCase().startsWith(String(CONTEST).toLowerCase() + '.');
+      const base = sub ? location.protocol + '//' + location.host.replace(/^[^.]+\./, '') : '';
+      document.getElementById('virtualLink').href = base + '/treino/virtual/?c=' + encodeURIComponent(CONTEST);
+      document.getElementById('virtualNotice').classList.remove('hidden');
+    }).catch(() => {});
   }
 
   const st = await status(CONTEST);

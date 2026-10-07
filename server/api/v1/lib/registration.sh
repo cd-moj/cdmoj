@@ -121,14 +121,22 @@ reg_round_kind(){
 # no warmup vira atraso no dia da prova (decisão do Ribas, 2026-08-04, revendo a porta aberta).
 # REG_WARMUP_OPEN=y no conf restaura a porta aberta durante rodada warmup (o esquenta que
 # quiser atrair curiosos); nesse caso a varredura da promoção (reg_sweep_unregistered) limpa.
-reg_gate_active(){
+# reg_in_force <c> — a inscrição VALE: roster existe ∧ módulo `inscricoes` ligado ∧ o contest usa as contas do treino.
+# É a pergunta de quem MOSTRA ou ACEITA inscrição (o "Inscreva-se" da home, a rota do competidor) e a base do portão
+# do login (reg_gate_active). O `reg_enabled` (o arquivo existe) segue sendo o do painel do admin, que mostra o roster
+# guardado mesmo com o módulo desligado. 07/10/2026: o ta_fac_profs_202602 (contas próprias, módulo desligado, roster
+# guardado) mostrava "Inscreva-se" na home.
+reg_in_force(){
   reg_enabled "$1" || return 1
   # o roster ("só inscrito entra") é do módulo `inscricoes`: DESLIGADO, a regra não vale (03/10/2026; o alias do
   # time segue — é identidade, não regra de entrada)
   { declare -F mod_on >/dev/null || source "${_LIBDIR:-${BASH_SOURCE[0]%/*}}/modules.sh"; mod_on "$1" inscricoes; } || return 1
   # sem as contas do TREINO a inscrição não tem como incluir ninguém (o aluno se inscreve com a conta do treino): o roster
   # num contest de contas próprias só barraria todo mundo — a regra não vale (pré-requisito do módulo, 07/10/2026)
-  local _rg_uf; conf_value_to _rg_uf "$1" USERS_FROM; [[ -n "$_rg_uf" ]] || return 1
+  local _rg_uf; conf_value_to _rg_uf "$1" USERS_FROM; [[ -n "$_rg_uf" ]]
+}
+reg_gate_active(){
+  reg_in_force "$1" || return 1
   if [[ "$(reg_round_kind "$1")" == warmup ]]; then
     local v; v="$( ( REG_WARMUP_OPEN=""; source "$CONTESTSDIR/$1/conf" 2>/dev/null; printf '%s' "${REG_WARMUP_OPEN:-}" ) )"
     [[ "$v" == y ]] && return 1

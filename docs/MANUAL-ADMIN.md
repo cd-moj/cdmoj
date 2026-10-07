@@ -159,7 +159,7 @@ correspondentes; **desligar esconde, sem apagar nada** — religar restaura tudo
 
 **Desligado, a regra do módulo NÃO vale**, mesmo com a configuração gravada: **Máquinas** desliga o gate de
 navegador, a sessão única e a trava de sede (os IPs presos são soltos na hora); **Sedes** desliga a prorrogação por
-sede; **Inscrições** deixa entrar quem não se inscreveu (o membro de time continua entrando como o time); **Coortes**
+sede; **Inscrições** deixa entrar quem não se inscreveu (o membro de time continua entrando como o time), tira o botão **Inscreva-se** da página inicial e ninguém consegue se inscrever; **Coortes**
 põe todo mundo no placar público; **Balões** para de criar tarefas de balão (religar cria as que faltaram). Antes de
 desligar um módulo de uma prova em andamento, confira se é isso mesmo que você quer.
 
@@ -203,9 +203,9 @@ em próprias (seção 8¾) desliga a inscrição junto.
 <div class="deps-row deps-hrow"><div class="deps-h r">Para ligar, precisa de</div><div></div><div class="deps-h c">Módulo</div><div></div><div class="deps-h">Ligado, age quando tem</div></div>
 <div class="deps-row"><div class="deps-req"><span class="deps-b req">contas do Treino Livre (<code>USERS_FROM</code>)</span><span class="deps-note">converter em contas próprias desliga o módulo</span></div><div class="deps-ar">→</div><div class="deps-mod"><span class="deps-b mod"><code>inscricoes</code></span></div><div class="deps-ar">→</div><div class="deps-act"><span class="deps-b act">a inscrição ligada (Pessoas › Inscrições)</span></div></div>
 <div class="deps-row"><div class="deps-req"><span class="deps-b req">editor de código no browser (Regras)</span><span class="deps-note">com o módulo ligado, o editor não desliga</span></div><div class="deps-ar">↔</div><div class="deps-mod"><span class="deps-b mod"><code>esqueletos</code></span></div><div class="deps-ar">→</div><div class="deps-act"><span class="deps-none">nada: vem o esqueleto padrão de cada linguagem</span></div></div>
-<div class="deps-row"><div class="deps-req"><span class="deps-b req">modo ICPC</span><span class="deps-b req">não secreto</span><span class="deps-b req">placar não anônimo</span><span class="deps-b req">início e fim</span><span class="deps-b req">todos os problemas públicos no treino</span><span class="deps-note">o painel e a CLI recusam; criado assim, fica inerte (§6¾)</span></div><div class="deps-ar">→</div><div class="deps-mod"><span class="deps-b mod"><code>virtual</code></span></div><div class="deps-ar">→</div><div class="deps-act"><span class="deps-b act">prova encerrada para todas as sedes</span><span class="deps-b act">placar descongelado (Encerrar evento)</span></div></div>
+<div class="deps-row"><div class="deps-req"><span class="deps-b req">modo ICPC</span><span class="deps-b req">não secreto</span><span class="deps-b req">placar não anônimo</span><span class="deps-b req">início e fim</span><span class="deps-b req">todos os problemas públicos no treino</span><span class="deps-note">ao criar, nasce desligado e a tela diz por quê (§6¾)</span></div><div class="deps-ar">→</div><div class="deps-mod"><span class="deps-b mod"><code>virtual</code></span></div><div class="deps-ar">→</div><div class="deps-act"><span class="deps-b act">prova encerrada para todas as sedes</span><span class="deps-b act">placar descongelado (Encerrar evento)</span></div></div>
 <div class="deps-sep"></div>
-<div class="deps-row"><div class="deps-req nil"><span class="deps-none">—</span></div><div class="deps-ar empty"></div><div class="deps-mod"><span class="deps-b mod"><code>sedes</code></span></div><div class="deps-ar">→</div><div class="deps-act"><span class="deps-b act">a árvore de sedes (Evento › Sedes &amp; escolas)</span></div></div>
+<div class="deps-row"><div class="deps-req nil"><span class="deps-none">—</span></div><div class="deps-ar empty"></div><div class="deps-mod"><span class="deps-b mod"><code>sedes</code></span></div><div class="deps-ar">→</div><div class="deps-act"><span class="deps-b act">a árvore de sedes (Evento › Sedes & escolas)</span></div></div>
 <div class="deps-row"><div class="deps-req nil"><span class="deps-none">—</span></div><div class="deps-ar empty"></div><div class="deps-mod"><span class="deps-b mod"><code>maquinas</code></span></div><div class="deps-ar">→</div><div class="deps-act"><span class="deps-b act">gate: uma regra</span><span class="deps-b act">mlinux: a chave do NutellaBoot</span></div></div>
 <div class="deps-row"><div class="deps-req nil"><span class="deps-none">—</span></div><div class="deps-ar empty"></div><div class="deps-mod"><span class="deps-b mod"><code>rodadas</code></span></div><div class="deps-ar">→</div><div class="deps-act"><span class="deps-b act">o plano de rodadas (Evento › Rodadas)</span></div></div>
 <div class="deps-row"><div class="deps-req nil"><span class="deps-none">—</span></div><div class="deps-ar empty"></div><div class="deps-mod"><span class="deps-b mod"><code>documentos</code></span></div><div class="deps-ar">→</div><div class="deps-act"><span class="deps-none">nada: gera do que o contest já tem</span></div></div>
@@ -589,11 +589,18 @@ tempo, contra o placar oficial. O placar oficial **não muda**. Referência comp
 
 1. o contest **não é secreto**;
 2. o modo é **ICPC**;
-3. **todos os problemas já são públicos no treino**. Se algum não for, a resposta é um erro que diz
+3. o placar **não é anônimo**;
+4. o contest tem **início e fim**;
+5. **todos os problemas já são públicos no treino**. Se algum não for, a resposta é um erro que diz
    quantos faltam. Publique os problemas primeiro (gestão de problemas) e ligue de novo.
 
-Você pode ligar o módulo antes do fim da prova. Ele fica **inerte** e abre sozinho quando a prova
-termina para todas as sedes **e** o placar é descongelado (botão **Encerrar evento**).
+O cartão do módulo mostra o cadeado e o que falta, e a **Central** avisa quem já está ligado sem isso. Na criação (spec,
+template ou cópia), um contest que não cumpre essas condições nasce com o módulo **desligado**, e a tela do resultado
+(ou a CLI) diz por quê: ligue depois, em Central › Módulos.
+
+Você pode ligar o módulo antes do fim da prova (com os problemas já públicos). Ele fica **inerte** e abre sozinho quando
+a prova termina para todas as sedes **e** o placar é descongelado (botão **Encerrar evento**). O botão **Virtual** no
+card do contest e o aviso no placar só aparecem quando a participação virtual pode ser feita.
 
 **Atenção:** ligar este módulo torna o placar final e a lista de problemas visíveis para contas do
 treino. Um contest que não pode ser visto por fora não deve ligar o módulo.

@@ -56,6 +56,18 @@ for _m in "${MODULES[@]}"; do
           _mods_req_pt+="${_mods_req_pt:+ · }esqueletos: precisa do editor de código no browser (Regras) — sem ele os esqueletos não aparecem"
           _mods_req_en+="${_mods_req_en:+ · }esqueletos: needs the in-browser code editor (Rules) — without it the skeletons do not show"
           _mods_req_es+="${_mods_req_es:+ · }esqueletos: necesita el editor de código en el navegador (Reglas) — sin él los esqueletos no aparecen" ;;
+        virtual_not_eligible)
+          case "$MOD_REQ_REASON" in
+            problems_not_public) _vr_pt="há problema não público no treino (publique os problemas)"; _vr_en="a problem is not public in the training (publish the problems)"; _vr_es="hay un problema no público en el entrenamiento (publica los problemas)" ;;
+            secret)     _vr_pt="contest secreto"; _vr_en="secret contest"; _vr_es="competencia secreta" ;;
+            score_anon) _vr_pt="placar anônimo (Regras)"; _vr_en="anonymous scoreboard (Rules)"; _vr_es="marcador anónimo (Reglas)" ;;
+            type)       _vr_pt="só no modo ICPC"; _vr_en="ICPC mode only"; _vr_es="solo en modo ICPC" ;;
+            window)     _vr_pt="sem início e fim"; _vr_en="no start and end"; _vr_es="sin inicio y fin" ;;
+            *)          _vr_pt="$MOD_REQ_REASON"; _vr_en="$MOD_REQ_REASON"; _vr_es="$MOD_REQ_REASON" ;;
+          esac
+          _mods_req_pt+="${_mods_req_pt:+ · }virtual: $_vr_pt — a participação virtual não abre (nem o botão aparece) até isso mudar; ou desligue o módulo"
+          _mods_req_en+="${_mods_req_en:+ · }virtual: $_vr_en — virtual participation does not open (and its button does not show) until this changes; or turn the module off"
+          _mods_req_es+="${_mods_req_es:+ · }virtual: $_vr_es — la participación virtual no abre (ni aparece el botón) hasta que esto cambie; o desactiva el módulo" ;;
       esac
     fi
     continue

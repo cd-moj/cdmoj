@@ -41,8 +41,18 @@ condições **a cada requisição**:
 - O portão roda **antes** de ler qualquer cache. Contest que deixa de ser elegível (dono reabre,
   prorroga, recongela, marca secreto, problema volta a privado) ⇒ 404 **e** o cache do virtual é apagado.
 - Ligar o módulo com problema não-público ⇒ **422 `virtual_not_eligible`**; a mensagem dá só a
-  **contagem**, nunca o id.
+  **contagem**, nunca o id. Desde 07/10/2026 essa conferência é o **pré-requisito do módulo**
+  (`lib/modules.sh` `mod_requires_ok`: o portão menos o que o tempo resolve — módulo desligado, prova
+  rodando, placar congelado): o catálogo do painel mostra o cadeado com o MOTIVO (`requires.reason`), o
+  422 leva `error.reason`, a Central avisa (`modules_requires`) e a **criação** (spec, template, cópia)
+  liga o contest com o módulo **desligado** e diz por quê (`modules_skipped`) — o portão precisa do
+  contest no disco.
 - Módulo ligado com a prova ainda rodando fica **inerte** até o portão abrir sozinho.
+- **O BOTÃO só aparece com o portão aberto** (07/10/2026 — o `blablabla`, com problema privado,
+  mostrava o botão e dava "indisponível"): o `virtual_url` do `/index/contests` vem do `vr_load` (menos
+  a prova rodando, que o card já trata) num cache por EVENTO (`run/index-virtual.tsv`: refeito quando o
+  conf muda ou quando um problema é publicado/despublicado — carimbo `treino/var/.treino-list-dirty`), e
+  o aviso do placar pergunta ao `GET /contest/virtual` (público, `{available}`, o portão inteiro).
 - Testes: `server/test/smoke-virtual-leak.sh` (matriz rota × contest proibido, 365 asserções).
 
 ## 3. Como a run funciona

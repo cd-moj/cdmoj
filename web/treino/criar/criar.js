@@ -8,6 +8,7 @@ import { apiGet, apiPost, getToken } from '/shared/api.js';
 import { contestLoginHref } from '/shared/contest-guard.js';
 import { el, renderAuthArea } from '/shared/ui.js';
 import { T } from '/shared/i18n.js';
+import { requiresText } from '/shared/module-requires.js';
 import { downloadCsv } from '/shared/users-batch.js';
 import { makeStepInicio } from './steps/inicio.js';
 import { makeStepDados } from './steps/dados.js';
@@ -97,6 +98,11 @@ function showResult(res) {
     'That is the account that opens the contest ADMIN panel (your ordinary login enters as a competitor).',
     'Con esta cuenta se entra al PANEL de la competencia (tu usuario común entra como competidor).')));
   if (res.users_from) card.append(el('div', { class: 'notice small', style: 'margin:.4rem 0' }, T('Usuários: compartilhados do "', 'Users: shared from "', 'Usuarios: compartidos de "') + res.users_from + T('" (login com a conta do Treino Livre). Para uma prova, converta em contas próprias em Pessoas › Contas — senhas novas, sem volta.', '" (log in with the Free Training account). For an exam, convert them into own accounts in People › Accounts — new passwords, no way back.', '" (inicia sesión con la cuenta de Entrenamiento libre). Para un examen, conviértelas en cuentas propias en Personas › Cuentas — contraseñas nuevas, sin vuelta atrás.')));
+  // módulo que o servidor DESLIGOU na criação por faltar o pré-requisito (hoje só o virtual: o portão precisa do contest
+  // no disco) — o que falta e onde ligar depois (Central › Módulos)
+  (res.modules_skipped || []).forEach((m) => card.append(el('div', { class: 'warn-box', style: 'margin:.4rem 0' },
+    T('Módulo ', 'Module ', 'Módulo '), el('code', {}, m.id), T(' ficou desligado — ', ' was left off — ', ' quedó desactivado — '), requiresText(m),
+    T(' Ligue depois em Central › Módulos.', ' Turn it on later in Central › Modules.', ' Actívalo después en Central › Módulos.'))));
   if (res.users && res.users.length > 1) {
     card.append(el('p', {}, res.users.length + T(' contas criadas. ', ' accounts created. ', ' cuentas creadas. '),
       el('button', { class: 'btn ghost', onclick: () => downloadCsv(res.contest_id + '-credenciais.csv', res.users) }, T('⬇ baixar credenciais (CSV)', '⬇ download credentials (CSV)', '⬇ descargar credenciales (CSV)'))));

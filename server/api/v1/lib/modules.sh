@@ -111,7 +111,8 @@ mod_catalog_json(){
     on=false; mod_on "$1" "$m" && on=true
     det=false; r=""; r="$(mod_detect "$1" "$m")" && det=true
     # pré-requisito: a tela desabilita o "ligar" e diz o que falta (o código é o mesmo do 422)
-    rq='{"ok":true}'; mod_requires_ok "$1" "$m" || rq="$(jq -cn --arg c "$MOD_REQ_CODE" --arg t "$MOD_REQ_MSG" '{ok:false, code:$c, message:$t}')"
+    rq='{"ok":true}'; mod_requires_ok "$1" "$m" \
+      || rq="$(jq -cn --arg c "$MOD_REQ_CODE" --arg t "$MOD_REQ_MSG" --arg r "$MOD_REQ_REASON" '{ok:false, code:$c, message:$t} + (if $r != "" then {reason:$r} else {} end)')"
     jq -cn --arg id "$m" --argjson on "$on" --argjson det "$det" --arg r "$r" --argjson rq "$rq" '{id:$id, on:$on, detected:$det, reason:$r, requires:$rq}'
   done | jq -cs .
 }
@@ -120,12 +121,30 @@ mod_catalog_json(){
 # NENHUM caminho (painel Módulos, gravar o artefato que liga o módulo, criação/duplicar/template, CLI). Relato do
 # Daniel Valle: `inscricoes` ligado num contest com 135 contas PRÓPRIAS ⇒ "só inscrito entra" barrava todo aluno, e
 # a inscrição (com a conta do Treino Livre) não tinha como incluí-los. A tela e a Central dizem o que falta.
-# mod_requires_ok <c> <id> -> rc 0 se pode ligar/valer; senão rc 1 com MOD_REQ_CODE e MOD_REQ_MSG (PT; a web traduz
-# pelo código). `virtual` tem a sua elegibilidade própria (handlers/contest/admin/modules.sh — depende de tempo e
-# dos problemas, não só de configuração).
+# mod_requires_ok <c> <id> -> rc 0 se pode ligar/valer; senão rc 1 com MOD_REQ_CODE, MOD_REQ_MSG (PT; a web traduz
+# pelo código) e, quando há mais de um motivo possível, MOD_REQ_REASON (a web traduz o motivo).
+# `virtual` (07/10/2026: era um laço à parte no admin/modules.sh, e o card da home mostrava o botão sem o portão
+# deixar fazer — contest `blablabla`, problema privado): é o PORTÃO de lib/virtual.sh menos o que o tempo resolve
+# (módulo desligado, prova rodando, placar congelado). Quem decide de verdade, a cada requisição, segue sendo o
+# vr_load; aqui é p/ o dono saber NA HORA por que não vai funcionar. Problema não-público sai só em CONTAGEM (o dono
+# do contest pode não ser dono do problema).
 mod_requires_ok(){
-  MOD_REQ_CODE=""; MOD_REQ_MSG=""
+  MOD_REQ_CODE=""; MOD_REQ_MSG=""; MOD_REQ_REASON=""
   case "$2" in
+    virtual)
+      declare -F vr_load >/dev/null || source "${_LIBDIR:-${BASH_SOURCE[0]%/*}}/virtual.sh"
+      VR_IGNORE="module_off running frozen" vr_load "$1" && return 0
+      MOD_REQ_CODE=virtual_not_eligible; MOD_REQ_REASON="$VR_REASON"
+      case "$VR_REASON" in
+        problems_not_public) MOD_REQ_MSG="há problema(s) NÃO público(s) no treino (${VR_NPRIV/#-1/?}) — a participação virtual só existe para prova com todos os problemas públicos" ;;
+        secret)     MOD_REQ_MSG="contest secreto não pode ter participação virtual" ;;
+        score_anon) MOD_REQ_MSG="o placar é anônimo e o virtual compara com o placar oficial, com nomes — desligue o placar anônimo nas Regras" ;;
+        type)       MOD_REQ_MSG="por ora só contests no modo ICPC" ;;
+        window)     MOD_REQ_MSG="o contest precisa de início e fim definidos" ;;
+        *)          MOD_REQ_MSG="contest não elegível ($VR_REASON)" ;;
+      esac
+      MOD_REQ_MSG="Participação virtual indisponível: $MOD_REQ_MSG"
+      return 1 ;;
     inscricoes)
       local _mr_uf; conf_value_to _mr_uf "$1" USERS_FROM
       [[ -n "$_mr_uf" ]] && return 0

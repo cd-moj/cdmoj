@@ -24,7 +24,7 @@
 # caches do virtual daquele contest são APAGADOS. Nada aqui lê jsons-private/ nem MOJ_PROBLEMS_DIR:
 # virtual de problema privado não existe.
 
-source "$_LIBDIR/modules.sh"
+declare -F mod_on >/dev/null || source "$_LIBDIR/modules.sh"   # o mod_requires_ok (virtual) carrega ESTA lib
 source "$_LIBDIR/contest-gate.sh"
 source "$_LIBDIR/verdict.sh"
 

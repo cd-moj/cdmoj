@@ -4,6 +4,7 @@
 // `sedes` do spec — ligado ou não, o dado não se perde (o admin liga depois em Módulos).
 import { el } from '/shared/ui.js';
 import { T } from '/shared/i18n.js';
+import { requiresText } from '/shared/module-requires.js';
 import { MODULES, PRESETS } from '/contest/admin/modules.js';
 
 export function makeStepModulos(ctx) {
@@ -21,9 +22,16 @@ export function makeStepModulos(ctx) {
   // passo 3, o roster barraria todo aluno (Daniel Valle, 07/10/2026) — a caixa fica travada e desmarcada
   const ownUsers = d.userMode !== 'shared';
   if (ownUsers && d.modules.includes('inscricoes')) d.modules = d.modules.filter((x) => x !== 'inscricoes');
+  // `virtual` só liga em contest que PODE virar virtual (lib/modules.sh mod_requires_ok — o portão de lib/virtual.sh):
+  // aqui trava o que o rascunho já diz (modo, secreto, placar anônimo, problema privado do banco); o resto o servidor
+  // confere ao criar e, se faltar, o módulo nasce desligado com o motivo na tela do resultado (`modules_skipped`)
+  const o = d.opts || {};
+  const virtReason = d.mode !== 'icpc' ? 'type' : o.secret ? 'secret' : o.score_anon ? 'score_anon'
+    : (d.problems || []).some((p) => p._private === true) ? 'problems_not_public' : '';
+  if (virtReason && d.modules.includes('virtual')) d.modules = d.modules.filter((x) => x !== 'virtual');
   const card = (m) => {
     const cb = el('input', { type: 'checkbox', onchange: sync }); cb.checked = d.modules.includes(m.id); checks[m.id] = cb;
-    const blocked = (m.id === 'esqueletos' && noEditor) || (m.id === 'inscricoes' && ownUsers);
+    const blocked = (m.id === 'esqueletos' && noEditor) || (m.id === 'inscricoes' && ownUsers) || (m.id === 'virtual' && !!virtReason);
     if (blocked) { cb.checked = false; cb.disabled = true; }
     return el('div', { class: 'gen-card' + (blocked ? ' muted' : '') },
       el('label', { style: 'display:flex;gap:.5rem;align-items:flex-start;cursor:pointer' }, cb,
@@ -31,7 +39,9 @@ export function makeStepModulos(ctx) {
           el('h4', { style: 'margin:0' }, m.icon + ' ' + m.name),
           el('div', { class: 'small muted', style: 'margin:.2rem 0' }, m.desc),
           el('div', { class: 'small' }, T('Abre: ', 'Opens: ', 'Abre: '), m.panels.join(' · ')),
-          blocked ? el('div', { class: 'small', style: 'color:#b8860b' }, m.id === 'inscricoes'
+          blocked ? el('div', { class: 'small', style: 'color:#b8860b' }, m.id === 'virtual'
+            ? requiresText({ code: 'virtual_not_eligible', reason: virtReason })
+            : m.id === 'inscricoes'
             ? T('A inscrição usa as contas do Treino Livre: escolha "usuários compartilhados do treino" no passo 3 · Usuários. Com contas próprias, as credenciais saem prontas (sem inscrição).', 'Registration uses the Free Training accounts: choose "users shared from the training" in step 3 · Users. With own accounts, the credentials come ready (no registration).', 'La inscripción usa las cuentas del Entrenamiento Libre: elige "usuarios compartidos del entrenamiento" en el paso 3 · Usuarios. Con cuentas propias, las credenciales salen listas (sin inscripción).')
             : T('Precisa do editor de código no browser: ligue-o no passo 5 · Opções.', 'It needs the in-browser code editor: turn it on in step 5 · Options.', 'Necesita el editor de código en el navegador: actívalo en el paso 5 · Opciones.')) : '')));
   };
