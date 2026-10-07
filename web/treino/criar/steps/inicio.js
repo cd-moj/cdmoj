@@ -61,6 +61,9 @@ export function makeStepInicio(ctx) {
   // levar o HTML/PDF que o admin subiu à mão (o caderno da prova!) para o contest novo.
   const dupId = el('input', { placeholder: T('id novo (minúsculo; vazio = derivado do nome)', 'new id (lowercase; empty = derived from the name)', 'id nuevo (minúsculas; vacío = derivado del nombre)'), style: 'min-width:220px' });
   const dupName = el('input', { placeholder: T('nome novo (vazio = "Cópia de …")', 'new name (empty = "Cópia de …")', 'nombre nuevo (vacío = "Copia de …")'), style: 'min-width:200px' });
+  // compartilhar de novo é sempre PEDIDO (o duplicate nunca herda users_from — 28/09/2026); a inscrição só liga com as
+  // contas do treino (07/10/2026): sem esta caixa, a cópia fiel de um contest com inscrição seria recusada
+  const dupShared = el('input', { type: 'checkbox' });
   const dupNow = el('button', { class: 'btn ghost', onclick: async () => {
     const id = dupSel.value; if (!id) return;
     const nid = dupId.value.trim().toLowerCase();
@@ -72,6 +75,7 @@ export function makeStepInicio(ctx) {
     try {
       const r = await ctx.api.post('/treino/contest-create/duplicate', {
         from: id, ...(nid ? { id: nid } : {}), ...(dupName.value.trim() ? { name: dupName.value.trim() } : {}),
+        ...(dupShared.checked ? { users_from: 'treino' } : {}),
       });
       say(''); ctx.showResult(r);
     } catch (e) { say(e.message || T('falha ao duplicar', 'failed to duplicate', 'no se pudo duplicar'), true); }
@@ -85,7 +89,9 @@ export function makeStepInicio(ctx) {
       T('Ou crie a cópia direto, sem passar pelos passos: mantém os enunciados que você subiu à mão (HTML/PDF) e a duração original.',
         'Or create the copy directly, skipping the steps: it keeps the statements you uploaded by hand (HTML/PDF) and the original duration.',
         'O crea la copia directamente, sin pasar por los pasos: mantiene los enunciados que subiste a mano (HTML/PDF) y la duración original.')),
-    el('div', { class: 'row', style: 'flex-wrap:wrap' }, dupId, dupName, dupNow));
+    el('div', { class: 'row', style: 'flex-wrap:wrap' }, dupId, dupName, dupNow),
+    el('label', { class: 'small', style: 'display:flex;gap:.4rem;align-items:center;margin-top:.3rem' }, dupShared,
+      T('usar as contas do Treino Livre (usuários compartilhados — obrigatório se o contest tem inscrição)', 'use the Free Training accounts (shared users — required if the contest has registration)', 'usar las cuentas del Entrenamiento Libre (usuarios compartidos — obligatorio si la competencia tiene inscripción)')));
 
   // --- salvar template a partir de contest existente ---
   const stSel = el('select', { style: 'min-width:220px' });

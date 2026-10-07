@@ -121,6 +121,14 @@ jq -e . >/dev/null 2>&1 <<<"$body" || fail 400 "JSON inválido" "bad_json"
 action="$(jq -r '.action // empty' <<<"$body")"
 [[ -n "$action" ]] || fail 400 "Informe a ação" "action_missing"
 
+# as ações que CRIAM o roster/religam o módulo exigem as contas do treino (lib/modules.sh mod_requires_ok): num contest de
+# contas próprias o roster barraria todo aluno (Daniel Valle, 07/10/2026). Desligar, remover e consultar seguem livres.
+case "$action" in
+  enable|window|add|team-add)
+    declare -F mod_requires_ok >/dev/null || source "$_LIBDIR/modules.sh"
+    mod_requires_ok "$contest" inscricoes || fail 422 "$MOD_REQ_MSG" "$MOD_REQ_CODE" ;;
+esac
+
 mkdir -p "$cdir/var"
 exec 9>"$(reg_lock_file "$contest")" || fail 500 "Falha ao obter lock" "lock_fail"
 flock 9

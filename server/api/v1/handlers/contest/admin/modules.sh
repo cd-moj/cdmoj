@@ -37,11 +37,14 @@ for m in "${ON[@]}"; do
   esac
   fail 422 "Participação virtual indisponível: $_vmsg" "virtual_not_eligible"
 done
-# `esqueletos` EXIGE o editor embutido (lib/esqueletos.sh): sem ele o esqueleto não tem onde aparecer.
-# O sentido inverso (desligar o editor com o módulo ligado) é recusado no admin/settings.
+# PRÉ-REQUISITOS (lib/modules.sh mod_requires_ok): `inscricoes` exige as contas do treino (USERS_FROM);
+# `esqueletos` exige o editor embutido (o sentido inverso — desligar o editor com o módulo ligado — é recusado no
+# admin/settings). Só p/ quem LIGA agora: módulo que já estava ligado sem o pré-requisito não trava o POST (a
+# Central avisa; desligar sempre pode).
+_curm=",$(mod_raw "$contest"),"
 for m in "${ON[@]}"; do
-  [[ "$m" == esqueletos ]] || continue
-  esq_editor_on "$contest" || fail 422 "Esqueletos de código precisam do editor embutido: ligue \"Editor de código no browser\" nas Regras antes" "editor_required"
+  [[ "$_curm" == *",$m,"* ]] && continue
+  mod_requires_ok "$contest" "$m" || fail 422 "$MOD_REQ_MSG" "$MOD_REQ_CODE"
 done
 cur=",$(mod_raw "$contest"),"
 for m in "${ON[@]}";  do [[ "$cur" == *",$m,"* ]] || cur="$cur$m,"; done

@@ -363,6 +363,13 @@ cc_create(){
       || { rm -rf "$stg"; fail 500 "Falha ao criar a conta do admin" "mkdir_fail"; }
     CREDS+=("$(jq -cn --arg l "$adminlogin" --arg p "$adminpass" --arg n "$adminname" '{login:$l,password:$p,fullname:$n,role:"admin"}')")
   fi
+  # PRÉ-REQUISITO de módulo (lib/modules.sh mod_requires_ok): a inscrição usa as contas do treino — contest de contas
+  # PRÓPRIAS com `inscricoes` ligado barraria todo aluno (Daniel Valle, 07/10/2026). Vale p/ criar, duplicar e template.
+  if [[ -z "$users_from" ]] && jq -e '((.modules // {}).inscricoes) as $m
+        | ($m == true) or (($m | type) == "object" and ((($m | has("on")) | not) or $m.on != false))' >/dev/null 2>&1 <<<"$spec"; then
+    rm -rf "$stg"
+    fail 422 "A inscrição usa as contas do Treino Livre (cada aluno se inscreve com a conta dele no treino), e o contest novo teria contas próprias: use as contas do treino (usuários compartilhados — no assistente, passo 3; na cópia fiel, a caixa \"usar as contas do Treino Livre\"; no spec, users_from) ou tire o módulo inscricoes." "requires_shared_users"
+  fi
   if [[ -n "$users_from" ]]; then
     { valid_id "$users_from" && [[ -d "$CONTESTSDIR/$users_from/users" ]]; } || { rm -rf "$stg"; fail 422 "users_from inválido" "users_from_invalid"; }
     shared="$users_from"

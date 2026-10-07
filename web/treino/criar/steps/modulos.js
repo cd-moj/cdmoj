@@ -17,9 +17,13 @@ export function makeStepModulos(ctx) {
   // passo 5, a caixa fica travada e desmarcada
   const noEditor = !!(d.opts && d.opts.show_editor === false);
   if (noEditor && d.modules.includes('esqueletos')) d.modules = d.modules.filter((x) => x !== 'esqueletos');
+  // `inscricoes` EXIGE as contas do Treino Livre (a API recusa com 422 requires_shared_users): com contas PRÓPRIAS no
+  // passo 3, o roster barraria todo aluno (Daniel Valle, 07/10/2026) — a caixa fica travada e desmarcada
+  const ownUsers = d.userMode !== 'shared';
+  if (ownUsers && d.modules.includes('inscricoes')) d.modules = d.modules.filter((x) => x !== 'inscricoes');
   const card = (m) => {
     const cb = el('input', { type: 'checkbox', onchange: sync }); cb.checked = d.modules.includes(m.id); checks[m.id] = cb;
-    const blocked = m.id === 'esqueletos' && noEditor;
+    const blocked = (m.id === 'esqueletos' && noEditor) || (m.id === 'inscricoes' && ownUsers);
     if (blocked) { cb.checked = false; cb.disabled = true; }
     return el('div', { class: 'gen-card' + (blocked ? ' muted' : '') },
       el('label', { style: 'display:flex;gap:.5rem;align-items:flex-start;cursor:pointer' }, cb,
@@ -27,7 +31,9 @@ export function makeStepModulos(ctx) {
           el('h4', { style: 'margin:0' }, m.icon + ' ' + m.name),
           el('div', { class: 'small muted', style: 'margin:.2rem 0' }, m.desc),
           el('div', { class: 'small' }, T('Abre: ', 'Opens: ', 'Abre: '), m.panels.join(' · ')),
-          blocked ? el('div', { class: 'small', style: 'color:#b8860b' }, T('Precisa do editor de código no browser: ligue-o no passo 5 · Opções.', 'It needs the in-browser code editor: turn it on in step 5 · Options.', 'Necesita el editor de código en el navegador: actívalo en el paso 5 · Opciones.')) : '')));
+          blocked ? el('div', { class: 'small', style: 'color:#b8860b' }, m.id === 'inscricoes'
+            ? T('A inscrição usa as contas do Treino Livre: escolha "usuários compartilhados do treino" no passo 3 · Usuários. Com contas próprias, as credenciais saem prontas (sem inscrição).', 'Registration uses the Free Training accounts: choose "users shared from the training" in step 3 · Users. With own accounts, the credentials come ready (no registration).', 'La inscripción usa las cuentas del Entrenamiento Libre: elige "usuarios compartidos del entrenamiento" en el paso 3 · Usuarios. Con cuentas propias, las credenciales salen listas (sin inscripción).')
+            : T('Precisa do editor de código no browser: ligue-o no passo 5 · Opções.', 'It needs the in-browser code editor: turn it on in step 5 · Options.', 'Necesita el editor de código en el navegador: actívalo en el paso 5 · Opciones.')) : '')));
   };
   const presets = el('div', { class: 'row', style: 'gap:.4rem;flex-wrap:wrap;align-items:center;margin:.4rem 0' },
     el('span', { class: 'small muted' }, T('Pré-marcar:', 'Pre-select:', 'Preseleccionar:')),

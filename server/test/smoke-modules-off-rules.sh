@@ -14,7 +14,10 @@ FIX="$(mktemp -d)"; SESS="$(mktemp -d)"; RUN="$(mktemp -d)"; trap 'rm -rf "$FIX"
 source "$(dirname "$(readlink -f "$0")")/fixture.sh"
 export CONTESTSDIR="$FIX" SESSIONDIR="$SESS" RUNDIR="$RUN"
 NOW="$EPOCHSECONDS"; C="$FIX/mo"; mkdir -p "$C/var" "$C/print-requests"
-{ printf 'CONTEST_ID=mo\nCONTEST_TYPE=icpc\nCONTEST_START=%s\nCONTEST_END=%s\nSITE_LOCK=1\nUSER_STORE=v2\n' "$((NOW-600))" "$((NOW+3600))"
+# USERS_FROM=treino: a inscrição só VALE com as contas do treino (pré-requisito do módulo, 07/10/2026 — num contest de contas
+# próprias o "só inscrito entra" não vale); as contas locais abaixo seguem entrando pelo overlay
+mkdir -p "$FIX/treino/users"; printf 'CONTEST_ID=treino\nUSER_STORE=v2\n' > "$FIX/treino/conf"
+{ printf 'CONTEST_ID=mo\nCONTEST_TYPE=icpc\nCONTEST_START=%s\nCONTEST_END=%s\nSITE_LOCK=1\nUSER_STORE=v2\nUSERS_FROM=treino\n' "$((NOW-600))" "$((NOW+3600))"
   printf 'CONTEST_MODULES=maquinas,sedes,inscricoes,coortes,baloes\n'
   printf 'PROBS=( cdmoj apc#p1 Um A apc#p1 )\n'; } > "$C/conf"
 fx_user "$C" mo.admin p Admin; fx_user "$C" sede.staff p Staff

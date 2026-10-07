@@ -65,11 +65,12 @@ if [[ -z "$want" || "$want" != "$now_id" ]]; then
     fail 409 "A lista de contas mudou desde a prévia — confira a prévia nova e confirme de novo" "plan_changed"
 fi
 res="$(uc_apply "$contest" "$W" "$logout")" || fail 500 "Falha na conversão (o contest segue compartilhado; repita para completar)" "apply_fail"
-IFS=$'\t' read -r nsess arch <<<"$res"
+IFS=$'\x1f' read -r nsess arch moff <<<"$res"
 audit_log_to "$contest" users-convert \
-  "individuals=$(jq .counts.individuals "$W/report.json") teams=$(jq .counts.teams "$W/report.json") phase=$phase logout_all=$logout sessions_removed=${nsess:-0}"
+  "individuals=$(jq .counts.individuals "$W/report.json") teams=$(jq .counts.teams "$W/report.json") phase=$phase logout_all=$logout sessions_removed=${nsess:-0}${moff:+ modules_off=$moff}"
 declare -F audit_log >/dev/null && audit_log "users-convert" "contest=$contest by=$SESSION_LOGIN"
 jq -cs . "$W/creds.jsonl" > "$W/creds.json"
 ok_json_slurp '{converted:true, credentials:$cr[0], counts:$rp[0].counts, sessions_removed:$ns,
-                registrations_archived:(if $ar != "" then $ar else null end)}' cr "$(cat "$W/creds.json")" \
-  --argjson ns "${nsess:-0}" --arg ar "${arch:-}" --slurpfile rp "$W/report.json"
+                registrations_archived:(if $ar != "" then $ar else null end),
+                modules_off:(if $mo != "" then [$mo] else [] end)}' cr "$(cat "$W/creds.json")" \
+  --argjson ns "${nsess:-0}" --arg ar "${arch:-}" --arg mo "${moff:-}" --slurpfile rp "$W/report.json"

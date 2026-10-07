@@ -1,4 +1,4 @@
-<!-- i18n-source: MANUAL-ADMIN.md blob:7586f1f417ee8b02d19716ebb1c64fc95213de45 -->
+<!-- i18n-source: MANUAL-ADMIN.md blob:916cad09748b990a7703b4c518cb458bcac3657c -->
 # MOJ: Manual del organizador (el panel .admin de la competencia)
 
 > **Nota de traducción.** Este manual es una traducción del original en portugués. Las herramientas de línea de comandos (`moj`, `moj-contest`, `moj-comp`) muestran sus mensajes en portugués, y los ejemplos de comandos son idénticos al original.
@@ -191,6 +191,16 @@ Solo desactivar es manual. También vale para el spec de creación: un solo JSON
 colores, cohortes, gate, rondas, documentos, ventana de inscripción, pantalla, clasificación); el `export`
 devuelve la misma sección, sin secretos. Las competencias creadas antes de los módulos se detectan una vez
 por los archivos que ya tienen (`server/bin/contest-modules-detect.sh`).
+
+**Requisitos.** Dos módulos solo funcionan con otra configuración de la competencia, y por eso solo se activan con ella:
+**`inscricoes`** (inscripción) necesita las **cuentas del Entrenamiento Libre** (competencia creada con usuarios
+compartidos): cada alumno se inscribe con su cuenta del entrenamiento. En una competencia con cuentas propias, la
+inscripción bloquearía a todos los alumnos, así que no se activa (ni desde el panel, ni al guardar la ventana de
+inscripción, ni en la creación, al duplicar o desde una plantilla). Con cuentas propias, entrega las credenciales en
+**Personas › Cuentas**. **`esqueletos`** (esqueletos de código) necesita el editor de código en el navegador (Reglas).
+La tarjeta del módulo muestra un candado y lo que falta. Si una competencia ya tenía el módulo activado sin el requisito,
+la **Central** avisa (y, sin las cuentas del entrenamiento, la regla "solo inscritos entran" no se aplica). Convertir las
+cuentas compartidas en propias (sección 8¾) también desactiva la inscripción.
 
 ### Esqueletos de código (módulo `esqueletos`)
 

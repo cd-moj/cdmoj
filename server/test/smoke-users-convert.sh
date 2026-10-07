@@ -48,6 +48,8 @@ jq -cn '{login:"time-azul",password:"!abc-uuid",fullname:"Azul",status:"active",
 printf '70:A:C:Wrong Answer:%s:s-azul\n' "$NOW" > "$U/time-azul/history"
 jq -cn '{entries:{ana:{kind:"individual"},gil:{kind:"team",team:"time-azul"},hugo:{kind:"team",team:"time-azul"}},
          teams:{"time-azul":{name:"Azul",members:["gil","hugo"],captain:"gil",invited:[]}}}' > "$C/registrations.json"
+# o módulo `inscricoes` ligado (a conversão tem de DESLIGÁ-LO junto — pré-requisito: contas do treino, 07/10/2026)
+if grep -q '^CONTEST_MODULES=' "$C/conf"; then sed -i 's/^CONTEST_MODULES=\(.*\)$/CONTEST_MODULES=\1,inscricoes/' "$C/conf"; else printf 'CONTEST_MODULES=inscricoes\n' >> "$C/conf"; fi
 printf 'CONTEST=cv\nLOGIN=fabio\nUSERFULLNAME=Fabio\nLOGINAT=1\n' > "$SESS/sfabio"
 printf 'CONTEST=cv\nLOGIN=prof.admin\nUSERFULLNAME=Prof\nLOGINAT=1\n' > "$SESS/adm"
 mkdir -p "$C/var"; printf '%s\teve\t10.0.0.1\tYQ==\n' "$NOW" >> "$C/var/access.log"
@@ -89,6 +91,7 @@ ck "placar: toda linha de antes continua (sc_users) — e só entram eve/fabio (
 ck "credenciais sem login repetido" '[[ "$(jq -r ".credentials|map(.login)|length" <<<"$R")" == "$(jq -r ".credentials|map(.login)|unique|length" <<<"$R")" ]]'
 ck "history de bia intacto; email do treino NÃO copiado" 'grep -q ":s-bia$" "$U/bia/history" && [[ "$(jq -r .email "$U/bia/account.json")" == "" ]]'
 ck "USERS_FROM e SHARED_ADMIN fora do conf; roster arquivado" '! grep -q "^USERS_FROM=\|^SHARED_ADMIN=" "$C/conf" && [[ ! -e "$C/registrations.json" ]] && ls "$C/var" | grep -q "^registrations.converted-"'
+ck "o módulo inscricoes DESLIGA junto (sem as contas do treino ele barraria todo aluno) e a resposta diz" '! grep "^CONTEST_MODULES=" "$C/conf" | grep -q inscricoes && [[ "$(jq -r ".modules_off|join(\",\")" <<<"$R")" == inscricoes && "$(jq -r ".modules_off|join(\",\")" "$C/var/users-convert.json")" == inscricoes ]]'
 
 echo "== depois =="
 login cv bia s-bia;                ck "senha do treino não entra mais" '[[ "$(st)" != 200 ]]'

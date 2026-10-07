@@ -126,6 +126,9 @@ reg_gate_active(){
   # o roster ("só inscrito entra") é do módulo `inscricoes`: DESLIGADO, a regra não vale (03/10/2026; o alias do
   # time segue — é identidade, não regra de entrada)
   { declare -F mod_on >/dev/null || source "${_LIBDIR:-${BASH_SOURCE[0]%/*}}/modules.sh"; mod_on "$1" inscricoes; } || return 1
+  # sem as contas do TREINO a inscrição não tem como incluir ninguém (o aluno se inscreve com a conta do treino): o roster
+  # num contest de contas próprias só barraria todo mundo — a regra não vale (pré-requisito do módulo, 07/10/2026)
+  local _rg_uf; conf_value_to _rg_uf "$1" USERS_FROM; [[ -n "$_rg_uf" ]] || return 1
   if [[ "$(reg_round_kind "$1")" == warmup ]]; then
     local v; v="$( ( REG_WARMUP_OPEN=""; source "$CONTESTSDIR/$1/conf" 2>/dev/null; printf '%s' "${REG_WARMUP_OPEN:-}" ) )"
     [[ "$v" == y ]] && return 1

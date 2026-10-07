@@ -187,6 +187,15 @@ cores, coortes, gate, rodadas, documentos, janela de inscrição, telão, classi
 devolve a mesma seção, sem segredos. Contests criados antes dos módulos são detectados uma vez
 pelos arquivos que já têm (`server/bin/contest-modules-detect.sh`).
 
+**Pré-requisitos.** Dois módulos só funcionam com outra configuração do contest, e por isso só ligam com ela:
+**`inscricoes`** precisa das **contas do Treino Livre** (contest criado com usuários compartilhados): o aluno se
+inscreve com a conta dele no treino. Num contest de contas próprias, a inscrição barraria todo aluno, então ela não liga
+(nem pelo painel, nem ao gravar a janela de inscrição, nem na criação, ao duplicar ou por template). Com contas próprias,
+distribua as credenciais em **Pessoas › Contas**. **`esqueletos`** precisa do editor de código no browser (Regras).
+O cartão do módulo mostra o cadeado e o que falta. Se um contest já estava com o módulo ligado sem o pré-requisito, a
+**Central** avisa (e, sem as contas do treino, a regra "só inscrito entra" não vale). Converter as contas compartilhadas
+em próprias (seção 8¾) desliga a inscrição junto.
+
 ### Esqueletos de código (módulo `esqueletos`)
 
 No contest, o editor de código do time abre **vazio**: o time escreve o código dele por completo. Com

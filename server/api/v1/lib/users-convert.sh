@@ -233,6 +233,13 @@ uc_apply(){
   # PONTO DE COMMIT (I5): daqui em diante o contest é de contas próprias
   declare -F cc_del_conf_var >/dev/null || source "$_LIBDIR/contest-create.sh"
   cc_del_conf_var "$c" SHARED_ADMIN; cc_del_conf_var "$c" USERS_FROM
+  # a inscrição usa as contas do treino (pré-requisito do módulo, lib/modules.sh): sem elas, o módulo DESLIGA junto — o
+  # roster já foi arquivado acima; ligado, gravar a janela de novo recriaria um roster que barra todo aluno (07/10/2026)
+  local moff=""
+  declare -F mod_on >/dev/null || source "$_LIBDIR/modules.sh"
+  if mod_on "$c" inscricoes; then
+    local _ucm=",$(mod_raw "$c"),"; _ucm="${_ucm//,inscricoes,/,}"; mod_set "$c" "$_ucm"; moff="inscricoes"
+  fi
   # credenciais (a resposta): o plano + os retomados (sem senha) + os atrasados (dir criado pelo /submit
   # entre a coleta e o commit — ganham conta agora)
   jq -Rc 'split("\t") | {login:.[0], fullname:.[2], kind:.[3]}
@@ -258,10 +265,11 @@ uc_apply(){
   rm -f "$CONTESTSDIR/$c/var/users-convert.pending"
   jq -c 'del(.password)' "$w/creds.jsonl" | jq -cs . > "$w/creds.nopw.json"
   jq -cn --arg by "${SESSION_LOGIN:-}" --argjson t "$t" --arg src "$src" --arg arch "$arch" --argjson ns "${nsess:-0}" \
-     --slurpfile cr "$w/creds.nopw.json" \
+     --arg moff "$moff" --slurpfile cr "$w/creds.nopw.json" \
      '{converted_at:$t, by:$by, from:$src, registrations_archived:(if $arch != "" then $arch else null end),
-       sessions_removed:$ns, accounts:$cr[0]}' > "$CONTESTSDIR/$c/var/users-convert.json"
+       modules_off:(if $moff != "" then [$moff] else [] end), sessions_removed:$ns, accounts:$cr[0]}' > "$CONTESTSDIR/$c/var/users-convert.json"
   declare -F _score_dirty >/dev/null && _score_dirty "$c"
   declare -F score_kick_rebuild >/dev/null && score_kick_rebuild "$c" >/dev/null 2>&1
-  printf '%s\t%s' "${nsess:-0}" "$arch"
+  # separador \x1f (não é "espaço" p/ o IFS): com TAB, campo vazio no meio colapsava e os campos trocavam de lugar
+  printf '%s\x1f%s\x1f%s' "${nsess:-0}" "$arch" "$moff"
 }

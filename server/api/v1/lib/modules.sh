@@ -106,10 +106,38 @@ mod_detect(){
 }
 # mod_catalog_json <c> — [{id, on, detected, reason}] p/ o painel Módulos e p/ o preflight
 mod_catalog_json(){
-  local m on det r
+  local m on det r rq
   for m in "${MODULES[@]}"; do
     on=false; mod_on "$1" "$m" && on=true
     det=false; r=""; r="$(mod_detect "$1" "$m")" && det=true
-    jq -cn --arg id "$m" --argjson on "$on" --argjson det "$det" --arg r "$r" '{id:$id, on:$on, detected:$det, reason:$r}'
+    # pré-requisito: a tela desabilita o "ligar" e diz o que falta (o código é o mesmo do 422)
+    rq='{"ok":true}'; mod_requires_ok "$1" "$m" || rq="$(jq -cn --arg c "$MOD_REQ_CODE" --arg t "$MOD_REQ_MSG" '{ok:false, code:$c, message:$t}')"
+    jq -cn --arg id "$m" --argjson on "$on" --argjson det "$det" --arg r "$r" --argjson rq "$rq" '{id:$id, on:$on, detected:$det, reason:$r, requires:$rq}'
   done | jq -cs .
+}
+
+# PRÉ-REQUISITOS (07/10/2026): módulo que não FUNCIONA sem outra configuração do contest não liga sem ela — por
+# NENHUM caminho (painel Módulos, gravar o artefato que liga o módulo, criação/duplicar/template, CLI). Relato do
+# Daniel Valle: `inscricoes` ligado num contest com 135 contas PRÓPRIAS ⇒ "só inscrito entra" barrava todo aluno, e
+# a inscrição (com a conta do Treino Livre) não tinha como incluí-los. A tela e a Central dizem o que falta.
+# mod_requires_ok <c> <id> -> rc 0 se pode ligar/valer; senão rc 1 com MOD_REQ_CODE e MOD_REQ_MSG (PT; a web traduz
+# pelo código). `virtual` tem a sua elegibilidade própria (handlers/contest/admin/modules.sh — depende de tempo e
+# dos problemas, não só de configuração).
+mod_requires_ok(){
+  MOD_REQ_CODE=""; MOD_REQ_MSG=""
+  case "$2" in
+    inscricoes)
+      local _mr_uf; conf_value_to _mr_uf "$1" USERS_FROM
+      [[ -n "$_mr_uf" ]] && return 0
+      MOD_REQ_CODE=requires_shared_users
+      MOD_REQ_MSG="A inscrição usa as contas do Treino Livre (cada aluno se inscreve com a conta dele no treino), e este contest tem contas próprias: com ela ligada, quem não está no roster não entra — e nenhuma conta própria entra nele. Com contas próprias, distribua as credenciais (Pessoas › Contas); para inscrição, o contest precisa usar as contas do treino."
+      return 1 ;;
+    esqueletos)
+      declare -F esq_editor_on >/dev/null || source "${_LIBDIR:-${BASH_SOURCE[0]%/*}}/esqueletos.sh"
+      esq_editor_on "$1" && return 0
+      MOD_REQ_CODE=editor_required
+      MOD_REQ_MSG="Esqueletos de código precisam do editor embutido: ligue \"Editor de código no browser\" nas Regras antes"
+      return 1 ;;
+  esac
+  return 0
 }

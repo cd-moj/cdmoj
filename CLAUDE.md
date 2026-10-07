@@ -1132,7 +1132,12 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   contest (`CONTEST_MODULES=a,b` no conf, `%q` escapa a vírgula ⇒ `mod_raw` tira as barras; ausente
   = nenhum). Catálogo ÚNICO `MODULES=(sedes maquinas rodadas documentos baloes coortes inscricoes
   telao classificacao virtual esqueletos)`, espelhado em `web/contest/admin/modules.js` (paridade testada em
-  `smoke-admin-nav.sh`); `mod_on/mod_any/mod_list_json/mod_set/mod_detect`. O módulo decide
+  `smoke-admin-nav.sh`); `mod_on/mod_any/mod_list_json/mod_set/mod_detect/mod_requires_ok`. **PRÉ-REQUISITO
+  (07/10/2026)**: módulo que não funciona sem outra configuração NÃO LIGA sem ela por NENHUM caminho (painel Módulos, ação
+  que grava o artefato e religa o módulo, criação/duplicar/template, CLI) — `mod_requires_ok` é a fonte única (catálogo
+  GET `requires`, 422 com o código, Central `modules_requires`): `inscricoes` exige `USERS_FROM` (contas do treino;
+  `requires_shared_users` — sem elas `reg_gate_active` também não vale) e `esqueletos` exige o editor
+  (`editor_required`); a conversão p/ contas próprias desliga `inscricoes` junto. Dependência nova entra lá. O módulo decide
   nav/painéis/checagens/cartões **E, desde 03/10/2026 (decisão do Ribas), se a REGRA vale**: desligado, o artefato no
   disco não vale — `maquinas` (gate de UA inclusive o `LOGIN_UA_SUBSTRING` legado, sessão única, trava de sede; o
   `admin/modules` solta os IPs presos ao desligar), `sedes` (prorrogação), `inscricoes` (o roster "só inscrito entra"; o

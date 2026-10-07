@@ -25,7 +25,7 @@ const TARGET = {
   // `mode` sem destino: o modo do placar não muda depois da criação (Regras o mostra só em leitura)
   freeze: ['central', 'regras'], langs: ['central', 'regras'], pool: ['central', 'regras'],
   balloons_freeze: ['central', 'regras'], submit_cap: ['central', 'regras'], login_open: ['central', 'regras'],
-  modules: ['central', 'modulos'],
+  modules: ['central', 'modulos'], modules_requires: ['central', 'modulos'],
   problems: ['prova', 'problemas'], pool_problems: ['prova', 'problemas'],
   prob_names: ['prova', 'problemas'],
   report: ['prova', 'relatorio'],   // postflight (encerrar evento)

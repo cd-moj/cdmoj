@@ -17,7 +17,7 @@ mkc(){ # <id> [extra conf lines]
   printf 'CONTEST=%s\nLOGIN=%s.admin\nLOGINAT=1\n' "$1" "$1" > "$SESS/adm-$1"
   printf 'CONTEST=%s\nLOGIN=alice\nLOGINAT=1\n' "$1" > "$SESS/usr-$1"
 }
-mkc ev; mkc lista
+mkc ev; mkc lista "USERS_FROM=treino"   # lista: contas do treino (a inscrição só liga com elas — 07/10/2026)
 E="$FIX/ev"
 printf '{"cohorts":[{"id":"oficial","name":"Oficiais","default":true,"public":true}]}' > "$E/cohorts.json"
 printf '{"mode":"enforce","from_login":{"regex":"^team([a-z]{6})","expect":"\\\\1"}}' > "$E/ua-gate.json"
@@ -90,7 +90,8 @@ call /treino/contest-create/export GET '' tadm 'id=novo1'
 ck "export traz modules{maquinas,documentos}" '[[ "$(J ".modules|keys|join(\",\")")" == "documentos,maquinas" ]]'
 
 echo "== spec UNIFICADO: todas as seções gravam arquivo/conf e voltam no export (sem segredo) =="
-SPEC3="$(jq -cn --argjson s "$((NOW+600))" --argjson e "$((NOW+4200))" '{id:"novo3", name:"Novo 3", mode:"icpc", start:$s, end:$e, allow_empty:true,
+# users_from: a inscrição só liga com as contas do treino (pré-requisito do módulo, 07/10/2026)
+SPEC3="$(jq -cn --argjson s "$((NOW+600))" --argjson e "$((NOW+4200))" '{id:"novo3", name:"Novo 3", mode:"icpc", start:$s, end:$e, allow_empty:true, users_from:"treino",
   modules:{
     sedes:{regions:[{name:"Sorocaba",regex:"^teambrspso"}], teams_meta:[{regex:"^teambr",country:"BR"}], time_overrides:[{regex:"^teambrspso",end:($e+600),reason:"queda"}]},
     baloes:{colors:{A:"FF0000"}, during_freeze:true},
@@ -122,7 +123,11 @@ ck "export: classificacao algorithm+config"  '[[ "$(J ".modules.classificacao.al
 ck "export: nada de regions/colors no TOPO"  '[[ "$(J "has(\"regions\") or has(\"colors\") or has(\"teams_meta\")")" == false ]]'
 EXP3="$BODY"
 echo "== duplicate desloca rodadas; template tira o que é preso a data =="
-call /treino/contest-create/duplicate POST "$(jq -cn --argjson s "$((NOW+90000))" '{from:"novo3", id:"novo3b", start:$s}')" tadm ''
+# o duplicate NUNCA herda users_from (28/09/2026) e a inscrição só liga com as contas do treino (07/10/2026): sem pedir
+# as contas do treino, a cópia de um contest com inscrição é recusada e diz como resolver
+call /treino/contest-create/duplicate POST "$(jq -cn --argjson s "$((NOW+90000))" '{from:"novo3", id:"novo3x", start:$s}')" tadm ''
+ck "duplicate com inscrição SEM as contas do treino: 422 requires_shared_users, nada criado" '[[ "$(J .error.code)" == requires_shared_users && "$(J .error.message)" == *"cópia fiel"* && ! -e "$FIX/novo3x" ]]'
+call /treino/contest-create/duplicate POST "$(jq -cn --argjson s "$((NOW+90000))" '{from:"novo3", id:"novo3b", start:$s, users_from:"treino"}')" tadm ''
 ck "duplicate: sucesso"                      '[[ "$(J .success)" == true ]]'
 ck "duplicate: rounds deslocadas pelo delta (+89400)" '[[ "$(jq -r ".rounds[0].start" "$FIX/novo3b/rounds.json")" == "$((NOW+90000))" && "$(jq -r ".rounds[1].start" "$FIX/novo3b/rounds.json")" == "$((NOW+90000+3600+3600))" ]]'
 ck "duplicate: sem time-overrides; módulos iguais" '[[ ! -e "$FIX/novo3b/time-overrides.json" && "$(confmods "$FIX/novo3b")" == "$(confmods "$N3")" ]]'

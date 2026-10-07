@@ -41,10 +41,34 @@ mode="$(contest_score_mode "$contest")"
 # sem o módulo não ganha aviso eterno sobre coisa que não usa. Feature configurada com módulo
 # desligado vira UM aviso (`modules`, abaixo), que aponta p/ Central › Módulos.
 _mods_off_with_data=""
+_mods_req_pt=""; _mods_req_en=""; _mods_req_es=""
 for _m in "${MODULES[@]}"; do
-  mod_on "$contest" "$_m" && continue
+  if mod_on "$contest" "$_m"; then
+    # LIGADO sem o pré-requisito (lib/modules.sh mod_requires_ok — 07/10/2026): ligar hoje seria recusado; quem já
+    # estava assim (antes da regra, ou por caminho antigo) ganha o aviso e o que fazer
+    if ! mod_requires_ok "$contest" "$_m"; then
+      case "$MOD_REQ_CODE" in
+        requires_shared_users)
+          _mods_req_pt+="${_mods_req_pt:+ · }inscricoes: a inscrição usa as contas do Treino Livre e este contest tem contas próprias — ninguém consegue se inscrever (a regra \"só inscrito entra\" não vale aqui); desligue o módulo em Central › Módulos"
+          _mods_req_en+="${_mods_req_en:+ · }inscricoes: registration uses the Free Training accounts and this contest has its own accounts — nobody can register (the \"registered only\" rule does not apply here); turn the module off in Central › Modules"
+          _mods_req_es+="${_mods_req_es:+ · }inscricoes: la inscripción usa las cuentas del Entrenamiento Libre y esta competencia tiene cuentas propias — nadie puede inscribirse (la regla \"solo inscritos entran\" no se aplica aquí); desactiva el módulo en Central › Módulos" ;;
+        editor_required)
+          _mods_req_pt+="${_mods_req_pt:+ · }esqueletos: precisa do editor de código no browser (Regras) — sem ele os esqueletos não aparecem"
+          _mods_req_en+="${_mods_req_en:+ · }esqueletos: needs the in-browser code editor (Rules) — without it the skeletons do not show"
+          _mods_req_es+="${_mods_req_es:+ · }esqueletos: necesita el editor de código en el navegador (Reglas) — sin él los esqueletos no aparecen" ;;
+      esac
+    fi
+    continue
+  fi
+  # desligado com dados: só sugere ligar o que PODE ligar (o que não pode já tem o aviso acima ou o 422 ao ligar)
+  mod_requires_ok "$contest" "$_m" || continue
   _r="$(mod_detect "$contest" "$_m")" && _mods_off_with_data="${_mods_off_with_data:+$_mods_off_with_data, }$_m ($_r)"
 done
+if [[ -n "$_mods_req_pt" ]]; then
+  add3 modules_requires warn "Módulo ligado sem o que ele precisa" "$_mods_req_pt" \
+    "Module on without what it needs" "$_mods_req_en" \
+    "Módulo activado sin lo que necesita" "$_mods_req_es"
+fi
 if [[ -n "$_mods_off_with_data" ]]; then
   add3 modules warn "Módulo desligado com dados existentes" "$_mods_off_with_data — se a prova usa isso, ligue em Central › Módulos (desligado, a regra NÃO vale — gate, trava, prorrogação, roster, coortes, balões; nada foi apagado)" \
     "Module off with existing data" "$_mods_off_with_data — if the contest uses this, turn it on in Central › Modules (while off, the rule does NOT apply — gate, lock, extension, roster, cohorts, balloons; nothing was deleted)" \

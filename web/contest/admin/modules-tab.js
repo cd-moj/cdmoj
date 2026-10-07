@@ -29,9 +29,21 @@ export function makeModulesTab(CONTEST) {
   }
 
   const rowOf = (id) => ((DATA && DATA.modules) || []).find((m) => m.id === id) || {};
+  // texto de cada pré-requisito não atendido, pelo CÓDIGO que a API manda (o mesmo do 422)
+  const REQ_TXT = {
+    requires_shared_users: () => T('A inscrição usa as contas do Treino Livre (cada aluno se inscreve com a conta dele no treino), e este contest tem contas próprias: ligada, ela barraria todo aluno. Com contas próprias, distribua as credenciais em Pessoas › Contas.',
+      'Registration uses the Free Training accounts (each student registers with their own training account), and this contest has its own accounts: turned on, it would block every student. With own accounts, hand out the credentials in People › Accounts.',
+      'La inscripción usa las cuentas del Entrenamiento Libre (cada alumno se inscribe con su cuenta del entrenamiento), y esta competencia tiene cuentas propias: activada, bloquearía a todos los alumnos. Con cuentas propias, entrega las credenciales en Personas › Cuentas.'),
+    editor_required: () => T('Precisa do editor de código no browser: ligue em Regras antes.', 'Needs the in-browser code editor: turn it on in Rules first.', 'Necesita el editor de código en el navegador: actívalo en Reglas antes.'),
+  };
   function card(m) {
     const r = rowOf(m.id);
     const cb = el('input', { type: 'checkbox' }); cb.checked = !!r.on; checks[m.id] = cb;
+    // PRÉ-REQUISITO (lib/modules.sh mod_requires_ok, 07/10/2026): desligado e sem o que precisa = não liga (a API recusa
+    // com 422); a tela diz por quê. Ligado sem ele: o checkbox fica (desligar sempre pode) e o aviso aparece.
+    const req = r.requires || { ok: true };
+    const reqMsg = req.ok ? '' : (REQ_TXT[req.code] ? REQ_TXT[req.code]() : (req.message || ''));
+    if (!req.ok && !r.on) cb.disabled = true;
     const dataPill = r.detected
       ? el('span', { class: 'pill ok', title: r.reason || '' }, T('dados presentes', 'data present', 'datos presentes'))
       : el('span', { class: 'pill', title: T('nenhum arquivo deste módulo no contest', 'no file of this module in the contest', 'ningún archivo de este módulo en la competencia') }, T('sem dados', 'no data', 'sin datos'));
@@ -41,7 +53,8 @@ export function makeModulesTab(CONTEST) {
           el('h4', { style: 'margin:0' }, m.icon + ' ' + m.name, ' ', dataPill),
           el('div', { class: 'small muted', style: 'margin:.2rem 0' }, m.desc),
           el('div', { class: 'small' }, T('Abre: ', 'Opens: ', 'Abre: '), m.panels.join(' · ')),
-          r.detected && !r.on ? el('div', { class: 'small', style: 'color:#7a5c00;margin-top:.2rem' },
+          !req.ok ? el('div', { class: 'small', style: 'color:var(--err,#b3261e);margin-top:.2rem' }, (r.on ? '⚠ ' : '🔒 ') + reqMsg) : null,
+          req.ok && r.detected && !r.on ? el('div', { class: 'small', style: 'color:#7a5c00;margin-top:.2rem' },
             T('Desligado com dados existentes: a regra NÃO vale (e os painéis não aparecem); nada foi apagado — religar volta a valer.', 'Off with existing data: the rule does NOT apply (and the panels are hidden); nothing was deleted — turning it back on makes it apply again.', 'Apagado con datos existentes: la regla NO se aplica (y los paneles se ocultan); nada fue eliminado — volver a activarlo hace que se aplique de nuevo.')) : null)));
   }
   function renderCards() { grid.innerHTML = ''; MODULES().forEach((m) => grid.append(card(m))); }
@@ -50,8 +63,10 @@ export function makeModulesTab(CONTEST) {
     return el('div', { class: 'row', style: 'gap:.4rem;flex-wrap:wrap;align-items:center;margin:.4rem 0' },
       el('span', { class: 'small muted' }, T('Pré-marcar:', 'Pre-select:', 'Preseleccionar:')),
       ...PRESETS().map((p) => el('button', { class: 'btn ghost small', title: p.hint, onclick: () => {
-        Object.entries(checks).forEach(([id, cb]) => { cb.checked = p.mods.includes(id); });
-        msg.className = 'small muted'; msg.textContent = T(`preset «${p.name}» marcado — confira e salve`, `preset "${p.name}" selected — check and save`, `preset "${p.name}" seleccionado — revisa y guarda`);
+        const skipped = [];
+        Object.entries(checks).forEach(([id, cb]) => { if (cb.disabled) { if (p.mods.includes(id)) skipped.push(id); return; } cb.checked = p.mods.includes(id); });
+        msg.className = 'small muted'; msg.textContent = T(`preset «${p.name}» marcado — confira e salve`, `preset "${p.name}" selected — check and save`, `preset "${p.name}" seleccionado — revisa y guarda`)
+          + (skipped.length ? T(` (fora: ${skipped.join(', ')} — falta o pré-requisito)`, ` (left out: ${skipped.join(', ')} — prerequisite missing)`, ` (fuera: ${skipped.join(', ')} — falta el requisito)`) : '');
       } }, p.name)));
   }
 
