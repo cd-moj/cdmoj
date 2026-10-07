@@ -217,7 +217,12 @@ an_build(){
     | def idk($k): (if ism($k) then (mid($k) as $m | if ($STB[$m] // false) then ("m:" + $m) else $k end) else $k end);
       def mk($ip; $u64): ($MKM[$u64 // ""] // ("ip:" + $ip));   # (após um def vem um termo, sem "|")
       ([ $acc[] | select(role(.login) | not)
-         | . + {ua:($DEC[.ua64] // ""), key:(idk(mk(.ip; .ua64))), in:(.t >= $cs)} ]) as $A
+         | . + {ua:($DEC[.ua64] // ""), key:(idk(mk(.ip; .ua64))), in:(.t >= $cs)} ]) as $A0
+    # o ÚLTIMO login ANTES do início é a máquina com que o time COMEÇA a prova (a sessão segue valendo): conta
+    # como "na prova" (`pre:true`). Sem isto quem logou às 13:29 numa prova das 13:30 ficava sem máquina e fora
+    # de "trocou de máquina"/máquina atual (Daniel Saad, 07/10/2026). Trocar ANTES do início não é anomalia.
+    | ($A0 | map(select(.in | not)) | group_by(.login) | map({key: .[0].login, value: (map(.t) | max)}) | from_entries) as $PRE
+    | ($A0 | map(if (.in | not) and (.t == ($PRE[.login] // -1)) then . + {in: true, pre: true} else . end)) as $A
     | ([ $sess[] | select(role(.login) | not)
          | . + {ua:($DEC[.ua64] // ""), key:(idk(if (.mkey // "") != "" then .mkey else (mk(.ip; .ua64)) end))} ]) as $S
     | ([ $sub[] | . + {ua:($DEC[.ua64] // ""), key:(mk(.ip; .ua64))}
@@ -228,7 +233,7 @@ an_build(){
     | ((([ $A[] | select(ism(.key)) ] | length) > 0) or (([ $S[] | select(ism(.key)) ] | length) > 0)) as $identified
     | ($expl[0] // {}) as $X
     # canais na janela da PROVA: logins (access.log) e submissões (submit-origin; offline = sessão vazia)
-    | { logins: (reduce ($A[] | select(.in) | chan(.ua)) as $c ({web:0, cli:0, other:0}; .[$c] += 1)),
+    | { logins: (reduce ($A[] | select(.in and (.pre | not)) | chan(.ua)) as $c ({web:0, cli:0, other:0}; .[$c] += 1)),
         submissions: (reduce ($B[] | (if (.sua64 // "") == "" and (.smkey // "") == "" then "offline" else chan(.ua) end)) as $c
                         ({web:0, cli:0, other:0, offline:0}; .[$c] += 1)) } as $CH
     | def nm($l): (($U[$l] // {}).name // $l);
@@ -236,7 +241,7 @@ an_build(){
     # --- máquinas por login (toda a janela) e sessões por login ----------------------------
     ($A | group_by(.login) | map({ key: .[0].login,
         value: (group_by(.key) | map({key: .[0].key, first: (map(.t) | min), last: (map(.t) | max),
-                                      n: length, in: ([ .[] | select(.in) ] | length)})
+                                      n: length, in: ([ .[] | select(.in) ] | length), pre: ([ .[] | select(.pre) ] | length)})
                 | sort_by(.first)) }) | from_entries) as $MACH
     | ($S | group_by(.login) | map({key: .[0].login, value: (map({key, ip, ua: (short(.ua)), at, tok8}) | sort_by(.at))}) | from_entries) as $SESS
     | ([ $S[] | select(ism(.key)) | .key ] | unique) as $LIVEKEYS

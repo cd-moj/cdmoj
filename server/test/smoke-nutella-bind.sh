@@ -90,6 +90,9 @@ login alice "$(ua5 26tsca 1001 aa-bb-cc-00-00-04)"
 ck "NUTELLA_BIND=0: nada"              '[[ "$(puts)" == "$n0" ]]'
 call /contest/nutella POST '{"action":"config","bind":true}'
 ck "bind:true apaga a variável (ligado por omissão)" '! grep -q "^NUTELLA_BIND=" "$C/conf"'
+# religar REPUBLICA sozinho (07/10/2026): o login da alice feito com o vínculo desligado é publicado agora; a carol
+# (ainda fora do roster) é tentada de novo — o log ganha o 2º noroster
+ck "religar o vínculo republica sozinho o que ficou de fora (o login com ele desligado)" '[[ "$(J .bindings_replayed)" -ge 1 && "$(B ".[\"aa-bb-cc-00-00-04\"].user_id")" == alice && "$(LOGN noroster)" == 2 ]]'
 
 echo "== serviço fora do ar: o login não sente e o retry entrega =="
 touch "$MOCKD/bind503"
@@ -110,7 +113,7 @@ ck "…e o que já estava publicado não foi reenviado (dedup contra o mapa)" '[
 ck "conta de papel continua fora no replay" '[[ "$(B "has(\"aa-bb-cc-00-00-09\")")" == false ]]'
 call /contest/nutella GET ''
 ck "GET traz o resumo: ligado, publicados, fila vazia, contagens do log" \
-   '[[ "$(J .bind.enabled)" == true && "$(J .bind.published)" == "$(wc -l < "$C/var/nutella-macs.tsv")" && "$(J .bind.queued)" == 0 && "$(J .bind.log.noroster)" == 1 && "$(J .bind.log.retry)" == 1 && "$(J .bind.log.image_unknown)" -ge 1 ]]'
+   '[[ "$(J .bind.enabled)" == true && "$(J .bind.published)" == "$(wc -l < "$C/var/nutella-macs.tsv")" && "$(J .bind.queued)" == 0 && "$(J .bind.log.noroster)" == 2 && "$(J .bind.log.retry)" == 1 && "$(J .bind.log.image_unknown)" -ge 1 ]]'
 ck "…sem MAC nem login no resumo"      '[[ "$(J ".bind|tostring")" != *aa-bb* && "$(J ".bind|tostring")" != *alice* ]]'
 printf 'CONTEST=nb\nLOGIN=alice\nLOGINAT=1\n' > "$SESS/usr"
 OUT="$(PATH_INFO=/contest/nutella REQUEST_METHOD=POST QUERY_STRING="contest=nb" HTTP_AUTHORIZATION="Bearer usr" CONTESTSDIR="$FIX" SESSIONDIR="$SESS" bash "$ROUTER" <<<'{"action":"push-bindings"}' 2>&1)"
@@ -119,7 +122,7 @@ ck "push-bindings por competidor → 403" '[[ "$OUT" == *"Status: 403"* ]]'
 echo "== protocolo novo (≥ 21/09): code nos erros, Retry-After, roster automático, lote =="
 # 404 que NÃO é "fora do roster": imagem/máquina inexistente vem com code próprio e é erro de verdade
 login alice "$(ua5 26tsca 1001 ff-ff-ff-ff-ff-ff)"
-ck "MAC que o serviço recusa (invalid_mac) NÃO vira noroster: é erro com o code" 'grep -q "invalid_mac" "$C/var/nutella-bind.log" && [[ "$(LOGN noroster)" == 1 ]]'
+ck "MAC que o serviço recusa (invalid_mac) NÃO vira noroster: é erro com o code" 'grep -q "invalid_mac" "$C/var/nutella-bind.log" && [[ "$(LOGN noroster)" == 2 ]]'
 touch "$MOCKD/bind429"; n0="$(puts)"
 login bob "$(ua5 26tsca 1001 aa-bb-cc-00-00-08)"; login alice "$(ua5 26tsca 1001 aa-bb-cc-00-00-04)"   # o 2º login drena a fila de novo
 ck "429 com Retry-After: volta p/ a fila e a passada seguinte entrega" '[[ "$(B ".[\"aa-bb-cc-00-00-08\"].user_id")" == bob ]]'
@@ -141,6 +144,15 @@ touch "$MOCKD/legacy"; : > "$MOCKD/posts.log"; : > "$C/var/nutella-macs.tsv"
 call /contest/nutella POST '{"action":"push-bindings"}'
 ck "serviço LEGADO (sem a rota de lote): cai na fila, 1 PUT por máquina" '[[ "$(J .batch)" == null && "$(grep -c "\"PUT\".*/binding\"" "$MOCKD/posts.log")" -ge 4 ]]'
 rm -f "$MOCKD/legacy"
+
+echo "== chave gravada DEPOIS dos logins (prova do Daniel Saad, 07/10/2026): o config republica sozinho =="
+rm -f "$C/secrets/nutellaboot.key"; n0="$(puts)"
+login alice "$(ua5 26tsca 1001 aa-bb-cc-00-00-0a)"
+ck "sem chave: o login não publica nada"  '[[ "$LOUT" == *"\"logged_in\":true"* && "$(puts)" == "$n0" ]]'
+call /contest/nutella POST '{"action":"config","key":"nb3a_mocktest123"}'
+ck "gravar a chave com logins já feitos republica sozinho (sem o botão)" '[[ "$(J .saved)" == true && "$(J .bindings_replayed)" -ge 1 && "$(B ".[\"aa-bb-cc-00-00-0a\"].user_id")" == alice ]]'
+n0="$(puts)"; call /contest/nutella POST '{"action":"config","url":"http://127.0.0.1:'"$(cat "$MOCKD/port")"'"}'
+ck "gravar só a URL não re-enfileira (nada de replay a cada clique)" '[[ "$(J .bindings_replayed)" == 0 && "$(puts)" == "$n0" ]]'
 
 echo "== caminho de PRODUÇÃO: drenador DESTACADO (sem MOJ_JOBS_SYNC) =="
 # o serviço demora 2 s p/ responder (bindslow): o login NÃO pode esperar por ele

@@ -103,7 +103,9 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   contest ENTRA na lista de cópia do arquivamento de rodada** (`contest-rounds.sh`). Motor de
   anomalias: `lib/anomalies.sh` (um jq; `mkey` em jq = a MESMA regra do bash — mexeu numa, mexa na
   outra; o jq vive em VARIÁVEL, fora do `jq-portability.sh`: rode `smoke-contest-anomalies.sh` com
-  o jq 1.7). Painel: **Máquinas › Anomalias** (`anomalies-tab.js`, módulo `maquinas`). Quem identifica a
+  o jq 1.7). O ÚLTIMO login ANTES do início conta como máquina da prova (`pre`; 07/10/2026 — quem logou às 13:29
+  numa prova das 13:30 ficava sem máquina) e o mapa do Gate & trava (`rd_machines`) conta desde a abertura do login,
+  sem invadir a rodada anterior. Painel: **Máquinas › Anomalias** (`anomalies-tab.js`, módulo `maquinas`). Quem identifica a
   MÁQUINA é o UA do mlinux (`machines_identified`), não o gate (03/10/2026, TCP 2026: sem gate o painel ficava
   vazio com times em 2–3 máquinas): as anomalias de máquina valem sempre; só o `ua_mismatch` precisa do gate
   (`enforce` ou `observe`). Caso EXPLICADO (`var/anomalies-explained.json`, POST `explain`; id `kind|login|machine`,
@@ -1302,7 +1304,8 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   o LOGIN publica o `binding` (`lib/nutella-bind.sh`: fila em `var/nutella-bind.queue` + drenador DESTACADO,
   no máx. 1 a cada 10 s — o login nunca espera o serviço; dedup em `var/nutella-macs.tsv`; trilha em
   `var/nutella-bind.log`; `NUTELLA_BIND=0` desliga; imagem do UA tem de ser sede DO contest; `push-bindings`
-  = replay do access.log). ⚠ **A chave de máquina GRAVADA não mudou** (`m:<mid>/<boot>` em sessão/
+  = replay do access.log — `nb_bind_replay_lines`, que o `config` também roda sozinho ao gravar a chave/religar o
+  vínculo com logins já feitos). ⚠ **A chave de máquina GRAVADA não mudou** (`m:<mid>/<boot>` em sessão/
   submit-origin): trocar formato no meio de uma prova faz sessão antiga × requisição nova divergirem — a
   identidade estável (`m:<mid>` quando o mid foi visto com MAC) é só na APURAÇÃO (`lib/anomalies.sh`);
   bash (`sess_machine_key`) e jq (`mkey`) continuam gêmeos. Teste de processo destacado: pergunte ao LOCK

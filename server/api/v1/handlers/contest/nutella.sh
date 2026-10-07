@@ -152,9 +152,25 @@ config)
     if [[ "$(jq -r '.bind' <<<"$body")" == false ]]; then cc_set_conf_var "$contest" NUTELLA_BIND 0; else cc_del_conf_var "$contest" NUTELLA_BIND; fi
   fi
   if [[ -n "$url" || -s "$(nb_keyfile "$contest")" ]]; then mod_enable "$contest" maquinas; fi
-  audit_log_to "$contest" nutella-config "url=$([[ -n "$url" ]] && echo sim || echo nao) key=$(jq -r 'if has("key") then (if .key == "" then "removida" else "gravada" end) else "mantida" end' <<<"$body")"
-  ok_json '{saved:true, configured:$c, key_kind:$kk}' --argjson c "$(nb_configured "$contest" && echo true || echo false)" \
-    --arg kk "$(nb_key_kind "$contest")"
+  # a integração passou a valer (chave gravada, vínculo religado ou sedes mudadas) COM logins já feitos: o vínculo
+  # só nasce no login, então refaz-se sozinho o que o botão "republicar vínculos" faria — pela fila do drenador
+  # DESTACADO (não atrasa este POST; ele dedupa contra o já publicado). Sem isto: "0 máquinas vinculadas" até
+  # alguém achar o botão (prova do Daniel Saad, 07/10/2026: chave às 13:45, times logados às 13:29).
+  replayed=0
+  if nb_configured "$contest" && [[ "$(conf_value "$contest" NUTELLA_BIND)" != 0 ]] \
+     && jq -e '(has("key") and (.key // "") != "") or .bind == true or has("images")' >/dev/null 2>&1 <<<"$body" \
+     && [[ -s "$cdir/var/access.log" ]]; then
+    source "$_LIBDIR/nutella-bind.sh"
+    qf="$(mktemp)"; replayed="$(nb_bind_replay_lines "$contest" "$qf")"; replayed="${replayed:-0}"
+    if (( replayed > 0 )); then
+      cat "$qf" >> "$cdir/var/nutella-bind.queue"
+      if [[ "${MOJ_JOBS_SYNC:-0}" == 1 ]]; then nb_bind_drain "$contest"; else nb_bind_drain_bg "$contest"; fi
+    fi
+    rm -f "$qf"
+  fi
+  audit_log_to "$contest" nutella-config "url=$([[ -n "$url" ]] && echo sim || echo nao) key=$(jq -r 'if has("key") then (if .key == "" then "removida" else "gravada" end) else "mantida" end' <<<"$body") replay=$replayed"
+  ok_json '{saved:true, configured:$c, key_kind:$kk, bindings_replayed:$r}' --argjson c "$(nb_configured "$contest" && echo true || echo false)" \
+    --arg kk "$(nb_key_kind "$contest")" --argjson r "$replayed"
   ;;
 collect)
   is_admin || fail 403 "Apenas o admin do contest" "admin_required"
@@ -300,16 +316,7 @@ push-bindings)
   # REPLAY do access.log pela MESMA fila do login: último login de cada MAC (UA do agente novo),
   # conta de papel fora. O drenador dedupa contra o que já foi publicado e aplica a lista de sedes.
   qf="$(mktemp)"
-  jq -Rrn '
-    [ inputs | split("\t") | select(length >= 4)
-      | (.[0] | tonumber? // 0) as $t | .[1] as $lg
-      | select(($lg | test("\\.(admin|judge|cjudge|staff|cstaff|mon|animeitor)$")) | not)
-      | ((.[3] | try @base64d catch "")
-         | capture("MLinux/(?<img>[A-Za-z0-9._-]{1,64})/[0-9a-f]{32}/(?<boot>[0-9]{1,20})/(?<mac>[0-9a-f]{2}([-:][0-9a-f]{2}){5})")? // null) as $m
-      | select($m != null) | {t: $t, lg: $lg, img: $m.img, boot: $m.boot, mac: ($m.mac | gsub(":"; "-"))} ]
-    | sort_by(.t) | reduce .[] as $e ({}; .[$e.mac] = $e)
-    | .[] | "\(.t)\t\(.lg)\t\(.img)\t\(.mac)\t\(.boot)"' "$cdir/var/access.log" > "$qf" 2>/dev/null
-  nq="$(wc -l < "$qf" | tr -d '[:space:]')"; nq="${nq:-0}"
+  nq="$(nb_bind_replay_lines "$contest" "$qf")"; nq="${nq:-0}"
   batch='null'
   if (( nq > 0 )); then
     # LOTE (PUT …/bindings, até 1000 por request) — serviço antigo sem a rota: cai na fila do drenador

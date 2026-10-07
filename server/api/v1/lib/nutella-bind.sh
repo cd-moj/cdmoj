@@ -35,6 +35,26 @@ NB_BIND_EVERY="${NB_BIND_EVERY:-10}"
 NB_BIND_UA_RE='MLinux/([A-Za-z0-9._-]{1,64})/[0-9a-f]{32}/([0-9]{1,20})/([0-9a-f]{2}([-:][0-9a-f]{2}){5})([^0-9a-f:-]|$)'
 
 # nb_bind_enqueue <contest> <login> — chamado pelo login. Sem fork até decidir largar o drenador.
+# nb_bind_replay_lines <contest> <arquivo> -> grava no <arquivo> as linhas de FILA do REPLAY do access.log (o último
+# login de cada MAC com o UA do agente novo; conta de papel fora) e ecoa quantas. É o que o `push-bindings` manda e
+# o que o `config` re-enfileira sozinho quando a integração passa a valer com logins já feitos (07/10/2026: a chave
+# gravada às 13:45 numa prova cujos 5 times logaram às 13:29 deixava "0 máquinas vinculadas" até alguém achar o botão).
+nb_bind_replay_lines(){
+  local c="$1" out="$2" n
+  : > "$out"
+  [[ -s "$CONTESTSDIR/$c/var/access.log" ]] || { printf 0; return 0; }
+  jq -Rrn '
+    [ inputs | split("\t") | select(length >= 4)
+      | (.[0] | tonumber? // 0) as $t | .[1] as $lg
+      | select(($lg | test("\\.(admin|judge|cjudge|staff|cstaff|mon|animeitor)$")) | not)
+      | ((.[3] | try @base64d catch "")
+         | capture("MLinux/(?<img>[A-Za-z0-9._-]{1,64})/[0-9a-f]{32}/(?<boot>[0-9]{1,20})/(?<mac>[0-9a-f]{2}([-:][0-9a-f]{2}){5})")? // null) as $m
+      | select($m != null) | {t: $t, lg: $lg, img: $m.img, boot: $m.boot, mac: ($m.mac | gsub(":"; "-"))} ]
+    | sort_by(.t) | reduce .[] as $e ({}; .[$e.mac] = $e)
+    | .[] | "\(.t)\t\(.lg)\t\(.img)\t\(.mac)\t\(.boot)"' "$CONTESTSDIR/$c/var/access.log" > "$out" 2>/dev/null
+  n="$(wc -l < "$out" | tr -d '[:space:]')"; printf '%s' "${n:-0}"
+}
+
 nb_bind_enqueue(){
   local c="$1" l="$2" ua="${HTTP_USER_AGENT:-}" img boot mac d v last=0
   [[ "$ua" =~ $NB_BIND_UA_RE ]] || return 0

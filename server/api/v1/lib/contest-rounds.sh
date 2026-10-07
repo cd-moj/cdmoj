@@ -285,6 +285,20 @@ rd_machines(){
   cs="$(jq -r '.start // 0' <<<"$r")"; ce="$(jq -r '.end // 0' <<<"$r")"
   [[ "$cs" =~ ^[0-9]+$ ]] || cs=0; [[ "$ce" =~ ^[0-9]+$ ]] || ce=0
   (( ce > 0 )) || ce=$EPOCHSECONDS
+  # os logins contam desde a ABERTURA do login da rodada, não do início: quem loga às 13:29 numa prova das 13:30
+  # usa essa sessão a prova inteira — cortar no início escondia o time do mapa (Daniel Saad, 07/10/2026: "5
+  # logados, só aparecem 3"). Abertura = LOGIN_START_TIME (rodada ativa) ou, sem ela, 6 h antes (a mesma
+  # pré-janela das Anomalias); nunca antes do fim da rodada anterior.
+  local ws lst pe
+  ws=$(( cs > 21600 ? cs - 21600 : 0 ))
+  if [[ "$s" == "$(rd_active "$c")" ]]; then
+    lst="$(conf_value "$c" LOGIN_START_TIME)"; lst="${lst//[^0-9]/}"
+    [[ -n "$lst" ]] && (( lst > 0 && lst < cs )) && ws=$lst
+  fi
+  pe="$(rd_sync_active "$c" | jq -r --arg s "$s" --argjson cs "$cs" \
+        '[ (.rounds // [])[] | select(.slug != $s) | (.end // 0) | select(. > 0 and . <= $cs) ] | max // 0' 2>/dev/null)"
+  [[ "$pe" =~ ^[0-9]+$ ]] && (( pe > ws )) && ws=$pe
+  (( cs > 0 )) || ws=0
   log="$CONTESTSDIR/$c/var/access.log"
   # arquivada: usa o access.log copiado no arquivo (o vivo segue crescendo com a rodada nova)
   [[ "$(jq -r '.state // ""' <<<"$r")" == archived && -s "$(rd_archive_dir "$c" "$s")/access.log" ]] \
@@ -293,7 +307,7 @@ rd_machines(){
   local tmpj; tmpj="$(mktemp)" || return 1
   # TSV -> NDJSON só das linhas na janela (awk: nada de jq por linha)
   if [[ -s "$log" ]]; then
-    awk -F'\t' -v a="$cs" -v b="$ce" 'NF>=3 && $1+0>=a && $1+0<=b {
+    awk -F'\t' -v a="$ws" -v b="$ce" 'NF>=3 && $1+0>=a && $1+0<=b {
         gsub(/"/,"",$2); gsub(/"/,"",$3); gsub(/"/,"",$4)
         printf "{\"t\":%d,\"login\":\"%s\",\"ip\":\"%s\",\"ua64\":\"%s\"}\n", $1, $2, $3, $4 }' \
       "$log" > "$tmpj"
@@ -336,7 +350,7 @@ rd_machines(){
     [[ -s "$tmpe" ]] || printf '{}' > "$tmpe"
   fi
   jq -sc --slurpfile users "$tmpu" --slurpfile prev "$tmpp" --slurpfile exp "$tmpe" \
-     --arg round "$s" --arg prev_round "$prev" --argjson cs "$cs" --argjson ce "$ce" '
+     --arg round "$s" --arg prev_round "$prev" --argjson cs "$cs" --argjson ce "$ce" --argjson ws "$ws" '
     ($users[0] // {}) as $U | ($prev[0] // {}) as $P | ($exp[0] // {}) as $E
     # UA decodificado UMA vez por valor único (eram ~179 únicos re-decodificados por login)
     | ([ .[] | .ua64 ] | unique | map({key:., value:(. | @base64d | ascii_downcase)}) | from_entries) as $DEC
@@ -371,7 +385,7 @@ rd_machines(){
     # ≈ 2,6 M seleções, os ~3 s que sobravam na aba (medido 31/08)
     | (group_by(.ip) | map({ip: .[0].ip, logins: (map(.login) | unique)})
        | map(. + {shared: ((.logins|length) > 1)})) as $BYIP
-    | { round: $round, prev_round: $prev_round, window: {start:$cs, end:$ce},
+    | { round: $round, prev_round: $prev_round, window: {start:$cs, end:$ce, logins_from:$ws},
         by_login: ($BY2 | sort_by(.name)),
         by_ip: $BYIP,
         uas: ([ .[] | .ua64 ] | unique | map({ua64:., n:0})),

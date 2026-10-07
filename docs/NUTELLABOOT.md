@@ -196,7 +196,10 @@ máquina↔time** (roster/binding).
   CONTEST (`NUTELLABOOT_IMAGES` ∪ sedes da última coleta) — o UA é entrada do cliente e a chave admin alcança
   outros eventos. **404 = time fora do roster da imagem** (`noroster`): `push-roster` e depois
   **`push-bindings`**, que é o REPLAY do `access.log` pela mesma fila (serve também p/ quem logou antes do
-  deploy). O UA pode ser forjado — quem barra isso é o gate de UA por sede; o binding é informação p/ o staff,
+  deploy). O `config` faz o MESMO replay sozinho (07/10/2026) quando grava a chave, religa o vínculo (`bind:true`)
+  ou muda as sedes com logins já feitos — pela fila do drenador destacado, deduplicado contra o já publicado
+  (`bindings_replayed` na resposta). Antes, chave gravada depois da largada = "0 máquinas vinculadas" até alguém
+  achar o botão. O UA pode ser forjado — quem barra isso é o gate de UA por sede; o binding é informação p/ o staff,
   não controle de acesso. `nutella-bind.log` e `nutella-macs.tsv` atravessam as rodadas (cópia no arquivo).
 - **Roster**: `POST {action:"push-roster"}` PUBLICA o roster do STORE nas imagens (user_id=login, nome do
   time, universidade, país; os times de cada imagem = os da SEDE no store — regra única de sedes, pelo nome da sede

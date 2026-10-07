@@ -2487,7 +2487,7 @@
         "tags": [
           "contest-admin"
         ],
-        "summary": "Checklist pós-prova (o que ainda está fechado) — admin ou juiz-chefe; freeze_release_at = fim geral + 1 min (POST antes disso com freeze = 409 freeze_locked)",
+        "summary": "Checklist pós-prova (o que ainda está fechado) — admin ou juiz-chefe; freeze_release_at = fim geral + 1 min (POST antes disso com freeze = 409 freeze_locked) · config com logins já feitos (chave gravada, bind:true ou images) refaz sozinho o replay do push-bindings → bindings_replayed",
         "responses": {
           "200": {
             "description": "{checks:[{id,level,label,detail,label_en,detail_en,label_es,detail_es}], summary:{ok,warn,fail}, can_finish, can_act (true só p/ o admin — o POST é dele), pending_docs:[{type,lang}]}"
@@ -5241,7 +5241,7 @@
     "/contest/admin/anomalies": {
       "get": {
         "tags": ["contest"],
-        "summary": "Anomalias de uso de máquina durante a prova (admin ou juiz-chefe): 2 sessões vivas, máquina compartilhada, submissão de outra máquina, UA fora da sede, sede sem máquina por time, trocas, trilha da sessão única — as de máquina valem sempre que o UA do mlinux identifica a máquina (machines_identified); o ua_mismatch precisa do gate (enforce ou observe). POST {action:explain|unexplain, id, note} marca um caso como explicado (sai das contagens)",
+        "summary": "Anomalias de uso de máquina durante a prova (admin ou juiz-chefe): 2 sessões vivas, máquina compartilhada, submissão de outra máquina, UA fora da sede, sede sem máquina por time, trocas, trilha da sessão única — as de máquina valem sempre que o UA do mlinux identifica a máquina (machines_identified); o ua_mismatch precisa do gate (enforce ou observe). POST {action:explain|unexplain, id, note} marca um caso como explicado (sai das contagens). O último login ANTES do início conta como máquina da prova (teams[].machines[].pre)",
         "parameters": [
           {"name": "contest", "in": "query", "required": true, "schema": {"type": "string"}},
           {"name": "round", "in": "query", "required": false, "schema": {"type": "string"}}
@@ -5963,7 +5963,7 @@
           "contest-admin"
         ],
         "summary": "Mapa de maquinas da rodada: time x IP x User-Agent",
-        "description": "Agregado do var/access.log recortado pela janela da rodada. changed = mudou de maquina em relacao a ultima rodada arquivada. Só leitura: sede via /contest/admin/teams, gate de UA via /contest/admin/settings.",
+        "description": "Agregado do var/access.log recortado pela janela da rodada — os logins contam desde a ABERTURA do login (LOGIN_START_TIME; sem ela, 6 h antes), nunca antes do fim da rodada anterior; window.logins_from diz desde quando (07/10/2026). changed = mudou de maquina em relacao a ultima rodada arquivada. Só leitura: sede via /contest/admin/teams, gate de UA via /contest/admin/settings.",
         "security": [
           {
             "bearerAuth": []
