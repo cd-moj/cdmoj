@@ -2,6 +2,7 @@
 // importar .tar.gz) + utilitários (baixar template JSON, salvar template de contest existente).
 import { el } from '/shared/ui.js';
 import { T } from '/shared/i18n.js';
+import { sharedNotice } from './usuarios.js';
 
 export function makeStepInicio(ctx) {
   const root = el('div', {});
@@ -63,13 +64,19 @@ export function makeStepInicio(ctx) {
   const dupName = el('input', { placeholder: T('nome novo (vazio = "Cópia de …")', 'new name (empty = "Cópia de …")', 'nombre nuevo (vacío = "Copia de …")'), style: 'min-width:200px' });
   // compartilhar de novo é sempre PEDIDO (o duplicate nunca herda users_from — 28/09/2026); a inscrição só liga com as
   // contas do treino (07/10/2026): sem esta caixa, a cópia fiel de um contest com inscrição seria recusada
+  // compartilhar aqui tem as MESMAS consequências do passo 3: a caixa aparece com a opção e o "Entendi" é exigido
   const dupShared = el('input', { type: 'checkbox' });
+  const dupAck = el('input', { type: 'checkbox' });
+  const dupNotice = sharedNotice(dupAck);
+  dupNotice.style.display = 'none';
+  dupShared.addEventListener('change', () => { dupNotice.style.display = dupShared.checked ? '' : 'none'; if (!dupShared.checked) dupAck.checked = false; });
   const dupNow = el('button', { class: 'btn ghost', onclick: async () => {
     const id = dupSel.value; if (!id) return;
     const nid = dupId.value.trim().toLowerCase();
     if (nid && !/^[a-z0-9][a-z0-9-]*$/.test(nid)) { say(T('id inválido: minúsculas, números e hífen (vira subdomínio)', 'invalid id: lowercase, digits and hyphen (it becomes a subdomain)', 'id inválido: minúsculas, números y guion (se convierte en subdominio)'), true); return; }
     const rsv = (Array.isArray(ctx.perm.reserved_id_prefixes) ? ctx.perm.reserved_id_prefixes : ['icpc']).find((pfx) => nid.startsWith(pfx));
     if (rsv && !ctx.perm.is_superadmin) { say(T(`ids que começam por "${rsv}" são da organização: só um super-admin cria`, `ids starting with "${rsv}" belong to the organization: only a super-admin can create them`, `ids que empiezan por "${rsv}" son de la organización: solo un super-admin puede crearlos`), true); return; }
+    if (dupShared.checked && !dupAck.checked) { say(T('Usuários compartilhados: leia as consequências e marque "Entendi".', 'Shared users: read the consequences and tick "I understand".', 'Usuarios compartidos: lee las consecuencias y marca "Entendido".'), true); return; }
     if (!confirm(T('Criar AGORA uma cópia fiel de "', 'Create a faithful copy of "', 'Crear una copia fiel de "') + id + T('"?\n\nProblemas, enunciados enviados à mão, opções e visual são copiados. Usuários e submissões NÃO.', '"NOW?\n\nProblems, hand-uploaded statements, options and appearance are copied. Users and submissions are NOT.', '"AHORA?\n\nLos problemas, los enunciados subidos a mano, las opciones y el aspecto visual se copian. Los usuarios y los envíos NO.'))) return;
     dupNow.disabled = true; say(T('duplicando ', 'duplicating ', 'duplicando ') + id + '…');
     try {
@@ -91,7 +98,8 @@ export function makeStepInicio(ctx) {
         'O crea la copia directamente, sin pasar por los pasos: mantiene los enunciados que subiste a mano (HTML/PDF) y la duración original.')),
     el('div', { class: 'row', style: 'flex-wrap:wrap' }, dupId, dupName, dupNow),
     el('label', { class: 'small', style: 'display:flex;gap:.4rem;align-items:center;margin-top:.3rem' }, dupShared,
-      T('usar as contas do Treino Livre (usuários compartilhados — obrigatório se o contest tem inscrição)', 'use the Free Training accounts (shared users — required if the contest has registration)', 'usar las cuentas del Entrenamiento Libre (usuarios compartidos — obligatorio si la competencia tiene inscripción)')));
+      T('usar as contas do Treino Livre (usuários compartilhados — obrigatório se o contest tem inscrição)', 'use the Free Training accounts (shared users — required if the contest has registration)', 'usar las cuentas del Entrenamiento Libre (usuarios compartidos — obligatorio si la competencia tiene inscripción)')),
+    dupNotice);
 
   // --- salvar template a partir de contest existente ---
   const stSel = el('select', { style: 'min-width:220px' });

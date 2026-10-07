@@ -38,8 +38,10 @@ export function makeStepModulos(ctx) {
   const presets = el('div', { class: 'row', style: 'gap:.4rem;flex-wrap:wrap;align-items:center;margin:.4rem 0' },
     el('span', { class: 'small muted' }, T('Pré-marcar:', 'Pre-select:', 'Preseleccionar:')),
     ...PRESETS().map((p) => el('button', { class: 'btn ghost small', title: p.hint, onclick: () => {
+      const skipped = p.mods.filter((id) => checks[id] && checks[id].disabled);
       Object.entries(checks).forEach(([id, cb]) => { cb.checked = !cb.disabled && p.mods.includes(id); }); sync();
-      msg.textContent = T(`preset «${p.name}»: `, `preset "${p.name}": `, `preset "${p.name}": `) + p.hint;
+      msg.textContent = T(`preset «${p.name}»: `, `preset "${p.name}": `, `preset "${p.name}": `) + p.hint
+        + (skipped.length ? T(` (fora: ${skipped.join(', ')} — falta o pré-requisito)`, ` (left out: ${skipped.join(', ')} — prerequisite missing)`, ` (fuera: ${skipped.join(', ')} — falta el requisito)`) : '');
     } }, p.name)));
 
   const root = el('div', { class: 'section' },

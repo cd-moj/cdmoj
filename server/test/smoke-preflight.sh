@@ -225,6 +225,11 @@ rm -f "$C/registrations.json"
 echo "== módulos (lib/modules.sh): checagem só com o módulo ligado =="
 run
 check "todos ligados => modules ok lista os ids" '[[ "$(lvl modules)" == ok && "$(det modules)" == *"coortes"* ]]'
+# PRÉ-REQUISITO (mod_requires_ok): o fixture tem contas PRÓPRIAS e inscricoes ligado — o legado de produção (07/10/2026)
+check "inscricoes sem USERS_FROM => modules_requires warn" '[[ "$(lvl modules_requires)" == warn && "$(det modules_requires)" == *"inscricoes"* ]]'
+printf 'USERS_FROM=treino\n' >> "$C/conf"; run
+check "com USERS_FROM => sem modules_requires"            '[[ "$(lvl modules_requires)" == "(ausente)" ]]'
+sed -i '/^USERS_FROM=/d' "$C/conf"; run
 sed -i 's/^CONTEST_MODULES=.*/CONTEST_MODULES=sedes,maquinas,rodadas,documentos,baloes,inscricoes,telao,classificacao/' "$C/conf"; run
 check "coortes DESLIGADO com cohorts.json => modules warn cita coortes" '[[ "$(lvl modules)" == warn && "$(det modules)" == *"coortes (cohorts.json)"* ]]'
 check "coortes desligado => checagem cohorts OMITIDA"                   '[[ "$(lvl cohorts)" == "(ausente)" ]]'
