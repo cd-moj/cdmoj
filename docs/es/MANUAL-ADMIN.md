@@ -1,4 +1,4 @@
-<!-- i18n-source: MANUAL-ADMIN.md blob:916cad09748b990a7703b4c518cb458bcac3657c -->
+<!-- i18n-source: MANUAL-ADMIN.md blob:5f54d4aaf23be4fd94f083b2b20b935db4d2ca35 -->
 # MOJ: Manual del organizador (el panel .admin de la competencia)
 
 > **Nota de traducción.** Este manual es una traducción del original en portugués. Las herramientas de línea de comandos (`moj`, `moj-contest`, `moj-comp`) muestran sus mensajes en portugués, y los ejemplos de comandos son idénticos al original.
@@ -192,7 +192,7 @@ colores, cohortes, gate, rondas, documentos, ventana de inscripción, pantalla, 
 devuelve la misma sección, sin secretos. Las competencias creadas antes de los módulos se detectan una vez
 por los archivos que ya tienen (`server/bin/contest-modules-detect.sh`).
 
-**Requisitos.** Dos módulos solo funcionan con otra configuración de la competencia, y por eso solo se activan con ella:
+**Requisitos.** Dos módulos solo funcionan con otra configuración de la competencia, y por eso solo se activan con ella (la participación virtual tiene sus propias condiciones, en la §6¾; la guía rápida de abajo las reúne todas):
 **`inscricoes`** (inscripción) necesita las **cuentas del Entrenamiento Libre** (competencia creada con usuarios
 compartidos): cada alumno se inscribe con su cuenta del entrenamiento. En una competencia con cuentas propias, la
 inscripción bloquearía a todos los alumnos, así que no se activa (ni desde el panel, ni al guardar la ventana de
@@ -201,6 +201,30 @@ inscripción, ni en la creación, al duplicar o desde una plantilla). Con cuenta
 La tarjeta del módulo muestra un candado y lo que falta. Si una competencia ya tenía el módulo activado sin el requisito,
 la **Central** avisa (y, sin las cuentas del entrenamiento, la regla "solo inscritos entran" no se aplica). Convertir las
 cuentas compartidas en propias (sección 8¾) también desactiva la inscripción.
+
+**Guía rápida: lo que necesita cada módulo.** `<──` = el MOJ no activa el módulo sin eso; `<─>` = vale en
+los dos sentidos. La 3.ª columna es lo que el módulo necesita, ya activado, para hacer algo.
+
+```
+MÓDULO            PARA ACTIVARLO, NECESITA                           ACTIVADO, ACTÚA CUANDO HAY
+─────────────     ────────────────────────────────────────────────   ──────────────────────────────
+inscricoes    <── las cuentas del Entrenamiento Libre (USERS_FROM)   la inscripción activada (Personas › Inscripciones)
+                    └ convertir a cuentas propias desactiva el módulo
+esqueletos    <─> el editor de código en el navegador (Reglas)       — (esqueleto predeterminado de cada lenguaje)
+                    └ con el módulo activado, el editor no se desactiva
+virtual       <── modo ICPC · competencia no secreta                 competencia terminada en todas las sedes
+                  marcador no anónimo · inicio y fin                 y marcador descongelado (Terminar evento)
+                  todos los problemas públicos en el entrenamiento
+                    └ el panel y la CLI lo rechazan; creado así, queda inerte (§6¾)
+sedes             —                                                  el árbol de sedes (Evento › Sedes y escuelas)
+maquinas          —                                                  gate: una regla · mlinux: la clave de NutellaBoot
+rodadas           —                                                  el plan de rondas (Evento › Rondas)
+documentos        —                                                  — (se generan de lo que la competencia ya tiene)
+baloes            —                                                  — (colores del ICPC por defecto)
+coortes           —                                                  las cohortes (Evento › Cohortes)
+telao             —                                                  pantalla: el evento publicado en Animeitor
+classificacao     —                                                  el motor de cada etapa (Evento › Clasificación)
+```
 
 ### Esqueletos de código (módulo `esqueletos`)
 

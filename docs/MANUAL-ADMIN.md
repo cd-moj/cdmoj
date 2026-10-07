@@ -187,7 +187,7 @@ cores, coortes, gate, rodadas, documentos, janela de inscrição, telão, classi
 devolve a mesma seção, sem segredos. Contests criados antes dos módulos são detectados uma vez
 pelos arquivos que já têm (`server/bin/contest-modules-detect.sh`).
 
-**Pré-requisitos.** Dois módulos só funcionam com outra configuração do contest, e por isso só ligam com ela:
+**Pré-requisitos.** Dois módulos só funcionam com outra configuração do contest, e por isso só ligam com ela (a participação virtual tem as condições dela, na §6¾; a cola abaixo junta tudo):
 **`inscricoes`** precisa das **contas do Treino Livre** (contest criado com usuários compartilhados): o aluno se
 inscreve com a conta dele no treino. Num contest de contas próprias, a inscrição barraria todo aluno, então ela não liga
 (nem pelo painel, nem ao gravar a janela de inscrição, nem na criação, ao duplicar ou por template). Com contas próprias,
@@ -195,6 +195,30 @@ distribua as credenciais em **Pessoas › Contas**. **`esqueletos`** precisa do 
 O cartão do módulo mostra o cadeado e o que falta. Se um contest já estava com o módulo ligado sem o pré-requisito, a
 **Central** avisa (e, sem as contas do treino, a regra "só inscrito entra" não vale). Converter as contas compartilhadas
 em próprias (seção 8¾) desliga a inscrição junto.
+
+**Cola: o que cada módulo precisa.** `<──` = o MOJ recusa ligar o módulo sem isso; `<─>` = vale nos dois
+sentidos. A 3ª coluna é o que o módulo precisa, já ligado, para fazer alguma coisa.
+
+```
+MÓDULO            PARA LIGAR, PRECISA DE                  LIGADO, AGE QUANDO TEM
+─────────────     ─────────────────────────────────────   ──────────────────────────────
+inscricoes    <── contas do Treino Livre (USERS_FROM)     a inscrição ligada (Pessoas › Inscrições)
+                    └ converter em contas próprias desliga o módulo
+esqueletos    <─> editor de código no browser (Regras)    — (esqueleto padrão de cada linguagem)
+                    └ com o módulo ligado, o editor não desliga
+virtual       <── modo ICPC · contest não secreto         prova encerrada para todas as sedes
+                  placar não anônimo · início e fim       e placar descongelado (Encerrar evento)
+                  todos os problemas públicos no treino
+                    └ o painel e a CLI recusam; criado assim, fica inerte (§6¾)
+sedes             —                                       a árvore de sedes (Evento › Sedes & escolas)
+maquinas          —                                       gate: uma regra · mlinux: a chave do NutellaBoot
+rodadas           —                                       o plano de rodadas (Evento › Rodadas)
+documentos        —                                       — (gerados do que o contest já tem)
+baloes            —                                       — (cores do ICPC por padrão)
+coortes           —                                       as coortes (Evento › Coortes)
+telao             —                                       telão: o evento publicado no Animeitor
+classificacao     —                                       o motor de cada etapa (Evento › Classificação)
+```
 
 ### Esqueletos de código (módulo `esqueletos`)
 

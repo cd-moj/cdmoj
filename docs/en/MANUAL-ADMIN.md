@@ -1,4 +1,4 @@
-<!-- i18n-source: MANUAL-ADMIN.md blob:916cad09748b990a7703b4c518cb458bcac3657c -->
+<!-- i18n-source: MANUAL-ADMIN.md blob:5f54d4aaf23be4fd94f083b2b20b935db4d2ca35 -->
 # MOJ: Organizer manual (the contest .admin panel)
 
 > **Translation note.** This manual is a translation of the Portuguese original. The command-line tools (`moj`, `moj-contest`, `moj-comp`) print their messages in Portuguese, and the command examples below are identical to the original.
@@ -197,7 +197,7 @@ rounds, documents, registration window, big screen, qualification). The `export`
 same section, without secrets. For contests created before the modules, MOJ detects the modules
 one time from the files that they already have (`server/bin/contest-modules-detect.sh`).
 
-**Prerequisites.** Two modules only work with another contest setting, so they only turn on with it: **`inscricoes`**
+**Prerequisites.** Two modules only work with another contest setting, so they only turn on with it (virtual participation has its own conditions, in §6¾; the cheat sheet below shows all of them): **`inscricoes`**
 (registration) needs the **Free Training accounts** (a contest created with shared users): each student registers with
 their own training account. In a contest with its own accounts, registration would block every student, so it does not
 turn on (not from the panel, not when saving the registration window, not at creation, when duplicating or from a
@@ -205,6 +205,30 @@ template). With own accounts, hand out the credentials in **People › Accounts*
 the in-browser code editor (Rules). The module card shows a lock and what is missing. If a contest already had the module
 on without the prerequisite, the **Home** checklist warns (and, without the training accounts, the "registered only" rule
 does not apply). Converting shared accounts into own accounts (section 8¾) turns registration off as well.
+
+**Cheat sheet: what each module needs.** `<──` = MOJ does not turn the module on without it; `<─>` = it
+applies in both directions. The 3rd column is what the module needs, when it is on, to do something.
+
+```
+MODULE            TO TURN ON, IT NEEDS                       WHEN ON, IT ACTS WITH
+─────────────     ────────────────────────────────────────   ──────────────────────────────
+inscricoes    <── the Free Training accounts (USERS_FROM)    registration on (People › Registrations)
+                    └ converting to own accounts turns the module off
+esqueletos    <─> the in-browser code editor (Rules)         — (default skeleton for each language)
+                    └ while the module is on, the editor stays on
+virtual       <── ICPC mode · contest not secret             contest ended for all sites
+                  scoreboard not anonymous · start and end   and scoreboard unfrozen (Finish event)
+                  all problems public in the training
+                    └ the panel and the CLI refuse; if created like this, it stays inert (§6¾)
+sedes             —                                          the site tree (Event › Sites & schools)
+maquinas          —                                          gate: a rule · mlinux: the NutellaBoot key
+rodadas           —                                          the round plan (Event › Rounds)
+documentos        —                                          — (made from what the contest has)
+baloes            —                                          — (ICPC colors by default)
+coortes           —                                          the cohorts (Event › Cohorts)
+telao             —                                          big screen: the event published in Animeitor
+classificacao     —                                          the engine of each stage (Event › Qualification)
+```
 
 ### Code skeletons (module `esqueletos`)
 

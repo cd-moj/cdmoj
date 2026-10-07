@@ -24,7 +24,7 @@ h1{border-bottom:2px solid var(--bd);padding-bottom:.3rem}
 a{color:var(--ac)}
 code{background:var(--code);padding:.1em .35em;border-radius:4px;font-size:.88em}
 pre{background:var(--code);border:1px solid var(--bd);border-radius:8px;padding:.9rem 1rem;overflow-x:auto;font-size:.84em;line-height:1.45}
-pre code{background:none;padding:0}
+pre code{background:none;padding:0;white-space:pre}
 table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.9em}
 th,td{border:1px solid var(--bd);padding:.4rem .6rem;text-align:left;vertical-align:top}
 th{background:#f1f5fb}
