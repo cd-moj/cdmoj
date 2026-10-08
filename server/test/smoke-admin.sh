@@ -34,7 +34,7 @@ echo "== log de acesso =="
 call /treino/admin/access-log GET "" "$BTOK"
 ck "2 entradas no log"       '[[ "$(jq -r ".entries|length" <<<"$BODY")" == 2 ]]'
 ck "log tem ua decodificado" '[[ "$(jq -r ".entries[]|select(.login==\"alice\").user_agent" <<<"$BODY")" == "TestBrowser/1.0" ]]'
-TODAY="$(date +%Y-%m-%d)"
+TODAY="$(TZ="${MOJ_TZ:-America/Sao_Paulo}" date +%Y-%m-%d)"   # o dia da API (lib/common.sh fixa o MOJ_TZ), não o do shell: na imagem o shell é UTC
 call /treino/admin/access-log GET "day=$TODAY" "$BTOK"
 ck "filtro por hoje funciona" '[[ "$(jq -r ".entries|length" <<<"$BODY")" -ge 2 ]]'
 call /treino/admin/access-log GET "day=1999-01-01" "$BTOK"
