@@ -318,7 +318,7 @@ cc_create(){
   sa_name="$(jq -r '.admin.fullname // ""' <<<"$spec")"
   users_from="$(jq -r '.users_from // ""' <<<"$spec")"
   adminlogin="${sa_login:-$creator}"; [[ "$adminlogin" == *.admin ]] || adminlogin="${adminlogin}.admin"
-  valid_id "$adminlogin" || { rm -rf "$stg"; fail 422 "login de admin inválido" "admin_login_invalid"; }
+  valid_login "$adminlogin" || { rm -rf "$stg"; fail 422 "login de admin inválido" "admin_login_invalid"; }
   adminname="${sa_name:-$cname}"
 
   # a conta admin já existe na fonte compartilhada? (users/<login>/account.json)
@@ -382,7 +382,7 @@ cc_create(){
       ul="$(jq -r '.login // ""' <<<"$u")"; up="$(jq -r '.password // ""' <<<"$u")"
       un="$(jq -r '.fullname // ""' <<<"$u")"; ue="$(jq -r '.email // ""' <<<"$u")"
       [[ -n "$ul" ]] || continue
-      valid_id "$ul" || { rm -rf "$stg"; fail 422 "login de usuário inválido: $ul" "user_login_invalid"; }
+      valid_login "$ul" || { rm -rf "$stg"; fail 422 "login de usuário inválido: $ul" "user_login_invalid"; }
       [[ "$ul" == "$adminlogin" ]] && continue
       [[ -z "$up" ]] && up="$(cc_genpass)"; name_clean un "$un"; [[ -z "$un" ]] && un="$ul"
       case "$up$ue" in *:*) rm -rf "$stg"; fail 422 "senha/email de usuário não podem conter ':'" "user_colon";; esac

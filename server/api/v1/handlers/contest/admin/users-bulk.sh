@@ -50,7 +50,7 @@ while IFS= read -r u; do
   # saneamento: tab/newline quebrariam os TSVs derivados (sc_users/allsubmissions); ':' no nome vira '∶'
   fraw="$full"; name_clean fclean "$full"; fadj=$NAME_CLEAN_COLON; full="$fclean"
   email="${email//$'\t'/ }"; email="${email//$'\n'/ }"
-  { [[ -n "$login" ]] && valid_id "$login"; } || { skipj "${login:-?}" login_invalid; continue; }
+  { [[ -n "$login" ]] && valid_login "$login"; } || { skipj "${login:-?}" login_invalid; continue; }
   case "$pass$email" in *:*) skipj "$login" colon; continue;; esac
   [[ -n "${SEEN[$login]:-}" ]] && { skipj "$login" duplicate; continue; }
   SEEN["$login"]=1

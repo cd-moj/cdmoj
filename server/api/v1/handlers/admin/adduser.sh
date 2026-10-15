@@ -17,7 +17,7 @@ require_auth_contest "$contest"
 is_admin || fail 403 "Admin only" "admin_required"
 
 [[ -n "$login" && -n "$fullname" ]] || fail 400 "Missing login or fullname" "incomplete"
-valid_id "$login" || fail 400 "Invalid login" "login_invalid"
+valid_login "$login" || fail 400 "Invalid login" "login_invalid"
 # ':' e nova linha seguem proibidos: fullname/senha circulam em TSV/TXT (sc_users, placar)
 [[ "$fullname" == *:* || "$fullname" == *$'\n'* ]] && fail 400 "Invalid fullname" "fullname_invalid"
 [[ "$email" == *:* || "$email" == *$'\n'* ]] && fail 400 "Invalid email" "email_invalid"

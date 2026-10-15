@@ -126,6 +126,7 @@ shared_overlay_ensure(){
 # NÃO valida sufixo de papel (isso é responsabilidade do handler/signup).
 user_create(){
   local c="$1" u="$2" name="$3" pw="$4" email="${5:-}"
+  valid_login "$u" || return 3          # rede de segurança: login novo oculto/inválido (lib/common.sh valid_login)
   local d; d="$(user_dir "$c" "$u")"
   [[ -f "$d/account.json" ]] && return 2
   mkdir -p "$d/submissions" "$d/mojlog" "$d/results" || return 1
@@ -341,6 +342,7 @@ metrics_solved_count(){
 #  no treino, dos índices Telegram. Aqui: mv + login no account.json.)
 user_rename(){
   local c="$1" old="$2" new="$3"
+  valid_login "$new" || return 3        # rede de segurança: nenhum caminho renomeia p/ login oculto/que não loga
   local od nd; od="$(user_dir "$c" "$old")"; nd="$(user_dir "$c" "$new")"
   [[ -d "$od" ]] || return 1
   [[ -e "$nd" ]] && return 2

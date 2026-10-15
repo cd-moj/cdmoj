@@ -13,7 +13,8 @@ body="$(read_body)"
 jq -e . >/dev/null 2>&1 <<<"$body" || fail 400 "Invalid JSON body" "bad_json"
 new="$(jq -r '.new_username // empty' <<<"$body")"
 [[ -n "$new" ]] || fail 400 "Informe o novo nome de usuário" "missing"
-[[ "$new" =~ ^[A-Za-z0-9._-]{2,32}$ ]] || fail 400 "Nome de usuário inválido (2–32 caracteres: letras, números, . _ -)" "uname_invalid"
+[[ "$new" =~ ^[A-Za-z0-9._-]{2,32}$ ]] && valid_login "$new" \
+  || fail 400 "Nome de usuário inválido (2–32 caracteres: letras, números, . _ -; não começa com . nem -; sem ..)" "uname_invalid"
 # réplica da lista canônica de sufixos de papel (ver lib/auth.sh is_reserved_role_login)
 _role_suffix(){ case "$1" in
   *.admin) echo admin;; *.cjudge) echo cjudge;; *.judge) echo judge;;

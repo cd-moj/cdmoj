@@ -16,7 +16,7 @@ pass="$(jq -r '.password // empty' <<<"$body")"
 full="$(jq -r '.fullname // empty' <<<"$body")"
 email="$(jq -r '.email // empty' <<<"$body")"
 [[ -n "$login" ]] || fail 400 "Informe o login" "missing"
-valid_id "$login" || fail 422 "login inválido" "login_invalid"
+valid_login "$login" || fail 422 "login inválido" "login_invalid"
 [[ -z "$pass" ]] && pass="$(cc_genpass)"
 [[ -z "$full" ]] && full="$login"
 # nome: ':' vira '∶' (o placar TXT separa por ':' — name_clean); senha/email seguem sem ':'

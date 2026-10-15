@@ -48,7 +48,7 @@ while IFS= read -r item; do
   if [[ -n "$expires" ]] && (( expires <= EPOCHSECONDS )); then _skip "expiração no passado"; continue; fi
 
   if [[ -n "$login" ]]; then
-    valid_id "$login" || { _skip "login inválido"; continue; }
+    valid_login "$login" || { _skip "login inválido"; continue; }
     is_reserved_role_login "$login" && { _skip "login com sufixo de papel"; continue; }
     { [[ -n "${TAKEN[$login]:-}" ]] || user_exists treino "$login"; } && { _skip "login já existe"; continue; }
   else

@@ -218,6 +218,11 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   do `info-sheet` — arquivo do contest sobrescreve, apagar volta ao de fábrica). `has_photo`/
   `has_music` continuam sendo a verdade sobre quem mandou o seu. No pacote `.zip` a FOTO padrão é
   copiada por time (20 KB) e a MÚSICA padrão vai só uma vez na raiz (megabytes × 1000 times não).
+  **Login NOVO (criar ou trocar) = `valid_login`** (`lib/common.sh`, 15/10/2026): o `valid_id` (sem `..`) + não começa com
+  `.` nem `-`. Com ponto inicial a conta some de todo glob `*` do store (e `.....` nunca mais logava — o login usa o
+  `valid_id`); com hífen inicial vira opção nos comandos dos scripts. Vale em `profile/username`, `signup/start`,
+  `adduser`, `user-add`, `users-bulk`, `managed-create` e na criação de contest, e o `user_create`/`user_rename` recusam
+  (rc 3) como rede de segurança. Buscar/agir em conta EXISTENTE segue no `valid_id` (há logins antigos com `#`/`@`).
   Auto-cadastro **nunca** cria papel por sufixo: use `is_reserved_role_login` (`lib/auth.sh`) —
   já aplicado no signup; o `/admin/adduser` (admin autenticado) **continua** podendo criar
   `.judge`/`.staff`/`.cstaff` de um contest (legítimo).

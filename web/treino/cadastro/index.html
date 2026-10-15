@@ -30,7 +30,7 @@
       <label for="fullname" data-en="Full name" data-es="Nombre completo">Nome completo</label>
       <input id="fullname" required autocomplete="name" placeholder="Seu nome" data-en-ph="Your name" data-es-ph="Tu nombre">
       <label for="login"><span data-en="Desired login " data-es="Login deseado ">Login desejado </span><span class="hint" data-en="(optional — we keep your Telegram @ if empty)" data-es="(opcional — mantenemos tu @ de Telegram si lo dejas vacío)">(opcional — deixamos o seu @ do Telegram se vazio)</span></label>
-      <input id="login" autocomplete="username" placeholder="ex.: joaosilva" data-en-ph="e.g. joaosilva" data-es-ph="ej.: joaosilva" pattern="[A-Za-z0-9._-]{2,32}">
+      <input id="login" autocomplete="username" placeholder="ex.: joaosilva" data-en-ph="e.g. joaosilva" data-es-ph="ej.: joaosilva" pattern="[A-Za-z0-9_][A-Za-z0-9._\-]{1,31}">
       <label for="university"><span data-en="University " data-es="Universidad ">Universidade </span><span class="hint" data-en="(optional)" data-es="(opcional)">(opcional)</span></label>
       <input id="university" placeholder="ex.: UnB" data-en-ph="e.g. UnB" data-es-ph="ej.: UnB">
       <button class="btn" id="submit" type="submit" data-en="Continue on Telegram →" data-es="Continuar en Telegram →">Continuar no Telegram →</button>

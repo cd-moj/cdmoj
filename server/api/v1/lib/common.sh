@@ -232,6 +232,13 @@ NAME_CLEAN_JQ='gsub(":"; "∶") | gsub("[\t\n\r]"; " ") | gsub("^ +| +$"; "")'
 valid_id() {  # id seguro (sem traversal). Permite #, @, ., +, -, _ (usados em ids).
   [[ "$1" =~ ^[A-Za-z0-9._@#+-]+$ ]] && [[ "$1" != *..* ]]
 }
+# valid_login <login> — o login de uma conta NOVA (criar ou trocar). É o valid_id (sem `..`) + NÃO começa com `.` nem
+# com `-`: com ponto inicial a conta fica OCULTA de todo glob `*` do store por usuário (listagens, placar, varreduras)
+# e, com `..` no meio, o login (valid_id) a recusa para sempre; com hífen inicial o nome vira OPÇÃO nos comandos dos
+# scripts de manutenção (`mv`, `grep` sem `--`). Relato de 15/10/2026: a troca de login aceitou `.....` (e aceitaria
+# `-rf`/`.x`) e a conta nunca mais entrou. Só p/ login NOVO — buscar/agir em conta existente segue no valid_id (há
+# logins antigos com `#` e `@`).
+valid_login() { valid_id "$1" && [[ "$1" != [.-]* ]]; }
 # safe_src_filename <nome> — normaliza o NOME DE ARQUIVO DA FONTE que o aluno mandou.
 #
 # É ENTRADA HOSTIL e viaja longe: vai no job, o agente do juiz materializa o arquivo com ELE

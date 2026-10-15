@@ -64,7 +64,7 @@ $('form').addEventListener('submit', async (e) => {
     const code = err.code || '';
     const msg = code === 'login_taken' ? T('Esse login já está em uso — escolha outro.', 'This login is already taken — choose another.', 'Ese usuario ya está en uso — elige otro.')
       : code === 'login_reserved' ? T('Esse login não é permitido.', 'This login is not allowed.', 'Ese usuario no está permitido.')
-      : code === 'login_invalid' ? T('Login inválido (2–32 caracteres: letras, números, . _ -).', 'Invalid login (2–32 characters: letters, numbers, . _ -).', 'Usuario inválido (2–32 caracteres: letras, números, . _ -).')
+      : code === 'login_invalid' ? T('Login inválido (2–32 caracteres: letras, números, . _ -; não começa com . nem -; sem ..).', 'Invalid login (2–32 characters: letters, numbers, . _ -; it cannot start with . or -; no ..).', 'Usuario inválido (2–32 caracteres: letras, números, . _ -; no empieza con . ni -; sin ..).')
       : code === 'store_not_v2' ? T('O cadastro está temporariamente indisponível.', 'Sign up is temporarily unavailable.', 'El registro está temporalmente no disponible.')
       : (err.message || T('Falha ao iniciar o cadastro.', 'Failed to start sign up.', 'Error al iniciar el registro.'));
     showResult('err', msg);

@@ -67,6 +67,11 @@ printf '{"contest":"vprova","state":"finished"}' > "$T/users/alice/virtual/vprov
 printf '{"login":"alice","name":"Alice","solved":1,"penalty":10,"runs":[]}' > "$FIX/vprova/virtual/runs/alice.json"
 # …e quem tinha a alice entre os "meus escolhidos" do virtual passa a ter o login novo
 mkdir -p "$T/users/bob/virtual"; printf '{"version":1,"logins":["alice","alicea"]}' > "$T/users/bob/virtual/_friends.json"
+echo "== login que some ou não loga (15/10/2026: a troca aceitou '.....' e a conta nunca mais entrou) =="
+for n in '.....' '..' '.x' '-rf' 'a..b'; do
+  call /treino/profile/username POST "{\"new_username\":\"$n\"}"
+  ck "[$n] recusado (400 uname_invalid) e nada mudou" '[[ "$(jq -r .error.code <<<"$BODY")" == uname_invalid && -d "$T/users/alice" && ( "$n" == ".." || ! -e "$T/users/$n" ) ]]'
+done
 echo "== troca de username (rename = mv do diretório) =="
 call /treino/profile/username POST '{"new_username":"alice2"}'
 ck "username trocado"     '[[ "$(jq -r .new_username <<<"$BODY")" == "alice2" ]]'

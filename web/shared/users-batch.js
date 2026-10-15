@@ -101,7 +101,7 @@ export const colonQ = (q) => String(q || '').replace(/:/g, NAME_COLON);
 // motivo de uma linha PULADA no lote (users-bulk `skipped[].reason`) — p/ a tela dizer POR QUÊ
 export function skipReason(r) {
   return ({
-    login_invalid: T('login inválido (use letras, números e . _ - @ + #)', 'invalid login (use letters, digits and . _ - @ + #)', 'login inválido (usa letras, números y . _ - @ + #)'),
+    login_invalid: T('login inválido (use letras, números e . _ - @ + #; não começa com . nem -; sem ..)', 'invalid login (use letters, digits and . _ - @ + #; it cannot start with . or -; no ..)', 'login inválido (usa letras, números y . _ - @ + #; no empieza con . ni -; sin ..)'),
     colon: T('senha ou email com “:”', 'password or email with “:”', 'contraseña o email con “:”'),
     exists: T('já existe (escolha “atualizar” p/ trocar a senha)', 'already exists (choose “update” to change the password)', 'ya existe (elige “actualizar” para cambiar la contraseña)'),
     privileged: T('conta de papel: não é alterada em lote', 'role account: not changed in a batch', 'cuenta de rol: no se cambia en lote'),

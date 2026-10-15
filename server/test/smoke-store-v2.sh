@@ -19,6 +19,11 @@ call(){ # <auth> <path> <method> <qs> <body>
     PATH_INFO="$2" REQUEST_METHOD="$3" QUERY_STRING="$4" HTTP_AUTHORIZATION="$1" bash "$ROUTER" <<<"${5:-}" 2>&1)"
   BODY="$(printf '%s' "$OUT" | awk 'f{print} /^\r?$/{f=1}')"; }
 
+echo "== cadastro: login que some ou não loga (15/10/2026) =="
+for n in '.....' '.x' '-rf' 'a..b'; do
+  call "" /treino/signup/start POST "" "{\"login\":\"$n\",\"fullname\":\"x\"}"
+  ck "signup/start [$n] -> 400 login_invalid" '[[ "$(jq -r .error.code <<<"$BODY")" == login_invalid ]]'
+done
 echo "== cadastro web-first + verify =="
 call "" /treino/signup/start POST "" '{"login":"joao","fullname":"João S","university":"UnB"}'
 NONCE="$(jq -r .nonce <<<"$BODY")"

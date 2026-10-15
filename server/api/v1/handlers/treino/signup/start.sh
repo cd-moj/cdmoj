@@ -13,7 +13,8 @@ university="$(jq -r '.university // empty' <<<"$body")"
 [[ "$fullname" == *:* || "$fullname" == *$'\n'* ]] && fail 400 "Nome inválido" "fullname_invalid"
 
 if [[ -n "$login" ]]; then
-  [[ "$login" =~ ^[A-Za-z0-9._-]{2,32}$ ]] || fail 400 "Login inválido (2–32: letras, números, . _ -)" "login_invalid"
+  [[ "$login" =~ ^[A-Za-z0-9._-]{2,32}$ ]] && valid_login "$login" \
+    || fail 400 "Login inválido (2–32: letras, números, . _ -; não começa com . nem -; sem ..)" "login_invalid"
   tg_reserved_login "$login" && fail 400 "Sufixo reservado não permitido" "login_reserved"
   user_exists treino "$login" && fail 409 "Esse login já está em uso" "login_taken"
 fi
