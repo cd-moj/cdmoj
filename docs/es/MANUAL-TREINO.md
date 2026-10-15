@@ -1,4 +1,4 @@
-<!-- i18n-source: MANUAL-TREINO.md blob:6c09422f790b7b8f8e0000907d1f7d29f6a94e83 -->
+<!-- i18n-source: MANUAL-TREINO.md blob:4f5d234325d46267b9d2318b5add8341d8c30b8c -->
 # MOJ: Manual del Entrenamiento libre (estudiante)
 
 > **Nota de traducción.** Este manual es una traducción del original en portugués. Las herramientas de línea de comandos (`moj`, `moj-contest`, `moj-comp`) muestran sus mensajes en portugués, y los ejemplos de comandos son idénticos al original.
@@ -308,8 +308,10 @@ su propio botón para guardar**. Ajusta lo que quieras y guarda sección por sec
 Un cuidado con el cambio de **Nombre de usuario**:
 
 > Cambiar el handle **actualiza todo tu historial** al nombre nuevo. Existe un **límite
-> de cambios por año** (el valor por defecto es **2**), y la propia pantalla muestra **cuántos ya
-> usaste**.
+> de cambios por año**, definido por la organización, y la propia pantalla muestra **cuántos ya
+> usaste** (o avisa que el cambio está desactivado). Tu Telegram vinculado es la identidad de tu
+> cuenta: deshacer el vínculo también tiene límite y puede estar desactivado — en ese caso, habla
+> con la organización.
 
 Esa página es la **edición** del perfil. Lo que ven los demás, tu **perfil público**,
 está en `/treino/stat/?user=<tu usuario>` y es el tema de la siguiente sección.

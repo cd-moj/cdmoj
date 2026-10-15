@@ -13,6 +13,9 @@ body="$(read_body)"
 jq -e . >/dev/null 2>&1 <<<"$body" || fail 400 "Invalid JSON body" "bad_json"
 new="$(jq -r '.new_username // empty' <<<"$body")"
 [[ -n "$new" ]] || fail 400 "Informe o novo nome de usuário" "missing"
+profile_limits                       # limites de troca do conf do treino (lib/profile.sh)
+# UNAME_CHANGE_LIMIT=0 = troca DESATIVADA (15/10/2026): recusa antes de qualquer validação, com mensagem própria
+(( UNAME_CHANGE_LIMIT <= 0 )) && fail 403 "A troca de nome de usuário está desativada." "uname_disabled"
 [[ "$new" =~ ^[A-Za-z0-9._-]{2,32}$ ]] && valid_login "$new" \
   || fail 400 "Nome de usuário inválido (2–32 caracteres: letras, números, . _ -; não começa com . nem -; sem ..)" "uname_invalid"
 # réplica da lista canônica de sufixos de papel (ver lib/auth.sh is_reserved_role_login)
@@ -45,7 +48,7 @@ used="$(uname_changes_recent "$changes")"
 if (( used >= UNAME_CHANGE_LIMIT )); then
   nextav="$(uname_next_available "$changes")"
   whenstr="$(date -d "@$nextav" '+%d/%m/%Y' 2>/dev/null || echo '-')"
-  fail 403 "Limite de $UNAME_CHANGE_LIMIT trocas por ano atingido. Próxima troca disponível em $whenstr." "uname_limit"
+  fail 403 "Limite de $UNAME_CHANGE_LIMIT $( (( UNAME_CHANGE_LIMIT == 1 )) && echo troca || echo trocas) por ano atingido. Próxima troca disponível em $whenstr." "uname_limit"
 fi
 # sem submissão pendente (verdict é o 4º campo na linha login-less do history por-usuário)
 hf="$(user_hist_file treino "$old")"

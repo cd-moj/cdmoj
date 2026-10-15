@@ -303,8 +303,9 @@ seu próprio botão de salvar**. Ajuste o que quiser e salve seção por seção
 Um cuidado com a troca de **Nome de usuário**:
 
 > Trocar o handle **atualiza todo o seu histórico** para o nome novo. Existe um **limite
-> de trocas por ano** (o padrão é **2**), e a própria tela mostra **quantas você já
-> usou**.
+> de trocas por ano**, definido pela organização, e a própria tela mostra **quantas você já
+> usou** (ou avisa que a troca está desativada). O Telegram vinculado é a identidade da conta:
+> desfazer o vínculo também tem limite e pode estar desativado — aí, fale com a organização.
 
 Essa página é a **edição** do perfil. O que os outros veem — o seu **perfil público** —
 fica em `/treino/stat/?user=<seu login>` e é o assunto da próxima seção.

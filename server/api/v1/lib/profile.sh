@@ -4,6 +4,18 @@
 # Leitura cai para o contest-fonte (USERS_FROM) quando não há conta local.
 # Foto (100x100 png) em users/<login>/photo.png.
 : "${UNAME_CHANGE_LIMIT:=2}"
+# profile_limits — os limites de troca por ano do TREINO: `UNAME_CHANGE_LIMIT` (handle) e `TELEGRAM_CHANGE_LIMIT`
+# (desvínculo do Telegram; usuário comum — `.admin` é livre). Quem manda é o CONF DO TREINO (como o SUPERADMINS: muda
+# sem reiniciar e sobrevive a deploy/`make install-units`), depois o env do container, depois o padrão (2 e 1).
+# 0 = DESATIVADO (403 uname_disabled / telegram_unlink_disabled; a tela some com o botão). Lido a cada requisição
+# (zero processos) — nunca no `source` da lib: os workers do molde a carregam uma vez só. 15/10/2026: em produção,
+# Telegram 0 (cada Telegram fica com UMA conta) e handle 1.
+profile_limits(){
+  local _pl_v
+  conf_value_to _pl_v treino UNAME_CHANGE_LIMIT;    [[ "$_pl_v" =~ ^[0-9]+$ ]] && UNAME_CHANGE_LIMIT="$_pl_v"
+  conf_value_to _pl_v treino TELEGRAM_CHANGE_LIMIT; [[ "$_pl_v" =~ ^[0-9]+$ ]] && TELEGRAM_CHANGE_LIMIT="$_pl_v"
+  : "${TELEGRAM_CHANGE_LIMIT:=1}"
+}
 
 photo_file(){ printf '%s/%s/users/%s/photo.png' "$CONTESTSDIR" "$1" "$2"; }
 

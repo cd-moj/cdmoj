@@ -34,6 +34,7 @@ fi
 
 # ---- própria conta ----
 require_auth_contest treino
+profile_limits                       # limites de troca do conf do treino (lib/profile.sh)
 login="$SESSION_LOGIN"
 read_profile treino "$login"
 name="$(user_fullname_of treino "$login")"

@@ -11,7 +11,11 @@ require_auth_contest treino
 [[ -n "$SESSION_LOGIN" ]] || fail 401 "Not authenticated" "auth_required"
 tgid="$(tg_id_of_login treino "$SESSION_LOGIN" 2>/dev/null)"
 [[ -n "$tgid" ]] || fail 404 "Nenhum Telegram vinculado a esta conta" "not_linked"
+profile_limits                       # limites de troca do conf do treino (lib/profile.sh)
 if ! is_admin; then
+  # TELEGRAM_CHANGE_LIMIT=0 = desvínculo DESATIVADO (15/10/2026, decisão do Ribas: cada Telegram fica com UMA conta — sem
+  # desvincular+recadastrar em série). Mensagem própria, sem "próxima troca em …" (não há próxima).
+  (( TELEGRAM_CHANGE_LIMIT <= 0 )) && fail 403 "O Telegram vinculado é a identidade da sua conta e o vínculo não pode ser desfeito. Se precisar trocar, fale com a organização." "telegram_unlink_disabled"
   changes="$(account_field treino "$SESSION_LOGIN" '(.telegram_changes // []) | map(tostring) | join(" ")')"
   used="$(uname_changes_recent "$changes")"   # helpers de cota são genéricos (epochs)
   if (( used >= TELEGRAM_CHANGE_LIMIT )); then

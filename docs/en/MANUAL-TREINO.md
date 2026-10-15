@@ -1,4 +1,4 @@
-<!-- i18n-source: MANUAL-TREINO.md blob:6c09422f790b7b8f8e0000907d1f7d29f6a94e83 -->
+<!-- i18n-source: MANUAL-TREINO.md blob:4f5d234325d46267b9d2318b5add8341d8c30b8c -->
 # MOJ: Free Training Manual (student)
 
 > **Translation note.** This manual is a translation of the Portuguese original. The command-line tools (`moj`, `moj-contest`, `moj-comp`) print their messages in Portuguese, and the command examples below are identical to the original.
@@ -312,7 +312,9 @@ button**. Change what you want and save one section at a time.
 ⚠ Be careful when you change the **Username**:
 
 > A change of handle **updates all your history** to the new name. There is a **limit of changes
-> per year** (the default is **2**). The screen shows **how many you already used**.
+> per year**, set by the organizers. The screen shows **how many you already used** (or tells you
+> that changes are turned off). Your linked Telegram is your account identity: removing the link
+> also has a limit and can be turned off — in that case, contact the organizers.
 
 This page is where you **edit** the profile. What other users see, your **public profile**, is at
 `/treino/stat/?user=<your login>`. The next section is about it.

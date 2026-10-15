@@ -1600,7 +1600,7 @@
         "tags": [
           "treino"
         ],
-        "summary": "Troca o próprio username (máx. 2/ano + cascata, incluindo TODAS as sessões do login — outra aba, outro dispositivo, token do moj-cli — que passam a valer com o nome novo sem deslogar; sufixo de papel é PRESERVADO — sufixo(novo)==sufixo(atual): .admin troca p/ outro.admin, uname_role_suffix se derrubar o sufixo, uname_reserved se assumir um). nome: 2–32 de [A-Za-z0-9._-], não começa com . nem - e sem .. (400 uname_invalid)",
+        "summary": "Troca o próprio username (máx. 2/ano + cascata, incluindo TODAS as sessões do login — outra aba, outro dispositivo, token do moj-cli — que passam a valer com o nome novo sem deslogar; sufixo de papel é PRESERVADO — sufixo(novo)==sufixo(atual): .admin troca p/ outro.admin, uname_role_suffix se derrubar o sufixo, uname_reserved se assumir um). nome: 2–32 de [A-Za-z0-9._-], não começa com . nem - e sem .. (400 uname_invalid). limite/ano UNAME_CHANGE_LIMIT do conf do treino; 0 = desativado (403 uname_disabled)",
         "security": [
           {
             "bearerAuth": []
@@ -9069,7 +9069,7 @@
         "tags": [
           "treino"
         ],
-        "summary": "Desvincula o Telegram do PRÓPRIO login (cota anti conta-descartável: TELEGRAM_CHANGE_LIMIT (1)/ano p/ usuário comum — 403 telegram_limit; .admin livre)",
+        "summary": "Desvincula o Telegram do PRÓPRIO login (cota anti conta-descartável: TELEGRAM_CHANGE_LIMIT (1)/ano p/ usuário comum — 403 telegram_limit; .admin livre). limite/ano TELEGRAM_CHANGE_LIMIT do conf do treino; 0 = desativado (403 telegram_unlink_disabled; .admin livre)",
         "security": [
           {
             "bearerAuth": []

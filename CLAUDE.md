@@ -284,7 +284,10 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   `web/treino/perfil/`; o `GET /treino/profile` expõe `telegram:{linked,username,linked_at,
   changes_*}`). **Desvincular tem COTA anti conta-descartável**: usuário comum =
   `TELEGRAM_CHANGE_LIMIT` (1)/ano (histórico `telegram_changes` no account.json, 403
-  `telegram_limit`); `.admin` livre — o vínculo é a identidade/prova de posse da conta.
+  `telegram_limit`); `.admin` livre — o vínculo é a identidade/prova de posse da conta. **Os dois limites de troca
+  (`TELEGRAM_CHANGE_LIMIT`, `UNAME_CHANGE_LIMIT`) moram no CONF DO TREINO** (`profile_limits`, lib/profile.sh, lido a
+  cada requisição; depois env, depois o padrão 1 e 2), e **0 = DESATIVADO** (403 `telegram_unlink_disabled` /
+  `uname_disabled`; o perfil some com o botão). Produção desde 15/10/2026: Telegram 0, handle 1.
   **Troca de handle preserva o sufixo de papel** (`profile/username.sh`: sufixo(novo)==sufixo(atual);
   `.admin` troca p/ `outro.admin`, nunca derruba nem assume papel) **e as ORGs seguem o rename**
   (`orgs_rename_login` em lib/orgs.sh — sem isso a conta renomeada ficava órfã de TODAS as orgs;

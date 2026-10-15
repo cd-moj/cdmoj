@@ -93,6 +93,8 @@ function render(p, st) {
     // cota de desvínculo: usuário comum tem TELEGRAM_CHANGE_LIMIT (1)/ano; .admin livre
     // (changes_limit null). O vínculo é a identidade da conta — anti conta-descartável.
     const free = tg.changes_limit == null;
+    // TELEGRAM_CHANGE_LIMIT=0 = desvínculo DESATIVADO (a API recusa com telegram_unlink_disabled): sem botão
+    const locked = !free && tg.changes_limit === 0;
     const canUnlink = free || (tg.changes_remaining || 0) > 0;
     const nextStr = tg.next_available ? fmtDate(tg.next_available) : '';
     tgBody.append(
@@ -101,12 +103,16 @@ function render(p, st) {
         tg.username ? el('b', {}, ' @' + tg.username) : '',
         tg.linked_at ? el('span', { class: 'small muted' }, ' · ' + T('desde ', 'since ', 'desde ') + fmtDate(tg.linked_at)) : ''),
       adminNote || '',
-      free ? '' : el('p', { class: 'small muted', style: 'margin:.2rem 0' },
-        T(`O Telegram vinculado é a identidade da sua conta: no máximo ${tg.changes_limit} troca por ano.`,
-          `Your linked Telegram is your account identity: at most ${tg.changes_limit} change per year.`,
-          `Tu Telegram vinculado es la identidad de tu cuenta: como máximo ${tg.changes_limit} cambio por año.`),
+      free ? '' : locked ? el('p', { class: 'small muted', style: 'margin:.2rem 0' },
+        T('O Telegram vinculado é a identidade da sua conta e o vínculo não pode ser desfeito. Se precisar trocar, fale com a organização.',
+          'Your linked Telegram is your account identity and the link cannot be undone. If you need to change it, contact the organizers.',
+          'Tu Telegram vinculado es la identidad de tu cuenta y el vínculo no se puede deshacer. Si necesitas cambiarlo, habla con la organización.'))
+      : el('p', { class: 'small muted', style: 'margin:.2rem 0' },
+        T(`O Telegram vinculado é a identidade da sua conta: no máximo ${tg.changes_limit} ${tg.changes_limit === 1 ? 'troca' : 'trocas'} por ano.`,
+          `Your linked Telegram is your account identity: at most ${tg.changes_limit} ${tg.changes_limit === 1 ? 'change' : 'changes'} per year.`,
+          `Tu Telegram vinculado es la identidad de tu cuenta: como máximo ${tg.changes_limit} ${tg.changes_limit === 1 ? 'cambio' : 'cambios'} por año.`),
         !canUnlink && nextStr ? ' ' + T(`Próxima troca disponível em ${nextStr}.`, `Next change available on ${nextStr}.`, `Próximo cambio disponible el ${nextStr}.`) : ''),
-      el('button', { class: 'btn ghost', disabled: !canUnlink, onclick: async () => {
+      locked ? '' : el('button', { class: 'btn ghost', disabled: !canUnlink, onclick: async () => {
         if (!confirm(T('Desvincular o Telegram desta conta? Você deixa de receber senha/alertas por DM' + (free ? '' : ' e esta é sua troca do ano') + '.',
                        'Unlink Telegram from this account? You will stop receiving passwords/alerts via DM' + (free ? '' : ' and this uses your yearly change') + '.',
                        '¿Desvincular Telegram de esta cuenta? Dejarás de recibir contraseñas/alertas por DM' + (free ? '' : ' y este es tu cambio del año') + '.'))) return;
@@ -208,15 +214,22 @@ function render(p, st) {
     photoM));
 
   // --- Nome de usuário (handle) — limite explícito ---
-  const used = p.username_changes_used || 0, limit = p.username_changes_limit || 2, rem = p.username_changes_remaining || 0;
-  const canChange = rem > 0;
+  // `??` e não `||`: o limite 0 (UNAME_CHANGE_LIMIT=0 = troca DESATIVADA) virava 2 na tela
+  const used = p.username_changes_used || 0, limit = p.username_changes_limit ?? 2, rem = p.username_changes_remaining || 0;
+  const disabled = limit === 0;
+  const canChange = !disabled && rem > 0;
+  // plurais: com limite 1 a tela dizia "1 vezes"/"1 trocas"
+  const nTimes = (n) => T(n === 1 ? '1 vez' : `${n} vezes`, n === 1 ? 'once' : `${n} times`, n === 1 ? '1 vez' : `${n} veces`);
+  const nChanges = (n) => T(n === 1 ? '1 troca' : `${n} trocas`, n === 1 ? '1 change' : `${n} changes`, n === 1 ? '1 cambio' : `${n} cambios`);
   const next = p.username_next_available ? fmtDate(p.username_next_available) : null;
   const uI = el('input', { placeholder: T('novo_nome_de_usuario', 'new_username', 'nuevo_nombre_de_usuario'), disabled: !canChange });
   const um = msgBox();
-  const note = el('div', { class: canChange ? 'notice' : 'error-box', style: 'margin-bottom:.7rem' },
-    canChange
-      ? T(`⚠️ Você pode trocar o nome de usuário no máximo ${limit} vezes por ano. Você já usou ${used} de ${limit} — restam ${rem}. Escolha com cuidado.`, `⚠️ You can change your username at most ${limit} times per year. You have used ${used} of ${limit} — ${rem} left. Choose carefully.`, `⚠️ Puedes cambiar tu nombre de usuario como máximo ${limit} veces por año. Ya usaste ${used} de ${limit} — quedan ${rem}. Elige con cuidado.`)
-      : T(`🚫 Limite de ${limit} trocas por ano atingido (usou ${used}/${limit}).`, `🚫 Yearly limit of ${limit} changes reached (used ${used}/${limit}).`, `🚫 Límite anual de ${limit} cambios alcanzado (usaste ${used}/${limit}).`) + (next ? T(` Próxima troca disponível em ${next}.`, ` Next change available on ${next}.`, ` Próximo cambio disponible el ${next}.`) : ''));
+  const note = el('div', { class: disabled ? 'notice' : canChange ? 'notice' : 'error-box', style: 'margin-bottom:.7rem' },
+    disabled
+      ? T('A troca de nome de usuário está desativada.', 'Changing the username is turned off.', 'El cambio de nombre de usuario está desactivado.')
+      : canChange
+      ? T(`⚠️ Você pode trocar o nome de usuário no máximo ${nTimes(limit)} por ano. Você já usou ${used} de ${limit} — restam ${rem}. Escolha com cuidado.`, `⚠️ You can change your username at most ${nTimes(limit)} per year. You have used ${used} of ${limit} — ${rem} left. Choose carefully.`, `⚠️ Puedes cambiar tu nombre de usuario como máximo ${nTimes(limit)} por año. Ya usaste ${used} de ${limit} — quedan ${rem}. Elige con cuidado.`)
+      : T(`🚫 Limite de ${nChanges(limit)} por ano atingido (usou ${used}/${limit}).`, `🚫 Yearly limit of ${nChanges(limit)} reached (used ${used}/${limit}).`, `🚫 Límite anual de ${nChanges(limit)} alcanzado (usaste ${used}/${limit}).`) + (next ? T(` Próxima troca disponível em ${next}.`, ` Next change available on ${next}.`, ` Próximo cambio disponible el ${next}.`) : ''));
   content.append(el('div', { class: 'section' },
     el('h2', {}, T('🏷️ Nome de usuário (handle)', '🏷️ Username (handle)', '🏷️ Nombre de usuario (handle)')),
     el('p', { class: 'small muted' }, T('Seu login atual é ', 'Your current login is ', 'Tu usuario actual es '), el('b', {}, p.login),
@@ -228,11 +241,13 @@ function render(p, st) {
         T(': a troca precisa MANTER o sufixo (ex.: novo_nome.', ': the change must KEEP the suffix (e.g., new_name.', ': el cambio debe MANTENER el sufijo (ej.: nuevo_nombre.'), m[1] + ').') : '';
     })(),
     note,
-    el('div', { class: 'field' }, el('label', {}, T('Novo nome de usuário', 'New username', 'Nuevo nombre de usuario')), uI),
-    el('button', { class: 'btn', disabled: !canChange, onclick: async () => {
+    disabled ? '' : el('div', { class: 'field' }, el('label', {}, T('Novo nome de usuário', 'New username', 'Nuevo nombre de usuario')), uI),
+    disabled ? '' : el('button', { class: 'btn', disabled: !canChange, onclick: async () => {
       const nv = uI.value.trim();
       if (!nv) { err(um, T('Informe o novo nome de usuário', 'Enter the new username', 'Ingresa el nuevo nombre de usuario')); return; }
-      if (!confirm(T(`Trocar seu nome de usuário para "${nv}"?\nIsso conta como 1 das ${limit} trocas anuais e não dá para desfazer.`, `Change your username to "${nv}"?\nThis counts as 1 of ${limit} yearly changes and cannot be undone.`, `¿Cambiar tu nombre de usuario a "${nv}"?\nEsto cuenta como 1 de los ${limit} cambios anuales y no se puede deshacer.`))) return;
+      if (!confirm(limit === 1
+        ? T(`Trocar seu nome de usuário para "${nv}"?\nEsta é a sua única troca do ano e não dá para desfazer.`, `Change your username to "${nv}"?\nThis is your only change this year and cannot be undone.`, `¿Cambiar tu nombre de usuario a "${nv}"?\nEste es tu único cambio del año y no se puede deshacer.`)
+        : T(`Trocar seu nome de usuário para "${nv}"?\nIsso conta como 1 das ${limit} trocas anuais e não dá para desfazer.`, `Change your username to "${nv}"?\nThis counts as 1 of ${limit} yearly changes and cannot be undone.`, `¿Cambiar tu nombre de usuario a "${nv}"?\nEsto cuenta como 1 de los ${limit} cambios anuales y no se puede deshacer.`))) return;
       um.className = 'small'; um.textContent = T('Trocando…', 'Changing…', 'Cambiando…');
       try {
         const r = await apiPost('/treino/profile/username', { new_username: nv }, { contest: CONTEST, auth: true });
