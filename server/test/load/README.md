@@ -10,6 +10,13 @@ renderizando, veredictos fluindo — o runbook completo com scripts provados (`c
 em **`TESTE-CARGA.md`**. As duas ferramentas abaixo são os benches FOCADOS (um gargalo por vez);
 o TESTE-CARGA é o ensaio geral.
 
+## O caminho da ESCRITA em produção: `ENSAIO-ESCRITA.md`
+
+O TESTE-CARGA prova a leitura (os veredictos são injetados sem juiz). O **ensaio de escrita** passa submissões REAIS
+por `/submit → spool → judged → juízes reais → result → placar`, numa escadaria até 2× o pico esperado, com sonda do
+servidor (spool, fila, CPU) e relatório por platô (`ensaio-fixture.sh`, `ensaio-injetor.py`, `ensaio-sonda.sh`,
+`ensaio-relatorio.py`, `ensaio-limpeza.sh`). Preparado p/ a Maratona de 8/11/2026.
+
 ## Os dois gargalos e as duas ferramentas
 
 O custo de um contest tem dois eixos independentes:
