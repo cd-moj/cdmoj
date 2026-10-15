@@ -72,7 +72,9 @@ for d in "$CONTESTSDIR"/*/; do
     reg=0; ro=0; rc=0; rl=0; warm=0; osec=0
     # o botão "Inscreva-se" só com a inscrição EM VIGOR (lib/registration.sh reg_in_force: roster ∧ módulo ligado ∧
     # contas do treino) — o roster guardado de um contest com o módulo desligado não convida ninguém (07/10/2026)
-    if reg_in_force "$id"; then
+    # (o teste do ARQUIVO vem antes: o reg_in_force faz um `$(…)` e, chamado nos ~1.500 contests, dobrou a reconstrução
+    # deste cache — 2,2 → 4,4 s, regressão de 08/10/2026; só 2 contests têm roster)
+    if [[ -s "$c/registrations.json" ]] && reg_in_force "$id"; then
       reg=1
       # a âncora é o início da PROVA OFICIAL, não o da rodada corrente: o aquecimento pode ficar
       # dias no ar (lib/registration.sh `reg_official_window` — mesma regra do resto do sistema).
