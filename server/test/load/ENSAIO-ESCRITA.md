@@ -148,6 +148,12 @@ da sonda já estão corrigidas para a diferença de relógio (o dev estava 24 s 
   0,21 s, e o `TLERERUN` repetiu e confirmou. Num problema com TL de segundos, ~50 ms a mais não mudam nada. Num
   problema cujo TL de Java fique perto da partida da JVM (abaixo de ~0,5 s), o mesmo pode acontecer no dia.
 
+**Consertos (15/10/2026, mesma noite):** o placar a frio passou a recalcular as métricas num jq só (821 contas:
+6,5 s → 0,24 s), e só quando freeze ou penalidade mudam. O placar completo é montado antes da largada
+(`score_build_bg`). A fila do staff relê só as tarefas que mudaram (porteiro: 4.470 tarefas, 72 → 11 ms). E o
+reconcile de balão saiu da consulta e roda em lote (60 balões novos: 2,65 s → 0,43 s). Detalhes no `CLAUDE.md` do
+cdmoj (store por-usuário, PORTEIRO, Balão, Placar pré-início).
+
 Limites desta medida: 1 problema, banda `lista-publica` e PDF de balão não impresso. Todo o tráfego veio de
 um IP só (o dev).
 
