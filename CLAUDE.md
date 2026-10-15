@@ -38,7 +38,9 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   `rounds`, `balloons`, `problems` — e as COMPUTADAS de leitura pura `updates` (agregados de
   news/clarifications com visibilidade) e `staff/queue` (listagem da fila: tarefas + escopo via
   `.scope-cache` FRESCO + ordenação; o RECONCILE de balões é escrita ⇒ o porteiro espelha o gate
-  `dirty>stamp` e DECLINA quando ele está devido, mantendo os gatilhos do bash intactos).
+  `dirty>stamp` e DECLINA quando ele está devido, mantendo os gatilhos do bash intactos; cada worker MEMORIZA a linha
+  de cada tarefa e só relê o arquivo cuja assinatura (inode, mtime, ctime, tamanho) mudou — a fila lia as tarefas de
+  TODAS as sedes a cada consulta: ~4.500 tarefas, 72 → 11 ms; 15/10/2026, ensaio de 800 times).
   **REGRA-MÃE: é um LEITOR PURO** — nunca regenera, nunca
   escreve, nunca fabrica erro; qualquer coisa fora do caso feliz (cache frio/ausente, sessão
   esquisita, POST, `scope=mine`, coorte fora do padrão) ele DECLINA fechando a conexão sem

@@ -599,6 +599,72 @@ def r_updates(contest, q, params):
 
 
 
+def _pick_task(t):
+    """A linha da fila de UMA tarefa (o PICK do bash) — None se não é tarefa (sem `id`)."""
+    if not isinstance(t, dict):
+        t = {}
+    tid = t.get("id")                            # .id // "" : null e false contam como vazio
+    if tid is None or tid is False or tid == "":
+        return None
+    g = t.get
+    kind = g("kind")
+    return {
+        "id": g("id"), "seq": g("seq"), "login": g("login"), "fullname": g("fullname"),
+        "team": g("team"), "univ": g("univ"),
+        "kind": kind if kind not in (None, False) else "print",
+        "short": g("short"), "color_hex": g("color_hex"), "color_name": g("color_name"),
+        "first_site": g("first_site") is True,
+        "filename": g("filename"), "mime": g("mime"), "size": g("size"), "time": g("time"),
+        "status": g("status"), "pages": g("pages"), "build_ok": g("build_ok"),
+        "claimed_by": g("claimed_by"), "claimed_at": g("claimed_at"),
+        "processed_by": g("processed_by"), "processed_at": g("processed_at"),
+        "delivered_by": g("delivered_by"), "delivered_at": g("delivered_at")}
+
+
+# MEMO DAS TAREFAS, POR WORKER (15/10/2026, ensaio de 800 times). Cada consulta da fila lia e parseava
+# TODAS as tarefas de TODAS as sedes p/ depois recortar as do escopo: 746 tarefas = 10 ms, ~4.500 (12
+# problemas, prova grande) = 63 ms — e com ~550 abas de staff (29/08) são ~30 consultas/s, ~2 núcleos
+# lendo tarefa de outra sede. Agora cada worker guarda a linha já recortada de cada arquivo e só relê o
+# que MUDOU: a assinatura é (inode, mtime, ctime, tamanho) do stat — gravação por tmp+mv troca o inode,
+# gravação no lugar troca mtime/ctime. 4.470 tarefas: 63 → 10,6 ms. Continua LEITOR PURO (memória do
+# processo, nada no disco); JSON inválido declina e não entra no memo. Sem atalho por mtime do DIRETÓRIO
+# de propósito: ele dependeria de todo escritor trocar o mtime do dir e de duas mudanças nunca caírem no
+# mesmo tique do relógio do kernel.
+_TASK_MEMO = {}          # pdir -> {nome: (assinatura, linha|None)}
+_TASK_MEMO_MAX = 8       # contests distintos por worker (o mais antigo sai)
+
+
+def _task_rows(pdir):
+    try:
+        names = sorted(f for f in os.listdir(pdir) if f.endswith(".json"))
+    except OSError:
+        names = []
+    old = _TASK_MEMO.pop(pdir, None) or {}
+    new, rows = {}, []
+    for fn in names:
+        path = os.path.join(pdir, fn)
+        try:
+            st = os.stat(path)
+        except FileNotFoundError:
+            continue                             # sumiu entre o listdir e o stat
+        sig = (st.st_ino, st.st_mtime_ns, st.st_ctime_ns, st.st_size)
+        hit = old.get(fn)
+        if hit is not None and hit[0] == sig:
+            row = hit[1]
+        else:
+            t = read_json(path)
+            if t is None:
+                raise Decline("tarefa com JSON inválido")
+            row = _pick_task(t)
+        new[fn] = (sig, row)
+        if row is not None:
+            rows.append(row)
+    _TASK_MEMO[pdir] = new                       # reinsere no fim: ordem de uso (LRU)
+    while len(_TASK_MEMO) > _TASK_MEMO_MAX:
+        _TASK_MEMO.pop(next(iter(_TASK_MEMO)))
+    return rows
+
+
 def r_staff_queue(contest, q, params):
     """Espelho de handlers/contest/staff/queue.sh — a LISTAGEM é computada aqui; o RECONCILE
     de balões é ESCRITA e fica no bash: quando ele está DEVIDO (mesmo gate do
@@ -642,35 +708,7 @@ def r_staff_queue(contest, q, params):
                     vis = {ln for ln in fh.read().split("\n") if ln}
         # filters inválido/sem entrada => vê tudo (mesmo rc!=0 do bash)
 
-    rows = []
-    try:
-        names = sorted(f for f in os.listdir(pdir) if f.endswith(".json"))
-    except OSError:
-        names = []
-    for fn in names:
-        t = read_json(os.path.join(pdir, fn))
-        if t is None:
-            raise Decline("tarefa com JSON inválido")
-        if not isinstance(t, dict):
-            t = {}
-        tid = t.get("id")                        # .id // "" : null e false contam como vazio
-        if tid is None or tid is False or tid == "":
-            continue
-        if vis is not None and (t.get("login") or "") not in vis:
-            continue
-        g = t.get
-        kind = g("kind")
-        rows.append({
-            "id": g("id"), "seq": g("seq"), "login": g("login"), "fullname": g("fullname"),
-            "team": g("team"), "univ": g("univ"),
-            "kind": kind if kind not in (None, False) else "print",
-            "short": g("short"), "color_hex": g("color_hex"), "color_name": g("color_name"),
-            "first_site": g("first_site") is True,
-            "filename": g("filename"), "mime": g("mime"), "size": g("size"), "time": g("time"),
-            "status": g("status"), "pages": g("pages"), "build_ok": g("build_ok"),
-            "claimed_by": g("claimed_by"), "claimed_at": g("claimed_at"),
-            "processed_by": g("processed_by"), "processed_at": g("processed_at"),
-            "delivered_by": g("delivered_by"), "delivered_at": g("delivered_at")})
+    rows = [r for r in _task_rows(pdir) if vis is None or (r["login"] or "") in vis]
 
     def _key(r):
         st = r["status"]
