@@ -109,6 +109,48 @@ temporária apagada, banda `lista-publica`, sedes/balões); **6/6 veredictos dos
 envio→veredicto p50 5,6 s (com o poll de 5 s), 0 5xx; a sonda coletou (cgroups, nginx incremental, balões); a limpeza
 deixou zero sessão/job. Linha de base parada: API 15–18% de um núcleo, judged 0%.
 
+## Resultado do ensaio de 800 times (15/10/2026, 18:54–19:30 BRT)
+
+3.800 envios em 33 min: **3.800 aceitos, 3.800 veredictos, 0 erro, 0 5xx**. Os 81 slots dos juízes estavam
+disponíveis e o servidor tinha `JUDGED_SHARDS=2`.
+
+| platô (subs/min) | veredictos/min | envio→veredicto p95* | backlog máx | judged % | API % | load máx |
+|---|---|---|---|---|---|---|
+| 30 | 29 | 10,5 s | 2 | 15 | 59 | 0,83 |
+| 60 | 59 | 10,4 s | 5 | 26 | 74 | 0,91 |
+| 90 | 89 | 10,5 s | 9 | 36 | 103 | 1,56 |
+| **125** (2× o pico) | **124** | **10,5 s** | 12 | **49** | 131 | 2,41 |
+| 180 | 178 | 15,4 s | 25 | 64 | 180 | 2,45 |
+| 250 | 238 | 20,5 s | 50 (+1,1/min) | 86 | 270 | 2,16 |
+
+\* O tempo foi visto pelo cliente, que consulta a cada 5 s. O veredicto real sai de 0 a 5 s antes. As colunas
+da sonda já estão corrigidas para a diferença de relógio (o dev estava 24 s à frente do servidor; o
+`ensaio-relatorio.py` a mede pelo `epoch` de cada envio).
+
+- **O escritor sobra.** O judged chegou a no máximo 132% de um núcleo (soma dos 2 shards), mesmo a 250/min.
+  Não é preciso aumentar `JUDGED_SHARDS` para 800 times.
+- **Os juízes são o primeiro recurso a apertar.** Até 180/min o backlog fica estável. A 250/min os slots livres
+  caíram a 12, a vazão parou em 238/min e o backlog cresce (+1,1/min). Na virada do degrau, 12 envios esperaram
+  ~45 s. Esta medida usa o problema trivial: com os problemas reais (mais testes, TL maior), cada envio ocupa o
+  slot por mais tempo. A folga dos juízes no dia sai da calibração da prova, não deste número.
+- **Achado — o 1º build do placar estaciona o pool.** No segundo zero, ~120 `/contest/score` pediram um placar
+  que ainda não existia. O `regen_locked` só espera (`flock -w 20`) quando o cache é inexistente. O build a frio
+  (recompute dos metrics de 820 contas + placar) levou ~11 s. Enquanto isso, os workers do fcgiwrap ficaram
+  presos no lock, e **todas** as rotas bash esperaram junto: submit 4,3 s, history 4,9 s e staff/queue 4,2 s
+  (log do nginx: `urt` do fcgiwrap = `rt`). Isso não ocorre quando o placar já existe antes do início. A
+  promoção de rodada o monta (`rd_promote`), e o placar aberto por um admin ou juiz também. Contest novo, sem
+  rodada e que ninguém da organização abriu passa por isso no início da prova.
+- **staff/queue cresce com as tarefas de balão.** O p95 subiu de ~0,5 s (14 tarefas) para ~1,5 s (746 tarefas,
+  API a 266%). Com veredicto a todo segundo, o reconcile está sempre devido, e o porteiro declina p/ o bash.
+  Com 12 problemas, o dia terá alguns milhares de tarefas.
+- **2 TLE espúrios em Java (2 de 354 envios Java), os dois no host `judge` e no platô de 180/min.** O TL de Java
+  deste problema trivial é 0,1955 s, que é quase só a partida da JVM. Com o host cheio, cada teste levou de 0,17 a
+  0,21 s, e o `TLERERUN` repetiu e confirmou. Num problema com TL de segundos, ~50 ms a mais não mudam nada. Num
+  problema cujo TL de Java fique perto da partida da JVM (abaixo de ~0,5 s), o mesmo pode acontecer no dia.
+
+Limites desta medida: 1 problema, banda `lista-publica` e PDF de balão não impresso. Todo o tráfego veio de
+um IP só (o dev).
+
 ## O que ler no relatório
 
 - **por platô:** envios aceitos/min ≈ a taxa pedida (senão o limite foi o cliente — veja "sem time livre"),

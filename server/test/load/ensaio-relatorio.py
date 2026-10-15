@@ -20,6 +20,12 @@ def pct(v, q): v = sorted(v); return v[min(len(v) - 1, int(q * (len(v) - 1) + .5
 def f(x, d=0.0):
     try: return float(x)
     except Exception: return d
+# RELÓGIOS: o plano e o sub.csv estão no relógio do CLIENTE, a sonda no do SERVIDOR (15/10/2026: o dev 23 s à frente
+# — desloca os platôs contra a sonda). O `epoch` de cada envio é o relógio do servidor na chegada: a mediana de
+# t_submit − epoch é a diferença (±1 s, o epoch é inteiro), e a sonda é trazida p/ o relógio do cliente.
+_sk = [f(r['t_submit']) - f(r['epoch']) for r in sub if r.get('http') == '200' and f(r.get('epoch'), 0) > 0]
+SKEW = statistics.median(_sk) if _sk else 0.0
+for s in sonda: s['epoch'] = str(f(s['epoch']) + SKEW)
 def slope(pts):          # mínimos quadrados: unidades/minuto
     if len(pts) < 3: return float('nan')
     xs = [p[0] for p in pts]; ys = [p[1] for p in pts]; mx = statistics.mean(xs); my = statistics.mean(ys)
@@ -40,6 +46,7 @@ if sonda:
       f'5xx {sum(int(f(s["nginx_5xx"])) for s in sonda)} · judged parado no máx '
       f'{max(f(s["judged_alive_age"]) for s in sonda):.0f} s'
       + (f' · tarefas de balão no fim: {int(f(sonda[-1].get("baloes", 0)))}' if 'baloes' in sonda[-1] else ''))
+    if abs(SKEW) >= 2: P(f'- relógio do cliente {SKEW:+.0f} s em relação ao servidor (corrigido na junção com a sonda)')
 P()
 # ---- por platô ----
 marks = [(f(m['t_inicio']), f(m['taxa_min'])) for m in plano]
