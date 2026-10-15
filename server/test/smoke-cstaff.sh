@@ -9,6 +9,9 @@ set -u
 ROOT="$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)"; ROUTER="$ROOT/api/v1/router.sh"
 FIX="$(mktemp -d)"; SESS="$(mktemp -d)"; trap 'rm -rf "$FIX" "$SESS"' EXIT
 source "$(dirname "$(readlink -f "$0")")/fixture.sh"
+# o reconcile de balão da FILA vai destacado no ar (pr_reconcile_balloons_bg); aqui ele roda na hora, p/ a fila
+# já vir com o balão na mesma consulta — o caminho destacado tem teste próprio (smoke-balloon-batch.sh)
+export MOJ_JOBS_SYNC=1
 
 NOW="$EPOCHSECONDS"; START=$(( NOW - 7200 )); FREEZE=$(( NOW - 3600 )); END=$(( NOW - 600 ))
 C="$FIX/cs"; mkdir -p "$C/var" "$C/print-requests"

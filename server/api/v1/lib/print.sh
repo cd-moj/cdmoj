@@ -100,6 +100,17 @@ pr_next_seq() {
   ) 9>"$dir/.seqlock"
 }
 
+# pr_next_seq_block <c> <n> — reserva <n> números SEGUIDOS de uma vez (mesma trava e mesmo arquivo do pr_next_seq);
+# ecoa o 1º. É o lote de balões do reconcile: um flock por lote, não um por balão.
+pr_next_seq_block() {
+  local c="$1" k="$2" dir; dir="$(pr_dir "$c")"; [[ -d "$dir" ]] || mkdir -p "$dir"
+  ( flock 9
+    local n=0; [[ -r "$dir/.seq" ]] && read -r n < "$dir/.seq"
+    [[ "$n" =~ ^[0-9]+$ ]] || n=0
+    printf '%s' "$(( n + k ))" > "$dir/.seq"; printf '%s' "$(( n + 1 ))"
+  ) 9>"$dir/.seqlock"
+}
+
 # --- escopo: este staff/cstaff pode ver as tarefas deste aluno? ------------
 # Keyed pelo LOGIN (vale igual p/ .staff e .cstaff). admin vê tudo; lista vazia/ausente
 # = vê tudo; senão cada entrada é:
@@ -832,7 +843,7 @@ pr_build_balloon() {
   return 1
 }
 
-# pr_site_first_map <c> — TSV `<sede>\t<probid>\t<menor_ac_epoch>\t<login_do_ac>\t<menor_pendente>`
+# pr_site_first_map <c> [<logins>] — TSV `<sede>\t<probid>\t<menor_ac_epoch>\t<login_do_ac>\t<menor_pendente>`
 # (0 onde não há). É o que decide "este balão é o PRIMEIRO daquela cor NA SEDE".
 #
 # UMA VARREDURA, no molde do staff_visible_logins: `find|xargs jq` sobre os account.json (a sede
@@ -844,19 +855,31 @@ pr_build_balloon() {
 # regra (pr_balloon_freeze_gate), e a pergunta aqui é sobre o AC de verdade.
 # O `min_by([epoch, login])` dá o DESEMPATE determinístico quando dois times da mesma sede têm o
 # mesmo epoch — sem ele sairiam duas estrelas para o mesmo problema na mesma sede.
-pr_site_first_map() {
-  local c="$1" d s
+pr_site_first_map() {   # <c> [<arquivo com logins>]
+  local c="$1" only="${2:-}" d s L
   d="$CONTESTSDIR/$c/users"; [[ -d "$d" ]] || return 0
   # a sede de cada login pela regra ÚNICA (gravada ou pela regex — antes só a gravada contava)
   declare -F rg_sites_json >/dev/null || source "${_LIBDIR:-${BASH_SOURCE[0]%/*}}/regions.sh"
-  s="$(mktemp)" || return 1
+  s="$(mktemp)" || return 1; L="$(mktemp)" || { rm -f "$s"; return 1; }
   rg_sites_json "$c" "$s" 2>/dev/null || printf '{}' > "$s"
-  { jq -c 'to_entries[] | {k:"r", login:.key, region:.value}' "$s" 2>/dev/null
+  # A POPULAÇÃO da varredura: todo login com sede — ou, com <logins> (o reconcile passa os candidatos), só os das
+  # SEDES deles (15/10/2026). A pergunta "quem foi o 1º desta cor NESTA sede?" só olha a sede; ler o metrics de TODO
+  # o contest a cada reconcile era o custo fixo dele (0,17 s com 821 contas, crescendo com o contest).
+  if [[ -n "$only" ]]; then
+    jq -r --rawfile o "$only" '. as $S
+        | ($o | split("\n") | map(select(length > 0)) | map($S[.] // "") | map(select(. != ""))
+           | map({(.): true}) | add // {}) as $W
+        | to_entries[] | select(.value != "" and $W[.value]) | .key' "$s" > "$L" 2>/dev/null
+  else
+    jq -r 'to_entries[] | select(.value != "") | .key' "$s" > "$L" 2>/dev/null
+  fi
+  { jq -c --rawfile L "$L" '($L | split("\n") | map(select(length > 0)) | map({(.): true}) | add // {}) as $in
+        | to_entries[] | select($in[.key]) | {k:"r", login:.key, region:.value}' "$s" 2>/dev/null
     # desclassificado não leva a ★ de primeiro da sede (linhas `d`, um grep — auditoria 03/10/2026)
-    find "$d" -mindepth 2 -maxdepth 2 -name account.json -print0 2>/dev/null \
+    while IFS= read -r _l; do [[ -f "$d/$_l/account.json" ]] && printf '%s\0' "$d/$_l/account.json"; done < "$L" \
       | xargs -0 -r grep -lE '"disqualified": *true' 2>/dev/null \
       | awk -F/ '{ printf "{\"k\":\"d\",\"login\":\"%s\"}\n", $(NF-1) }'
-    find "$d" -mindepth 2 -maxdepth 2 -name metrics.json -print0 2>/dev/null \
+    while IFS= read -r _l; do [[ -f "$d/$_l/metrics.json" ]] && printf '%s\0' "$d/$_l/metrics.json"; done < "$L" \
       | xargs -0 -r jq -c '(input_filename|split("/")|.[-2]) as $l
           | (.by_problem // {}) | to_entries[]
           | {k:"m", login:$l, prob:.key,
@@ -884,7 +907,7 @@ pr_site_first_map() {
       # duas famílias de linha na MESMA varredura: `R` dá a sede de cada login (o candidato
       # precisa saber a própria), `S` dá o mínimo por (sede, problema).
       | (($R | map(["R", .login, .region])) + $S) | .[] | @tsv' 2>/dev/null
-  rm -f "$s"
+  rm -f "$s" "$L"
 }
 
 # pr_balloon_freeze_gate <c> -> ecoa "<freeze_time> <permitido>" (0 0 = sem freeze / sem gate).
@@ -915,26 +938,48 @@ pr_balloon_freeze_gate() {
 # seria retido por engano. É a mesma semântica do placar (`.ac and .sub_epoch < $freeze`).
 _pr_baloes_on(){ declare -F mod_on >/dev/null || source "${_LIBDIR:-${BASH_SOURCE[0]%/*}}/modules.sh"
   declare -F conf_value_to >/dev/null || return 0; mod_on "$1" baloes; }
+# _pr_bln_stale <c> — há escrita de history que o reconcile ainda não viu (staff existe, há submissão e o
+# .score-dirty é mais novo que o .balloon-stamp). Cria o print-requests/ se faltar.
+_pr_bln_stale() {
+  local c="$1" dir hist
+  staff_exists "$c" || return 1
+  dir="$(pr_dir "$c")"; hist="$CONTESTSDIR/$c/var/.score-dirty"
+  [[ -e "$hist" ]] || return 1                     # sem submissão desde o cut-over: nada a fazer
+  [[ -d "$dir" ]] || mkdir -p "$dir"
+  [[ -f "$dir/.balloon-stamp" && ! "$hist" -nt "$dir/.balloon-stamp" ]] && return 1
+  return 0
+}
+# _pr_bln_floor_ok <c> — PISO DE IDADE (2026-08-27, teste de carga): com veredicto entrando sem parar o
+# `.score-dirty` está SEMPRE mais novo que o stamp; reconcilia no máximo 1×/BALLOON_RECONCILE_FLOOR_S (o balão
+# pode nascer até ~10 s depois do AC — invisível p/ quem atravessa a sala com ele). Mesmo contrato do
+# SCORE_SERVE_FLOOR_S do placar. O porteiro espelha stale+piso (r_staff_queue) e DECLINA quando está devido.
+_pr_bln_floor_ok() {
+  local stamp; stamp="$(pr_dir "$1")/.balloon-stamp"
+  : "${BALLOON_RECONCILE_FLOOR_S:=10}"
+  [[ -f "$stamp" ]] && [[ -n "$(find "$stamp" -newermt "-$BALLOON_RECONCILE_FLOOR_S seconds" 2>/dev/null)" ]] && return 1
+  return 0
+}
+# o id da tarefa é DETERMINÍSTICO e não pode mudar nunca: `bln` + os 20 primeiros hex do md5 dos BYTES de
+# "<contest><login><problema>" — tarefa já criada no contest tem este id, e um id diferente duplicaria o balão.
+# Um python p/ o lote inteiro (era um md5sum|cut por candidato); sem python, o md5sum de sempre.
+_PR_BLN_MD5_PY='
+import hashlib, sys
+for ln in sys.stdin.buffer:
+    if ln.endswith(b"\n"): ln = ln[:-1]
+    sys.stdout.write("bln" + hashlib.md5(ln).hexdigest()[:20] + "\n")
+'
+pr_balloon_id() { printf 'bln%s' "$(printf '%s%s%s' "$1" "$2" "$3" | md5sum | cut -c1-20)"; }   # <c> <login> <problema>
 pr_reconcile_balloons() {
   local c="$1" dir hist stamp
-  staff_exists "$c" || return 0
-  dir="$(pr_dir "$c")"; hist="$CONTESTSDIR/$c/var/.score-dirty"
-  [[ -e "$hist" ]] || return 0                     # sem submissão desde o cut-over: nada a fazer
-  mkdir -p "$dir"; stamp="$dir/.balloon-stamp"
-  [[ -f "$stamp" && ! "$hist" -nt "$stamp" ]] && return 0
+  _pr_bln_stale "$c" || return 0
+  dir="$(pr_dir "$c")"; hist="$CONTESTSDIR/$c/var/.score-dirty"; stamp="$dir/.balloon-stamp"
   # módulo `baloes` DESLIGADO: não nasce tarefa de balão (desligar desliga a regra, 03/10/2026). O carimbo anda junto do
   # .score-dirty mesmo assim — senão o porteiro (gate dirty>stamp) declinaria a fila do staff p/ sempre. Religar o
   # módulo apaga o carimbo (admin/modules) e a varredura completa cria o que faltou (id determinístico, sem duplicar).
   if ! _pr_baloes_on "$c"; then touch -r "$hist" "$stamp" 2>/dev/null; return 0; fi
-  # PISO DE IDADE + ESPERADOR NÃO ESTACIONA (2026-08-27, teste de carga): com veredicto
-  # entrando sem parar o `.score-dirty` está SEMPRE mais novo que o stamp — todo load da fila
-  # entrava aqui, um varria e os outros ficavam presos no `flock -w 5` segurando um worker cada
-  # (fila a p50 de 6 s no teste). Agora: reconcilia no máximo 1×/BALLOON_RECONCILE_FLOOR_S (o
-  # balão pode nascer até ~10 s depois do AC — invisível p/ quem atravessa a sala com ele) e
-  # quem não pega o lock SEGUE (a fila lista o que está materializado; o próximo poll pega o
-  # resto). Mesmo contrato do SCORE_SERVE_FLOOR_S do placar.
-  : "${BALLOON_RECONCILE_FLOOR_S:=10}"
-  [[ -f "$stamp" ]] && [[ -n "$(find "$stamp" -newermt "-$BALLOON_RECONCILE_FLOOR_S seconds" 2>/dev/null)" ]] && return 0
+  # quem não pega o lock SEGUE (a fila lista o que está materializado; o próximo poll pega o resto) — esperador
+  # não estaciona (2026-08-27: o `flock -w 5` antigo segurava um worker por requisição, fila a p50 de 6 s).
+  _pr_bln_floor_ok "$c" || return 0
   ( flock -n 9 || exit 0
     [[ -f "$stamp" && ! "$hist" -nt "$stamp" ]] && exit 0
     # o carimbo ANTERIOR vira a referência da varredura incremental; o novo é gravado ANTES de
@@ -943,15 +988,11 @@ pr_reconcile_balloons() {
     local prev="$dir/.balloon-prev"
     if [[ -f "$stamp" ]]; then touch -r "$stamp" "$prev"; else rm -f "$prev"; fi
     touch -r "$hist" "$stamp"
-    local sub_epoch login cid verdict id short colorhex colorname team univ fullname seq
-    local fz allow held _l
-    # caches: sem eles o laço refazia POR LINHA o que só depende do problema (letra/cor) ou do
-    # time (nome/universidade) — 9 forks por balão. Com eles são 12 problemas e N times, uma vez.
-    declare -A C_SHORT=() C_HEX=() C_NAME=() C_TEAM=() C_UNIV=() C_FULL=()
-    local C_LANG; C_LANG="$(pr_lang "$c")"      # o nome da cor é gravado no idioma do contest
+    local sub_epoch login cid verdict i id fz allow _l C_LANG
+    C_LANG="$(pr_lang "$c")"                    # o nome da cor é gravado no idioma do contest
     read -r fz allow < <(pr_balloon_freeze_gate "$c")
     declare -A FROZEN=()                           # lápides já registradas (id -> 1)
-    held="$dir/.balloon-frozen"
+    local held="$dir/.balloon-frozen"
     [[ -f "$held" ]] && while IFS= read -r _l; do
       _l="${_l#*\"id\":\"}"; _l="${_l%%\"*}"; [[ -n "$_l" ]] && FROZEN[$_l]=1
     done < "$held"
@@ -965,35 +1006,82 @@ pr_reconcile_balloons() {
     # Por isso: quando não dá para decidir, a tarefa ESPERA (no `.balloon-hold`) e é reavaliada no
     # próximo reconcile — no máximo BALLOON_FIRST_WAIT_S; passado o prazo ela sai SEM estrela, que
     # é a falha segura (o time recebe o balão; ninguém anuncia um primeiro lugar falso).
-    local hold="$dir/.balloon-hold" wait_s _sm=0 _SV=not
+    local hold="$dir/.balloon-hold" wait_s _SV=not
     wait_s="$(sed -n 's/^[[:space:]]*BALLOON_FIRST_WAIT_S=//p' "$CONTESTSDIR/$c/conf" 2>/dev/null \
               | tail -1 | tr -cd '0-9')"; wait_s="${wait_s:-90}"
     declare -A SM_AC=() SM_ACL=() SM_PEND=() SM_REG=()
     declare -a HOLD_KEEP=()
 
-    # a varredura (2 × N contas) só acontece se houver candidato — sem AC novo nem tarefa
-    # esperando, o reconcile não paga nada por esta feature.
-    _site_map_ensure() {
-      (( _sm )) && return 0
-      _sm=1
-      local k f1 f2 f3 f4 f5
+    # ---- 1. CANDIDATOS (15/10/2026: em LOTE — antes era ~10 processos por balão, 36 ms cada) -------------------
+    # os que já estavam esperando entram ANTES das linhas novas: a varredura do history é incremental, então sem
+    # isto eles sumiriam para sempre. KS vazio = candidato novo (a espera conta a partir de agora).
+    local -a KL=() KP=() KE=() KS=() KI=()
+    local hl hp hse hsince nh
+    if [[ -s "$hold" ]]; then
+      while IFS=$'\t' read -r hl hp hse hsince; do
+        [[ -n "$hl" && -n "$hp" ]] || continue
+        hse="${hse//[^0-9]/}"; hsince="${hsince//[^0-9]/}"   # arquivo de espera torto não pode virar lixo em (( ))
+        KL+=("$hl"); KP+=("$hp"); KE+=("${hse:-0}"); KS+=("${hsince:-0}")
+      done < <(jq -r '[.login, .problem, (.sub_epoch // 0), (.since // 0)] | @tsv' "$hold" 2>/dev/null)
+    fi
+    nh=${#KL[@]}
+    # O sub_epoch é o campo NF-1 e o veredicto PODE conter ':' (5 linhas em produção) — por isso
+    # o awk, e não um `read` posicional. A ordem por sub_epoch faz o `seq` do lote sair cronológico.
+    # Veredicto por ÚLTIMO no TSV: no modo heurístico ele contém TAB.
+    while IFS=$'\t' read -r sub_epoch login cid verdict; do
+      [[ -n "$login" && -n "$cid" ]] || continue
+      sub_epoch="${sub_epoch//[^0-9]/}"; sub_epoch="${sub_epoch:-0}"   # nunca deixe (( )) ver lixo
+      # pela CLASSE (prefixo), nunca por substring: o texto do time (`¦…`, configurável) pode
+      # conter "Accepted" ("Not Accepted") — o awk abaixo já cortou o `¦…`
+      case "$verdict" in Accepted*) ;; *) continue;; esac
+      case "$verdict" in *" (Ignored)") continue;; esac   # ignorada não conta no placar nem ganha balão
+      case "$login" in *.admin|*.judge|*.cjudge|*.staff|*.cstaff|*.mon|*.animeitor) continue;; esac
+      KL+=("$login"); KP+=("$cid"); KE+=("$sub_epoch"); KS+=("")
+    done < <(emit_history_stream_since "$c" "$prev" \
+               | awk -F: 'NF>=7{ v=$5; for(i=6;i<=NF-2;i++) v=v ":" $i; sub(/¦.*$/, "", v);
+                                 print $(NF-1) "\t" $2 "\t" $3 "\t" v }' \
+               | sort -n -k1,1)
+    (( ${#KL[@]} )) || { rm -f "$hold"; exit 0; }
+    # DESCLASSIFICADO não ganha balão (o placar já o tirava; a fila do staff seguia entregando — auditoria do
+    # painel, 03/10/2026): um grep só sobre o account.json dos candidatos NOVOS.
+    local -A _DQ=(); local _dqf
+    while IFS= read -r _dqf; do _dqf="${_dqf%/account.json}"; _DQ["${_dqf##*/}"]=1
+    done < <(for (( i = nh; i < ${#KL[@]}; i++ )); do printf '%s/%s/account.json\0' "$CONTESTSDIR/$c/users" "${KL[i]}"; done \
+               | xargs -0 -r grep -lE '"disqualified": *true' 2>/dev/null)
+    # os ids do lote num processo só (a regra do id está no _PR_BLN_MD5_PY)
+    mapfile -t KI < <(for i in "${!KL[@]}"; do printf '%s%s%s\n' "$c" "${KL[i]}" "${KP[i]}"; done \
+                        | python3 -c "$_PR_BLN_MD5_PY" 2>/dev/null)
+    if (( ${#KI[@]} != ${#KL[@]} )); then
+      KI=(); for i in "${!KL[@]}"; do KI+=("$(pr_balloon_id "$c" "${KL[i]}" "${KP[i]}")"); done
+    fi
+
+    # ---- 2. SOBREVIVENTES: já materializado, lápide do freeze, desclassificado ou repetido no lote = fora ----
+    local -A SEEN=(); local -a SURV=()
+    for i in "${!KL[@]}"; do
+      id="${KI[i]}"
+      (( i >= nh )) && [[ -n "${_DQ[${KL[i]}]:-}" ]] && continue
+      [[ -n "${SEEN[$id]:-}" ]] && continue; SEEN[$id]=1
+      [[ -f "$dir/$id.json" || -n "${FROZEN[$id]:-}" ]] && continue
+      SURV+=("$i")
+    done
+
+    # ---- 3. o mapa "primeiro da sede" SÓ das sedes dos sobreviventes (era o contest inteiro, a cada reconcile) --
+    if (( ${#SURV[@]} )); then
+      local lf k f1 f2 f3 f4 f5; lf="$(mktemp)"
+      for i in "${SURV[@]}"; do printf '%s\n' "${KL[i]}"; done > "$lf"
       while IFS=$'\t' read -r k f1 f2 f3 f4 f5; do
         case "$k" in
           R) SM_REG[$f1]="$f2" ;;
           S) SM_AC["$f1|$f2"]="$f3"; SM_ACL["$f1|$f2"]="$f4"; SM_PEND["$f1|$f2"]="$f5" ;;
         esac
-      done < <(pr_site_first_map "$c")
-    }
+      done < <(pr_site_first_map "$c" "$lf")
+      rm -f "$lf"
+    fi
     # _site_verdict <login> <prob> <epoch> — resultado em $_SV: first | not | hold.
-    # ⚠ O resultado sai por VARIÁVEL, não por stdout, DE PROPÓSITO: chamar isto em `$( )`
-    # roda num subshell e o `_sm=1` do _site_map_ensure morre com ele — cada candidato paga a
-    # varredura de N contas DE NOVO. Foi o wedge de 28/08/2026: um lote de ~500 ACs (rajada de
-    # balões do teste de carga) virou ~500 varreduras de 12k contas = HORAS preso no
-    # `.balloon.lock`, com a fila materializando 1 balão a cada vários segundos e um core
-    # ocupado o tempo todo. Com 1-2 ACs por reconcile o bug era invisível.
+    # ⚠ O resultado sai por VARIÁVEL, não por stdout, DE PROPÓSITO: em `$( )` cada chamada seria um subshell
+    # (foi o wedge de 28/08/2026, quando o mapa era refeito por candidato — ~500 varreduras de 12k contas).
     _site_verdict() {
       local l="$1" p="$2" e="$3" reg key ac acl pend
-      _site_map_ensure
       _SV=not
       reg="${SM_REG[$l]:-}"
       [[ -n "$reg" ]] || return 0                      # sem sede declarada: sem estrela, sem espera
@@ -1007,100 +1095,132 @@ pr_reconcile_balloons() {
       (( pend > 0 && pend <= e )) && { _SV=hold; return 0; }              # a mais antiga ainda na fila
       _SV=first
     }
-    # _mk_balloon <login> <prob> <epoch> <first_site:true|false> — cria a tarefa (ou a lápide do
-    # freeze). É o ÚNICO ponto que materializa balão: o caminho novo e o da espera passam aqui.
-    _mk_balloon() {
-      local login="$1" cid="$2" sub_epoch="$3" fs="$4" id short colorhex colorname team univ fullname seq
-      id="bln$(printf '%s%s%s' "$c" "$login" "$cid" | md5sum | cut -c1-20)"
-      [[ -f "$dir/$id.json" ]] && return 0
-      [[ -n "${FROZEN[$id]:-}" ]] && return 0
-      if [[ -z "${C_SHORT[$cid]+x}" ]]; then
+
+    # ---- 4. DECIDE (sem processo) e monta o lote: T = tarefa, F = lápide do freeze --------------------------
+    declare -A C_SHORT=() C_HEX=() C_NAME=()
+    local se since fs short nT=0 rf; rf="$(mktemp)"
+    local -a MK=()
+    for i in "${SURV[@]}"; do
+      login="${KL[i]}"; cid="${KP[i]}"; se="${KE[i]}"; since="${KS[i]:-$EPOCHSECONDS}"
+      _site_verdict "$login" "$cid" "$se"
+      if [[ "$_SV" == hold ]]; then
+        if (( EPOCHSECONDS - since < wait_s )); then
+          HOLD_KEEP+=("$(jq -cn --arg l "$login" --arg p "$cid" --argjson se "$se" \
+                          --argjson since "$since" '{login:$l, problem:$p, sub_epoch:$se, since:$since}')")
+          continue
+        fi
+        _SV=not   # prazo vencido: entrega o balão SEM estrela (nunca inventa um primeiro lugar)
+      fi
+      [[ "$_SV" == first ]] && fs=true || fs=false
+      if [[ -z "${C_SHORT[$cid]+x}" ]]; then        # letra/cor só dependem do problema: uma vez por problema
         C_SHORT[$cid]="$(pr_short_of "$c" "$cid")"; [[ -n "${C_SHORT[$cid]}" ]] || C_SHORT[$cid]="?"
         C_HEX[$cid]="$(pr_balloon_color "$c" "${C_SHORT[$cid]}")"
         C_NAME[$cid]="$(pr_color_name "${C_HEX[$cid]}" "$C_LANG")"
       fi
-      short="${C_SHORT[$cid]}"
-      if (( fz > 0 )) && [[ "$allow" != 1 ]] && (( ${sub_epoch:-0} >= fz )); then
-        jq -cn --arg id "$id" --arg login "$login" --arg prob "$cid" --arg short "$short" \
-          --argjson se "${sub_epoch:-0}" --argjson fz "$fz" --argjson at "$EPOCHSECONDS" \
-          '{id:$id, login:$login, problem:$prob, short:$short, sub_epoch:$se,
-            freeze_time:$fz, at:$at}' >> "$held"
-        FROZEN[$id]=1
-        audit_log_to "$c" balloon-frozen "login=$login problema=$short sub_epoch=$sub_epoch freeze=$fz"
-        return 0
-      fi
-      colorhex="${C_HEX[$cid]}"; colorname="${C_NAME[$cid]}"
-      if [[ -z "${C_TEAM[$login]+x}" ]]; then
-        C_TEAM[$login]="$(pr_resolve_team "$c" "$login")"
-        C_UNIV[$login]="$(pr_resolve_univ "$c" "$login")"
-        C_FULL[$login]="$(user_fullname "$c" "$login")"; [[ -n "${C_FULL[$login]}" ]] || C_FULL[$login]="$login"
-      fi
-      team="${C_TEAM[$login]}"; univ="${C_UNIV[$login]}"; fullname="${C_FULL[$login]}"
-      seq="$(pr_next_seq "$c")"
-      jq -cn --arg id "$id" --argjson seq "$seq" --arg login "$login" --arg fn "$fullname" \
-        --arg team "$team" --arg univ "$univ" --arg prob "$cid" --arg short "$short" \
-        --arg ch "$colorhex" --arg cn "$colorname" --arg cl "$C_LANG" --argjson time "$EPOCHSECONDS" \
-        --argjson fs "$fs" \
-        '{id:$id, seq:$seq, kind:"balloon", login:$login, fullname:$fn, team:$team, univ:$univ,
-          problem:$prob, short:$short, color_hex:$ch, color_name:$cn, color_lang:$cl, first_site:$fs,
-          time:$time, status:"pending",
-          claimed_by:"", claimed_at:0, processed_by:"", processed_at:0, delivered_by:"", delivered_at:0}' \
-        > "$dir/$id.json.tmp" && mv -f "$dir/$id.json.tmp" "$dir/$id.json"
-      audit_log_to "$c" balloon-task "seq=$seq login=$login problema=$short cor=$colorname first_site=$fs"
-    }
-    # _bln_try <login> <prob> <epoch> [<desde>] — decide e materializa, ou guarda p/ esperar.
-    _bln_try() {
-      local login="$1" cid="$2" se="$3" since="${4:-$EPOCHSECONDS}" v
-      _site_verdict "$login" "$cid" "$se"; v="$_SV"    # SEM $( ): o memo do mapa vive no pai
-      if [[ "$v" == hold ]]; then
-        if (( EPOCHSECONDS - since < wait_s )); then
-          HOLD_KEEP+=("$(jq -cn --arg l "$login" --arg p "$cid" --argjson se "$se" \
-                          --argjson since "$since" '{login:$l, problem:$p, sub_epoch:$se, since:$since}')")
-          return 0
-        fi
-        v=not   # prazo vencido: entrega o balão SEM estrela (nunca inventa um primeiro lugar)
-      fi
-      [[ "$v" == first ]] && _mk_balloon "$login" "$cid" "$se" true || _mk_balloon "$login" "$cid" "$se" false
-    }
-    _bln_hold_flush() {
-      if (( ${#HOLD_KEEP[@]} )); then printf '%s\n' "${HOLD_KEEP[@]}" > "$hold"; else rm -f "$hold"; fi
-    }
-    # os que já estavam esperando entram ANTES das linhas novas: a varredura do history é
-    # incremental, então sem isto eles sumiriam para sempre.
-    if [[ -s "$hold" ]]; then
-      local hl hp hse hsince
-      while IFS=$'\t' read -r hl hp hse hsince; do
-        [[ -n "$hl" && -n "$hp" ]] || continue
-        _bln_try "$hl" "$hp" "${hse:-0}" "${hsince:-0}"
-      done < <(jq -r '[.login, .problem, (.sub_epoch // 0), (.since // 0)] | @tsv' "$hold" 2>/dev/null)
-    fi
+      if (( fz > 0 )) && [[ "$allow" != 1 ]] && (( se >= fz )); then MK+=("F"$'\t'"$i"$'\t'"$fs")
+      else MK+=("T"$'\t'"$i"$'\t'"$fs"); nT=$(( nT + 1 )); fi
+    done
 
-    # DESCLASSIFICADO não ganha balão (o placar já o tirava; a fila do staff seguia entregando — auditoria do painel,
-    # 03/10/2026). Um grep sobre os account.json, só quando há histórico novo (este bloco já é o caminho raro).
-    local -A _DQ=(); local _dqf
-    while IFS= read -r _dqf; do _dqf="${_dqf%/account.json}"; _DQ["${_dqf##*/}"]=1
-    done < <(find "$CONTESTSDIR/$c/users" -mindepth 2 -maxdepth 2 -name account.json -print0 2>/dev/null \
-               | xargs -0 -r grep -lE '"disqualified": *true' 2>/dev/null)
-    # O sub_epoch é o campo NF-1 e o veredicto PODE conter ':' (5 linhas em produção) — por isso
-    # o awk, e não um `read` posicional. emit_history_sorted ordena por sub_epoch, então o `seq`
-    # do lote sai cronológico. Veredicto por ÚLTIMO no TSV: no modo heurístico ele contém TAB.
-    while IFS=$'\t' read -r sub_epoch login cid verdict; do
-      [[ -n "$login" && -n "$cid" ]] || continue
-      sub_epoch="${sub_epoch//[^0-9]/}"; sub_epoch="${sub_epoch:-0}"   # nunca deixe (( )) ver lixo
-      # pela CLASSE (prefixo), nunca por substring: o texto do time (`¦…`, configurável) pode
-      # conter "Accepted" ("Not Accepted") — o awk abaixo já cortou o `¦…`
-      case "$verdict" in Accepted*) ;; *) continue;; esac
-      case "$verdict" in *" (Ignored)") continue;; esac   # ignorada não conta no placar nem ganha balão
-      case "$login" in *.admin|*.judge|*.cjudge|*.staff|*.cstaff|*.mon|*.animeitor) continue;; esac
-      [[ -n "${_DQ[$login]:-}" ]] && continue
-      _bln_try "$login" "$cid" "$sub_epoch" || true
-    done < <(emit_history_stream_since "$c" "$prev" \
-               | awk -F: 'NF>=7{ v=$5; for(i=6;i<=NF-2;i++) v=v ":" $i; sub(/¦.*$/, "", v);
-                                 print $(NF-1) "\t" $2 "\t" $3 "\t" v }' \
-               | sort -n -k1,1)
+    # ---- 5. MATERIALIZA o lote: um bloco de `seq`, um jq p/ as contas e as tarefas, um mv por tarefa ----------
+    if (( ${#MK[@]} )); then
+      local seq0=0 n=0 sq kind src af tmf; src="$(_users_source "$c")"
+      (( nT > 0 )) && seq0="$(pr_next_seq_block "$c" "$nT")"
+      for _l in "${MK[@]}"; do
+        IFS=$'\t' read -r kind i fs <<< "$_l"; cid="${KP[i]}"
+        sq=0; [[ "$kind" == T ]] && { sq=$(( seq0 + n )); n=$(( n + 1 )); }
+        printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$kind" "${KI[i]}" "${KL[i]}" "$cid" "${KE[i]}" "$fs" \
+          "${C_SHORT[$cid]}" "${C_HEX[$cid]}" "${C_NAME[$cid]}" "$sq"
+      done > "$rf"
+      # as contas (local e, com USERS_FROM, a da fonte) das tarefas — a MESMA precedência do pr_resolve_team/
+      # pr_resolve_univ/user_fullname (o smoke-balloon-batch.sh compara as duas implementações)
+      af="$(mktemp)"
+      { gawk -F'\t' '$1 == "T" { print $3 }' "$rf" | while IFS= read -r _l; do
+          [[ -f "$CONTESTSDIR/$c/users/$_l/account.json" ]] && printf '%s\0' "$CONTESTSDIR/$c/users/$_l/account.json"
+        done | xargs -0 -r jq -c '{k: "L", l: (input_filename|split("/")|.[-2]), name: .team.name, uf: .team.univ_full,
+                                     us: .team.univ_short, full: .fullname}' 2>/dev/null
+        if [[ "$src" != "$c" ]]; then
+          gawk -F'\t' '$1 == "T" { print $3 }' "$rf" | while IFS= read -r _l; do
+            [[ -f "$CONTESTSDIR/$src/users/$_l/account.json" ]] && printf '%s\0' "$CONTESTSDIR/$src/users/$_l/account.json"
+          done | xargs -0 -r jq -c '{k: "S", l: (input_filename|split("/")|.[-2]), name: .team.name, uf: .team.univ_full,
+                                       us: .team.univ_short, full: .fullname}' 2>/dev/null
+        fi; true; } > "$af"
+      tmf="$CONTESTSDIR/$c/teams-meta.json"
+      { [[ -f "$tmf" ]] && jq -e . "$tmf" >/dev/null 2>&1; } || { tmf="$(mktemp)"; printf 'null' > "$tmf"; }
+      while IFS=$'\t' read -r kind id _l; do
+        case "$kind" in
+          T) printf '%s\n' "$_l" > "$dir/$id.json.tmp" && mv -f "$dir/$id.json.tmp" "$dir/$id.json" ;;
+          F) printf '%s\n' "$_l" >> "$held" ;;
+          A) audit_log_to "$c" "$id" "$_l" ;;
+        esac
+      done < <(jq -rn --rawfile recs "$rf" --slurpfile acc "$af" --slurpfile tm "$tmf" --arg cl "$C_LANG" \
+                  --argjson now "$EPOCHSECONDS" --argjson fz "${fz:-0}" '
+          def nz: select(. != null and . != false and . != "") | if type == "string" then . else tostring end;
+          ($acc | map({key: "\(.k)/\(.l)", value: .}) | from_entries) as $A
+          | $tm[0] as $TM
+          | $recs | split("\n")[] | select(length > 0) | split("\t")
+          | .[0] as $k | .[1] as $id | .[2] as $l | .[3] as $p | .[4] as $se | .[5] as $fs
+          | .[6] as $sh | .[7] as $hex | .[8] as $cn | .[9] as $seq
+          | if $k == "F" then
+              "F\t\($id)\t" + ({id: $id, login: $l, problem: $p, short: $sh, sub_epoch: ($se|tonumber),
+                                freeze_time: $fz, at: $now} | tojson),
+              "A\tballoon-frozen\tlogin=\($l) problema=\($sh) sub_epoch=\($se) freeze=\($fz)"
+            else
+              ($A["L/\($l)"] // {}) as $lo | ($A["S/\($l)"] // {}) as $so
+              | ([$lo.full, $so.full] | map(nz) | first // "") as $full
+              | ([$lo.name, $so.name] | map(nz) | first // $full) as $team
+              # universidade: univ_full (local › fonte) › univ_short (local › fonte) › a 1ª regra do teams-meta.json
+              # que casa o login (o "null" literal só é apagado nesse último ramo, como no pr_resolve_univ)
+              | ([$lo.uf, $so.uf, $lo.us, $so.us] | map(nz) | first
+                 // (try (if $TM == null then ""
+                          else ((($TM.rules // (if ($TM|type) == "array" then $TM else [] end))
+                                 | map(. as $r | select(($r.regex // "") != "" and ($l | test($r.regex))))
+                                 | (.[0].school_full // .[0].school // "")) // "") end) catch ""
+                     | if type == "string" then . else tostring end | if . == "null" then "" else . end)
+                 // "") as $univ
+              | "T\t\($id)\t" + ({id: $id, seq: ($seq|tonumber), kind: "balloon", login: $l,
+                                  fullname: (if $full == "" then $l else $full end), team: $team, univ: $univ,
+                                  problem: $p, short: $sh, color_hex: $hex, color_name: $cn, color_lang: $cl,
+                                  first_site: ($fs == "true"), time: $now, status: "pending",
+                                  claimed_by: "", claimed_at: 0, processed_by: "", processed_at: 0,
+                                  delivered_by: "", delivered_at: 0} | tojson),
+                "A\tballoon-task\tseq=\($seq) login=\($l) problema=\($sh) cor=\($cn) first_site=\($fs)"
+            end' 2>/dev/null)
+      [[ "$tmf" == "$CONTESTSDIR/$c/teams-meta.json" ]] || rm -f "$tmf"
+      rm -f "$af"
+    fi
+    rm -f "$rf"
     # o que ficou esperando decisão volta para o arquivo de espera
-    _bln_hold_flush
+    if (( ${#HOLD_KEEP[@]} )); then printf '%s\n' "${HOLD_KEEP[@]}" > "$hold"; else rm -f "$hold"; fi
   ) 9>"$dir/.balloon.lock"
+}
+
+# pr_reconcile_balloons_bg <c> — o reconcile FORA da requisição (15/10/2026, ensaio de 800 times): ele roda no
+# máximo a cada BALLOON_RECONCILE_FLOOR_S e custava ~0,5 s + 36 ms por balão novo DENTRO da consulta do staff que
+# caísse na hora (p95 da fila 0,5 → 1,5 s com 746 tarefas). Agora a fila só DISPARA: o reconcile vai destacado
+# (setsid, fds no parêntese — a lição do CGI) e a consulta lista o que já está materializado; o balão novo aparece
+# na consulta seguinte (no modo impressão automática, até um ciclo de 8–12 s depois — decisão do Ribas). Um disparo
+# por janela de 5 s (`.balloon-kick`): até o filho carimbar o stamp, o porteiro segue declinando p/ o bash.
+# Módulo desligado anda o carimbo aqui mesmo (zero processo). MOJ_JOBS_SYNC=1 = na hora (testes). Só a FILA usa
+# isto; relatório, publicação e rodadas chamam o pr_reconcile_balloons síncrono (querem o estado completo).
+pr_reconcile_balloons_bg() {
+  local c="$1" dir kick api
+  if [[ "${MOJ_JOBS_SYNC:-0}" == 1 ]]; then pr_reconcile_balloons "$c"; return 0; fi
+  _pr_bln_stale "$c" || return 0
+  dir="$(pr_dir "$c")"
+  if ! _pr_baloes_on "$c"; then touch -r "$CONTESTSDIR/$c/var/.score-dirty" "$dir/.balloon-stamp" 2>/dev/null; return 0; fi
+  _pr_bln_floor_ok "$c" || return 0
+  kick="$dir/.balloon-kick"
+  [[ -f "$kick" ]] && [[ -n "$(find "$kick" -newermt '-5 seconds' 2>/dev/null)" ]] && return 0
+  touch "$kick" 2>/dev/null
+  api="${_LIBDIR:-${BASH_SOURCE[0]%/*}}/.."
+  # env EXPLÍCITO e nunca vazio (o `:=` do common.conf respeitaria o vazio); o login do staff vai p/ o audit
+  local -a E=(CONTESTSDIR="$CONTESTSDIR" _DIR="$api")
+  [[ -n "${RUNDIR:-}" ]] && E+=(RUNDIR="$RUNDIR")
+  [[ -n "${SESSIONDIR:-}" ]] && E+=(SESSIONDIR="$SESSIONDIR")
+  ( setsid env "${E[@]}" bash -c 'source "$_DIR/lib/sources.sh" >/dev/null 2>&1; source "$_DIR/lib/print.sh" || exit 1
+                                  SESSION_LOGIN="$2"; pr_reconcile_balloons "$1"' _ "$c" "${SESSION_LOGIN:-?}" \
+      </dev/null >/dev/null 2>&1 & ) 2>/dev/null
+  return 0
 }
 
 # pr_balloons_frozen_count <c> — quantos balões a regra do freeze suprimiu (0 se nenhum).

@@ -11,8 +11,10 @@ require_auth_contest "$contest"
 { is_staff || is_cstaff || is_admin; } || fail 403 "Apenas staff" "staff_required"
 source "$_LIBDIR/print.sh"
 
-# gera (preguiçosamente) as tarefas de balão pendentes (1ª solução de cada time/problema)
-pr_reconcile_balloons "$contest"
+# gera (preguiçosamente) as tarefas de balão pendentes (1ª solução de cada time/problema) — DESTACADO: a consulta
+# só dispara o reconcile e lista o que já está materializado; o balão novo aparece na consulta seguinte
+# (pr_reconcile_balloons_bg, 15/10/2026 — o reconcile dentro da consulta era o p95 de 1,5 s da fila no ensaio)
+pr_reconcile_balloons_bg "$contest"
 
 dir="$(pr_dir "$contest")"
 # ESCOPO uma vez, não por arquivo. O laço antigo forkava jq DUAS vezes por tarefa (uma p/ ler o

@@ -497,7 +497,7 @@ audit_log_to() {
   local c="$1" who="${SESSION_LOGIN:-?}" det="${3//$'\t'/ }"
   det="${det//$'\n'/ }"
   valid_id "$c" || return 0
-  mkdir -p "$CONTESTSDIR/$c/var" 2>/dev/null
+  [[ -d "$CONTESTSDIR/$c/var" ]] || mkdir -p "$CONTESTSDIR/$c/var" 2>/dev/null   # o mkdir era um fork por linha de audit
   printf '%s\t%s\t%s\t%s\n' "$EPOCHSECONDS" "$who" "$2" "$det" \
     >> "$CONTESTSDIR/$c/var/admin-audit.log" 2>/dev/null || true
 }

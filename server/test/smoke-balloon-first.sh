@@ -19,6 +19,9 @@ export BALLOON_RECONCILE_FLOOR_S=0
 ROOT="$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)"; ROUTER="$ROOT/api/v1/router.sh"
 FIX="$(mktemp -d)"; SESS="$(mktemp -d)"; trap 'rm -rf "$FIX" "$SESS"' EXIT
 source "$(dirname "$(readlink -f "$0")")/fixture.sh"
+# o reconcile de balão da FILA vai destacado no ar (pr_reconcile_balloons_bg); aqui ele roda na hora, p/ a fila
+# já vir com o balão na mesma consulta — o caminho destacado tem teste próprio (smoke-balloon-batch.sh)
+export MOJ_JOBS_SYNC=1
 export CONTESTSDIR="$FIX"
 C="$FIX/bs"; mkdir -p "$C/var" "$C/print-requests"
 NOW="$(date +%s)"; T0=$((NOW-3600))

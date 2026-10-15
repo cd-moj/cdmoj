@@ -738,6 +738,16 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   `users/<login>/history`; vale auto+manual), dedup por id determinístico, gateado pelo mtime de
   **`var/.score-dirty`**, **sem mudar o daemon**. Folha via `pr_build_balloon` (cor por `balloons.json`/default ICPC + tabela
   hex→nome). Escopo por `staff_can_see`; auditar `balloon-*`. Balão **não** vai p/ a lista do aluno.
+  **A FILA SÓ DISPARA O RECONCILE** (`pr_reconcile_balloons_bg`, 15/10/2026, ensaio de 800 times): ele rodava DENTRO
+  da consulta do staff que caísse na hora (p95 da fila 0,5 → 1,5 s com 746 tarefas); agora vai destacado (setsid,
+  um disparo por janela de 5 s no `.balloon-kick`, módulo desligado anda o carimbo na própria consulta) e o balão
+  novo aparece na consulta seguinte — no modo impressão automática, até um ciclo (8–12 s) depois (decisão do Ribas).
+  Relatório, publicação e rodadas seguem chamando o `pr_reconcile_balloons` síncrono. E ele é em LOTE: ids num
+  python (o id — `bln` + 20 hex do md5 de `<c><login><problema>` — NUNCA muda: id novo duplicaria balão já criado),
+  as contas das tarefas num jq (a precedência é a do `pr_resolve_team`/`pr_resolve_univ`/`user_fullname`, que o
+  pedido de impressão segue usando — mexeu numa, mexa na outra), um bloco de `seq` (`pr_next_seq_block`), e o mapa
+  "primeiro da sede" só das SEDES dos candidatos. 60 balões novos: 2,65 → 0,43 s. Testes que esperam o balão na
+  mesma consulta exportam `MOJ_JOBS_SYNC=1`; o caminho destacado e as precedências: `smoke-balloon-batch.sh`.
   **O PAPEL segue o `LOCALE` do contest** (folha de rosto da impressão e folha de balão, pt/en/es —
   `_pr_t`/`pr_lang`/`pr_color_name <hex> <lang>`): o meta carimba `sheet_lang` e o idioma entra na
   validade do cache (trocou o LOCALE, a folha se refaz); o nome da cor é gravado na criação no idioma
