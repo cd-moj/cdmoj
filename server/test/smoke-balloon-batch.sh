@@ -10,7 +10,8 @@
 #   · o `seq` do lote é um bloco seguido, na ordem do sub_epoch;
 #   · o mapa restrito às sedes dos candidatos dá as MESMAS linhas que o mapa do contest inteiro p/ essas sedes;
 #   · a fila sem MOJ_JOBS_SYNC dispara o reconcile destacado (o balão nasce, auditado com o login do staff), um
-#     disparo por janela de 5 s, e com o módulo desligado só anda o carimbo.
+#     disparo por janela de 5 s, a falha dele vai p/ run/balloon-reconcile.err, e com o módulo desligado só anda o
+#     carimbo.
 set -u
 export BALLOON_RECONCILE_FLOOR_S=0
 ROOT="$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)"; ROUTER="$ROOT/api/v1/router.sh"
@@ -105,6 +106,12 @@ ck "um disparo por janela de 5 s: o 2º dentro dela não dispara" '[[ ! -f "$C/p
 touch -d '-10 seconds' "$C/print-requests/.balloon-kick"; queue
 ck "passada a janela, dispara e o balão de t7 nasce" 'espera "$C/print-requests/$(pr_balloon_id bb t7 "apc#p1").json"'
 sleep 0.5
+# reconcile destacado que FALHA deixa rastro em run/balloon-reconcile.err (o lock sem permissão de escrita derruba o
+# subshell do reconcile — destacado, o erro antes sumia no /dev/null)
+chmod 000 "$C/print-requests/.balloon.lock"; touch -d '-30 seconds' "$C/print-requests/.balloon-stamp"; sleep 1
+touch "$C/var/.score-dirty"; touch -d '-10 seconds' "$C/print-requests/.balloon-kick"; queue
+ck "falha do reconcile destacado vai p/ run/balloon-reconcile.err" 'espera "$RUN/balloon-reconcile.err" && sleep 0.5 && grep -q "bb: pr_reconcile_balloons rc=" "$RUN/balloon-reconcile.err"'
+chmod 644 "$C/print-requests/.balloon.lock"
 conf "sedes"; touch -d '-30 seconds' "$C/print-requests/.balloon-stamp"; sleep 1; touch "$C/var/.score-dirty"
 touch -d '-10 seconds' "$C/print-requests/.balloon-kick"; queue
 ck "módulo baloes desligado: o carimbo anda na própria consulta, sem disparo" \

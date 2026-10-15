@@ -1217,9 +1217,14 @@ pr_reconcile_balloons_bg() {
   local -a E=(CONTESTSDIR="$CONTESTSDIR" _DIR="$api")
   [[ -n "${RUNDIR:-}" ]] && E+=(RUNDIR="$RUNDIR")
   [[ -n "${SESSIONDIR:-}" ]] && E+=(SESSIONDIR="$SESSIONDIR")
+  # o stderr do filho vai p/ um ARQUIVO (nunca o socket do CGI): dentro da consulta, erro do reconcile caía no
+  # error.log do nginx; destacado, sumiria calado — e balão é físico, o staff notaria antes de nós
+  local err="/dev/null"; [[ -n "${RUNDIR:-}" && -d "$RUNDIR" ]] && err="$RUNDIR/balloon-reconcile.err"
   ( setsid env "${E[@]}" bash -c 'source "$_DIR/lib/sources.sh" >/dev/null 2>&1; source "$_DIR/lib/print.sh" || exit 1
-                                  SESSION_LOGIN="$2"; pr_reconcile_balloons "$1"' _ "$c" "${SESSION_LOGIN:-?}" \
-      </dev/null >/dev/null 2>&1 & ) 2>/dev/null
+                                  SESSION_LOGIN="$2"; pr_reconcile_balloons "$1" \
+                                    || printf "%s %s: pr_reconcile_balloons rc=%s\n" "$EPOCHSECONDS" "$1" "$?" >&2' \
+                                  _ "$c" "${SESSION_LOGIN:-?}" \
+      </dev/null >/dev/null 2>>"$err" & ) 2>/dev/null
   return 0
 }
 

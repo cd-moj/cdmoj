@@ -740,7 +740,8 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   hex→nome). Escopo por `staff_can_see`; auditar `balloon-*`. Balão **não** vai p/ a lista do aluno.
   **A FILA SÓ DISPARA O RECONCILE** (`pr_reconcile_balloons_bg`, 15/10/2026, ensaio de 800 times): ele rodava DENTRO
   da consulta do staff que caísse na hora (p95 da fila 0,5 → 1,5 s com 746 tarefas); agora vai destacado (setsid,
-  um disparo por janela de 5 s no `.balloon-kick`, módulo desligado anda o carimbo na própria consulta) e o balão
+  um disparo por janela de 5 s no `.balloon-kick`, módulo desligado anda o carimbo na própria consulta, stderr do filho
+  em `run/balloon-reconcile.err` — destacado, erro de reconcile não chega mais ao error.log do nginx) e o balão
   novo aparece na consulta seguinte — no modo impressão automática, até um ciclo (8–12 s) depois (decisão do Ribas).
   Relatório, publicação e rodadas seguem chamando o `pr_reconcile_balloons` síncrono. E ele é em LOTE: ids num
   python (o id — `bln` + 20 hex do md5 de `<c><login><problema>` — NUNCA muda: id novo duplicaria balão já criado),
