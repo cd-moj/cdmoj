@@ -7,6 +7,7 @@
 #   · 2ª varredura: nada de novo (carimbo); contest longe do início, DEMO ou já começado: nada;
 #   · início NOVO (rodada nova): aquece de novo (carimbo atualizado);
 #   · AUTO_WARM_JUDGES=0 desliga; a varredura é UM grep (não um processo por contest).
+#   · e o placar COMPLETO montado antes da largada (todo contest na janela, DEMO e lista inclusive — 15/10/2026).
 set -u
 ROOT="$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)"
 FIX="$(mktemp -d)"; RUN="$(mktemp -d)"; trap 'rm -rf "$FIX" "$RUN"' EXIT
@@ -40,6 +41,10 @@ ck "carimbo = o início"                  '[[ "$(cat "$FIX/logo/var/.warm-presta
 ck "audit: warm-judges by=auto-inicio"   'grep -q "warm-judges.*by=auto-inicio" "$FIX/logo/var/admin-audit.log"'
 ck "longe/já começou/DEMO: intocados"    '[[ ! -e "$FIX/longe/var/.warm-prestart" && ! -e "$FIX/ja/var/.warm-prestart" && ! -e "$FIX/demo/var/.warm-prestart" ]]'
 ck "LISTA de aula (decisão do Ribas): não aquece sozinha" '[[ ! -e "$FIX/lista/var/.warm-prestart" ]] && ! grep -q "warm-judges" "$FIX/lista/var/admin-audit.log" 2>/dev/null'
+# o placar COMPLETO montado antes da largada (15/10/2026): todo contest dentro da janela, DEMO e lista inclusive
+ck "placar completo montado antes do início (prova, lista e DEMO na janela)" \
+   '[[ -s "$FIX/logo/var/placar.txt" && -s "$FIX/lista/var/placar.txt" && -s "$FIX/demo/var/placar.txt" ]]'
+ck "…mas não longe do início nem em contest já começado" '[[ ! -e "$FIX/longe/var/placar.txt" && ! -e "$FIX/ja/var/placar.txt" ]]'
 
 echo "== 2ª varredura: nada de novo =="
 sweep 1

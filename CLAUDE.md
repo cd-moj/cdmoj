@@ -830,7 +830,11 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   `var/placar-prestart.txt` (`build.sh <c> --prestart`; `MOJ_PRESTART=1` zera as tuplas no
   `sc_load` — vale p/ todos os modos): os times da visão pública SEM coluna de problema;
   `is_judge` segue no completo. `/index/contests` emite `problems_count:0` p/ `upcoming` pela
-  mesma regra. Teste: `smoke-score-prestart.sh`. Ver `docs/SCOREBOARD.md`.
+  mesma regra. **O placar COMPLETO é montado ANTES da largada** (`score_build_bg`, lib/common.sh, 15/10/2026): o ramo
+  pré-início do `/contest/score` e a varredura pré-início do judged (`prestart_warm_sweep`, todo contest na janela) o
+  montam destacado quando `var/placar.txt` não existe — sem cache, o 1º build no segundo do início fazia todos esperarem
+  no `regen_locked` (-w 20) e o pool do fcgiwrap parava junto (ensaio de 800 times: ~11 s). Teste:
+  `smoke-score-prestart.sh` (+ `smoke-warm-auto.sh`). Ver `docs/SCOREBOARD.md`.
 - **jplag** (`handlers/contest/admin/jplag-{run,results,match}.sh` + `server/score/jplag-run.sh`
   + `web/contest/jplag/`): run = `is_admin_or_chief`; results/match = `is_judge` (juiz comum
   recebe os pares SEM `*_name/*_univ` — o handler poda; chefe/admin `full:true`, `can_run:true`).

@@ -50,6 +50,13 @@ vale p/ todos os modos), servida pelo mesmo cache preguiçoso do handler. O fron
 **API** (o cabeçalho com os short names nunca sai do servidor antes da hora); pela mesma regra,
 `/index/contests` emite `problems_count:0` p/ contest `upcoming`.
 
+**O placar COMPLETO é montado antes da largada** (`score_build_bg`, 15/10/2026): a visita
+pré-início que regenera a vitrine e a varredura pré-início do judged (~15 min antes) montam o
+`var/placar.txt` destacado quando ele não existe. Sem isso o 1º build acontecia no segundo do
+início, com todos pedindo o placar — e sem cache não há o que servir: todos esperavam o build e o
+pool do fcgiwrap parava junto (ensaio de 800 times: ~11 s). Montá-lo cedo não revela nada: antes do
+início só a organização recebe o completo.
+
 ## Formato do TXT
 
 ```

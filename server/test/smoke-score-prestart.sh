@@ -37,7 +37,8 @@ ck(){ if eval "$2"; then echo "  ok: $1"; ((pass++)); else echo "  FAIL: $1 :: $
 hdr(){ printf '%s' "$BODY" | sed -n 2p; }
 
 echo "== antes do início: vitrine sem colunas de problema =="
-call /contest/score
+rm -f "$C/var/placar.txt"
+MOJ_JOBS_SYNC=1 call /contest/score     # SYNC: o pré-build do placar completo roda na hora (no ar é destacado)
 ck "modo icpc"                        '[[ "$(printf "%s" "$BODY" | sed -n 1p)" == icpc* ]]'
 ck "header SEM W1/W2"                 '[[ "$(hdr)" != *:W1:* && "$(hdr)" != *:W2:* ]]'
 ck "header ainda tem Total"           '[[ "$(hdr)" == *:Total:* ]]'
@@ -45,6 +46,9 @@ ck "time listado (vitrine)"           '[[ "$BODY" == *macacos* ]]'
 ck "bandeira na 1ª coluna"            '[[ "$BODY" == *"br-sc:macacos:UFSC:"* ]]'
 ck "papel esq.admin fora da vitrine"  '[[ "$BODY" != *esq.admin* ]]'
 ck "placar-prestart.txt materializado" '[[ -f "$C/var/placar-prestart.txt" ]]'
+# 15/10/2026 (ensaio de 800 times): o placar COMPLETO é montado já no pré-início, p/ a largada não esperar o 1º
+# build com todos pedindo o placar no mesmo segundo — e quem não é da organização continua vendo só a vitrine
+ck "placar COMPLETO pré-montado na visita pré-início" '[[ -s "$C/var/placar.txt" && "$(sed -n 2p "$C/var/placar.txt")" == *:W1:* ]]'
 
 echo "== competidor logado também não vê (corte é por papel, não por sessão) =="
 call /contest/score tok-mac

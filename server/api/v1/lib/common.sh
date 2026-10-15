@@ -411,6 +411,30 @@ score_kick_rebuild() {
       </dev/null >/dev/null 2>&1 & ) 2>/dev/null
 }
 
+# score_build_bg <contest> — monta o placar COMPLETO destacado, se ninguém o estiver montando
+# (`flock -n` no MESMO .placar.lock do regen_locked e do judged). É o pré-aquecimento da largada
+# (15/10/2026, ensaio de escrita de 800 times): sem var/placar.txt, o 1º build acontecia no segundo
+# do início, com centenas de times pedindo o placar — e sem cache não há o que servir, então todos
+# esperavam no `regen_locked` (-w 20), os workers do fcgiwrap estacionavam no lock e TODAS as rotas
+# bash (submit, history, fila do staff) esperavam junto (~11 s no ensaio). Chamado pelo ramo
+# PRÉ-INÍCIO do /contest/score e pela varredura pré-início do judged quando o placar não existe.
+# Antes do início só a organização vê o placar completo (a vitrine é outro arquivo), então montá-lo
+# cedo não revela nada. MOJ_JOBS_SYNC=1 = na hora (testes).
+score_build_bg() {
+  local c="$1" cdir="$CONTESTSDIR/$1"
+  if [[ "${MOJ_JOBS_SYNC:-0}" == 1 ]]; then
+    ( exec 9>>"$cdir/var/.placar.lock" && flock -n 9 && bash "$SCOREDIR/build.sh" "$c" >/dev/null 2>&1 ) 2>/dev/null
+    return 0
+  fi
+  # fds dentro do parêntese (lição do setsid sob CGI): o filho não pode herdar o socket.
+  ( setsid bash -c '
+      exec 9>>"$1" 2>/dev/null || exit 0
+      flock -n 9 || exit 0
+      bash "$2" "$3"' _ "$cdir/var/.placar.lock" "$SCOREDIR/build.sh" "$c" \
+      </dev/null >/dev/null 2>&1 & ) 2>/dev/null
+  return 0
+}
+
 # --- util -----------------------------------------------------------------
 urldecode() { local s="${1//+/ }"; printf '%b' "${s//%/\\x}"; }
 # b64_strip_data_prefix <NOME-da-var> — tira o prefixo data:...;base64, de upload SEM pagar

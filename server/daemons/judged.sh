@@ -807,6 +807,13 @@ prestart_warm_sweep() {
     (( v > now && v - now <= WARM_LEAD_S )) || continue
     c="${f%/conf}"; c="${c##*/}"
     valid_contest_id "$c" || continue
+    # o placar COMPLETO montado ANTES da largada (15/10/2026, ensaio de 800 times): sem ele o 1º build
+    # acontece no segundo do início, com todos pedindo o placar — e sem cache não há o que servir (ver
+    # score_build_bg na common.sh). Vale p/ todo contest que começa em breve, DEMO e lista inclusive.
+    if [[ ! -s "$CONTESTSDIR/$c/var/placar.txt" ]]; then
+      if [[ -n "${_WARM_SYNC:-}" ]]; then bash "$SCORE_BUILD" "$c" </dev/null >/dev/null 2>&1   # --prestart-warm
+      else schedule_score_rebuild "$c"; fi
+    fi
     st=""; [[ -f "$CONTESTSDIR/$c/var/.warm-prestart" ]] && read -r st < "$CONTESTSDIR/$c/var/.warm-prestart"
     [[ "$st" == "$v" ]] && continue
     contest_is_demo "$c" && continue

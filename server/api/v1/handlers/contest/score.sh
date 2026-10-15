@@ -49,6 +49,9 @@ if [[ "$(contest_phase "$contest")" == before ]]; then
      fi
     fi
     [[ -f "$pf" ]] || bash "$SCOREDIR/build.sh" "$contest" --prestart >/dev/null 2>&1
+    # o placar COMPLETO ainda não existe: monta agora, destacado, p/ a largada não esperar o 1º build
+    # com todos os times pedindo o placar no mesmo segundo (ver score_build_bg na common.sh)
+    [[ -s "$CONTESTSDIR/$contest/var/placar.txt" ]] || score_build_bg "$contest"
     if (( ANON && ! ORG )); then   # anônimo: nem a vitrine com os nomes — só quantos
       _paf="$CONTESTSDIR/$contest/var/placar-prestart-anon.json"
       [[ -s "$_paf" && ! "$pf" -nt "$_paf" ]] || bash "$SCOREDIR/build.sh" "$contest" --prestart >/dev/null 2>&1
