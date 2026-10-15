@@ -247,7 +247,17 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   preguiçosos (`contest/score`/`statistics`/`response-stats`/balões/home) = **`var/.score-dirty`**
   (tocado por `user_history_append/replace` **e por toda mutação user-visível de conta**:
   `user_rename`, perfil e foto — senão a home/placar serviam handle/nome velhos p/ sempre) + `conf`; `var/.metrics-stamp` dispara recompute em
-  massa no `build.sh` quando o `conf` muda (ex.: `FREEZE_TIME` editado). **Migração** de contest
+  massa no `build.sh` quando muda o que os metrics usam do `conf` — SÓ `FREEZE_TIME` e `PENALTY_VERDICTS`: o carimbo
+  guarda a assinatura dos dois (`metrics_conf_sig`) e outra edição do conf só o anda (15/10/2026; antes qualquer opção
+  editada refazia o contest inteiro). Para forçar: `rm var/.metrics-stamp` (é o que settings/rodadas/kick fazem).
+  **O recompute em massa é UM jq p/ o contest todo** (`metrics_recompute_all`, lib/users.sh): o mesmo programa
+  (`METRICS_JQ`, `def metrics_of`) serve a porta por conta do daemon (`metrics_recompute`) e a em lote, em fatias de
+  500 contas (gawk marca o login → jq → python grava atômico). Antes era um jq POR CONTA — 821 contas = 6,5 s, 95% do
+  placar a frio, e foi o que estacionou o pool no início do ensaio de 800 times; hoje 0,24 s (2.463 contas/68 mil
+  envios: 24 s → 2,0 s). Regras do lote: erro do jq numa conta não derruba o lote (`try`, a conta fica com o metrics
+  antigo e o stderr conta); conta que o daemon regravou depois do início do lote (−50 ms, relógio grosso do kernel)
+  é pulada; a classificação de cada linha é função SÓ do veredicto, então sai uma vez por veredicto distinto.
+  As duas portas têm de gravar o MESMO JSON: `smoke-metrics-batch.sh` compara conta a conta (rode com o jq 1.7). **Migração** de contest
   legado (arquivado em `contests-legado/`): `server/bin/store-migrate.sh <c>` (dry-run por padrão).
   **Do MOJ ANTIGO** (`contests-backup/`) é OUTRO caminho: `treino-map-gen.sh` (mapa auditável
   `<repo>#<slug>`→`<org>#<prob>`; `?` = não auditado e o migrador RECUSA) + `treino-migrate.sh
@@ -883,8 +893,8 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   (`treino.js`, `stat.js`, `problema/stats`, `bank-panel`, `lib/stats-view` — este embutido no
   relatório, então `difficulty.js` entra na lista do `report-gen.sh` ANTES dele). Nunca reescreva
   faixa ou fórmula inline: era isso que dava "fácil" na busca e "difícil" na estatística
-  (`acceptance_rate` por submissão fica só como número). Pós-deploy: `touch contests/treino/conf`
-  força o recompute em massa dos metrics (ganha `tries_to_ac`).
+  (`acceptance_rate` por submissão fica só como número). Pós-deploy: `rm contests/treino/var/.metrics-stamp`
+  força o recompute em massa dos metrics (ganha `tries_to_ac`; tocar o conf não basta desde 15/10/2026).
 - **Sorteio com PRIVADOS = opt-in (PR #35, 2026-09-29)**: `include_private=1` nas 5 rotas do banco
   (`/contest/admin/draw`, `/contest/admin/bank?meta=1`, `/treino/contest-create/{draw,tags,collections}`);
   **padrão = só públicos**, porque sortear por tag/coleção pode puxar a prova em elaboração de um colega

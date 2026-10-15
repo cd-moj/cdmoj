@@ -14,9 +14,12 @@ Princípio: **adicionar um modo = 1 gerador (`server/score/updatescore-<modo>.sh
    `heur` (Score/Score Ajustado) e a visão **`frozen`** (pré-`FREEZE_TIME`). Os geradores
    leem tudo numa passada só (`sc_cells` em `score-common.sh`: `find users -name
    metrics.json | xargs jq`) — rebuild O(usuários), sem varrer history.
-3. `server/score/build.sh <contest>` recomputa os metrics em massa se o `conf` mudou desde
-   o último build (`var/.metrics-stamp` — cobre edição de `FREEZE_TIME` e o 1º build de um
-   contest importado), despacha para `updatescore-<modo>.sh` e grava
+3. `server/score/build.sh <contest>` recomputa os metrics em massa se o que eles usam do
+   `conf` mudou desde o último build — só `FREEZE_TIME` e `PENALTY_VERDICTS`: o
+   `var/.metrics-stamp` guarda a assinatura dos dois (`metrics_conf_sig`), e editar outra opção
+   só anda o carimbo; cobre também o 1º build de um contest importado. O recompute em massa é
+   UM jq para o contest inteiro (`metrics_recompute_all`, mesmo programa da porta por conta do
+   daemon; 821 contas em 0,24 s). Depois despacha para `updatescore-<modo>.sh` e grava
    `contests/<contest>/var/placar.txt` (atômico; `var/placar-full.txt` = sem freeze, p/
    privilegiados). É chamado pelo daemon após cada veredicto.
    Grava também um **`.gz` ao lado de cada placar**: 175 KB por requisição no corpo mais servido

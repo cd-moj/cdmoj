@@ -202,44 +202,59 @@ user_history_replace(){
 #   frozen     = a MESMA visão restrita a sub_epoch < FREEZE_TIME (só quando o conf tem
 #                FREEZE_TIME>0): AC pós-freeze fica escondido (pending, hidden++);
 #                tentativas pós-freeze CONTAM no counted de problema não resolvido.
-# FREEZE_TIME é lido do conf por sed (o conf roda command substitution — nunca source
-# dentro da lib). CONTEST_START não entra: o gerador converte epoch→minutos via sc_load.
-metrics_recompute(){
-  local c="$1" u="$2" hf mf fz _mt
-  hf="$(user_hist_file "$c" "$u")"; mf="$(metrics_file "$c" "$u")"
-  _mt="$mf.tmp.${BASHPID}"   # expandido AQUI (no worker), nunca no alvo do redirect
-  [[ -f "$hf" ]] || { echo '{}' > "$mf"; return 0; }
-  # LEITURA DO CONF SEM PROCESSO NENHUM (dieta 2026-08-30): isto rodava sed|tail|tr +
-  # grep + printf|tr — ~6 execs POR CHAMADA produzindo SEMPRE o mesmo valor p/ todos os
-  # usuários do contest (no recompute em massa da Maratona: ~30k dos ~35k processos).
-  # Leitor builtin no molde do conf_value (que não existe aqui — o judged não sourceia
-  # common.sh) + memo do `deny` por (contest, pv) — válido no processo, e o daemon é
-  # persistente. Semântica preservada: última linha FREEZE_TIME vence; linha
+# FREEZE_TIME e PENALTY_VERDICTS são as ÚNICAS entradas do conf que as métricas usam (o conf roda
+# command substitution — nunca source dentro da lib). CONTEST_START não entra: o gerador converte
+# epoch→minutos via sc_load. Quem lê as duas é `_mrc_conf`, UM leitor p/ as três portas abaixo.
+#
+# UM programa jq (METRICS_JQ, `def metrics_of` sobre as linhas do history), DUAS portas
+# (15/10/2026, ensaio de escrita de 800 times): `metrics_recompute` — UMA conta, a do daemon a cada
+# veredicto — e `metrics_recompute_all` — o contest INTEIRO num jq só, o recompute em massa do
+# build.sh. Antes o em massa era um jq POR CONTA: 821 contas = 6,5 s (~11 s em produção sob carga),
+# 95% do placar a frio, e foi isso que segurou o pool no início do ensaio. Em lote: 0,24 s (821) e
+# 2,0 s (2.463 contas, 68 mil envios). A classificação de cada linha (pendente/AC/conta/pontos) é
+# função SÓ do veredicto, então `metrics_of` classifica cada veredicto DISTINTO uma vez (o `test()`
+# do jq recompila a regex a cada chamada — era o custo que sobrava no lote).
+# ⚠ A saída das duas portas tem de ser IDÊNTICA (menos `computed_at`): `smoke-metrics-batch.sh`
+# compara conta a conta. Mexeu no programa, rode-o com o jq 1.7 (o programa mora em variável, fora do
+# `jq-portability.sh`).
+_mrc_conf(){   # <c> -> _MRC_FZ (FREEZE_TIME) e _MRC_DENY (códigos canônicos fora da penalidade, por TAB)
+  local c="$1" _line _t pv="__unset" code
+  # LEITURA DO CONF SEM PROCESSO NENHUM (dieta 2026-08-30): isto rodava sed|tail|tr + grep + printf|tr
+  # — ~6 execs POR CHAMADA produzindo SEMPRE o mesmo valor p/ todos os usuários do contest (no recompute
+  # em massa da Maratona: ~30k dos ~35k processos). Leitor builtin no molde do conf_value (que não
+  # existe aqui — o judged não sourceia common.sh) + memo do `deny` por (contest, pv) — válido no
+  # processo, e o daemon é persistente. Semântica: última linha FREEZE_TIME vence; linha
   # PENALTY_VERDICTS presente ≠ default; %q vira códigos por limpeza de charset.
-  local _line _t pv="__unset" deny code
-  fz=""
+  _MRC_FZ=""
   while IFS= read -r _line || [[ -n "$_line" ]]; do
     _t="${_line#"${_line%%[![:space:]]*}"}"        # ltrim (o sed aceitava espaço à esquerda)
     case "$_t" in
-      FREEZE_TIME=*)       fz="${_t#FREEZE_TIME=}"; fz="${fz//[!0-9]/}" ;;
+      FREEZE_TIME=*)       _MRC_FZ="${_t#FREEZE_TIME=}"; _MRC_FZ="${_MRC_FZ//[!0-9]/}" ;;
     esac
     case "$_line" in
       PENALTY_VERDICTS=*)  pv="${_line#PENALTY_VERDICTS=}"; pv="${pv//[!a-z ]/}" ;;
     esac
   done < "$CONTESTSDIR/$c/conf" 2>/dev/null
-  fz="${fz:-0}"
+  _MRC_FZ="${_MRC_FZ:-0}"
   [[ "$pv" == "__unset" ]] && pv="$PENALTY_CODES_DEFAULT"
   if [[ -n "${_MRC_DENY_KEY:-}" && "$_MRC_DENY_KEY" == "$c|$pv" ]]; then
-    deny="$_MRC_DENY"
+    _MRC_DENY="$_MRC_DENY_V"
   else
-    deny=""
+    _MRC_DENY=""
     for code in $PENALTY_CODES_ALL; do
-      [[ " $pv " == *" $code "* ]] || deny+="${deny:+$'\t'}$(penalty_code_canon "$code")"
+      [[ " $pv " == *" $code "* ]] || _MRC_DENY+="${_MRC_DENY:+$'\t'}$(penalty_code_canon "$code")"
     done
-    _MRC_DENY_KEY="$c|$pv"; _MRC_DENY="$deny"
+    _MRC_DENY_KEY="$c|$pv"; _MRC_DENY_V="$_MRC_DENY"
   fi
-  jq -R -s --argjson freeze "${fz:-0}" --argjson now "$EPOCHSECONDS" --arg denyraw "$deny" '
-    '"$VERDICT_CANON_JQ"'
+}
+
+# metrics_conf_sig <c> — a ASSINATURA do que as métricas usam do conf (freeze + penalidade EFETIVA).
+# O build.sh a guarda no `.metrics-stamp` e só refaz o contest inteiro quando ela muda: editar o
+# nome, o horário de login ou as linguagens tocava o conf e custava o recompute em massa à toa.
+# `PENALTY_VERDICTS` explícito igual ao padrão dá a MESMA assinatura (é o deny efetivo que entra).
+metrics_conf_sig(){ _mrc_conf "$1"; printf 'v3|%s|%s' "$_MRC_FZ" "${_MRC_DENY//$'\t'/,}"; }
+
+METRICS_JQ="$VERDICT_CANON_JQ"'
     ($denyraw|split("\t")|map(select(length>0))) as $deny |
     def vw($g; $fac; $real):
       ($g|map(select(.counts))) as $cnt
@@ -254,71 +269,85 @@ metrics_recompute(){
          heur: (($real|map(select(.hs != null))) as $h
                 | if ($h|length)==0 then null
                   else ($h|max_by([.hs,.ha])|{score:.hs, adjusted:.ha}) end)};
-    split("\n") | map(select(length>0)) | map(split(":"))
-    | map({probid:.[1], lang:.[2], subid:.[-1],
-           sub_epoch:((.[-2]|tonumber?) // 0),
-           verdict:((.[3:-2]|join(":")) | split("¦")[0])})   # classe: o ¦texto do time não pontua
-    | map(. + {prov: (.verdict|test("Not Answered Yet|On queue|Running"; "i")),
-               ac:   (.verdict|startswith("Accepted") and (test(" \\(Ignored\\)$")|not))})
-    | map(. + {counts: ((.prov
-                or (.verdict|test(" \\(Ignored\\)$"))
-                or (.verdict|startswith("Judge Error"))
-                or (.verdict|test("^No_?Servers"))
-                or ((($deny|index("Compilation Error")) != null)
-                    and (.verdict|startswith("Compilation Error")))
-                or ((.verdict | sub(" \\(Ignored\\)$"; "") | vcanon) as $cv
-                    | ($deny|index($cv)) != null)) | not),
-               pts: (if .prov then null
-                     elif (.verdict|test("[0-9]+p")) then
-                       (.verdict|capture("(?<n>[0-9]+)p").n|tonumber)
-                     elif .ac then 100 else 0 end),
-               hs:  (if .prov then null
-                     elif (.verdict|test("Score[ \t]+-?[0-9]+")) then
-                       (.verdict|capture("Score[ \t]+(?<n>-?[0-9]+)").n|tonumber)
-                     elif .ac then 0 else null end),
-               ha:  (if (.prov|not) and (.verdict|test("Score Ajustado[ \t]+-?[0-9]+(\\.[0-9]+)?")) then
-                       (.verdict|capture("Score Ajustado[ \t]+(?<n>-?[0-9]+(\\.[0-9]+)?)").n|tonumber)
-                     else 0 end)})
-    | { version: 3,
-        computed_at: $now,
-        freeze_time: $freeze,
-        submissions: length,
-        accepted: (map(select(.ac))|length),
-        solved:   (map(select(.ac)|.probid)|unique),
-        attempted:(map(.probid)|unique),
-        by_lang:    (reduce .[] as $s ({}; .[$s.lang] = ((.[$s.lang]//0)+1))),
-        by_verdict: (reduce .[] as $s ({}; (($s.verdict|split(",")[0])) as $k | .[$k]=((.[$k]//0)+1))),
-        by_problem: (group_by(.probid) | map(
-            . as $g
-            | ($g|map(select(.ac))|map(.sub_epoch)|min) as $fac
-            | {key: $g[0].probid,
-               value: (vw($g; $fac; $g|map(select(.prov|not)))
-                 + {attempts: ($g|length),
-                    counted_all: ($g|map(select(.counts))|length),
-                    pending: (($g|map(select(.prov))|length) > 0),
-                    # pending_min_epoch: a run NÃO JULGADA mais antiga deste problema. O booleano
-                    # `pending` não responde "há pendente MAIS ANTIGO que este AC?", e é essa a
-                    # pergunta que decide first-to-solve com CERTEZA — no placar (a estrela só
-                    # pinta quando nenhuma run mais velha pode roubá-la) e no balão da sede.
-                    pending_min_epoch: (($g|map(select(.prov))|map(.sub_epoch)|min) // null),
-                    last_sub_epoch: (($g|map(.sub_epoch)|max) // 0)}
-                 + (if $freeze > 0 then
-                      {frozen: (
-                         ($g|map(select(.ac and .sub_epoch < $freeze))|map(.sub_epoch)|min) as $ffac
-                         | ($g|map(select(.sub_epoch >= $freeze))|length) as $hidden
-                         | vw($g; $ffac; $g|map(select((.prov|not) and .sub_epoch < $freeze)))
-                           + {pending: ((($g|map(select(.prov))|length) > 0) or ($hidden > 0)),
-                              # ⚠ SÓ o pendente PRÉ-freeze: a estrela da visão congelada é sobre
-                              # ACs pré-freeze, e run pós-freeze não pode roubá-la. Não confundir
-                              # com o `pending` acima, que soma os `hidden` de propósito (é ele
-                              # que faz a célula parecer "em julgamento" durante o congelamento).
-                              pending_min_epoch:
-                                (($g|map(select(.prov and .sub_epoch < $freeze))|map(.sub_epoch)|min) // null),
-                              hidden: $hidden})}
-                    else {} end))}
-          ) | from_entries),
-        last_submission_at: ((map(.sub_epoch)|max) // 0) }
-  ' "$hf" > "$_mt" 2>/dev/null && mv -f "$_mt" "$mf" || rm -f "$_mt" 2>/dev/null
+    # metrics_of: [linhas do history] -> o metrics.json
+    def metrics_of:
+      map(select(length>0)) | map(split(":"))
+      | map({probid:.[1], lang:.[2], subid:.[-1],
+             sub_epoch:((.[-2]|tonumber?) // 0),
+             verdict:((.[3:-2]|join(":")) | split("¦")[0])})   # classe: o ¦texto do time não pontua
+      # a classificação é função SÓ do veredicto: uma vez por veredicto DISTINTO
+      | (map(.verdict) | unique | map({verdict: .}
+          | . + {prov: (.verdict|test("Not Answered Yet|On queue|Running"; "i")),
+                 ac:   (.verdict|startswith("Accepted") and (test(" \\(Ignored\\)$")|not))}
+          | . + {counts: ((.prov
+                  or (.verdict|test(" \\(Ignored\\)$"))
+                  or (.verdict|startswith("Judge Error"))
+                  or (.verdict|test("^No_?Servers"))
+                  or ((($deny|index("Compilation Error")) != null)
+                      and (.verdict|startswith("Compilation Error")))
+                  or ((.verdict | sub(" \\(Ignored\\)$"; "") | vcanon) as $cv
+                      | ($deny|index($cv)) != null)) | not),
+                 pts: (if .prov then null
+                       elif (.verdict|test("[0-9]+p")) then
+                         (.verdict|capture("(?<n>[0-9]+)p").n|tonumber)
+                       elif .ac then 100 else 0 end),
+                 hs:  (if .prov then null
+                       elif (.verdict|test("Score[ \t]+-?[0-9]+")) then
+                         (.verdict|capture("Score[ \t]+(?<n>-?[0-9]+)").n|tonumber)
+                       elif .ac then 0 else null end),
+                 ha:  (if (.prov|not) and (.verdict|test("Score Ajustado[ \t]+-?[0-9]+(\\.[0-9]+)?")) then
+                         (.verdict|capture("Score Ajustado[ \t]+(?<n>-?[0-9]+(\\.[0-9]+)?)").n|tonumber)
+                       else 0 end)}
+          | {key: .verdict, value: del(.verdict)}) | from_entries) as $VC
+      | map(. + $VC[.verdict])
+      | { version: 3,
+          computed_at: $now,
+          freeze_time: $freeze,
+          submissions: length,
+          accepted: (map(select(.ac))|length),
+          solved:   (map(select(.ac)|.probid)|unique),
+          attempted:(map(.probid)|unique),
+          by_lang:    (reduce .[] as $s ({}; .[$s.lang] = ((.[$s.lang]//0)+1))),
+          by_verdict: (reduce .[] as $s ({}; (($s.verdict|split(",")[0])) as $k | .[$k]=((.[$k]//0)+1))),
+          by_problem: (group_by(.probid) | map(
+              . as $g
+              | ($g|map(select(.ac))|map(.sub_epoch)|min) as $fac
+              | {key: $g[0].probid,
+                 value: (vw($g; $fac; $g|map(select(.prov|not)))
+                   + {attempts: ($g|length),
+                      counted_all: ($g|map(select(.counts))|length),
+                      pending: (($g|map(select(.prov))|length) > 0),
+                      # pending_min_epoch: a run NÃO JULGADA mais antiga deste problema. O booleano
+                      # `pending` não responde "há pendente MAIS ANTIGO que este AC?", e é essa a
+                      # pergunta que decide first-to-solve com CERTEZA — no placar (a estrela só
+                      # pinta quando nenhuma run mais velha pode roubá-la) e no balão da sede.
+                      pending_min_epoch: (($g|map(select(.prov))|map(.sub_epoch)|min) // null),
+                      last_sub_epoch: (($g|map(.sub_epoch)|max) // 0)}
+                   + (if $freeze > 0 then
+                        {frozen: (
+                           ($g|map(select(.ac and .sub_epoch < $freeze))|map(.sub_epoch)|min) as $ffac
+                           | ($g|map(select(.sub_epoch >= $freeze))|length) as $hidden
+                           | vw($g; $ffac; $g|map(select((.prov|not) and .sub_epoch < $freeze)))
+                             + {pending: ((($g|map(select(.prov))|length) > 0) or ($hidden > 0)),
+                                # ⚠ SÓ o pendente PRÉ-freeze: a estrela da visão congelada é sobre
+                                # ACs pré-freeze, e run pós-freeze não pode roubá-la. Não confundir
+                                # com o `pending` acima, que soma os `hidden` de propósito (é ele
+                                # que faz a célula parecer "em julgamento" durante o congelamento).
+                                pending_min_epoch:
+                                  (($g|map(select(.prov and .sub_epoch < $freeze))|map(.sub_epoch)|min) // null),
+                                hidden: $hidden})}
+                      else {} end))}
+            ) | from_entries),
+          last_submission_at: ((map(.sub_epoch)|max) // 0) };'
+
+metrics_recompute(){
+  local c="$1" u="$2" hf mf _mt
+  hf="$(user_hist_file "$c" "$u")"; mf="$(metrics_file "$c" "$u")"
+  _mt="$mf.tmp.${BASHPID}"   # expandido AQUI (no worker), nunca no alvo do redirect
+  [[ -f "$hf" ]] || { echo '{}' > "$mf"; return 0; }
+  _mrc_conf "$c"
+  jq -c -R -s --argjson freeze "$_MRC_FZ" --argjson now "$EPOCHSECONDS" --arg denyraw "$_MRC_DENY" \
+    "$METRICS_JQ"' split("\n") | metrics_of' "$hf" > "$_mt" 2>/dev/null && mv -f "$_mt" "$mf" || rm -f "$_mt" 2>/dev/null
   # ⚠ tmp POR PROCESSO (${BASHPID}, doutrina do molde): o recompute roda no daemon (com
   # shards, em K workers) E no recompute em massa do build.sh destacado — com tmp de nome
   # fixo, um `mv` podia publicar o tmp MEIO-ESCRITO do outro escritor (visto na bancada 8×
@@ -328,6 +357,69 @@ metrics_recompute(){
   # DIRETO no alvo de redirect de comando EXTERNO expande NO FILHO (o bash processa o
   # redirect entre o fork e o exec): o jq gravava tmp.<pid-do-jq> e o mv procurava
   # tmp.<pid-do-worker> — TODO recompute falhava o mv, calado, deixando tmp órfão.
+}
+
+# metrics_recompute_all <c> — o recompute em MASSA (build.sh): todas as contas COM history, em lotes
+# de MRC_CHUNK (500) contas por pipeline — gawk (marca o login de cada linha; BEGINFILE garante a
+# conta de history VAZIO) → UM jq (o mesmo METRICS_JQ) → um python que grava tudo atômico. Três
+# regras que o lote tem de manter:
+#  1. ISOLAMENTO DE ERRO: no por-conta, uma linha estragada derruba só aquela conta (o metrics antigo
+#     fica). No lote, um erro do jq abortaria o LOTE inteiro calado — por isso o `try … catch` por conta;
+#     a que falha sai vazia e o gravador a pula (e conta no stderr).
+#  2. O DAEMON GRAVA AO MESMO TEMPO: conta cujo metrics.json foi regravado depois do início do lote
+#     (menos 50 ms — o mtime do arquivo usa o relógio GROSSO do kernel, um jiffy atrás) é PULADA: a do
+#     daemon leu o history depois e é tão nova quanto. Pular é sempre seguro — todo append no history é
+#     seguido de um recompute do daemon.
+#  3. Memória limitada: o jq segura o history de um lote só (por isso o laço sobre fatias do array, e não
+#     um xargs só em volta do gawk, que juntaria tudo num jq).
+MRC_CHUNK="${MRC_CHUNK:-500}"
+_MRC_WRITER='
+import os, sys
+d, t0 = sys.argv[1], int(sys.argv[2]) - 50_000_000
+pid = os.getpid(); n = k = bad = 0
+for ln in sys.stdin:
+    u, _, j = ln.rstrip("\n").partition("\t")
+    if not u or "/" in u or u.startswith("."):
+        continue
+    if not j:
+        bad += 1; continue                       # o jq não conseguiu: metrics antigo fica (= por-conta)
+    mf = os.path.join(d, u, "metrics.json")
+    try:
+        if os.stat(mf).st_mtime_ns > t0:
+            k += 1; continue                     # o daemon regravou depois do início do lote
+    except FileNotFoundError:
+        pass
+    tmp = "%s.tmp.%d" % (mf, pid)
+    try:
+        with open(tmp, "w") as fh:
+            fh.write(j + "\n")
+        os.replace(tmp, mf); n += 1
+    except OSError:
+        bad += 1
+        try: os.unlink(tmp)
+        except OSError: pass
+if bad:
+    print("metrics_recompute_all: %d conta(s) sem recompute (history ilegível ou erro de escrita)" % bad,
+          file=sys.stderr)
+'
+metrics_recompute_all(){
+  local c="$1" d i n t0 rc=0; d="$(users_dir "$c")"; [[ -d "$d" ]] || return 0
+  local -a H=()
+  mapfile -d '' -t H < <(find "$d" -mindepth 2 -maxdepth 2 -name history -print0 2>/dev/null)
+  n=${#H[@]}; (( n > 0 )) || return 0
+  _mrc_conf "$c"
+  for (( i = 0; i < n; i += MRC_CHUNK )); do
+    t0="${EPOCHREALTIME//[!0-9]/}000"           # ns (o separador do EPOCHREALTIME segue o locale)
+    gawk 'BEGINFILE { k = split(FILENAME, p, "/"); u = p[k-1]; print u "\037" }
+          { print u "\037" $0 }' "${H[@]:i:MRC_CHUNK}" \
+    | jq -R -n -r --argjson freeze "$_MRC_FZ" --argjson now "$EPOCHSECONDS" --arg denyraw "$_MRC_DENY" \
+        "$METRICS_JQ"'
+        reduce (inputs | split("\u001f")) as $p ({};
+          .[$p[0]] += (if ($p|length) > 1 then [$p[1:] | join("\u001f")] else [] end))
+        | to_entries[] | "\(.key)\t\(.value | try (metrics_of | tojson) catch "")"' \
+    | python3 -c "$_MRC_WRITER" "$d" "$t0" || rc=1
+  done
+  return "$rc"
 }
 
 # metrics_solved_count <c> <login> — nº de problemas distintos resolvidos (O(1) via cache).

@@ -91,9 +91,13 @@ FREEZE_RAW="$(sed -n 's/^[[:space:]]*FREEZE_TIME=//p' "$CONF" | tail -1)"
 FREEZE_RAW="$(printf '%s' "$FREEZE_RAW" | tr -cd '0-9')"
 
 # --- metrics freshness ------------------------------------------------------
-# Os geradores leem users/*/metrics.json (mantidos incrementais pelo daemon). Se o CONF
-# mudou depois do último recompute em massa (ex.: FREEZE_TIME editado — a visão frozen
-# vive DENTRO do metrics), recomputa todo mundo uma vez e carimba var/.metrics-stamp.
+# Os geradores leem users/*/metrics.json (mantidos incrementais pelo daemon). Se o que as
+# métricas usam do CONF mudou depois do último recompute em massa (FREEZE_TIME — a visão
+# frozen vive DENTRO do metrics — ou PENALTY_VERDICTS), recomputa todo mundo uma vez e
+# carimba var/.metrics-stamp com a ASSINATURA desses dois (metrics_conf_sig). Até 15/10/2026
+# qualquer edição do conf (nome, horário de login, linguagens…) refazia o contest inteiro; agora
+# conf mais novo com a MESMA assinatura só anda o carimbo. Quem muda freeze/penalidade pela API
+# ainda apaga o carimbo (settings, rodadas, score_kick_rebuild) — o rm continua forçando.
 # Também cobre o 1º build de um contest importado/backfill (stamp ausente).
 #
 # ⚠ E cobre o DEPLOY que muda o FORMATO do metrics: a `lib/users.sh` entra como entrada, do mesmo
@@ -106,18 +110,22 @@ source "$HERE/../api/v1/lib/users.sh"
 STAMP="$CONTESTDIR/var/.metrics-stamp"
 _ULIB="$HERE/../api/v1/lib/users.sh"
 # (pré-início não lê métricas — 0 colunas de problema; pula o recompute em massa)
-if (( ! PRESTART )) && [[ ! -f "$STAMP" || "$CONF" -nt "$STAMP" || "$_ULIB" -nt "$STAMP" ]]; then
-  # ⚠ quem tem METRICS é quem tem HISTORY neste contest, NÃO quem tem account.json local: em
-  # contest com `USERS_FROM` o participante compartilhado tem dir local SEM account.json (de
-  # propósito), então o `list_users` devolvia 12 de 79 no ensaio-times-2026 e o recompute em
-  # massa passava longe justamente de quem compete. Era bug silencioso e antigo — editar o
-  # FREEZE_TIME não refazia a visão congelada desses times —, que só apareceu quando o
-  # `pending_min_epoch` novo ficou ausente para eles. Mesma enumeração do `sc_cells`.
-  while IFS= read -r _h; do
-    _u="${_h%/history}"; _u="${_u##*/}"
-    [[ -n "$_u" ]] && metrics_recompute "$CONTEST" "$_u"
-  done < <(find "$CONTESTDIR/users" -mindepth 2 -maxdepth 2 -name history 2>/dev/null)
-  touch "$STAMP"
+if (( ! PRESTART )); then
+  _SIG="$(metrics_conf_sig "$CONTEST")"; _OSIG=""
+  [[ -f "$STAMP" ]] && read -r _OSIG < "$STAMP" 2>/dev/null
+  if [[ ! -f "$STAMP" || "$_ULIB" -nt "$STAMP" ]] || { [[ "$CONF" -nt "$STAMP" ]] && [[ "$_OSIG" != "$_SIG" ]]; }; then
+    # ⚠ quem tem METRICS é quem tem HISTORY neste contest, NÃO quem tem account.json local: em
+    # contest com `USERS_FROM` o participante compartilhado tem dir local SEM account.json (de
+    # propósito), então o `list_users` devolvia 12 de 79 no ensaio-times-2026 e o recompute em
+    # massa passava longe justamente de quem compete. Era bug silencioso e antigo — editar o
+    # FREEZE_TIME não refazia a visão congelada desses times —, que só apareceu quando o
+    # `pending_min_epoch` novo ficou ausente para eles. Mesma enumeração do `sc_cells` (o
+    # metrics_recompute_all varre users/*/history). UM jq p/ o contest todo (ver lib/users.sh).
+    metrics_recompute_all "$CONTEST"
+    printf '%s\n' "$_SIG" > "$STAMP"
+  elif [[ "$CONF" -nt "$STAMP" ]]; then
+    touch "$STAMP"     # o conf mudou, mas não no que as métricas usam: nada a recomputar
+  fi
 fi
 
 # memo do sc_users POR CHAVE DE VISÃO, compartilhado entre as gerações deste build (frozen+full
