@@ -70,7 +70,12 @@ podman exec systemd-moj-api bash /tmp/ensaio-fixture.sh zz-ensaio-fumaca 3 1
 
 # 1. palco (~1 min p/ 800 times): contest + times + staff + sessões; tokens em /tmp do container
 podman exec systemd-moj-api bash /tmp/ensaio-fixture.sh zz-ensaio-800 800 20
-podman cp systemd-moj-api:/tmp/ensaio-tokens-times.txt /root/ensaio/; podman cp systemd-moj-api:/tmp/ensaio-tokens-staff.txt /root/ensaio/
+# o podman do usuário moj NÃO escreve no /root/ensaio (700 do root): copiar via temporário do moj e mover como root
+for t in times staff; do f=$(sudo -u moj mktemp /tmp/ensaio-tok.XXXXXX)
+  podman cp systemd-moj-api:/tmp/ensaio-tokens-$t.txt "$f" && mv "$f" /root/ensaio/ensaio-tokens-$t.txt; done
+chown root:root /root/ensaio/*; chmod 600 /root/ensaio/*
+# ESPERE ~2 min: a criação do contest dispara trabalho de fundo (na fumaça de 15/10: ~40 s com a API em ~170% de um
+# núcleo). Só comece o plano com a linha de base da sonda de volta a ~15–20% (API) e 0% (judged).
 # (no dev) scp root@…:/root/ensaio/ensaio-tokens-*.txt <scratchpad>/ensaio/   — credenciais SÓ das contas sintéticas
 
 # 2. sonda no host (root), 10 s, até 70 min
@@ -96,6 +101,13 @@ As soluções de referência saem do pacote: `moj-problems/ribas.admin/teste-jui
 Antes do ensaio real, o mesmo encadeamento roda todo local (fixture em mktemp, ponte HTTP→router, judged ×2, o juiz
 simulado da bancada — aqui seguro: não há job real p/ roubar —, sonda, injetor comprimido com `--minute 6`). Prova os
 scripts; os números não valem (outra máquina, sem inotify). Em 15/10/2026: 249/249 veredictos, 0 erro.
+
+## Fumaça em produção (15/10/2026, 18:44 BRT)
+
+`zz-ensaio-fumaca 3 1` + 6 envios: os ramos de produção passaram (problema privado com o dono `ribas.admin`, sessão
+temporária apagada, banda `lista-publica`, sedes/balões); **6/6 veredictos dos juízes reais** (5 AC, 1 WA, como pedido),
+envio→veredicto p50 5,6 s (com o poll de 5 s), 0 5xx; a sonda coletou (cgroups, nginx incremental, balões); a limpeza
+deixou zero sessão/job. Linha de base parada: API 15–18% de um núcleo, judged 0%.
 
 ## O que ler no relatório
 
