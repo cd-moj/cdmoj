@@ -106,12 +106,13 @@ ck "um disparo por janela de 5 s: o 2º dentro dela não dispara" '[[ ! -f "$C/p
 touch -d '-10 seconds' "$C/print-requests/.balloon-kick"; queue
 ck "passada a janela, dispara e o balão de t7 nasce" 'espera "$C/print-requests/$(pr_balloon_id bb t7 "apc#p1").json"'
 sleep 0.5
-# reconcile destacado que FALHA deixa rastro em run/balloon-reconcile.err (o lock sem permissão de escrita derruba o
-# subshell do reconcile — destacado, o erro antes sumia no /dev/null)
-chmod 000 "$C/print-requests/.balloon.lock"; touch -d '-30 seconds' "$C/print-requests/.balloon-stamp"; sleep 1
+# reconcile destacado que FALHA deixa rastro em run/balloon-reconcile.err (o lock virou DIRETÓRIO: o `9>` dele falha e
+# derruba o subshell do reconcile — vale também como root, que ignoraria um chmod 000; destacado, o erro antes sumia)
+rm -f "$C/print-requests/.balloon.lock"; mkdir "$C/print-requests/.balloon.lock"
+touch -d '-30 seconds' "$C/print-requests/.balloon-stamp"; sleep 1
 touch "$C/var/.score-dirty"; touch -d '-10 seconds' "$C/print-requests/.balloon-kick"; queue
 ck "falha do reconcile destacado vai p/ run/balloon-reconcile.err" 'espera "$RUN/balloon-reconcile.err" && sleep 0.5 && grep -q "bb: pr_reconcile_balloons rc=" "$RUN/balloon-reconcile.err"'
-chmod 644 "$C/print-requests/.balloon.lock"
+rmdir "$C/print-requests/.balloon.lock"
 conf "sedes"; touch -d '-30 seconds' "$C/print-requests/.balloon-stamp"; sleep 1; touch "$C/var/.score-dirty"
 touch -d '-10 seconds' "$C/print-requests/.balloon-kick"; queue
 ck "módulo baloes desligado: o carimbo anda na própria consulta, sem disparo" \
