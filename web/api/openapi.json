@@ -1146,7 +1146,7 @@
           "treino-admin"
         ],
         "summary": "Trava contas (troca a senha por aleatória + desloga) — só o super-admin, sempre com prévia",
-        "description": "Só o super-admin. Sempre exige a prévia + plan_id + confirm, até para 1 conta. Nenhuma conta existente = 404 user_notfound. Resposta: {locked, users, users_count, sessions_removed, detail, skipped…}. Avisa os super-admins.",
+        "description": "Só o super-admin. Sempre exige a prévia + plan_id + confirm, até para 1 conta. Só contas protegidas (a própria, papel, super-admin) = 422 no_targets; nenhuma conta existente = 404 user_notfound. Resposta: {locked, users, users_count, sessions_removed, detail, skipped…}. Avisa os super-admins.",
         "security": [
           {
             "bearerAuth": []

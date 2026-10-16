@@ -15,7 +15,12 @@ while IFS= read -r l; do
   if user_exists treino "$l"; then printf '%s\n' "$l" >> "$T/keep"; else printf '%s\tnotfound\n' "$l" >> "$T/skip"; fi
 done < "$T/cand"
 n="$(grep -c . "$T/keep")"; n="${n//[^0-9]/}"; n="${n:-0}"
-(( n > 0 )) || FAIL_EXTRA="$(ab_skipped_json "$T/skip")" fail 404 "Nenhum usuário válido para travar" "user_notfound"
+# ninguém sobrou: só protegidas (a sua, papel, super) = 422 no_targets, como no logout-user; só inexistentes = 404
+if (( n == 0 )); then
+  grep -qv $'\tnotfound$' "$T/skip" && FAIL_EXTRA="$(ab_skipped_json "$T/skip")" \
+    fail 422 "Nenhuma conta para travar: a sua, as de papel (.admin, .judge…) e a do super-admin nunca entram" "no_targets"
+  FAIL_EXTRA="$(ab_skipped_json "$T/skip")" fail 404 "Nenhum usuário válido para travar" "user_notfound"
+fi
 ab_limits "$n"
 ab_scan treino logins "$T/keep" "$T/sess"
 ns="$(grep -c . "$T/sess")"; ns="${ns//[^0-9]/}"; ns="${ns:-0}"

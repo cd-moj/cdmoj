@@ -55,6 +55,10 @@ OUT="$(PATH_INFO=/treino/admin/action-detail REQUEST_METHOD=GET QUERY_STRING="co
 ck "action-detail devolve quem foi afetado" '[[ "$(printf "%s" "$OUT" | awk "f{print} /^\r?$/{f=1}" | jq -c ".detail.affected|sort")" == "[\"al02\",\"al03\",\"al04\"]" ]]'
 OUT="$(PATH_INFO=/treino/admin/action-detail REQUEST_METHOD=GET QUERY_STRING="contest=treino&f=../../conf" HTTP_AUTHORIZATION="Bearer tk-adm" bash "$ROUTER" 2>/dev/null)"
 ck "action-detail recusa nome fora do padrão (400)" '[[ "$OUT" == *"Status: 400"* ]]'
+OUT="$(PATH_INFO=/treino/admin/action-detail REQUEST_METHOD=GET QUERY_STRING="contest=treino&f=$DET" HTTP_AUTHORIZATION="Bearer s05" bash "$ROUTER" 2>/dev/null)"
+ck "action-detail p/ aluno: 403 (a lista de afetados é do admin)" '[[ "$OUT" == *"Status: 403"* ]]'
+OUT="$(PATH_INFO=/treino/admin/action-detail REQUEST_METHOD=GET QUERY_STRING="contest=treino&f=$DET" HTTP_AUTHORIZATION="Bearer tk-loc" bash "$ROUTER" 2>/dev/null)"
+ck "action-detail p/ .admin LOCAL de outro contest: recusa" '[[ "$OUT" == *"Status: 40"[13]* ]]'
 ck "aviso no outbox do mojinho: DM ao super (Telegram vinculado)" 'grep -l "777001" "$RUN"/alerts/outbox/*.json 2>/dev/null | xargs -r grep -l "deslogou" | grep -q .'
 call /treino/admin/logout-user POST tk-adm "$(logins $(seq -w 1 21))"
 ck "21 alvos p/ admin comum: 403 bulk_superadmin_only" '[[ "$CODE" == 403 ]] && grep -q bulk_superadmin_only <<<"$BODY"'
@@ -93,6 +97,10 @@ call /treino/admin/lock-user POST tk-sup '{"logins":["al12","sup.admin"]}'
 ck "travar p/ o super: prévia mesmo p/ 1 conta, sem o próprio" '[[ "$(jq -r .preview <<<"$BODY")" == true && "$(jq -r .need <<<"$BODY")" == 1 && "$(jq -r .skipped_by_reason.self <<<"$BODY")" == 1 ]]'
 call /treino/admin/lock-user POST tk-sup "$(withplan '{"logins":["al12","sup.admin"]}')"
 ck "trava al12 (senha trocada, sessão cai); o super segue" '[[ "$CODE" == 200 && "$(jq -r .users_count <<<"$BODY")" == 1 ]] && ! has s12 && has tk-sup && [[ "$(jq -r .password "$T/users/al12/account.json")" != s ]]'
+call /treino/admin/lock-user POST tk-sup '{"logins":["sup.admin","juiz.judge"]}'
+ck "travar só protegidas: 422 no_targets (não 404)" '[[ "$CODE" == 422 ]] && grep -q no_targets <<<"$BODY"'
+call /treino/admin/lock-user POST tk-sup '{"login":"naoexiste"}'
+ck "travar conta inexistente: 404 user_notfound" '[[ "$CODE" == 404 ]] && grep -q user_notfound <<<"$BODY"'
 ses i1 treino al13 10.9.9.9; ses i2 treino al14 10.9.9.9; ses i3 treino adm.admin 10.9.9.9; ses i4 outro al13 10.9.9.9
 call /treino/admin/logout-ip POST tk-adm '{"ip":"10.9.9.9"}'
 ck "deslogar por IP p/ admin comum: 403" '[[ "$CODE" == 403 ]]'
