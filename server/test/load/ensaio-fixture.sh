@@ -79,7 +79,7 @@ jq -e . "$CD/print-requests/staff-filters.json" >/dev/null || { echo "staff-filt
 rm -f "$CD/print-requests/.staff-exists" "$CD/print-requests/.scope-cache/"* 2>/dev/null
 declare -F mod_enable >/dev/null && mod_enable "$C" sedes baloes >/dev/null 2>&1
 mkdir -p "$CD/var"; touch "$CD/var/.score-dirty"
-echo "times: $(find "$CD/users" -mindepth 1 -maxdepth 1 -name 'e*t*' | wc -l) · staff: $(find "$CD/users" -mindepth 1 -maxdepth 1 -name 'e*.staff' | wc -l) · sedes: $NS"
+echo "times: $(find "$CD/users" -mindepth 1 -maxdepth 1 -name 'e[0-9][0-9]t[0-9]*' | wc -l) · staff: $(find "$CD/users" -mindepth 1 -maxdepth 1 -name 'e*.staff' | wc -l) · sedes: $NS"
 
 # ---- 3. sessões (prefixo ze; recria) ----------------------------------------------------------------------------
 rm -f "$SESSIONDIR"/ze[0-9a-f]*
