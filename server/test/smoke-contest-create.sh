@@ -67,6 +67,10 @@ ck "banned bloqueado (deny)" '[[ "$(jq -r .can_create <<<"$BODY")" == false ]]'
 call /treino/contest-create/permission GET '' nob
 ck "nobody ainda não pode"  '[[ "$(jq -r .can_create <<<"$BODY")" == false ]]'
 
+echo "== id com ponto: recusado (o id vira o subdomínio <id>.moj…; com ponto seriam 2 rótulos — lib/team-host.sh) =="
+call /treino/contest-create/create POST "{\"id\":\"a.b\",\"name\":\"Ponto\",\"mode\":\"icpc\",\"end\":$FUT,\"problems\":[{\"bank_id\":\"bankprob\",\"name\":\"B1\",\"letter\":\"A\"}]}" reg
+ck "id a.b → 422 id_invalid" '[[ "$(jq -r .error.code <<<"$BODY")" == id_invalid && ! -d "$FIX/a.b" ]]'
+
 echo "== criação (banco + por-id + enunciado custom) =="
 SPEC="{\"id\":\"test-create\",\"name\":\"Test Create\",\"mode\":\"icpc\",\"end\":$FUT,\"problems\":[{\"bank_id\":\"bankprob\",\"name\":\"B1\",\"letter\":\"A\"},{\"source\":\"cdmoj\",\"problem_id\":\"secret/foo\",\"name\":\"Foo\",\"letter\":\"B\"},{\"problem_id\":\"x/custom\",\"name\":\"Cust\",\"letter\":\"C\",\"statement_b64\":\"PHA+Y3VzdDwvcD4=\"}]}"
 call /treino/contest-create/create POST "$SPEC" reg

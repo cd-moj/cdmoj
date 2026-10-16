@@ -85,6 +85,11 @@ if [[ -n "$_slip" && -f "$(sl_file "$_slip")" ]]; then
   fi
 fi
 
+# TIME SÓ PELO ENDEREÇO DO PRÓPRIO CONTEST (lib/team-host.sh): sessão de time fora do subdomínio do contest dela leva
+# 403 host_required em TODA rota. O auth/login tem a porta própria (o token velho que vem junto não pode barrar outro
+# login) e o auth/logout sempre passa. Depois do isolamento e da trava de sede: as duas mantêm a prioridade.
+case "${_seg[0]}/${_seg[1]:-}" in auth/login|auth/logout) ;; *) th_guard ;; esac
+
 handler="$HANDLERS$_safe.sh"
 [[ -f "$handler" ]] || fail 404 "No such route: $route" "route_notfound"
 source "$handler"

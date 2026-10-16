@@ -2,7 +2,13 @@
 // Num subdomínio de contest, QUALQUER página fora de /contest/ é redirecionada para o
 // contest. Importado por shared/api.js, então roda em toda página. Racional: a máquina de
 // prova abre o browser já no contest e nada fora dele deve ser alcançável.
-import { contestHost } from './contest-host.js';
+import { contestHost, subdomainRedirect } from './contest-host.js';
+
+// TIME SÓ PELO SUBDOMÍNIO (16/10/2026): a página de contest aberta no site principal (moj.…/contest/?c=X — link de
+// Moodle, favorito, o "Abrir" do painel) pula p/ https://X.moj…/ com o mesmo caminho, ANTES de qualquer fetch. A API
+// recusa a sessão de time fora do subdomínio (403 host_required); papel também é levado — loga de novo lá uma vez.
+const _go = subdomainRedirect(location);
+if (_go) location.replace(_go);
 
 const _cid = contestHost();
 // disponível para as páginas de contest derivarem o id do host (sem import extra).

@@ -26,6 +26,21 @@ login é membro de um time inscrito, a credencial é a DELE mas a sessão é do 
 `actor` (quem digitou) e `is_team:true`, e `/auth/status`, `/contest/userinfo`, o `access.log` (5ª
 coluna) e o `var/actor-log` guardam o ator. Ver `lib/registration.sh`.
 
+**Time só pelo subdomínio do contest** (`lib/team-host.sh`, 16/10/2026 — sempre ligado). Conta de TIME (todo login sem
+sufixo de papel) de um contest que não é o treino só loga e só usa o contest pelo subdomínio dele
+(`https://<id>.<host>`; o nginx diz por onde o pedido chegou em `CONTEST_HOST`). Fora dele — o IP cru, o site
+principal ou o subdomínio de outro contest — o `/auth/login` e **toda requisição com o token do time** respondem
+**403 `host_required`**, com `error.url` (o endereço certo, `https://<id>.<host>/contest/`) e `error.contest`; a URL
+vai também na mensagem (CLI antiga só mostra `error.message`). O `/auth/logout` sempre passa. Ficam de fora: conta de
+papel, o treino e id que não vira rótulo de DNS (com ponto ou maiúscula — a criação recusa `.` no id desde então,
+422 `id_invalid`). Chave `TEAM_HOST_LOCK` (`etc/common.conf`: `1` padrão, `observe` só registra, `0` desliga;
+instalação sem DNS curinga + certificado usa `0`) e override sem restart em `run/team-host-lock` (`0` ou `observe`;
+só afrouxa). Cada recusa vai ao `admin-audit.log` do contest (`team-host-block`, `team-host-observe`; no máx. 1 linha a
+cada 5 min por login+via) e às Anomalias (`kind:"team_host"`, `counts.team_host_blocks`). O porteiro DECLINA essa
+sessão (o bash responde). No nginx, Host desconhecido (o IP cru) recebe **421 `host_unknown`**
+(`install-nginx.sh --close-unknown`). ⚠ Não é fronteira dura: um `Host` forjado passa — quem prende a MÁQUINA ao
+contest é a trava de sede por IP.
+
 **Invariante da sessão:** o token só continua valendo enquanto a CONTA existir
 (`users/<login>/account.json` do contest da sessão ou, com `USERS_FROM`, o da fonte
 compartilhada). Conta renomeada, removida ou contest apagado ⇒ **401 `auth_required`** na
@@ -452,7 +467,7 @@ contest, então a **sede** (`.cstaff`) baixa o publicado pelo terminal, útil em
 `*.admin` do contest) — o corte de acesso é sempre o do servidor.
 
 ## Ambiente de contest (subdomínio + admin do contest)
-Acessado por `<id>.moj.<base>` (subdomínio): o nginx injeta `CONTEST_HOST`; a API só serve aquele contest (`auth`/`contest`/`submit`/`submission`) e o frontend redireciona o resto para `/contest/`. ⚠ Esse isolamento vale só para quem ENTRA pelo subdomínio — da máquina de prova, `curl --resolve moj…:443:<IP>` chega ao site base pelo mesmo IP; quem fecha isso é a **trava de sede por IP** (`/contest/admin/site-lock`, 403 `site_locked`). Login com gate opcional por substring de User-Agent (`LOGIN_UA_SUBSTRING`, só não-privilegiados). Papéis: `.admin`/`.judge`/`.cjudge` (juiz-chefe, herda juiz)/`.staff`/`.mon`.
+Acessado por `<id>.moj.<base>` (subdomínio): o nginx injeta `CONTEST_HOST`; a API só serve aquele contest (`auth`/`contest`/`submit`/`submission`) e o frontend redireciona o resto para `/contest/`. Desde 16/10/2026 é o ÚNICO endereço do TIME (403 `host_required` fora dele, ver "Time só pelo subdomínio" acima), e a página de contest aberta no site principal (`/contest/…?c=<id>`) pula p/ ele (`web/shared/contest-host.js`). ⚠ Esse isolamento vale só para quem ENTRA pelo subdomínio — da máquina de prova, `curl --resolve moj…:443:<IP>` chega ao site base pelo mesmo IP; quem fecha isso é a **trava de sede por IP** (`/contest/admin/site-lock`, 403 `site_locked`). Login com gate opcional por substring de User-Agent (`LOGIN_UA_SUBSTRING`, só não-privilegiados). Papéis: `.admin`/`.judge`/`.cjudge` (juiz-chefe, herda juiz)/`.staff`/`.mon`.
 
 | Rota | Método | Papel | I/O |
 |---|---|---|---|

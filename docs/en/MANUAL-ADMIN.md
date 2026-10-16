@@ -1,4 +1,4 @@
-<!-- i18n-source: MANUAL-ADMIN.md blob:37901bd8d7384f25f5ee03384c66dcd4a3dfa079 -->
+<!-- i18n-source: MANUAL-ADMIN.md blob:b87068a22730e67281ffea5b3ebfa00ae3082219 -->
 # MOJ: Organizer manual (the contest .admin panel)
 
 > **Translation note.** This manual is a translation of the Portuguese original. The command-line tools (`moj`, `moj-contest`, `moj-comp`) print their messages in Portuguese, and the command examples below are identical to the original.
@@ -735,6 +735,13 @@ usual `login_ua_substring`, which continues to apply as the last option).
   lock (site lock), with "release" per IP and "🔒 Pin IPs already seen" (useful on the morning of
   the contest). An accepted side effect: during the window, all persons behind that public IP
   lose access to the training.
+- **Teams only at the contest address** (always on, there is no switch in the panel): a team logs in and uses the
+  contest only at its address, `https://<id>.moj.naquadah.com.br`. At another address (the MOJ IP, the main site or
+  the address of another contest), the login and each request of the team are refused, and the screen shows the
+  correct address. The old link `/contest/?c=<id>` takes the user to the contest address. Role accounts and the
+  training are exempt. Each refusal goes to the audit (`team-host-block`) and appears in Machines › Anomalies
+  ("outside the contest address"). This pins the team SESSION to the contest. The site lock above pins the MACHINE.
+  On Maratona Linux, use both.
 - **Single session per team** (switch in the same 🔒 section, on by default): with the gate in
   **Block** mode, a new login on **another machine ends the previous session** of the team. A change of
   machine because of a defect continues to work (the team logs in on the new machine, and the old

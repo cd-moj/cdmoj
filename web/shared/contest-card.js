@@ -3,6 +3,7 @@
 // p/ que home e arquivo nunca divirjam.
 import { el, fmtDate } from '/shared/ui.js';
 import { T } from '/shared/i18n.js';
+import { contestOrigin } from '/shared/contest-host.js';
 
 export function relTime(epoch) {
   const d = Number(epoch) - Date.now() / 1000, a = Math.abs(d);
@@ -15,8 +16,8 @@ export function relTime(epoch) {
 
 export function contestCard(c, status) {
   const id = c.id || '';
-  // no site principal, abre o contest pelo subdomínio (ID.moj.<base>); senão cai no ?c=
-  const sub = /^moj\./i.test(location.hostname) ? (location.protocol + '//' + id + '.' + location.host) : '';
+  // no site principal, abre o contest pelo subdomínio (ID.moj.<base>) — é por ele que o time entra; senão cai no ?c=
+  const sub = contestOrigin(id);
   const url = sub ? (sub + '/') : ('/contest/?c=' + encodeURIComponent(id));
   const score = sub ? (sub + '/contest/score/') : ('/contest/score/?c=' + encodeURIComponent(id));
   const start = c.start_time || c.start, end = c.end_time || c.end;

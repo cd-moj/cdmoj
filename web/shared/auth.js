@@ -22,7 +22,15 @@ export async function status(contest, opts = {}) {
     // resposta, voto pendente, conflito) em QUALQUER página que consulta o status (best-effort, idempotente).
     try { startStaffAlert(contest, st, opts); } catch { /* alerta é opcional */ }
     return st;
-  } catch { return { logged_in: false }; }
+  } catch (e) {
+    // TIME FORA DO ENDEREÇO DO CONTEST (403 host_required, lib/team-host.sh): o token daqui não serve mais — some, e
+    // a tela de login mostra o endereço certo (error.url)
+    if (e && e.code === 'host_required') {
+      clearToken(contest);
+      return { logged_in: false, host_required: true, url: (e.data && e.data.url) || '' };
+    }
+    return { logged_in: false };
+  }
 }
 
 export async function logout(contest) {

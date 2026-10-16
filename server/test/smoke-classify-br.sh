@@ -141,7 +141,7 @@ jq -cn '{login:"cb.admin", fullname:"Admin", password:"x"}' > "$C/users/cb.admin
 NOWE=$(date +%s)
 mktok(){ printf 'CONTEST=%q\nLOGIN=%q\nUSERFULLNAME=%q\nLOGINAT=%q\n' cb "$1" "$1" "$NOWE" > "$SESS/$2"; }
 mktok cb.admin t-adm; mktok teamsp01 t-team
-callc(){ PATH_INFO=/contest/classification REQUEST_METHOD=GET QUERY_STRING="contest=cb" \
+callc(){ PATH_INFO=/contest/classification REQUEST_METHOD=GET QUERY_STRING="contest=cb" CONTEST_HOST=cb \
     HTTP_AUTHORIZATION="${1:+Bearer $1}" \
     CONTESTSDIR="$FIX" SESSIONDIR="$SESS" bash "$ROUTER" 2>/dev/null | awk 'f{print} /^\r?$/{f=1}'; }
 # estado atual do fixture: stage em DRAFT (parte 2 terminou assim)

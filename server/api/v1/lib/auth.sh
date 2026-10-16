@@ -2,11 +2,13 @@
 # Padrão: header `Authorization: Bearer <token>` (HTTP_AUTHORIZATION).
 # Compat: aceita header não-padrão `Bearer: <token>` (HTTP_BEARER) do sistema antigo.
 
-_bearer_token() {
-  local a="${HTTP_AUTHORIZATION:-}"
-  if [[ "$a" == "Bearer "* ]]; then printf '%s' "${a#Bearer }"; return; fi
-  printf '%s' "${HTTP_BEARER:-}"
+# _bearer_token_to <var> — o token da requisição numa variável, SEM processo (nameref). O `$(_bearer_token)` custava um
+# fork por requisição autenticada; o _bearer_token segue como atalho p/ quem precisa do valor no stdout.
+_bearer_token_to() {
+  local -n _btv="$1"; local a="${HTTP_AUTHORIZATION:-}"
+  if [[ "$a" == "Bearer "* ]]; then _btv="${a#Bearer }"; else _btv="${HTTP_BEARER:-}"; fi
 }
+_bearer_token() { local t=""; _bearer_token_to t; printf '%s' "$t"; }
 
 SESSION_TOKEN=""; SESSION_CONTEST=""; SESSION_LOGIN=""; SESSION_NAME=""; SESSION_AT=""
 # SESSION_ACTOR = a PESSOA por trás da sessão quando ela não é o próprio login: num contest
@@ -62,7 +64,7 @@ _shared_role_ok() {
 
 # load_session -> 0 se autenticado (popula SESSION_*), 1 caso contrário.
 load_session() {
-  SESSION_TOKEN="$(_bearer_token)"
+  _bearer_token_to SESSION_TOKEN
   [[ -n "$SESSION_TOKEN" ]] || return 1
   valid_id "$SESSION_TOKEN" || return 1
   local f="$SESSIONDIR/$SESSION_TOKEN"

@@ -694,6 +694,12 @@ papel (sempre entra) › regra por regex › **override da sede** › captura no
   `site-lock-block`) e aparecem em Máquinas › Gate & trava (trava de sede), com "soltar" por IP e "prender IPs
   já vistos" (útil na manhã da prova). Efeito colateral aceito: durante a janela, todo mundo atrás
   daquele IP público perde o treino.
+- **Times só pelo endereço do contest** (sempre ligado, não há chave no painel): o time só loga e só usa o contest
+  pelo endereço dele, `https://<id>.moj.naquadah.com.br`. Por outro endereço (o IP do MOJ, o site principal ou o
+  endereço de outro contest), o login e cada pedido do time são recusados, e a tela mostra o endereço certo. O link
+  antigo `/contest/?c=<id>` leva ao endereço do contest. Contas de papel e o treino ficam de fora. Cada recusa vai ao
+  audit (`team-host-block`) e aparece em Máquinas › Anomalias ("fora do endereço do contest"). Isto prende a SESSÃO
+  do time ao contest; quem prende a MÁQUINA é a trava de sede acima. No Maratona Linux, use as duas.
 - **Sessão única por time** (chave na mesma seção 🔒, ligada por padrão): com o gate em **Barrar**, um
   login novo em **outra máquina derruba a sessão anterior** do time. Trocar de máquina por defeito
   continua funcionando (o time loga na nova e a velha perde a sessão); recarregar a página na mesma

@@ -1,4 +1,4 @@
-<!-- i18n-source: MANUAL-ADMIN.md blob:37901bd8d7384f25f5ee03384c66dcd4a3dfa079 -->
+<!-- i18n-source: MANUAL-ADMIN.md blob:b87068a22730e67281ffea5b3ebfa00ae3082219 -->
 # MOJ: Manual del organizador (el panel .admin de la competencia)
 
 > **Nota de traducción.** Este manual es una traducción del original en portugués. Las herramientas de línea de comandos (`moj`, `moj-contest`, `moj-comp`) muestran sus mensajes en portugués, y los ejemplos de comandos son idénticos al original.
@@ -704,6 +704,13 @@ rol (siempre entra) › regla por regex › **override de la sede** › captura 
   `site-lock-block`) y aparecen en Máquinas › Gate y bloqueo (bloqueo de sede), con "soltar" por IP y "🔒 Fijar IPs
   ya vistos" (útil en la mañana de la competencia). Efecto secundario aceptado: durante la ventana, todos los que estén detrás
   de ese IP público pierden el entrenamiento.
+- **Equipos solo por la dirección de la competencia** (siempre activo, no hay interruptor en el panel): el equipo solo
+  inicia sesión y usa la competencia por su dirección, `https://<id>.moj.naquadah.com.br`. Por otra dirección (la IP
+  del MOJ, el sitio principal o la dirección de otra competencia), el inicio de sesión y cada pedido del equipo se
+  rechazan, y la pantalla muestra la dirección correcta. El enlace antiguo `/contest/?c=<id>` lleva a la dirección de
+  la competencia. Las cuentas de rol y el entrenamiento están exentos. Cada rechazo va a la auditoría
+  (`team-host-block`) y aparece en Máquinas › Anomalías ("fuera de la dirección de la competencia"). Esto fija la
+  SESIÓN del equipo a la competencia; el bloqueo de sede de arriba fija la MÁQUINA. En el Maratona Linux, usa los dos.
 - **Sesión única por equipo** (interruptor en la misma sección 🔒, activado por defecto): con el gate en **Bloquear**, un
   nuevo inicio de sesión en **otra máquina cierra la sesión anterior** del equipo. Cambiar de máquina por una falla
   sigue funcionando (el equipo inicia sesión en la nueva y la vieja pierde la sesión); recargar la página en la misma

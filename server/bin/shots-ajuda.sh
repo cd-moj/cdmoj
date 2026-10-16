@@ -491,8 +491,10 @@ PORT="$(python3 - <<'PY'
 import socket; s=socket.socket(); s.bind(('127.0.0.1',0)); print(s.getsockname()[1]); s.close()
 PY
 )"
+# TEAM_HOST_LOCK=0: as telas são servidas em 127.0.0.1, sem subdomínio de contest — com a regra ligada, o time da
+# fixture levaria 403 host_required (lib/team-host.sh)
 export SHOT_ROOT="$ROOT" SHOT_FIX="$FIX" SHOT_RUN="$RUNF" SHOT_SESS="$SESS" \
-       SHOT_DELAY_MS SHOT_PORT="$PORT"
+       SHOT_DELAY_MS SHOT_PORT="$PORT" TEAM_HOST_LOCK=0
 python3 "$ROOT/server/bin/shots-server.py" & SRV=$!
 for i in $(seq 1 40); do
   curl -sf "http://127.0.0.1:$PORT/__ping" >/dev/null 2>&1 && break; sleep 0.25

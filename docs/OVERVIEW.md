@@ -77,6 +77,11 @@ moj/
   instrução, sem dado de treino/problema/contest, liberada porque o competidor precisa dela na LAN
   isolada; lá dentro ela veste o topbar do contest e obedece o LOCALE dele. Página nova só entra
   nessa lista se não falar com a API do treino.
+- **Time só pelo subdomínio** (16/10/2026, `lib/team-host.sh`): a conta de TIME de um contest só loga e só usa o
+  contest pelo subdomínio dele — fora dele, 403 `host_required` com o endereço certo (login E toda requisição com o
+  token; papel e treino ficam de fora; o porteiro declina). A página de contest aberta no site principal pula p/ o
+  subdomínio (`shared/contest-host.js` `subdomainRedirect`, no `contest-guard.js`), e o `moj-comp` fala com ele
+  sozinho. No nginx, Host desconhecido (o IP cru) recebe 421 (`install-nginx.sh --close-unknown`).
 - **jq para todo JSON**; `contests/<c>/conf` é *sourced* — por isso a criação de contest
   escreve tudo com `printf %q`.
 

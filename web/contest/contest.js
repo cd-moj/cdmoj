@@ -12,6 +12,7 @@ import { mountContestUserChip } from '/shared/contest-shell.js';
 import { makeSubmissionsTable } from '/contest/submissions-table.js';
 import { makeSubmitFlow, attachSubmitButton, lastSubKey, submitChannel } from '/shared/submit-ux.js';
 import { mountSiteFooter } from '/shared/site-footer.js';
+import { baseOrigin, contestOrigin } from '/shared/contest-host.js';
 import { openHtmlReport } from '/shared/submission-links.js';
 import { balloonColorHex, balloonSVG, balloonEdge, balloonTint } from '/contest/score/score-colors.js';
 import { pickStmtLang, makeStmtLangChips, setChipsActive, rememberStmtLang, stmtHtmlLang } from '/shared/statement-langs.js';
@@ -230,6 +231,19 @@ function scheduleLoginPoll() {
   }, 15000);
 }
 
+// TIME SÓ PELO ENDEREÇO DO CONTEST (403 host_required, lib/team-host.sh): a mensagem do servidor + o link do endereço
+// certo. `url` vem do servidor (error.url); sem ela, o subdomínio derivado daqui.
+function hostNotice(box, url) {
+  const href = url || (contestOrigin(CONTEST) ? contestOrigin(CONTEST) + '/contest/' : '');
+  box.textContent = T('Os times deste contest só entram pelo endereço dele:', 'Teams of this contest can only log in at its own address:', 'Los equipos de esta competencia solo pueden entrar por su propia dirección:') + ' ';
+  if (href) {
+    const a = document.createElement('a');
+    a.href = href; a.textContent = href; a.style.fontWeight = '600';
+    box.append(a);
+  }
+  box.classList.remove('hidden');
+}
+
 function bootLogin() {
   show('loginView');
   hide('mainView');
@@ -254,10 +268,10 @@ function bootLogin() {
       // A PORTA do contest (roster/janela): a mensagem sozinha não resolve — quem não se
       // inscreveu precisa do link, e a inscrição mora no site principal (outro domínio).
       const code = ex && ex.code;
+      if (code === 'host_required') hostNotice(err, ex.data && ex.data.url);
       if (code === 'not_registered' || code === 'registration_not_open') {
-        const base = location.host.replace(/^[^.]+\./, '');   // <id>.moj.x → moj.x
         const a = document.createElement('a');
-        a.href = location.protocol + '//' + base + '/contests/inscricao/?c=' + encodeURIComponent(CONTEST);
+        a.href = baseOrigin() + '/contests/inscricao/?c=' + encodeURIComponent(CONTEST);
         a.textContent = T(' Inscreva-se aqui →', ' Register here →', ' Inscríbete aquí →');
         a.style.marginLeft = '.4rem';
         err.append(a);
@@ -1164,7 +1178,10 @@ async function boot() {
   if (st.logged_in && !EDITOR_ONLY) mountContestUserChip(st);
   if (!EDITOR_ONLY) mountSiteFooter().catch(() => {});
   if (st.logged_in) { if (EDITOR_ONLY) await bootEditorOnly(); else await bootMain(); }
-  else bootLogin();
+  else {
+    bootLogin();
+    if (st.host_required) hostNotice(document.getElementById('loginError'), st.url);
+  }
 }
 
 // janela "só editor" (?editoronly=1&prob=<id>): carrega o problema e mostra apenas o editor

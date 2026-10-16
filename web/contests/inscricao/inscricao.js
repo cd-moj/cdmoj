@@ -10,6 +10,7 @@ import { el, renderAuthArea, fmtDate } from '/shared/ui.js';
 import { flagManifest, flagEl } from '/shared/flags.js';
 import { T } from '/shared/i18n.js';
 import { colonNote } from '/shared/users-batch.js';
+import { contestOrigin } from '/shared/contest-host.js';
 
 const CONTEST = 'treino';
 const TARGET = new URLSearchParams(location.search).get('c') || '';
@@ -36,9 +37,8 @@ function flagPicker(current) {
   return { sel, box: el('span', { class: 'row', style: 'gap:.3rem;align-items:center' }, sel, prev) };
 }
 
-const contestUrl = () => (/^moj\./i.test(location.hostname)
-  ? `${location.protocol}//${TARGET}.${location.host}/`
-  : `/contest/?c=${encodeURIComponent(TARGET)}`);
+// o contest abre pelo subdomínio dele (é por ele que o time entra); fora do moj.* (IP, localhost), o ?c= de sempre
+const contestUrl = () => (contestOrigin(TARGET) ? contestOrigin(TARGET) + '/' : `/contest/?c=${encodeURIComponent(TARGET)}`);
 
 function fmtLeft(s) {
   if (s <= 0) return '0s';

@@ -39,6 +39,21 @@ RUNDIR = os.environ.get("RUNDIR", "/data/run")
 SESSIONDIR = os.environ.get("SESSIONDIR", os.path.join(RUNDIR, "sessions"))
 MOJ_HOME = os.environ.get("MOJ_HOME", "/opt/moj/cdmoj")
 
+# TIME SÓ PELO SUBDOMÍNIO DO PRÓPRIO CONTEST (lib/team-host.sh): a MESMA chave e o mesmo padrão do bash (1); 0 desliga.
+TEAM_HOST_LOCK = os.environ.get("TEAM_HOST_LOCK") or "1"
+SUBDOMAINABLE = re.compile(r"^[a-z0-9][a-z0-9_-]{0,62}$")
+
+
+def _read_word(path):
+    """1ª palavra de um arquivo pequeno ('' se não existe/ilegível)."""
+    try:
+        with open(path, errors="replace") as f:
+            w = f.read(64).split()
+            return w[0] if w else ""
+    except OSError:
+        return ""
+
+
 def _env_int(name, dflt):
     v = os.environ.get(name, "")
     return int(v) if v.isdigit() else dflt
@@ -181,6 +196,12 @@ def load_session(params):
         # antes do corte de papéis de 28/09 recebia aqui o placar descongelado; auditoria 03/10/2026)
         if role_of(login) != "time":
             raise Decline("papel de conta só da fonte")
+    # TIME FORA DO SUBDOMÍNIO DO PRÓPRIO CONTEST (router.sh th_guard + lib/team-host.sh): o 403 host_required e o
+    # registro são do bash — mexeu numa regra, mexa na outra. O arquivo de override só é lido nesse caso.
+    if (TEAM_HOST_LOCK not in ("0", "off", "n", "no", "false") and contest != "treino" and role_of(login) == "time"
+            and params.get("CONTEST_HOST", "") != contest and SUBDOMAINABLE.match(contest)
+            and _read_word(os.path.join(RUNDIR, "team-host-lock")) not in ("0", "off")):
+        raise Decline("time fora do subdomínio do contest")
     return contest, login
 
 
@@ -1048,10 +1069,12 @@ def master(sock_path, nworkers, backlog):
 # ---------------------------------------------------------------- selftest (fixture própria)
 def selftest():
     import tempfile
-    global CONTESTSDIR, SESSIONDIR
+    global CONTESTSDIR, SESSIONDIR, RUNDIR, TEAM_HOST_LOCK
     tmp = tempfile.mkdtemp(prefix="porteiro-st.")
     CONTESTSDIR = os.path.join(tmp, "contests")
     SESSIONDIR = os.path.join(tmp, "sessions")
+    RUNDIR = os.path.join(tmp, "run")
+    TEAM_HOST_LOCK = "1"
     cdir = os.path.join(CONTESTSDIR, "st", "var")
     os.makedirs(cdir)
     os.makedirs(SESSIONDIR)
@@ -1067,9 +1090,9 @@ def selftest():
     with open(os.path.join(cdir, "placar.txt"), "w") as f:
         f.write("icpc\nlinha\n")
 
-    def req(path, qs, auth=""):
+    def req(path, qs, auth="", host="st"):   # host = CONTEST_HOST (o subdomínio por onde o pedido chegou)
         p = {"PATH_INFO": path, "REQUEST_METHOD": "GET", "QUERY_STRING": qs,
-             "HTTP_AUTHORIZATION": auth}
+             "HTTP_AUTHORIZATION": auth, "CONTEST_HOST": host}
         try:
             return handle_request(p)
         except Decline as d:
@@ -1080,6 +1103,9 @@ def selftest():
     ok &= b'"rounds"' in r or print("rounds FALHOU: %r" % r[:80]) is not None
     r = req("/contest/score", "contest=st", "")
     ok &= b"linha" in r or print("score FALHOU: %r" % r[:80]) is not None
+    # time fora do subdomínio do contest dele (IP / site principal): o bash recusa (host_required)
+    r = req("/contest/rounds", "contest=st", "Bearer tok1", host="")
+    ok &= r.startswith(b"DECLINE") or print("time fora do subdominio FALHOU: %r" % r[:80]) is not None
     r = req("/contest/rounds", "contest=st", "Bearer NAOEXISTE")
     ok &= r.startswith(b"DECLINE") or print("decline FALHOU: %r" % r[:80]) is not None
     r = req("/contest/score", "contest=../etc", "")

@@ -54,7 +54,9 @@ que aparece no telão quando vocês resolvem um problema.
 
 ## 2. Entrar no contest
 
-Você acessa o contest por um link no formato `/contest/?c=<id>` (ou por um subdomínio que a organização informar). Troque `<id>` pelo identificador do seu contest.
+Você acessa o contest pelo endereço dele: `https://<id>.moj.naquadah.com.br`. Troque `<id>` pelo identificador do seu contest. O link antigo `/contest/?c=<id>` do site principal leva você até esse endereço.
+
+O time só entra pelo endereço do contest. Por outro endereço (o IP do MOJ ou o site principal), o login é recusado e a tela mostra o endereço certo.
 
 Antes de fazer login, você já vê:
 

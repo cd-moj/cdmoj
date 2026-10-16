@@ -214,7 +214,9 @@ cc_create(){
     id="$(printf '%s' "$name" | tr '[:upper:]' '[:lower:]' | tr -cs 'a-z0-9' '-' | sed -E 's/^-+|-+$//g')"
     [[ -n "$id" ]] || id="contest"; id="${id:0:48}"; id="$(printf '%s' "$id" | sed -E 's/-+$//')"
   fi
-  [[ "$id" =~ ^[a-z0-9][a-z0-9._-]{1,48}$ ]] || fail 422 "id inválido (use a-z, 0-9, . _ -)" "id_invalid"
+  # sem PONTO (16/10/2026): o id vira o subdomínio <id>.moj… e os times só entram por ele (lib/team-host.sh) — com
+  # ponto seriam dois rótulos, fora do certificado curinga
+  [[ "$id" =~ ^[a-z0-9][a-z0-9_-]{1,48}$ ]] || fail 422 "id inválido (use a-z, 0-9, _ -)" "id_invalid"
   case "$id" in treino|admin|api|www|status|docs|shared|index|new|old|run|server|web) fail 409 "id reservado" "id_reserved";; esac
   # ids `icpc*` são da organização da Maratona: só SUPER-ADMIN cria (decisão do Ribas, 2026-09-15);
   # vale p/ create, duplicate e todo caminho que passa por aqui (o creator é quem pede)

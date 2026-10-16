@@ -105,6 +105,8 @@ export function makeAnomaliesTab(CONTEST) {
       card(c.switched || 0, K.switched.label, 'switched', false),
       card(c.revoked || 0, T('revogações', 'revocations', 'revocaciones'), 'session_event', false),
       card(c.site_lock_blocks || 0, T('bloqueios da trava', 'lock blocks', 'bloqueos del bloqueo de sede'), 'site_lock', true),
+      // time fora do subdomínio (lib/team-host.sh): só aparece quando houve alguma recusa
+      (c.team_host_blocks ? card(c.team_host_blocks, T('fora do endereço', 'outside the address', 'fuera de la dirección'), 'team_host', true) : null),
       // só aparece quando o webhook do nutellaboot já entregou algum alerta (contest sem mlinux não ganha cartão vazio)
       (c.machine_alerts ? card(c.machine_alerts, K.machine_alert.label, 'machine_alert', true) : null),
       (c.machine_events ? card(c.machine_events, K.machine_event.label, 'machine_event', false) : null),
@@ -149,6 +151,10 @@ export function makeAnomaliesTab(CONTEST) {
         case 'site_lock': return dd.event === 'site-lock-block'
           ? T(`BLOQUEADO: pedido a "${dd.target && dd.target !== '-' ? dd.target : 'treino/índice'}" (${dd.route}) de IP preso a este contest`, `BLOCKED: request to "${dd.target && dd.target !== '-' ? dd.target : 'training/index'}" (${dd.route}) from an IP pinned to this contest`, `BLOQUEADO: pedido a "${dd.target && dd.target !== '-' ? dd.target : 'entrenamiento/índice'}" (${dd.route}) desde una IP fijada a esta competencia`)
           : T(`IP preso a este contest até ${fmtClock(+dd.until || 0)}`, `IP pinned to this contest until ${fmtClock(+dd.until || 0)}`, `IP fijada a esta competencia hasta ${fmtClock(+dd.until || 0)}`);
+        case 'team_host': return (dd.event === 'team-host-observe' ? T('(só observado) ', '(observed only) ', '(solo observado) ') : T('RECUSADO: ', 'REFUSED: ', 'RECHAZADO: '))
+          + (dd.via === 'login' ? T('login', 'login', 'inicio de sesión') : T('pedido ', 'request ', 'pedido ') + (dd.route || ''))
+          + T(' pelo endereço ', ' through the address ', ' por la dirección ') + (dd.host && dd.host !== '-' ? dd.host : T('IP/site principal', 'IP/main site', 'IP/sitio principal'))
+          + (dd.actor ? T(` · membro ${dd.actor}`, ` · member ${dd.actor}`, ` · integrante ${dd.actor}`) : '');
         case 'machine_alert': {
           const an = ({ 'usb.storage': T('pendrive ou HD externo', 'USB storage', 'almacenamiento USB'), 'usb.phone': T('celular', 'phone', 'celular'), 'usb.network': T('rede por USB', 'USB network', 'red USB'),
             'usb.other': T('outro dispositivo USB', 'other USB device', 'otro dispositivo USB'), 'identity.duplicate': T('identidade repetida', 'duplicate identity', 'identidad duplicada'),
@@ -179,7 +185,7 @@ export function makeAnomaliesTab(CONTEST) {
           el('td', { class: 'small' }, fmtDate(x.at)),
           el('td', {}, sevPill(x.severity), ' ', el('span', { class: 'small' }, k.icon + ' ' + k.label)),
           el('td', {}, x.login ? el('span', { class: x.severity === 'bad' ? 'flag-anom' : '' }, x.login) : (x.name || ''), x.name && x.login && x.name !== x.login ? el('div', { class: 'small muted' }, x.name + (x.region ? ' · ' + x.region : '')) : (x.region ? el('div', { class: 'small muted' }, x.region) : '')),
-          el('td', { class: 'small' }, x.kind === 'switched' || x.kind === 'session_event' ? el('code', {}, mkText(x.machine)) : x.kind === 'site_lock' ? el('code', {}, (x.machine || '').replace(/^ip:/, 'ip ')) : mk(x.machine)),
+          el('td', { class: 'small' }, x.kind === 'switched' || x.kind === 'session_event' ? el('code', {}, mkText(x.machine)) : (x.kind === 'site_lock' || x.kind === 'team_host') ? el('code', {}, (x.machine || '').replace(/^ip:/, 'ip ')) : mk(x.machine)),
           el('td', { class: 'small' }, detailText(x),
             xp ? el('div', { class: 'small' }, '✓ ' + T('explicada por ', 'explained by ', 'explicada por ') + (xp.by || '') + ' · ' + fmtClock(xp.at) + (xp.note ? ' — ' + xp.note : '')) : ''),
           el('td', { style: 'white-space:nowrap' },

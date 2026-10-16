@@ -1,4 +1,4 @@
-<!-- i18n-source: MANUAL-CONTEST.md blob:552b5d27be82c916cbd9454ab1b982f28cd7bb62 -->
+<!-- i18n-source: MANUAL-CONTEST.md blob:e74c7e744e5f25c51f9449e9763cc83c00c8e184 -->
 # MOJ: Manual del competidor (competencia)
 
 > **Nota de traducción.** Este manual es una traducción del original en portugués. Las herramientas de línea de comandos (`moj`, `moj-contest`, `moj-comp`) muestran sus mensajes en portugués, y los ejemplos de comandos son idénticos al original.
@@ -62,7 +62,9 @@ marcador) y, en el caso de equipo, la **foto** que aparece en la pantalla cuando
 
 ## 2. Entrar a la competencia
 
-Accedes a la competencia por un enlace con el formato `/contest/?c=<id>` (o por un subdominio que informe la organización). Cambia `<id>` por el identificador de tu competencia.
+Accedes a la competencia por su dirección: `https://<id>.moj.naquadah.com.br`. Cambia `<id>` por el identificador de tu competencia. El enlace antiguo `/contest/?c=<id>` del sitio principal te lleva a esa dirección.
+
+El equipo solo entra por la dirección de la competencia. Por otra dirección (la IP del MOJ o el sitio principal), el inicio de sesión se rechaza y la pantalla muestra la dirección correcta.
 
 Antes de iniciar sesión, ya ves:
 

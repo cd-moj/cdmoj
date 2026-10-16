@@ -36,7 +36,9 @@ printf 'icpc\n' > "$S/var/placar.txt"
 # ── porteiro no ar ────────────────────────────────────────────────────────────
 SOCK="$T/p.sock"
 # orçamentos PINADOS (o deploy pode alargá-los por env; o teste fixa o contrato base)
-SCORE_SERVE_FLOOR_S=8 BASIC_CACHE_TTL=20 NAV_CACHE_TTL=20 ROUNDS_CACHE_TTL=30 \
+# TEAM_HOST_LOCK=1 (o padrão de produção): o cliente abaixo manda CONTEST_HOST = o contest da query (o pedido chegou
+# pelo subdomínio certo); CH= simula o site principal/IP e CH=<outro> outro subdomínio
+SCORE_SERVE_FLOOR_S=8 BASIC_CACHE_TTL=20 NAV_CACHE_TTL=20 ROUNDS_CACHE_TTL=30 TEAM_HOST_LOCK=1 \
 python3 porteiro/moj-porteiro.py -s "$SOCK" -c 2 -b 8 2> "$T/p.err" &
 PPID_P=$!
 for i in $(seq 40); do [[ -S "$SOCK" ]] && break; sleep 0.1; done
@@ -56,6 +58,10 @@ params = nv("PATH_INFO", path) + nv("QUERY_STRING", qs) + nv("REQUEST_METHOD", m
 if auth: params += nv("HTTP_AUTHORIZATION", auth)
 if ae:   params += nv("HTTP_ACCEPT_ENCODING", ae)
 if os.environ.get("RADDR"): params += nv("REMOTE_ADDR", os.environ["RADDR"])
+import urllib.parse
+ch = os.environ.get("CH")
+if ch is None: ch = urllib.parse.parse_qs(qs).get("contest", [""])[0]
+if ch: params += nv("CONTEST_HOST", ch)
 s = socket.socket(socket.AF_UNIX); s.settimeout(5); s.connect(sock)
 s.sendall(rec(1, struct.pack(">HB5x", 1, 0)) + rec(4, params) + rec(4, b"") + rec(5, b""))
 out = b""
@@ -114,6 +120,20 @@ d "IP preso pela trava de sede" "$(RADDR=9.8.7.6 req /contest/rounds contest=fx 
 touch "$C/var/rounds-cache.pub.json" "$C/var/rounds-cache.priv.json"   # o conf mudou acima (SCORE_FULL_USERS)
 r="$(RADDR=9.8.7.7 req /contest/rounds contest=fx "Bearer tk-eq1")"
 [[ "$r" == *'"r":"pub"'* ]] && ok "IP livre segue servido" || bad "ip livre: ${r:0:80}"
+# TIME SÓ PELO SUBDOMÍNIO DO CONTEST (lib/team-host.sh): fora dele o bash responde 403 host_required ⇒ declina
+d "time pelo site principal/IP (sem CONTEST_HOST)" "$(CH= req /contest/rounds contest=fx "Bearer tk-eq1")"
+r="$(CH= req /contest/rounds contest=fx "Bearer tk-adm")"
+[[ "$r" == *'"r":"priv"'* ]] && ok "papel pelo site principal segue servido" || bad "papel sem host: ${r:0:80}"
+printf '0\n' > "$RUNDIR/team-host-lock"
+r="$(CH= req /contest/rounds contest=fx "Bearer tk-eq1")"
+[[ "$r" == *'"r":"pub"'* ]] && ok "override 0 em run/team-host-lock: time servido" || bad "override 0: ${r:0:80}"
+rm -f "$RUNDIR/team-host-lock"
+mkdir -p "$CONTESTSDIR/a.b/var" "$CONTESTSDIR/a.b/users/eq9"; printf '{"login":"eq9"}' > "$CONTESTSDIR/a.b/users/eq9/account.json"
+printf 'CONTEST_NAME=Ponto\nCONTEST_START=1\nCONTEST_END=99999999999\n' > "$CONTESTSDIR/a.b/conf"
+printf '{"success":true,"r":"pub"}' > "$CONTESTSDIR/a.b/var/rounds-cache.pub.json"; printf '{"success":true,"r":"priv"}' > "$CONTESTSDIR/a.b/var/rounds-cache.priv.json"
+printf 'CONTEST=a.b\nLOGIN=eq9\n' > "$SESSIONDIR/tk-eq9"
+r="$(CH= req /contest/rounds contest=a.b "Bearer tk-eq9")"
+[[ "$r" == *'"r":"pub"'* ]] && ok "id que não vira subdomínio (a.b) fica isento" || bad "id com ponto: ${r:0:80}"
 # papel de conta SÓ da fonte (USERS_FROM): o _shared_role_ok é do bash ⇒ declina
 mkdir -p "$CONTESTSDIR/fonte/users/sx.judge" "$CONTESTSDIR/sh/var"; printf '{"login":"sx.judge"}' > "$CONTESTSDIR/fonte/users/sx.judge/account.json"
 printf 'CONTEST_NAME=Sh\nCONTEST_START=1\nCONTEST_END=99999999999\nUSERS_FROM=fonte\n' > "$CONTESTSDIR/sh/conf"

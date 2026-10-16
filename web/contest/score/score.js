@@ -7,6 +7,7 @@ import { el, fmtDate, fmtCountdown as fmtLeft } from '/shared/ui.js';
 import { flagManifest, flagName } from '/shared/flags.js';
 import { mountContestUserChip } from '/shared/contest-shell.js';
 import { mountSiteFooter } from '/shared/site-footer.js';
+import { baseOrigin, contestHost } from '/shared/contest-host.js';
 import { parseICPC, renderICPC } from './score-icpc.js';
 // a LÓGICA dos filtros (enriquecer times, casar bandeira/sede/escola) mora em score-filters.js —
 // fonte única com a Participação Virtual; aqui ficam só o ESTADO da página e a barra
@@ -470,9 +471,8 @@ async function boot() {
   if ((basic.modules || []).includes('virtual') && basic.end_time && Date.now() / 1000 > basic.end_time) {
     apiGet('/contest/virtual?contest=' + encodeURIComponent(CONTEST), {}).then((v) => {
       if (!v || v.available !== true) return;
-      const sub = location.host.toLowerCase().startsWith(String(CONTEST).toLowerCase() + '.');
-      const base = sub ? location.protocol + '//' + location.host.replace(/^[^.]+\./, '') : '';
-      document.getElementById('virtualLink').href = base + '/treino/virtual/?c=' + encodeURIComponent(CONTEST);
+      // o virtual mora no site principal (sessão do treino): no subdomínio, o link sobe p/ ele
+      document.getElementById('virtualLink').href = (contestHost() ? baseOrigin() : '') + '/treino/virtual/?c=' + encodeURIComponent(CONTEST);
       document.getElementById('virtualNotice').classList.remove('hidden');
     }).catch(() => {});
   }

@@ -242,6 +242,9 @@ máquina↔time** (roster/binding).
   gravar o MESMO UA em **`/etc/moj/user-agent`** (uma linha, legível por todos). É de lá que a
   `moj-comp` (e as outras CLIs) o lê e o manda na frente do seu marcador `moj-comp/<build>` —
   passa no gate por sede, herda a chave de máquina do browser e o servidor separa web × CLI.
+  O navegador da imagem abre o ENDEREÇO DO CONTEST (`https://<id>.moj.naquadah.com.br/`), e o filtro de rede libera
+  esse nome: desde 16/10/2026 o time só entra por ele (403 `host_required` no IP ou no site principal), e o IP cru do
+  MOJ responde 421 no nginx (`install-nginx.sh --close-unknown`). O `moj-comp` usa o endereço do contest sozinho.
 - **Quando coletar**: logo depois da prova (com `limit=5000` a janela vem SEM reamostragem — ~500 pontos
   nativos por máquina em 7 h; máquinas religadas muito depois podem perder histórico). Recoletar é
   barato (1 request por sede); o bruto fica guardado p/ `--reaggregate`.

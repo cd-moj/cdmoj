@@ -47,7 +47,8 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   resposta ⇒ nginx 502 ⇒ `@moj_fcgiwrap` ⇒ o bash responde E regenera o cache (que o porteiro
   volta a servir). A preguiça de regeneração do bash continua exercitada por construção.
   Também DECLINA (03/10/2026) IP preso pela trava de sede (`RUNDIR/site-lock/<ip>`: o 403 e a isenção de papel
-  são do bash) e sessão de PAPEL cuja conta só existe na fonte `USERS_FROM` (o `_shared_role_ok` é do bash).
+  são do bash) e sessão de PAPEL cuja conta só existe na fonte `USERS_FROM` (o `_shared_role_ok` é do bash) — e
+  (16/10/2026) sessão de TIME fora do subdomínio do contest dela (`CONTEST_HOST` ≠ contest; o `host_required` é do bash).
   ⚠ As VARIANTES espelhadas nele são REGRAS DE SEGURANÇA (papel da nav, coorte, autor da
   lista, congelado×completo, anônimo×nominal) — mudou a regra no handler/lib bash ⇒ mude no porteiro E rode
   `smoke-porteiro.sh` (25 asserções: variantes + declines + computadas, com cliente FCGI
@@ -125,6 +126,26 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   `[[ -f ]]` p/ IP não preso. **Toda reivindicação nova e todo bloqueio vão ao audit** (com teto de
   1 linha/5 min por ip+alvo) e aos painéis Máquinas › Gate & trava (reivindicações/soltar/prender)
   e Máquinas › Anomalias (bloqueios). Rota `/contest/admin/site-lock`.
+- **TIME SÓ PELO SUBDOMÍNIO DO PRÓPRIO CONTEST (`lib/team-host.sh`, 16/10/2026, sempre ligado)**: numa máquina travada
+  (o firewall do Maratona Linux filtra por NOME) o time chegava pelo IP cru ou pelo site principal (`?c=OUTRO`) e logava
+  em outro contest. Conta de TIME (login sem sufixo de papel) de contest ≠ treino só LOGA e só USA o contest com
+  `CONTEST_HOST` = o id dele (o nginx o tira do subdomínio; vazio no site principal e no IP): `th_login_check` no
+  `auth/login.sh` (depois da senha e do alias — o audit só registra credencial verdadeira) e `th_guard` no
+  `router.sh` em TODA rota (menos `auth/login`/`auth/logout`; depois do isolamento e da trava de sede, que mantêm a
+  prioridade) → **403 `host_required`** com `error.url` (`contest_public_url`, do `MOJ_PUBLIC_BASE`). Zero processo no
+  caminho feliz: `_bearer_token_to` (nameref — o `$(_bearer_token)` era um fork por requisição) e `_sess_peek`
+  (`source` numa função com os campos LOCAIS: campo novo de sessão entra lá também). Isentos: papel, treino e id que
+  não vira rótulo (`th_subdomainable` = `^[a-z0-9][a-z0-9_-]{0,62}$`, a MESMA regex do `SUBDOMAINABLE` do
+  `web/shared/contest-host.js` — a criação passou a recusar `.` no id). `TEAM_HOST_LOCK` (common.conf: 1 | observe |
+  0; o `test/fixture.sh` exporta 0 — teste novo de rota de time liga com `CONTEST_HOST`) + override sem restart
+  `run/team-host-lock` (0 | observe; só afrouxa). Audit `team-host-block`/`-observe` (teto 5 min por login+via) →
+  Anomalias `kind:"team_host"`. Espelho no porteiro (declina). Front: a página de contest aberta no site principal
+  pula p/ o subdomínio (`subdomainRedirect` no `contest-guard.js`); o `auth.js` limpa o token no `host_required` e o
+  login mostra o endereço; links de contest pelo `contestOrigin`. `moj-comp` fala com o subdomínio sozinho
+  (`moj_use_contest`, moj-cli `lib/core.sh`). nginx: `install-nginx.sh --close-unknown` (o `zz-moj-unknown-host.conf`,
+  421 p/ Host desconhecido — o IP cru) e o `log_format moj` com `host=/sni=/a=` p/ medir antes. ⚠ Não é fronteira
+  dura (`Host` forjado passa): a máquina se prende com a trava de sede. Testes: `smoke-team-host.sh`,
+  `smoke-team-host.gjs.sh`, casos no `smoke-porteiro.sh`, moj-cli `test/comp-host.sh`.
 - **Auth**: `Authorization: Bearer <token>` → sessão em `run/sessions/` (700), gravada com
   `printf %q` (é *sourced*). **A sessão vale enquanto a CONTA existir** (`_session_account_alive`
   no `load_session`): sessão do MOJ não expira por tempo, então a conferência do `account.json` é

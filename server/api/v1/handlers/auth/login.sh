@@ -88,6 +88,11 @@ if reg_enabled "$contest"; then
   fi
 fi
 
+# --- TIME SÓ PELO ENDEREÇO DO CONTEST (lib/team-host.sh): fora do subdomínio, nada de sessão --------------------
+# Depois da senha e do alias: o audit registra só credencial VERDADEIRA usada pelo endereço errado, e o time (não a
+# pessoa) é quem a regra olha — a mesma conta que o router barraria a cada requisição.
+th_login_check "$contest" "$u" "$actor"
+
 name="$(user_fullname "$contest" "$u")"
 # --- SESSÃO ÚNICA POR TIME (só com gate p/ este login + single_session) ------------------
 # Login novo em MÁQUINA diferente derruba a sessão anterior do time (troca por defeito

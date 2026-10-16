@@ -1,4 +1,4 @@
-<!-- i18n-source: MANUAL-CONTEST.md blob:552b5d27be82c916cbd9454ab1b982f28cd7bb62 -->
+<!-- i18n-source: MANUAL-CONTEST.md blob:e74c7e744e5f25c51f9449e9763cc83c00c8e184 -->
 # MOJ: Contestant manual (contest)
 
 > **Translation note.** This manual is a translation of the Portuguese original. The command-line tools (`moj`, `moj-contest`, `moj-comp`) print their messages in Portuguese, and the command examples below are identical to the original.
@@ -62,7 +62,9 @@ problem.
 
 ## 2. Enter the contest
 
-You open the contest with a link in the format `/contest/?c=<id>` (or with a subdomain that the organizers give you). Replace `<id>` with the identifier of your contest.
+You open the contest at its address: `https://<id>.moj.naquadah.com.br`. Replace `<id>` with the identifier of your contest. The old link `/contest/?c=<id>` on the main site takes you to this address.
+
+The team logs in only at the contest address. At another address (the MOJ IP or the main site), the login is refused and the screen shows the correct address.
 
 Before you log in, you already see:
 

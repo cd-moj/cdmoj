@@ -69,9 +69,10 @@ an_build(){
       for(i=2;i<=7;i++) gsub(/["\\]/,"",$i)
       printf "{\"t\":%d,\"login\":\"%s\",\"event\":\"%s\",\"old\":\"%s\",\"new\":\"%s\",\"tok8\":\"%s\",\"who\":\"%s\"}\n", $1,$2,$3,$4,$5,$6,$7 }' \
     "$cdir/var/session-events.log" > "$W/ev.json"
-  # --- trava de sede (audit: site-lock-claim / site-lock-block) → NDJSON --------------------
+  # --- trava de sede (audit: site-lock-claim / site-lock-block) e time fora do subdomínio (team-host-block /
+  # team-host-observe, lib/team-host.sh) → NDJSON; o jq separa pela ação --------------------------------------
   : > "$W/sl.json"
-  [[ -s "$cdir/var/admin-audit.log" ]] && awk -F'\t' -v a="$ws" -v b="$ce" 'NF>=4 && $1+0>=a && $1+0<=b && $3 ~ /^site-lock-(claim|block)$/ {
+  [[ -s "$cdir/var/admin-audit.log" ]] && awk -F'\t' -v a="$ws" -v b="$ce" 'NF>=4 && $1+0>=a && $1+0<=b && $3 ~ /^(site-lock-(claim|block)|team-host-(block|observe))$/ {
       gsub(/["\\]/,"",$2); gsub(/["\\]/,"",$4)
       printf "{\"t\":%d,\"who\":\"%s\",\"action\":\"%s\",\"detail\":\"%s\"}\n", $1, $2, $3, $4 }' \
     "$cdir/var/admin-audit.log" > "$W/sl.json"
@@ -280,11 +281,16 @@ an_build(){
     | ([ $ev[] | {kind:"session_event", severity:"info", at:.t, login:.login, name:(nm(.login)), region:(rg(.login)),
                   machine:(if .event == "revoke" then (.old + " → " + .new) else .old end),
                   detail:{event:.event, old:.old, new:.new, tok8:.tok8, who:.who}} ]
-       + [ $sl[] | (.detail | split(" ") | map(select(contains("="))) | map(split("=") | {key:.[0], value:(.[1:] | join("="))}) | from_entries) as $d
+       + [ $sl[] | select(.action | startswith("site-lock")) | (.detail | split(" ") | map(select(contains("="))) | map(split("=") | {key:.[0], value:(.[1:] | join("="))}) | from_entries) as $d
            | {kind:"site_lock", severity:(if .action == "site-lock-block" then "bad" else "info" end), at:.t,
               login:(($d.login // "-") | if . == "-" then "" else . end), name:(nm(($d.login // "") | if . == "-" then "" else . end)), region:"",
               machine:("ip:" + ($d.ip // "")),
               detail:{event:.action, ip:($d.ip // ""), target:($d.target // ""), route:($d.route // ""), until:($d.until // "")}} ]
+       + [ $sl[] | select(.action | startswith("team-host")) | (.detail | split(" ") | map(select(contains("="))) | map(split("=") | {key:.[0], value:(.[1:] | join("="))}) | from_entries) as $d
+           | {kind:"team_host", severity:(if .action == "team-host-block" then "bad" else "info" end), at:.t,
+              login:($d.login // ""), name:(nm($d.login // "")), region:(rg($d.login // "")),
+              machine:("ip:" + ($d.ip // "")),
+              detail:{event:.action, via:($d.via // ""), host:($d.host // ""), ip:($d.ip // ""), route:($d.route // ""), actor:($d.actor // "")}} ]
        + [ $nbev[] | select((.event // "") | startswith("alert.")) | (.event == "alert.raised") as $up
            | {kind:"machine_alert",
               severity:(if ($up | not) then "info" elif ((.kind // "") | startswith("usb.")) then "bad" else "warn" end),
@@ -326,6 +332,7 @@ an_build(){
                   revoked: ([ $ev[] | select(.event == "revoke") ] | length), events: ($ev | length),
                   site_lock_blocks: ([ $sl[] | select(.action == "site-lock-block") ] | length),
                   site_lock_claims: ([ $sl[] | select(.action == "site-lock-claim") ] | length),
+                  team_host_blocks: ([ $sl[] | select(.action == "team-host-block") ] | length),
                   machine_alerts: ([ $nbev[] | select(.event == "alert.raised") ] | length),
                   machine_events: ([ $nbev[] | select((.event // "") | startswith("machine.")) ] | length),
                   explained: ([ $ANALL[] | select(has("explained")) ] | length) },

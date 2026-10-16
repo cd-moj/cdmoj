@@ -57,6 +57,9 @@ printf '%s\tteamaa001\trevoke\tm:%s/1001\tm:%s/2002\tdeadbeef\n' "$((CS+600))" "
 # trava de sede: 1 reivindicação e 1 bloqueio no audit (formato do lib/site-lock.sh)
 printf '%s\t?\tsite-lock-claim\tip=10.0.0.1 login=teamaa001 until=%s\n' "$((CS+65))" "$((CE+3600))" >> "$C/var/admin-audit.log"
 printf '%s\t?\tsite-lock-block\tip=10.0.0.1 target=treino route=/auth/login login=-\n' "$((CS+1200))" >> "$C/var/admin-audit.log"
+# time fora do subdomínio do contest (lib/team-host.sh): 1 recusa (bad) + 1 observação (info)
+printf '%s\tteamaa001\tteam-host-block\tvia=login host=177.70.23.195 ip=10.0.0.9 route=/auth/login login=teamaa001\n' "$((CS+1300))" >> "$C/var/admin-audit.log"
+printf '%s\tteamaa001\tteam-host-observe\tvia=session host=- ip=10.0.0.9 route=/contest/basic login=teamaa001\n' "$((CS+1310))" >> "$C/var/admin-audit.log"
 jq -n '{collected_at:1, sedes:[{name:"Sede A", machines_total:2, seen:1, teams:["teamaa001","teamaa002","teamaa003"], pop:{teams:3, present:3}},
                                 {name:"Sede B", machines_total:9, seen:9, teams:["teamaa004"], pop:{teams:1, present:1}}]}' > "$C/var/nutella.cache.json"
 
@@ -90,6 +93,7 @@ ck "site_short: Sede A (1 máquina vista p/ 3 presentes)" '[[ "$(K site_short .n
 ck "switched: 001 (M1 → M2)"          '[[ "$(K switched .login)" == teamaa001 && "$(K switched ".detail.machines|length")" == 2 ]]'
 ck "evento de revogação na trilha"    '[[ "$(J ".events[]|select(.kind==\"session_event\")|.detail.event")" == revoke ]]'
 ck "trava de sede na trilha: 1 reivindicação (info) + 1 bloqueio (bad), contados" '[[ "$(J ".events[]|select(.kind==\"site_lock\" and .severity==\"bad\")|.detail.target")" == treino && "$(J ".counts.site_lock_blocks")" == 1 && "$(J ".counts.site_lock_claims")" == 1 ]]'
+ck "time fora do subdomínio na trilha: recusa (bad) + observação (info), só a recusa conta; a trava de sede não muda" '[[ "$(J "[.events[]|select(.kind==\"team_host\")]|length")" == 2 && "$(J ".events[]|select(.kind==\"team_host\" and .severity==\"bad\")|.detail.host")" == 177.70.23.195 && "$(J ".counts.team_host_blocks")" == 1 && "$(J ".counts.site_lock_blocks")" == 1 ]]'
 ck "teams: 001 com flags multi_session+switched+sub_other_machine" '[[ "$(J ".teams[]|select(.login==\"teamaa001\")|.flags|join(\",\")")" == *multi_session* && "$(J ".teams[]|select(.login==\"teamaa001\")|.flags|join(\",\")")" == *switched* && "$(J ".teams[]|select(.login==\"teamaa001\")|.flags|join(\",\")")" == *sub_other_machine* ]]'
 ck "teams: 001 tem 2 sessões e 2 máquinas; última sub NÃO da sessão" '[[ "$(J ".teams[]|select(.login==\"teamaa001\")|.sessions|length")" == 2 && "$(J ".teams[]|select(.login==\"teamaa001\")|.last_sub.same_as_session")" == false ]]'
 ck "teams: 004 só de manhã, sem troca"  '[[ "$(J ".teams[]|select(.login==\"teamaa004\")|.flags|join(\",\")")" == ua_mismatch ]]'

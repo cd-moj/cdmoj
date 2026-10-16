@@ -27,6 +27,8 @@
 # Treino livre (a mesma CLI, sem o modo offline): moj-comp login treino (conta do site);
 #   problems <busca> · statement <org#slug> · samples <org#slug> · submit <org#slug> <arquivo> · wait · subs
 # Config: MOJ_URL (default https://moj.naquadah.com.br), MOJ_CONTEST (= -c).
+# Endereço: o time só entra pelo endereço do contest (https://<cid>.moj.naquadah.com.br). A CLI usa esse
+#   endereço sozinha. O treino fica no site principal. A URL do login tem de ser deste servidor.
 # Requisitos: bash, curl, jq, openssl. Sem root. Sem instalação. Um arquivo só.
 # Prova com gate de navegador: rode a CLI na máquina de prova. Ela manda o User-Agent do
 # navegador da imagem (lido de /etc/moj/user-agent; MOJ_UA_FILE e MOJ_USER_AGENT mudam) com a
@@ -48,7 +50,7 @@
 MOJ_TOOL="${MOJ_TOOL:-moj}"
 # carimbo de build: "dev" no repo; o mkdist.sh troca pelo <git-short>-<data> nos artefatos
 # distribuídos (é o que `moj version`/`doctor` comparam com o /moj.build do servidor)
-MOJ_CLI_BUILD="5dfb6ea-20261016"
+MOJ_CLI_BUILD="716ce0c-20261016"
 die(){ printf '%s: %s\n' "$MOJ_TOOL" "$*" >&2; exit 1; }
 # bash>=4 ANTES de qualquer bashismo (mapfile, read -i, ${x^^}): o /bin/bash do macOS é 3.2
 [ "${BASH_VERSINFO[0]:-0}" -ge 4 ] || die "preciso de bash >= 4 (macOS: brew install bash e rode com ele)"
@@ -79,6 +81,32 @@ case "$_ua_tool" in moj|moj-comp|moj-contest|moj-judges) ;; *) _ua_tool="${MOJ_T
 MOJ_UA="${MOJ_UA_BASE:+$MOJ_UA_BASE }$_ua_tool/$MOJ_CLI_BUILD"
 HDR+=(-A "$MOJ_UA")
 have(){ command -v "$1" >/dev/null 2>&1; }
+
+# ---- O ENDEREÇO DO CONTEST (16/10/2026) -----------------------------------------------------
+# TIME só entra pelo subdomínio do contest — https://<cid>.moj.naquadah.com.br —, e o servidor recusa a sessão de time
+# fora dele (403 host_required). MOJ_BASE_URL = o site principal (o MOJ_URL sem um rótulo de contest na frente): o
+# treino e as ferramentas de autor/admin seguem nele.
+_moj_url_host(){ local r="${1#*://}"; printf '%s' "${r%%/*}"; }        # host[:porta] de uma URL
+_moj_is_base(){ [[ "${1%%:*}" =~ ^(new)?moj\. ]]; }                    # moj.* / newmoj.* (a porta não conta)
+MOJ_BASE_URL="${MOJ_URL%/}"
+_mh="$(_moj_url_host "$MOJ_BASE_URL")"
+[[ "$_mh" =~ ^[a-z0-9][a-z0-9_-]*\.((new)?moj\..*)$ ]] && MOJ_BASE_URL="${MOJ_BASE_URL%%://*}://${BASH_REMATCH[1]}"
+unset _mh
+# moj_contest_target <cid> — o endereço da prova em MOJ_CT_URL e os cabeçalhos do curl em MOJ_CT_HDR. Treino, id que não
+# vira subdomínio, ou site fora do moj.* (IP, localhost) → o site principal. Com MOJ_HOST (teste local:
+# MOJ_URL=http://127.0.0.1…), a URL fica e o Host vira <cid>.<MOJ_HOST>.
+moj_contest_target(){
+  local c="$1" h; MOJ_CT_URL="$MOJ_BASE_URL"; MOJ_CT_HDR=()
+  if [[ "$c" != treino && "$c" =~ ^[a-z0-9][a-z0-9_-]{0,62}$ ]]; then
+    if [[ -n "${MOJ_HOST:-}" ]]; then _moj_is_base "$MOJ_HOST" && MOJ_CT_HDR=(-H "Host: $c.$MOJ_HOST")
+    else h="$(_moj_url_host "$MOJ_BASE_URL")"; _moj_is_base "$h" && MOJ_CT_URL="${MOJ_BASE_URL%%://*}://$c.$h"; fi
+  fi
+  [[ ${#MOJ_CT_HDR[@]} -eq 0 && -n "${MOJ_HOST:-}" ]] && MOJ_CT_HDR=(-H "Host: $MOJ_HOST")
+  MOJ_CT_HDR+=(-A "$MOJ_UA")
+  return 0
+}
+# moj_use_contest <cid> — daqui em diante, fala com o endereço da prova (MOJ_URL e HDR)
+moj_use_contest(){ moj_contest_target "$1"; MOJ_URL="$MOJ_CT_URL"; HDR=("${MOJ_CT_HDR[@]}"); }
 have jq || die "preciso do 'jq'."; have curl || die "preciso do 'curl'."
 
 # ---- helpers PORTÁVEIS (Linux/GNU e macOS/BSD) --------------------------------------------
@@ -208,6 +236,12 @@ _api_fail(){
   [[ -n "$_bl" ]] && msg="$msg
 $_bl"
   # gate de navegador por sede: a CLI só entra na MÁQUINA DE PROVA (lê /etc/moj/user-agent)
+  # time fora do endereço do contest (o servidor diz qual é): a CLI nova já fala com ele — a antiga, não
+  if [[ "$(jq -r '.error.code // empty' <<<"$out" 2>/dev/null || true)" == host_required ]]; then
+    msg="$msg
+  o time entra pelo endereço do contest: $(jq -r '.error.url // empty' <<<"$out" 2>/dev/null || true)
+  rode '$MOJ_TOOL update' e '$MOJ_TOOL login <cid>' de novo."
+  fi
   if [[ "$(jq -r '.error.code // empty' <<<"$out" 2>/dev/null || true)" == ua_gate ]]; then
     msg="$msg
   este contest só aceita o navegador da imagem da sede. Rode a CLI NA MÁQUINA DE PROVA (ela lê o
@@ -338,6 +372,9 @@ need_contest(){ [[ "$CONTEST_SET" == 1 ]] || die "informe onde você está: 'moj
 # rotas /treino/*, SEM modo offline (você está na Internet aberta; o emergencial é de prova).
 _is_treino(){ [[ "$CONTEST" == treino ]]; }
 qc(){ printf '?contest=%s' "$(enc "$CONTEST")"; }
+# a prova se fala pelo ENDEREÇO DELA (https://<cid>.moj…; o servidor recusa o time fora dele — 403 host_required);
+# o treino, pelo site principal (lib/core.sh moj_use_contest)
+[[ "$CONTEST_SET" == 1 ]] && moj_use_contest "$CONTEST"
 
 # relógio: epoch é UTC por definição; o offset corrige relógio LOCAL errado (sem root).
 _offset(){ cat "$(_cdir)/offset" 2>/dev/null || echo 0; }
@@ -388,12 +425,17 @@ cmd_login(){ local cid="${1:-}" u=""
   [[ -n "$cid" ]] || die "uso: $MOJ_TOOL login <cid|url> [-u login]"
   shift || true
   while [[ $# -gt 0 ]]; do case "$1" in -u|--user) u="$2"; shift 2;; *) die "opção desconhecida: $1";; esac; done
-  # aceita a URL da prova: https://<cid>.moj... ou .../contest/?c=<cid>
+  # aceita a URL da prova: https://<cid>.moj... ou .../contest/?c=<cid> — mas só DESTE servidor: a senha vai p/ o
+  # endereço da URL, e uma URL colada de outro lugar não pode recebê-la
   if [[ "$cid" == http*://* ]]; then
-    local h q; q="${cid##*c=}"; h="${cid#*://}"; h="${h%%/*}"; h="${h%%.*}"
-    if [[ "$cid" == *"c="* ]]; then cid="${q%%&*}"; else cid="$h"; fi
+    local h hb; h="$(_moj_url_host "$cid")"; hb="$(_moj_url_host "$MOJ_BASE_URL")"
+    if [[ "$cid" =~ [?\&]c=([^\&#]+) ]]; then cid="${BASH_REMATCH[1]}"
+    elif [[ "$h" == *".$hb" ]]; then cid="${h%".$hb"}"
+    else cid=treino; fi
+    [[ "$h" == "$hb" || "$h" == "$cid.$hb" ]] \
+      || die "essa URL é de outro servidor ($h); este $MOJ_TOOL fala com $hb (use MOJ_URL=https://<servidor> $MOJ_TOOL login <cid>)"
   fi
-  CONTEST="$cid"; CONTEST_SET=1
+  CONTEST="$cid"; CONTEST_SET=1; moj_use_contest "$cid"
   [[ -n "$u" ]] || read -rp "login ($cid): " u
   local p; read -rsp "senha: " p; echo
   local t0 r; t0="$(date +%s)"
