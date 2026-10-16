@@ -154,6 +154,21 @@ da sonda já estão corrigidas para a diferença de relógio (o dev estava 24 s 
 reconcile de balão saiu da consulta e roda em lote (60 balões novos: 2,65 s → 0,43 s). Detalhes no `CLAUDE.md` do
 cdmoj (store por-usuário, PORTEIRO, Balão, Placar pré-início).
 
+**2º ensaio, depois do deploy dos consertos (15–16/10/2026, 23:41–00:15 BRT, mesmo plano):** 3.800/3.800, 0 erro, 0 5xx.
+
+| | 1º ensaio | 2º ensaio |
+|---|---|---|
+| arranque: placar / submit / history (máx) | 11,6 s / 4,3 s / 4,9 s | 0,61 s / 0,21 s / 0,03 s |
+| placar p95 / máx (toda a carga) | 148 ms / 11,7 s | 152 ms / 1,0 s |
+| fila do staff p95 / máx | 758 ms / 4,2 s | 197 ms / 0,55 s |
+| envio→veredicto p50 / p95 (geral) | 10,4 s / 15,5 s | 5,4 s / 10,4 s |
+| 250/min: veredictos/min, backlog máx | 238, 50 | 249, 15 |
+| CPU máx: judged / API | 132% / 348% | 103% / 242% |
+
+O placar completo já existia quando o injetor começou. O 2º ensaio foi à meia-noite, com menos tráfego real do que
+o 1º (19h): parte do ganho no envio→veredicto pode vir disso. De novo houve TLE em Java (2 envios AC e 2 WA): o TL
+de Java do problema trivial é ~a partida da JVM.
+
 Limites desta medida: 1 problema, banda `lista-publica` e PDF de balão não impresso. Todo o tráfego veio de
 um IP só (o dev).
 
