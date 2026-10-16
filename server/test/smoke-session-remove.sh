@@ -11,7 +11,7 @@ FIX="$(mktemp -d)"; SESS="$(mktemp -d)"; RUN="$(mktemp -d)"; trap 'rm -rf "$FIX"
 source "$HERE/fixture.sh"
 export CONTESTSDIR="$FIX" SESSIONDIR="$SESS" RUNDIR="$RUN"
 NOW="$EPOCHSECONDS"; T="$FIX/treino"; mkdir -p "$T/var" "$FIX/outro"
-printf 'CONTEST_ID=treino\nCONTEST_END=%s\n' "$((NOW+86400))" > "$T/conf"; printf 'CONTEST_ID=outro\n' > "$FIX/outro/conf"
+printf 'CONTEST_ID=treino\nCONTEST_END=%s\nSUPERADMINS=chefe.admin\n' "$((NOW+86400))" > "$T/conf"; printf 'CONTEST_ID=outro\n' > "$FIX/outro/conf"
 fx_user "$T" chefe.admin s "Chefe"
 for u in zan zang ana bia 'jo.e@x'; do fx_user "$T" "$u" s "$u"; done
 for u in zan zang; do jq '.managed={by:"chefe.admin",birthdate:"2014-01-01",created_at:1}' "$T/users/$u/account.json" > "$T/users/$u/a" && mv "$T/users/$u/a" "$T/users/$u/account.json"; done
@@ -25,6 +25,10 @@ call(){ local t0=$EPOCHREALTIME; OUT="$(PATH_INFO="$1" REQUEST_METHOD=POST QUERY
   BODY="$(printf '%s' "$OUT" | awk 'f{print} /^\r?$/{f=1}')"; ELAPSED="$(awk -v a="$t0" -v b="$EPOCHREALTIME" 'BEGIN{printf "%.2f", b-a}')"; }
 pass=0; fail=0; ck(){ if eval "$2"; then echo "  ok: $1"; ((pass++)); else echo "  FAIL: $1 :: ${OUT:0:220}"; ((fail++)); fi; }
 has(){ [[ -f "$SESS/$1" ]]; }
+# call2 <rota> <corpo> — ação de vários alvos (lib/admin-bulk.sh): a 1ª chamada devolve a PRÉVIA (plan_id + need) e
+# a 2ª executa com o plan_id e o número; o tempo medido é o da execução
+call2(){ call "$1" "$2"; local p n; p="$(jq -r '.plan_id // empty' <<<"$BODY")"; n="$(jq -r '.need // empty' <<<"$BODY")"
+  call "$1" "$(jq -c --arg p "$p" --argjson n "${n:-0}" '. + {plan_id:$p, confirm:$n}' <<<"$2")"; }
 
 echo "== nova senha de conta gerida (o relato) =="
 call /treino/admin/managed-reset '{"login":"zan"}'
@@ -37,10 +41,10 @@ echo "== as rotas irmãs usam o mesmo caminho =="
 ses z3 treino zan
 call /treino/admin/managed-update '{"login":"zan","disabled":true}'
 ck "desabilitar derruba a sessão"                 '[[ "$OUT" == *"Status: 200"* ]] && ! has z3 && has zg'
-call /treino/admin/lock-user '{"logins":["ana","bia"]}'
+call2 /treino/admin/lock-user '{"logins":["ana","bia"]}'
 ck "lock-user (vários): as duas caem, conta"      '[[ "$(jq -r .sessions_removed <<<"$BODY")" == 2 ]] && ! has a1 && ! has b1'
 ses a2 treino ana; ses a3 treino ana
-call /treino/admin/logout-user '{"logins":["ana","jo.e@x","ninguem"]}'
+call2 /treino/admin/logout-user '{"logins":["ana","jo.e@x","ninguem"]}'
 ck "logout-user: conta e lista quem caiu"         '[[ "$(jq -r .sessions_removed <<<"$BODY")" == 3 && "$(jq -c ".users|sort" <<<"$BODY")" == "[\"ana\",\"jo.e@x\"]" ]] && ! has j1'
 call /treino/admin/managed-remove '{"login":"zang"}'
 ck "remover conta gerida derruba a sessão dela"   '[[ "$OUT" == *"Status: 200"* ]] && ! has zg && has zf'
@@ -71,6 +75,6 @@ ck "has_photo: ana (com photo.png) true, bia false" '[[ "$(jq -r "[.sessions[]|s
 ck "has_photo: login com ../ não escapa do diretório (false)" '[[ "$(jq -r "[.sessions[]|select(.login==\"../../etc\")|.has_photo]|unique|join(\",\")" <<<"$BODY")" == false ]]'
 echo "== deslogar por IP =="
 ses i1 treino ana; ses i2 treino bia; ses i3 outro ana; sed -i 's/^IP=.*/IP=10.0.0.9/' "$SESS/i1" "$SESS/i2" "$SESS/i3"
-call /treino/admin/logout-ip '{"ip":"10.0.0.9"}'
+call2 /treino/admin/logout-ip '{"ip":"10.0.0.9"}'
 ck "caem as 2 do treino naquele IP; a de outro contest fica" '[[ "$(jq -r .sessions_removed <<<"$BODY")" == 2 && "$(jq -c ".users|sort" <<<"$BODY")" == "[\"ana\",\"bia\"]" ]] && ! has i1 && ! has i2 && has i3'
 echo; echo "RESULT: $pass passed, $fail failed"; (( fail == 0 ))

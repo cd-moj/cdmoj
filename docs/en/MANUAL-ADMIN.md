@@ -1,4 +1,4 @@
-<!-- i18n-source: MANUAL-ADMIN.md blob:2bde4899a08888d147c83494cab2d72c94e06b4d -->
+<!-- i18n-source: MANUAL-ADMIN.md blob:37901bd8d7384f25f5ee03384c66dcd4a3dfa079 -->
 # MOJ: Organizer manual (the contest .admin panel)
 
 > **Translation note.** This manual is a translation of the Portuguese original. The command-line tools (`moj`, `moj-contest`, `moj-comp`) print their messages in Portuguese, and the command examples below are identical to the original.
@@ -1066,8 +1066,8 @@ or her role.
 ## 9½. Training panel › Contests and who can create them
 
 The administration panel of the Free Training (`/treino/admin/`, `.admin` account) has the
-**🏆 Contests** tab. It lists the contests created with the interface, and it controls who can
-create contests and problems.
+**🏆 Contests** group, with two panels. **Contests** lists the contests created with the interface.
+**Who can create** controls who can create contests and problems.
 
 **Who sees what.** The rule applies in the API, not only on the screen.
 
@@ -1076,8 +1076,10 @@ create contests and problems.
   spaces). Only persons with access to the server edit this list. There is no screen for it.
 - A **regular admin** sees his or her own contests and the contests of creators without an admin
   role (students and allowed monitors). A regular admin does not see the contest of another
-  administrator. Remove, duplicate and export follow the same rule: a contest outside your scope
+  administrator. Duplicate and export follow the same rule: a contest outside your scope
   responds "not found".
+- Only the contest owner or the super-admin can **remove** a contest. To confirm, type the contest
+  id. The API also requires the id: an admin who sees a student's contest cannot remove it.
 
 **List filters.** Search by name, id or owner. Filter by owner, mode and state (upcoming, in
 progress, ended). Sort by creation date, start, name or owner. Check **only mine** to see only

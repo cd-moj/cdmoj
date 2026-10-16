@@ -186,7 +186,7 @@ rm -rf "$MANY" "$SHIM"
 echo "== a aba do admin: ver QUAIS são, dossiê e ações =="
 # fixture: um treino mínimo (o handler exige sessão do treino) + pendente órfã
 T="$FIX/treino"; mkdir -p "$T/var"
-printf 'CONTEST_ID=treino\nCONTEST_NAME=Treino\nCONTEST_START=1\nCONTEST_END=99999999999\nPROBS=( x col#pa Alfa A col#pa )\n' > "$T/conf"
+printf 'CONTEST_ID=treino\nCONTEST_NAME=Treino\nCONTEST_START=1\nCONTEST_END=99999999999\nPROBS=( x col#pa Alfa A col#pa )\nSUPERADMINS=tadmin.admin\n' > "$T/conf"   # agir na fila = super
 fx_user "$T" tadmin.admin p "Admin"
 fx_user "$T" joana s "Joana"
 printf 'CONTEST=%q\nLOGIN=%q\nUSERFULLNAME=%q\nLOGINAT=%q\n' treino tadmin.admin Admin "$NOW" > "$SESS/tadm"

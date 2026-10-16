@@ -1,4 +1,4 @@
-<!-- i18n-source: MANUAL-ADMIN.md blob:2bde4899a08888d147c83494cab2d72c94e06b4d -->
+<!-- i18n-source: MANUAL-ADMIN.md blob:37901bd8d7384f25f5ee03384c66dcd4a3dfa079 -->
 # MOJ: Manual del organizador (el panel .admin de la competencia)
 
 > **Nota de traducción.** Este manual es una traducción del original en portugués. Las herramientas de línea de comandos (`moj`, `moj-contest`, `moj-comp`) muestran sus mensajes en portugués, y los ejemplos de comandos son idénticos al original.
@@ -1014,8 +1014,9 @@ las contraseñas generadas; cada persona inicia sesión en la MISMA pantalla de 
 
 ## 9½. Panel del entrenamiento › Contests y quién puede crear
 
-El panel administrativo del Entrenamiento libre (`/treino/admin/`, cuenta `.admin`) tiene la pestaña **🏆 Contests**.
-Lista las competencias creadas por la interfaz y controla quién puede crear competencias y problemas.
+El panel administrativo del Entrenamiento libre (`/treino/admin/`, cuenta `.admin`) tiene el grupo **🏆 Competencias**,
+con dos paneles: **Competencias** lista las competencias creadas por la interfaz, y **Quién puede crear** controla quién
+puede crear competencias y problemas.
 
 **Quién ve qué.** La regla vale en la API, no solo en la pantalla.
 
@@ -1023,8 +1024,10 @@ Lista las competencias creadas por la interfaz y controla quién puede crear com
   `SUPERADMINS` en el archivo `contests/treino/conf` (usuarios separados por espacios). Solo quien tiene acceso
   al servidor edita esa lista. No hay pantalla para eso.
 - El **admin común** ve sus propias competencias y las competencias de creadores sin rol de admin (alumnos y
-  monitores habilitados). No ve la competencia de otro administrador. Quitar, duplicar y exportar siguen
-  la misma regla: una competencia fuera de tu alcance responde "no encontrado".
+  monitores habilitados). No ve la competencia de otro administrador. Duplicar y exportar siguen la misma
+  regla: una competencia fuera de tu alcance responde "no encontrado".
+- **Quitar** es solo del propietario de la competencia o del super-admin. Para confirmar, escribe el id
+  de la competencia. La API también exige el id: un admin que ve la competencia de un alumno no la quita.
 
 **Filtros de la lista.** Busca por nombre, id o propietario. Filtra por propietario, modo y situación (próxima, en
 curso, terminada). Ordena por fecha de creación, inicio, nombre o propietario. Marca **solo las mías** para

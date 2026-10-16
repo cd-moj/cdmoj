@@ -3,7 +3,9 @@
 # POR-HOST que o juiz pega no próximo heartbeat (quando livre), limpa o $JUDGE_CACHE e
 # re-registra (inventário vazio). Não bloqueia: o efeito aparece no /judge/list.
 require_method POST
-require_admin
+# PORTÃO (16/10/2026): só o SUPER-ADMIN, com sessão do treino — antes era `require_admin` (qualquer .admin de qualquer
+# contest, inclusive o admin LOCAL que todo criador de contest ganha). Ver lib/auth.sh (require_treino_superadmin).
+require_treino_superadmin
 source "$_DIR/../../judge-gw/sched-lib.sh"
 
 body="$(read_body)"

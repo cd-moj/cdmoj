@@ -5,7 +5,9 @@
 # {inprogress:true} remove também os claims de updates/inprogress (o juiz ainda vai reportar
 # nesse reqid — o report cai num reqid inexistente, inofensivo; use após um reset/restart).
 require_method POST
-require_admin
+# PORTÃO (16/10/2026): só o SUPER-ADMIN, com sessão do treino — antes era `require_admin` (qualquer .admin de qualquer
+# contest, inclusive o admin LOCAL que todo criador de contest ganha). Ver lib/auth.sh (require_treino_superadmin).
+require_treino_superadmin
 source "$_DIR/../../judge-gw/sched-lib.sh"
 
 body="$(read_body)"

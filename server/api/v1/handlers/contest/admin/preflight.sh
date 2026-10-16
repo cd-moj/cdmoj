@@ -469,9 +469,9 @@ if (( nprob == 0 )); then
 elif [[ -n "$noTL" ]]; then
   _pp_pt=""; _pp_en=""; _pp_es=""
   [[ -n "$pool_all" ]] && { _pp_pt=' no pool'; _pp_en=' in the pool'; _pp_es=' en el pool'; }
-  add3 problems fail "Problema sem TL calibrado$_pp_pt" "sem calibração:$noTL — dispare /ops/updateproblemset e aguarde os juízes" \
-    "Problem without a calibrated TL$_pp_en" "not calibrated:$noTL — trigger /ops/updateproblemset and wait for the judges" \
-    "Problema sin TL calibrado$_pp_es" "sin calibración:$noTL — ejecuta /ops/updateproblemset y espera a los jueces"
+  add3 problems fail "Problema sem TL calibrado$_pp_pt" "sem calibração:$noTL — calibre no editor do problema (Calibrar) ou com moj calibrate e aguarde os juízes" \
+    "Problem without a calibrated TL$_pp_en" "not calibrated:$noTL — calibrate it in the problem editor (Calibrate) or with moj calibrate, and wait for the judges" \
+    "Problema sin TL calibrado$_pp_es" "sin calibración:$noTL — calíbralo en el editor del problema (Calibrar) o con moj calibrate y espera a los jueces"
 else
   add3 problems ok "Problemas calibrados" "$nprob problema(s) com TL reportado" \
     "Problems calibrated" "$nprob problem(s) with a reported TL" \

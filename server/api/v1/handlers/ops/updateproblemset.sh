@@ -5,7 +5,9 @@
 # Cada juiz livre baixa o pacote, calibra e reporta o TL via /judge/tl-report.
 # {all:true} recalibra TODOS os problemas do diretório.
 require_method POST
-require_admin
+# PORTÃO (16/10/2026): só o SUPER-ADMIN, com sessão do treino — antes era `require_admin` (qualquer .admin de qualquer
+# contest, inclusive o admin LOCAL que todo criador de contest ganha). Ver lib/auth.sh (require_treino_superadmin).
+require_treino_superadmin
 source "$_DIR/../../judge-gw/sched-lib.sh"
 source "$_DIR/lib/tl-store.sh"
 

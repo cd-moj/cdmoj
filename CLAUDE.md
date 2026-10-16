@@ -1378,6 +1378,22 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   `jq-portability.sh` não o compila: rode os smokes com o jq 1.7 antes de deployar. Teste
   com mock: `smoke-contest-nutella.sh`. Comando novo se valida na imagem de TESTE `26tete`,
   nunca numa sede real.
+- **PAINEL DO TREINO: admin × super-admin e AÇÃO DE VÁRIOS ALVOS (16/10/2026)** — um `.admin` comum deslogou 1.310
+  contas de uma vez (ele mesmo e o super-admin no meio), e as `/ops` aceitavam o `.admin` LOCAL de qualquer contest.
+  Portões em `lib/auth.sh`: **`require_treino_admin`** (sessão DO TREINO + `.admin`) e **`require_treino_superadmin`**
+  (+ `SUPERADMINS`). Rota de PLATAFORMA nunca usa o `require_admin` cru (ele é das `/contest/admin/*`, cujo contest é
+  o da sessão): `/ops` de escrita (judge-config POST, judge-cache, judge-reset, calib-cancel, updateproblemset) e o POST
+  da Fila = super; `/ops` de leitura = admin do treino. **Ação de vários alvos = `lib/admin-bulk.sh`** (deslogar,
+  travar, por IP):
+  - quem chama, conta de papel e super-admin NUNCA entram (`skipped` com motivo);
+  - deslogar 1 alvo direto; 2..20 com prévia; 21+ só o super; teto 5000;
+  - travar e IP só o super, sempre com prévia;
+  - a prévia devolve `plan_id`, a assinatura da ENTRADA (nunca o estado vivo das sessões — com aula rolando ele mudaria
+    sempre), e executar exige `plan_id` + `confirm:<need>`; a folga é zero até 20 contas e ±5 % acima;
+  - a varredura é UMA passada (`grep -f` com os padrões em arquivo);
+  - o detalhe vai p/ `var/admin-actions/`, o audit leva uma linha curta e há aviso aos super-admins (DM/grupo).
+  Ação nova de vários alvos usa a lib. O `contest-remove` é do dono ou do super, com `confirm` = o id. Teste:
+  `smoke-treino-admin-guard.sh`. Doc: `docs/ADMIN.md` §11.
 - **Painel do treino › Contests (2026-09-15)**: `SUPERADMINS` no conf do TREINO (logins; sem UI de
   propósito) ⇒ `superadmin_login`/`is_superadmin` (`lib/auth.sh`). **`cc_contest_visible_to <viewer>
   <owner>`** (`lib/contest-create.sh`) é a FONTE ÚNICA de "quem vê o contest de quem" — super-admin

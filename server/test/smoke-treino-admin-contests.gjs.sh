@@ -1,5 +1,6 @@
 #!/bin/bash
-# smoke-treino-admin-contests.gjs.sh — a aba 🏆 Contests do painel do treino (web/treino/admin/admin.js)
+# smoke-treino-admin-contests.gjs.sh — o grupo 🏆 Contests do painel do treino (web/treino/admin/admin.js: a lista e o
+# "quem pode criar", dois painéis desde 16/10/2026)
 # renderiza o escopo, o dono resolvido (nome + link de perfil), os filtros em memória e as listas de
 # permissão com trilha (quem liberou/quando). Roda o módulo REAL no gjs com DOM falso e API canned.
 set -u
@@ -33,7 +34,7 @@ globalThis.document={ createElement:(t)=>new FakeNode(t), createTextNode:(t)=>({
 globalThis.location={ reload(){}, hash:'', search:'' }; globalThis.confirm=()=>true; globalThis.alert=()=>{};
 globalThis.localStorage={ getItem:()=>null, setItem(){} }; globalThis.navigator={language:'pt-BR'};
 // stubs dos imports do admin.js
-const T=(pt,en)=>pt; const getToken=()=>'t'; const status=async()=>({logged_in:false}); const renderAuthArea=async()=>{};
+const T=(pt,en)=>pt; const uiLocale=()=>'pt-BR'; const getToken=()=>'t'; const status=async()=>({logged_in:false}); const renderAuthArea=async()=>{};
 const barChart=()=>new FakeNode('svg'), hBarChart=barChart, lineChart=barChart, heatmap=barChart, heatmapGrid=barChart, openHtmlReport=()=>{};
 const fmtDate=(e)=>'D'+e; const avatarEl=(login,name)=>{ const n=new FakeNode('img'); n.setAttribute('alt',name||login); return n; };
 const NOW=Math.floor(Date.now()/1000);
@@ -54,12 +55,14 @@ JS
 // gjs sem mainloop: setTimeout nunca dispara — drena MICROTAREFAS (as awaits dos stubs de API)
 const tick = async () => { for (let i = 0; i < 20; i++) await Promise.resolve(); };
 (async () => {
-  const tab = makeContestsTab(); tab.load(); await tick();
-  const txt = tab.panel.textContent;
+  // 16/10/2026: a lista e o "quem pode criar" viraram dois painéis (grupo Contests do nav.js)
+  const tab = makeContestsTab(); tab.load(); const ptab = makeContestPermsTab(); ptab.load(); await tick();
+  const both = new FakeNode('div'); both.append(tab.panel, ptab.panel);
+  const txt = both.textContent;
   const has = (s) => txt.includes(s);
   print('scope_super=' + has('super-admin'));
   print('owner_name=' + has('Prof A') + ' owner_login=' + has('a.admin') + ' owner_admin_pill=' + (tab.panel.querySelectorAll('.pill').length===1));
-  const links = tab.panel.querySelectorAll('a').map(a=>a.attrs.href||'');
+  const links = both.querySelectorAll('a').map(a=>a.attrs.href||'');
   print('profile_links=' + links.filter(h=>h.startsWith('/treino/stat/?user=')).length);
   print('count=' + txt.match(/(\d+ de \d+)/)[1]);
   print('remove_buttons=' + tab.panel.querySelectorAll('button').filter(b=>b.textContent==='Remover').length);
@@ -72,8 +75,8 @@ const tick = async () => { for (let i = 0; i < 20; i++) await Promise.resolve();
   statusSel.value='ended'; statusSel.fire('change'); print('ended=' + tab.panel.textContent.match(/(\d+ de \d+)/)[1] + ' ended_is_maker=' + tab.panel.textContent.includes('Lista do Maker') + ',' + !tab.panel.textContent.includes('Prova do A'));
   statusSel.value=''; statusSel.fire('change');
   // adicionar à allow manda a ação certa
-  const login = inputs.find(i=>i.attrs.placeholder==='login'); login.value='fulano';
-  const addBtn = tab.panel.querySelectorAll('button').find(b=>b.textContent.includes('Liberar')); addBtn._ev.click[0](); await tick();
+  const login = ptab.panel.querySelectorAll('input').find(i=>i.attrs.placeholder==='login'); login.value='fulano';
+  const addBtn = ptab.panel.querySelectorAll('button').find(b=>b.textContent.includes('Liberar')); addBtn._ev.click[0](); await tick();
   print('post_add=' + JSON.stringify(POSTS[0]));
   // como admin comum: só os próprios removem, e o aviso muda
   CONTESTS.is_superadmin=false; CONTESTS.scope='admin'; tab.load(); await tick();

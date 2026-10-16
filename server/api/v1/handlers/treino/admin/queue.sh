@@ -25,6 +25,9 @@ _sub_state(){  # <id>
 
 # ---------- POST: requeue / resolve ----------
 if [[ "${REQUEST_METHOD:-GET}" == POST ]]; then
+  # AGIR é só do super-admin (16/10/2026): o requeue/resolve vale p/ submissão de QUALQUER contest — a prova de outro
+  # professor inclusive. Olhar a fila segue com o admin do treino.
+  is_superadmin || fail 403 "Só o super-admin da plataforma pode agir na fila" "superadmin_required"
   body="$(read_body)"
   jq -e . >/dev/null 2>&1 <<<"$body" || fail 400 "JSON inválido" "bad_json"
   action="$(jq -r '.action // ""' <<<"$body")"

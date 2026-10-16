@@ -1,24 +1,23 @@
 // treino/admin/admin.js — painel administrativo do Treino Livre (.admin apenas).
-// Abas: sessões ativas, log de acessos, estatísticas, fila de submissões e
-// máquinas de julgamento. Consome a API admin (Bearer + .admin) — não-admin → 403.
-//   GET  /treino/admin/sessions    {count, sessions:[{login,name,ip,user_agent,login_at}]}
-//   GET  /treino/admin/access-log?day=YYYY-MM-DD  {day, entries:[{time,login,ip,user_agent}]}
-//   GET  /treino/admin/queue       {total_pending, spool_queued, calib_pending, calib_inflight, calib_targeted, lists:[{contest,name,pending}]}
-//   GET  /treino/admin/judges      {online, busy, machines:[{host,online,busy,tl,cache,current:{kind,problem_id,...}|null,queued_calibrate}], ...}
-//   GET  /treino/admin/stats       {users, active_sessions, problems:{total,public,private}, by_author:[{author,total,public,private}], problems_public_by_day:[{day,count}], logins_per_day:[{day,count}], submissions_per_day:[{day,count}]}
-//   GET  /treino/admin/response-stats {coverage, overall, per_day, by_dow_hour, subs_per_day:[{day,count}], subs_by_dow_hour:[{dow,hour,n}]}
-//   GET  /treino/admin/calib-activity {calib_per_day:[{day,count}], calib_by_dow_hour:[{dow,hour,n}], total}
-//   POST /treino/admin/logout-user {login} -> {logged_out, sessions_removed}
-//   POST /treino/admin/lock-user   {login} -> {locked, sessions_removed}
+// Navegação em GRUPOS (nav.js, 16/10/2026): Visão geral · Pessoas · Contests · Conteúdo · Registros, abrindo em
+// Visão geral › Estatísticas e com a aba no #endereço. Dois papéis: o admin do treino e o SUPER-ADMIN (SUPERADMINS
+// no conf do treino; o painel sabe pelo GET /treino/contest-create/permission). Só o super vê os botões de ESCRITA de
+// Máquinas e da Fila, trava contas, desloga por IP e desloga mais de 20 contas de uma vez — a regra de verdade é da
+// API (docs/API.md, "Treino — painel admin"); aqui a tela só não oferece o que ela recusaria.
+// Cada aba é um make*() -> {panel, load}; o load roda na 1ª vez que a aba abre (e no ↻ de cada uma).
 import { apiGet, apiPost, getToken } from '/shared/api.js';
 import { status } from '/shared/auth.js';
 import { el, fmtDate, avatarEl, renderAuthArea } from '/shared/ui.js';
 import { barChart, hBarChart, lineChart, heatmap, heatmapGrid } from '/lib/charts.js';
 import { openHtmlReport } from '/shared/submission-links.js';
 import { T, uiLocale } from '/shared/i18n.js';
+import { GROUPS, resolveHash } from './nav.js';
+import { makeSessionsTab } from './sessions-tab.js';
 
 const CONTEST = 'treino';
 const G = (opts) => ({ contest: CONTEST, auth: true, ...opts });
+// quem está olhando: preenchido no boot (o super decide o que aparece nas abas de escrita)
+const CTX = { isSuper: false, me: '' };
 
 // epoch (s) -> 'YYYY-MM-DD' local (default do <input type=date>)
 const pad2 = (n) => String(n).padStart(2, '0');
@@ -51,141 +50,6 @@ function errBox(message) {
   return el('div', { class: 'error-box', style: 'margin:.6rem 0' }, message);
 }
 function loading() { return el('div', { class: 'muted small' }, T('carregando…', 'loading…', 'cargando…')); }
-
-// ============================ aba: Sessões ativas ============================
-function makeSessionsTab() {
-  const panel = el('div', { class: 'section' });
-  const head = el('h2', {}, T('👥 Sessões ativas', '👥 Active sessions', '👥 Sesiones activas'));
-  const countBadge = el('span', { class: 'tag' }, '…');
-  head.append(countBadge);
-
-  const search = el('input', { type: 'search', placeholder: T('Buscar nome, handle ou IP (aceita regex)…', 'Search name, handle or IP (regex allowed)…', 'Buscar nombre, alias o IP (admite regex)…'), style: 'min-width:240px' });
-  const matchInfo = el('span', { class: 'small muted' });
-  const selAll = el('input', { type: 'checkbox', title: T('Selecionar todos os filtrados', 'Select all filtered', 'Seleccionar todos los filtrados') });
-  const bulkLogout = el('button', { class: 'btn ghost', disabled: true }, T('Deslogar selecionados', 'Log out selected', 'Cerrar sesión de los seleccionados'));
-  const bulkLock = el('button', { class: 'btn danger', disabled: true }, T('Travar selecionados', 'Lock selected', 'Bloquear seleccionados'));
-  const tools = el('div', { class: 'toolbar' },
-    search, matchInfo, el('span', { style: 'flex:1' }),
-    el('label', { class: 'row', style: 'gap:.3rem' }, selAll, T('todos', 'all', 'todos')),
-    bulkLogout, bulkLock,
-    el('button', { class: 'btn ghost', onclick: () => load() }, T('↻ Atualizar', '↻ Refresh', '↻ Actualizar')));
-  const body = el('div', {}, loading());
-  panel.append(head, tools, body);
-
-  let ALL = [];
-  const checked = new Set();   // logins selecionados (distintos)
-
-  function matcher() {
-    const q = search.value.trim();
-    if (!q) return () => true;
-    let re = null;
-    try { re = new RegExp(q, 'i'); } catch { re = null; }
-    const ql = q.toLowerCase();
-    return (s) => {
-      const name = s.name || '', login = s.login || '', ip = s.ip || '';
-      return re ? (re.test(name) || re.test(login) || re.test(ip))
-                : (name.toLowerCase().includes(ql) || login.toLowerCase().includes(ql) || ip.toLowerCase().includes(ql));
-    };
-  }
-  function updateBulk() {
-    const n = checked.size;
-    bulkLogout.disabled = bulkLock.disabled = n === 0;
-    bulkLogout.textContent = T('Deslogar selecionados', 'Log out selected', 'Cerrar sesión de los seleccionados') + (n ? ' (' + n + ')' : '');
-    bulkLock.textContent = T('Travar selecionados', 'Lock selected', 'Bloquear seleccionados') + (n ? ' (' + n + ')' : '');
-  }
-  function syncSelAll(rows) { selAll.checked = rows.length > 0 && rows.every(s => checked.has(s.login)); }
-
-  function render() {
-    const rows = ALL.filter(matcher());
-    matchInfo.textContent = rows.length + T(' de ', ' of ', ' de ') + ALL.length;
-    body.innerHTML = '';
-    if (!ALL.length) { body.append(el('div', { class: 'muted' }, T('Nenhuma sessão ativa.', 'No active sessions.', 'No hay sesiones activas.'))); syncSelAll(rows); updateBulk(); return; }
-    if (!rows.length) { body.append(el('div', { class: 'muted' }, T('Nenhuma sessão casa com a busca.', 'No session matches the search.', 'Ninguna sesión coincide con la búsqueda.'))); syncSelAll(rows); updateBulk(); return; }
-
-    const tb = el('tbody');
-    rows.forEach(s => {
-      const cb = el('input', { type: 'checkbox' });
-      cb.checked = checked.has(s.login);
-      cb.addEventListener('change', () => { cb.checked ? checked.add(s.login) : checked.delete(s.login); syncSelAll(rows); updateBulk(); });
-      const deslogarBtn = el('button', { class: 'btn ghost' }, T('Deslogar', 'Log out', 'Cerrar sesión'));
-      deslogarBtn.addEventListener('click', () => actLogout([s.login], deslogarBtn));
-      const travarBtn = el('button', { class: 'btn danger' }, T('Travar', 'Lock', 'Bloquear'));
-      travarBtn.addEventListener('click', () => actLock([s.login], travarBtn));
-      tb.append(el('tr', {},
-        el('td', {}, cb),
-        el('td', {}, el('div', { class: 'cell-user' },
-          avatarEl(s.login, s.name, 28, s.has_photo),   // sem foto = iniciais, sem pedir (era 1 GET/sessão)
-          el('div', {},
-            el('div', {}, s.name || s.login || '—'),
-            el('div', { class: 'lg' }, '~' + (s.login || '?'))))),
-        el('td', { class: 'ip' }, s.ip
-          ? el('a', { href: '#', title: T('Deslogar todos deste IP', 'Log out all from this IP', 'Cerrar sesión de todos desde esta IP'), onclick: (e) => { e.preventDefault(); actLogoutIp(s.ip); } }, s.ip)
-          : '—'),
-        el('td', { class: 'ua', title: s.user_agent || '' }, s.user_agent || '—'),
-        el('td', { class: 'small' }, fmtDate(s.login_at)),
-        el('td', {}, el('div', { class: 'row-actions' }, deslogarBtn, travarBtn))));
-    });
-    body.append(el('div', { class: 'chart-wrap' }, el('table', { class: 'moj' },
-      el('thead', {}, el('tr', {},
-        el('th', {}, ''), el('th', {}, T('Usuário', 'User', 'Usuario')), el('th', {}, 'IP'), el('th', {}, 'User-Agent'),
-        el('th', {}, T('Logado em', 'Logged in at', 'Inició sesión el')), el('th', {}, T('Ações', 'Actions', 'Acciones')))), tb)));
-    syncSelAll(rows); updateBulk();
-  }
-
-  selAll.addEventListener('change', () => {
-    const rows = ALL.filter(matcher());
-    rows.forEach(s => selAll.checked ? checked.add(s.login) : checked.delete(s.login));
-    render();
-  });
-  search.addEventListener('input', render);
-
-  async function load() {
-    body.innerHTML = ''; body.append(loading());
-    let data;
-    try { data = await apiGet('/treino/admin/sessions', G()); }
-    catch (e) { body.innerHTML = ''; body.append(errBox(T('Falha ao carregar sessões: ', 'Failed to load sessions: ', 'Error al cargar sesiones: ') + (e.message || T('erro', 'error', 'error')))); return; }
-    ALL = data.sessions || [];
-    countBadge.textContent = ALL.length + ' ' + (ALL.length === 1 ? T('sessão', 'session', 'sesión') : T('sessões', 'sessions', 'sesiones'));
-    const present = new Set(ALL.map(s => s.login));
-    [...checked].forEach(l => { if (!present.has(l)) checked.delete(l); });
-    render();
-  }
-
-  async function actLogout(logins, btn) {
-    if (!logins.length) return;
-    if (btn) btn.disabled = true;
-    try {
-      const r = await apiPost('/treino/admin/logout-user', logins.length === 1 ? { login: logins[0] } : { logins }, G());
-      alert(T('Deslogados: ', 'Logged out: ', 'Cerraron sesión: ') + num(r.users_count) + T(' usuário(s), ', ' user(s), ', ' usuario(s), ') + num(r.sessions_removed) + T(' sessão(ões) removida(s).', ' session(s) removed.', ' sesión(es) eliminada(s).'));
-    } catch (e) { alert(T('Falha ao deslogar: ', 'Failed to log out: ', 'Error al cerrar sesión: ') + (e.message || T('erro', 'error', 'error'))); }
-    checked.clear(); await load();
-  }
-  async function actLock(logins, btn) {
-    if (!logins.length) return;
-    const who = logins.length === 1 ? '"' + logins[0] + '"' : logins.length + T(' usuário(s)', ' user(s)', ' usuario(s)');
-    if (!confirm(T('Travar o acesso de ', 'Lock access for ', 'Bloquear el acceso de ') + who + T('?\n\nIsto TROCA a senha por uma aleatória (eles não conseguirão mais entrar até a senha ser redefinida) e encerra as sessões.', '?\n\nThis CHANGES the password to a random one (they will no longer be able to log in until the password is reset) and ends the sessions.', '?\n\nEsto CAMBIA la contraseña por una aleatoria (no podrán volver a entrar hasta que se restablezca la contraseña) y termina las sesiones.'))) return;
-    if (btn) btn.disabled = true;
-    try {
-      const r = await apiPost('/treino/admin/lock-user', logins.length === 1 ? { login: logins[0] } : { logins }, G());
-      alert(T('Travados: ', 'Locked: ', 'Bloqueados: ') + num(r.users_count) + T(' usuário(s) (senha trocada), ', ' user(s) (password changed), ', ' usuario(s) (contraseña cambiada), ') + num(r.sessions_removed) + T(' sessão(ões) removida(s).', ' session(s) removed.', ' sesión(es) eliminada(s).'));
-    } catch (e) { alert(T('Falha ao travar: ', 'Failed to lock: ', 'Error al bloquear: ') + (e.message || T('erro', 'error', 'error'))); }
-    checked.clear(); await load();
-  }
-  async function actLogoutIp(ip) {
-    if (!ip) return;
-    const n = ALL.filter(s => s.ip === ip).length;
-    if (!confirm(T('Deslogar TODAS as ', 'Log out ALL ', 'Cerrar sesión de TODAS las ') + n + T(' sessão(ões) do IP ', ' session(s) from IP ', ' sesión(es) de la IP ') + ip + '?')) return;
-    try {
-      const r = await apiPost('/treino/admin/logout-ip', { ip }, G());
-      alert('IP ' + ip + ': ' + num(r.sessions_removed) + T(' sessão(ões) removida(s) (', ' session(s) removed (', ' sesión(es) eliminada(s) (') + num(r.users_count) + T(' usuário(s)).', ' user(s)).', ' usuario(s)).'));
-    } catch (e) { alert(T('Falha ao deslogar IP: ', 'Failed to log out IP: ', 'Error al cerrar sesión de la IP: ') + (e.message || T('erro', 'error', 'error'))); }
-    await load();
-  }
-  bulkLogout.addEventListener('click', () => actLogout([...checked], bulkLogout));
-  bulkLock.addEventListener('click', () => actLock([...checked], bulkLock));
-
-  return { panel, load };
-}
 
 // ============================ aba: Acessos (log) ============================
 function makeAccessLogTab() {
@@ -581,7 +445,8 @@ function makeQueueTab() {
                   logBox.style.display = '';
                 } catch (e) { msg.textContent = e.message || T('falha', 'failed', 'fallido'); }
               } }, '📜'),
-            pd.has_source ? el('button', { class: 'btn ghost', title: T('re-enfileirar para julgamento', 're-queue for judging', 'volver a encolar para evaluación'),
+            // agir na fila é do super-admin (a API recusa o resto: vale p/ submissão de qualquer contest)
+            CTX.isSuper && pd.has_source ? el('button', { class: 'btn ghost', title: T('re-enfileirar para julgamento', 're-queue for judging', 'volver a encolar para evaluación'),
               onclick: async () => {
                 if (!confirm(T('Re-enfileirar esta submissão?', 'Re-queue this submission?', '¿Volver a encolar este envío?'))) return;
                 try {
@@ -589,7 +454,7 @@ function makeQueueTab() {
                   msg.textContent = T('re-enfileirada — recarregue em instantes', 're-queued — reload shortly', 'reencolado — recarga en unos instantes');
                 } catch (e) { msg.textContent = e.message || T('falha', 'failed', 'fallido'); }
               } }, '🔁') : '',
-            el('button', { class: 'btn ghost danger', title: T('resolver como Judge Error (não penaliza; o aluno reenvia)', 'resolve as Judge Error (non-penalizing; the student resubmits)', 'resolver como Judge Error (no penaliza; el alumno reenvía)'),
+            !CTX.isSuper ? '' : el('button', { class: 'btn ghost danger', title: T('resolver como Judge Error (não penaliza; o aluno reenvia)', 'resolve as Judge Error (non-penalizing; the student resubmits)', 'resolver como Judge Error (no penaliza; el alumno reenvía)'),
               onclick: async () => {
                 if (!confirm(T('Resolver como Judge Error?', 'Resolve as Judge Error?', '¿Resolver como Judge Error?'))) return;
                 try {
@@ -681,13 +546,20 @@ function makeJudgesTab() {
       const polShare = el('input', { type: 'text', value: String(pol.share_max != null ? pol.share_max : 0.5), style: 'width:3.5rem', title: T('fração máxima dos slots do juiz que UM job pode tomar (0..1)', 'max fraction of a judge\'s slots ONE job may take (0..1)', 'fracción máxima de los slots del juez que UN job puede tomar (0..1)') });
       const polBtn = el('button', { class: 'btn ghost', type: 'button', style: 'font-size:.82em;padding:.1rem .5rem' }, T('Aplicar', 'Apply', 'Aplicar'));
       polBtn.onclick = async () => {
+        if (!confirm(T('Aplicar a política de testes em paralelo a TODOS os juízes?', 'Apply the parallel-tests policy to ALL judges?', '¿Aplicar la política de pruebas en paralelo a TODOS los jueces?'))) return;
         polBtn.disabled = true; polBtn.textContent = '…';
         try {
           await apiPost('/ops/judge-config', { host: '*', parallel: polSel.value, cushion: parseFloat(polCus.value) || 0, share_max: parseFloat(polShare.value) || 0 }, G());
           setTimeout(load, 1500);
         } catch (e) { alert(T('Falha na política: ', 'Policy failed: ', 'Error en la política: ') + e); polBtn.disabled = false; polBtn.textContent = T('Aplicar', 'Apply', 'Aplicar'); }
       };
-      body.append(el('div', { class: 'row small', style: 'gap:.4rem;align-items:center;flex-wrap:wrap;margin:.3rem 0 .5rem' },
+      if (!CTX.isSuper) {
+        body.append(el('div', { class: 'row small', style: 'gap:.4rem;align-items:center;flex-wrap:wrap;margin:.3rem 0 .5rem' },
+          el('b', {}, T('Testes em paralelo:', 'Parallel tests:', 'Pruebas en paralelo:')),
+          (pol.parallel === 'auto' ? 'auto' : 'off') + T(' · colchão ', ' · cushion ', ' · colchón ') + (pol.cushion != null ? pol.cushion : 0.25)
+            + T(' · máx. por job ', ' · max per job ', ' · máx. por job ') + (pol.share_max != null ? pol.share_max : 0.5),
+          el('span', { class: 'muted' }, T('— só o super-admin muda a configuração dos juízes', '— only the super-admin changes the judge settings', '— solo el super-admin cambia la configuración de los jueces'))));
+      } else body.append(el('div', { class: 'row small', style: 'gap:.4rem;align-items:center;flex-wrap:wrap;margin:.3rem 0 .5rem' },
         el('b', {}, T('Testes em paralelo:', 'Parallel tests:', 'Pruebas en paralelo:')), polSel,
         el('span', { class: 'muted' }, T('colchão', 'cushion', 'colchón')), polCus,
         el('span', { class: 'muted' }, T('máx. por job', 'max per job', 'máx. por job')), polShare, polBtn,
@@ -719,13 +591,14 @@ function makeJudgesTab() {
         const dis = el('input', { type: 'checkbox', title: T('desabilitar (drena e para de receber trabalho)', 'disable (drains and stops receiving work)', 'deshabilitar (drena y deja de recibir trabajo)') }); dis.checked = !!cfg.disabled;
         const btn = el('button', { class: 'btn ghost', type: 'button', style: 'font-size:.82em;padding:.1rem .5rem' }, T('Aplicar', 'Apply', 'Aplicar'));
         btn.onclick = async () => {
+          if (dis.checked && !cfg.disabled && !confirm(T('Desabilitar ', 'Disable ', '¿Deshabilitar ') + mc.host + T('? Ele termina os jobs em andamento e para de receber trabalho.', '? It finishes the running jobs and stops receiving work.', '? Termina los jobs en curso y deja de recibir trabajo.'))) return;
           btn.disabled = true; btn.textContent = '…';
           try {
             await apiPost('/ops/judge-config', { host: mc.host, partition: sel.value, reserve: parseInt(res.value, 10) || 0, disabled: dis.checked, parallel_max: parseInt(pmax.value, 10) || 4 }, G());
             setTimeout(load, 2500);
           } catch (e) { alert(T('Falha na config: ', 'Config failed: ', 'Error en la config: ') + e); btn.disabled = false; btn.textContent = T('Aplicar', 'Apply', 'Aplicar'); }
         };
-        wrap.append(el('div', { class: 'row', style: 'gap:.25rem;align-items:center;flex-wrap:wrap;margin-top:.2rem' },
+        if (CTX.isSuper) wrap.append(el('div', { class: 'row', style: 'gap:.25rem;align-items:center;flex-wrap:wrap;margin-top:.2rem' },
           sel, res, el('span', { class: 'muted', style: 'font-size:.8em' }, T('P≤', 'P≤', 'P≤')), pmax,
           el('label', { class: 'row', style: 'gap:.15rem' }, dis, el('span', { class: 'muted', style: 'font-size:.8em' }, 'off')), btn));
         return wrap;
@@ -776,7 +649,7 @@ function makeJudgesTab() {
           // errada disso custou caro no diagnóstico do incidente 2026-07-15) + limpar
           el('td', { class: 'small', title: T('Cache de pacotes de problema EM DISCO do juiz (não é uso de RAM)', 'Judge\'s problem-package cache ON DISK (not RAM usage)', 'Caché de paquetes de problema EN DISCO del juez (no es uso de RAM)') },
             el('div', {}, T('disco: ', 'disk: ', 'disco: ') + (cache.problems || 0) + ' probs · ' + cacheMB),
-            clearBtn),
+            CTX.isSuper ? clearBtn : ''),
           // SLOTS (particionamento): config fina por juiz — o agente aplica após drenar
           el('td', { class: 'small' }, slotsCell(mc))));
       });
@@ -1006,40 +879,76 @@ function makeActivityTab() {
 }
 
 // ============================ aba: Auditoria ============================
+// O audit do treino (var/admin-audit.log) também guarda as ações de AUTORIA (upload, validate, tl-report…), que são a
+// maioria das linhas: por padrão a aba mostra só as de ADMINISTRAÇÃO. As ações de vários alvos (deslogar, travar, por
+// IP) levam `detalhe=admin-actions/<arquivo>` — "ver detalhe" abre quem foi afetado e quem ficou de fora.
+const ADMIN_ACTIONS = /^(logout-|lock-user|contest-(remove|perms|priority)|judge-|calib-cancel|managed-|achievements-|news-|change-limits|user-promote|org-public-allowed|queue-)/;
 function makeAuditTab() {
   const panel = el('div', { class: 'section' });
   const head = el('h2', {}, T('🛡 Auditoria', '🛡 Audit', '🛡 Auditoría'));
   const dateInput = el('input', { type: 'date', value: todayStr() });
   dateInput.addEventListener('change', () => load());
+  const onlyAdm = el('input', { type: 'checkbox' }); onlyAdm.checked = true;
+  const q = el('input', { type: 'search', placeholder: T('filtrar: quem, ação, detalhe…', 'filter: who, action, detail…', 'filtrar: quién, acción, detalle…'), style: 'min-width:14rem' });
   const tools = el('div', { class: 'toolbar' },
-    el('span', { class: 'small muted' }, T('Dia:', 'Day:', 'Día:')), dateInput,
+    el('span', { class: 'small muted' }, T('Dia:', 'Day:', 'Día:')), dateInput, q,
+    el('label', { class: 'row', style: 'gap:.3rem' }, onlyAdm, el('span', { class: 'small' }, T('só administração', 'administration only', 'solo administración'))),
     el('button', { class: 'btn ghost', onclick: () => load() }, T('↻ Atualizar', '↻ Refresh', '↻ Actualizar')));
   const body = el('div', {}, loading());
-  panel.append(head, tools, body);
-  const ACT = { 'logout-user': T('🚪 deslogou usuário(s)', '🚪 logged out user(s)', '🚪 cerró sesión de usuario(s)'), 'logout-ip': T('🚪 deslogou IP', '🚪 logged out IP', '🚪 cerró sesión de IP'), 'lock-user': T('🔒 travou usuário(s)', '🔒 locked user(s)', '🔒 bloqueó usuario(s)'),
-                'news-add': T('📰 criou notícia', '📰 created article', '📰 creó noticia'), 'news-edit': T('✏️ editou notícia', '✏️ edited article', '✏️ editó noticia'), 'news-delete': T('🗑 removeu notícia', '🗑 removed article', '🗑 eliminó noticia') };
-
+  const detailBox = el('div', {});
+  panel.append(head, tools, detailBox, body);
+  const ACT = () => ({ 'logout-user': T('🚪 deslogou conta(s)', '🚪 logged out account(s)', '🚪 cerró sesión de cuenta(s)'), 'logout-ip': T('🚪 deslogou IP', '🚪 logged out IP', '🚪 cerró sesión de IP'), 'lock-user': T('🔒 travou conta(s)', '🔒 locked account(s)', '🔒 bloqueó cuenta(s)'),
+    'news-add': T('📰 criou notícia', '📰 created article', '📰 creó noticia'), 'news-edit': T('✏️ editou notícia', '✏️ edited article', '✏️ editó noticia'), 'news-delete': T('🗑 removeu notícia', '🗑 removed article', '🗑 eliminó noticia'),
+    'contest-remove': T('🗑 removeu contest', '🗑 removed contest', '🗑 eliminó competencia'), 'contest-perms': T('🏆 permissão de criar', '🏆 create permission', '🏆 permiso de crear'), 'contest-priority': T('⚖️ prioridade de contest', '⚖️ contest priority', '⚖️ prioridad de competencia'),
+    'judge-config': T('🖥️ config de juiz', '🖥️ judge config', '🖥️ config de juez'), 'judge-cache': T('🖥️ limpou cache de juiz', '🖥️ cleared judge cache', '🖥️ limpió caché de juez') });
+  let ENTRIES = [];
+  async function showDetail(name) {
+    detailBox.innerHTML = '';
+    let d;
+    try { d = (await apiGet('/treino/admin/action-detail?f=' + encodeURIComponent(name), G())).detail || {}; }
+    catch (e) { detailBox.append(errBox(e.message || T('falha', 'failed', 'fallido'))); return; }
+    const aff = d.affected || [], sk = d.skipped || [];
+    detailBox.append(el('div', { class: 'subcard', style: 'margin:.4rem 0' },
+      el('div', { class: 'row', style: 'gap:.5rem;align-items:center' },
+        el('b', {}, (ACT()[d.action] || d.action) + ' · ~' + (d.by || '?') + ' · ' + fmtDate(d.at) + (d.ip ? ' · IP ' + d.ip : '')),
+        el('span', { style: 'flex:1' }), el('button', { class: 'btn ghost small', onclick: () => { detailBox.innerHTML = ''; } }, '✕')),
+      el('div', { class: 'small', style: 'margin-top:.3rem' }, T('Afetadas: ', 'Affected: ', 'Afectadas: ') + aff.length
+        + T(' · sessões encerradas: ', ' · sessions ended: ', ' · sesiones cerradas: ') + (d.sessions_removed || 0)),
+      el('div', { class: 'small', style: 'font-family:var(--mono);word-break:break-word;max-height:12rem;overflow:auto' }, aff.join(' · ') || '—'),
+      sk.length ? el('div', { class: 'small muted', style: 'margin-top:.3rem;font-family:var(--mono);word-break:break-word' },
+        T('Ficaram de fora: ', 'Left out: ', 'Quedaron fuera: ') + sk.map((x) => x.login + ' (' + x.reason + ')').join(' · ')) : ''));
+  }
+  function render() {
+    const f = q.value.trim().toLowerCase(), A = ACT();
+    const rows = ENTRIES.filter((e2) => (!onlyAdm.checked || ADMIN_ACTIONS.test(e2.action || ''))
+      && (!f || [(e2.admin || ''), (e2.action || ''), (e2.details || '')].some((x) => x.toLowerCase().includes(f))));
+    body.innerHTML = '';
+    body.append(el('div', { class: 'small muted', style: 'margin-bottom:.5rem' },
+      rows.length + T(' ação(ões)', ' action(s)', ' acción(es)') + (ENTRIES.length !== rows.length ? T(` (de ${ENTRIES.length})`, ` (of ${ENTRIES.length})`, ` (de ${ENTRIES.length})`) : '')
+      + T(' — mais recentes primeiro.', ' — most recent first.', ' — más recientes primero.')));
+    if (!rows.length) { body.append(el('div', { class: 'muted' }, T('Nenhuma ação neste dia com esse filtro.', 'No action on this day with this filter.', 'Ninguna acción en este día con ese filtro.'))); return; }
+    const tb = el('tbody');
+    rows.forEach((e2) => {
+      const m = /detalhe=(admin-actions\/)?([0-9]+-[a-z-]+-[0-9]+\.json)/.exec(e2.details || '');
+      tb.append(el('tr', {},
+        el('td', { class: 'small' }, fmtDate(e2.time)),
+        el('td', { class: 'lg', style: 'font-family:var(--mono);font-size:.85rem' }, '~' + (e2.admin || '?')),
+        el('td', {}, A[e2.action] || e2.action),
+        el('td', { class: 'small', style: 'font-family:var(--mono);word-break:break-all' }, e2.details || '',
+          m ? el('div', {}, el('button', { class: 'btn ghost small', onclick: () => showDetail(m[2]) }, T('ver detalhe', 'view detail', 'ver detalle'))) : '')));
+    });
+    body.append(el('div', { class: 'chart-wrap' }, el('table', { class: 'moj' },
+      el('thead', {}, el('tr', {}, el('th', {}, T('Data/Hora', 'Date/Time', 'Fecha/Hora')), el('th', {}, 'Admin'), el('th', {}, T('Ação', 'Action', 'Acción')), el('th', {}, T('Detalhes', 'Details', 'Detalles')))), tb)));
+  }
+  q.addEventListener('input', render); onlyAdm.addEventListener('change', render);
   async function load() {
-    body.innerHTML = ''; body.append(loading());
+    body.innerHTML = ''; body.append(loading()); detailBox.innerHTML = '';
     const day = dateInput.value;
     let data;
     try { data = await apiGet('/treino/admin/audit-log?day=' + encodeURIComponent(day), G()); }
     catch (e) { body.innerHTML = ''; body.append(errBox(T('Falha ao carregar a auditoria: ', 'Failed to load the audit: ', 'Error al cargar la auditoría: ') + (e.message || T('erro', 'error', 'error')))); return; }
-    const entries = data.entries || [];
-    body.innerHTML = '';
-    body.append(el('div', { class: 'small muted', style: 'margin-bottom:.5rem' },
-      entries.length + T(' ação(ões) em ', ' action(s) on ', ' acción(es) en ') + (data.day || day) + T(' (mais recentes primeiro).', ' (most recent first).', ' (más recientes primero).')));
-    if (!entries.length) { body.append(el('div', { class: 'muted' }, T('Nenhuma ação administrativa neste dia.', 'No administrative action on this day.', 'Ninguna acción administrativa en este día.'))); return; }
-    const tb = el('tbody');
-    entries.forEach((e2) => {
-      tb.append(el('tr', {},
-        el('td', { class: 'small' }, fmtDate(e2.time)),
-        el('td', { class: 'lg', style: 'font-family:var(--mono);font-size:.85rem' }, '~' + (e2.admin || '?')),
-        el('td', {}, ACT[e2.action] || e2.action),
-        el('td', { class: 'small', style: 'font-family:var(--mono);word-break:break-all' }, e2.details || '')));
-    });
-    body.append(el('div', { class: 'chart-wrap' }, el('table', { class: 'moj' },
-      el('thead', {}, el('tr', {}, el('th', {}, T('Data/Hora', 'Date/Time', 'Fecha/Hora')), el('th', {}, 'Admin'), el('th', {}, T('Ação', 'Action', 'Acción')), el('th', {}, T('Detalhes', 'Details', 'Detalles')))), tb)));
+    ENTRIES = data.entries || [];
+    render();
   }
   return { panel, load };
 }
@@ -1057,10 +966,8 @@ function personCell(login, name, hasPhoto, extra) {
         name ? '' : el('span', { class: 'muted' }, ' · ' + T('conta não existe', 'account does not exist', 'la cuenta no existe')))));
   return box;
 }
-function makeContestsTab() {
+function makeContestPermsTab() {
   const panel = el('div', { class: 'section' });
-  panel.append(el('h2', {}, '🏆 Contests'));
-
   // ---------- quem pode criar contests e problemas ----------
   const thr = el('input', { type: 'number', min: '0', style: 'width:90px' });
   const thrSave = el('button', { class: 'btn ghost' }, T('Salvar limite', 'Save threshold', 'Guardar umbral'));
@@ -1073,7 +980,12 @@ function makeContestsTab() {
     try { const r = await apiPost('/treino/admin/contest-perms', body, G()); say(T('✓ salvo', '✓ saved', '✓ guardado')); renderPerms(r); }
     catch (e) { say(e.message || T('falha', 'failed', 'fallido'), true); }
   }
-  thrSave.addEventListener('click', () => permPost({ action: 'threshold', threshold: num(thr.value) }));
+  thrSave.addEventListener('click', () => {
+    const v = num(thr.value);
+    if (!confirm(v > 0 ? T(`Liberar automaticamente quem resolveu ${v} problema(s) ou mais?`, `Automatically allow whoever solved ${v} problem(s) or more?`, `¿Permitir automáticamente a quien resolvió ${v} problema(s) o más?`)
+      : T('Desativar a liberação automática por problemas resolvidos?', 'Turn off the automatic allowance by solved problems?', '¿Desactivar el permiso automático por problemas resueltos?'))) return;
+    permPost({ action: 'threshold', threshold: v });
+  });
   function permTable(kind, info) {
     const allow = kind === 'allow';
     const login = el('input', { placeholder: 'login', style: 'width:12rem;font-family:var(--mono)' });
@@ -1121,6 +1033,14 @@ function makeContestsTab() {
     catch { say(T('Falha ao carregar permissões.', 'Failed to load permissions.', 'Error al cargar los permisos.'), true); }
   }
 
+  panel.append(permBox);
+  return { panel, load: loadPerms };
+}
+
+function makeContestsTab() {
+  const panel = el('div', { class: 'section' });
+  panel.append(el('h2', {}, '🏆 Contests'));
+
   // ---------- contests criados pela interface ----------
   let ALL = [], META = { scope: 'admin', me: '', is_superadmin: false };
   const norm = (v) => String(v || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
@@ -1139,7 +1059,7 @@ function makeContestsTab() {
   const tableBox = el('div', {}, loading());
   const statusOf = (c) => { const now = Date.now() / 1000; if (c.start && now < c.start) return 'upcoming'; if (c.end && now > c.end) return 'ended'; return 'running'; };
   const STATUS = () => ({ running: [T('em andamento', 'running', 'en curso'), 'v-ok'], upcoming: [T('por vir', 'upcoming', 'próximas'), 'v-warn'], ended: [T('encerrado', 'ended', 'finalizada'), ''] });
-  const dt = (e) => (e ? new Date(e * 1000).toLocaleString(undefined, { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—');
+  const dt = (e) => (e ? new Date(e * 1000).toLocaleString(uiLocale(), { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—');
   // PRIORIDADE no julgamento (01/10/2026): o super-admin muda aqui, inclusive Super (POST /treino/admin/contest-priority,
   // auditado no contest e na trilha do treino); os demais só veem — o admin do contest muda em Central › Regras.
   const PRIO = () => ({ 'lista-publica': T('Lista pública', 'Public list', 'Lista pública'), 'lista-privada': T('Lista privada', 'Private list', 'Lista privada'),
@@ -1178,8 +1098,13 @@ function makeContestsTab() {
     rows.forEach((c) => {
       const canRemove = META.is_superadmin || c.owner === META.me;
       const rm = el('button', { class: 'btn danger small', onclick: async () => {
-        if (!confirm(T('Remover o contest "', 'Remove the contest "', '¿Eliminar la competencia "') + (c.name || c.id) + T('"? (vai para a lixeira, reversível pelo servidor)', '"? (goes to trash, reversible by the server)', '"? (va a la papelera, reversible por el servidor)'))) return;
-        try { await apiPost('/treino/admin/contest-remove', { contest: c.id }, G()); loadList(); }
+        // digitar o id (a API também o exige no corpo, `confirm`): um clique não remove contest
+        const typed = prompt(T(`Remover o contest "${c.name || c.id}"? Ele vai para a lixeira (reversível pelo servidor).\n\nPara confirmar, digite o id do contest: ${c.id}`,
+          `Remove the contest "${c.name || c.id}"? It goes to the trash (reversible by the server).\n\nTo confirm, type the contest id: ${c.id}`,
+          `¿Eliminar la competencia "${c.name || c.id}"? Va a la papelera (reversible por el servidor).\n\nPara confirmar, escribe el id de la competencia: ${c.id}`));
+        if (typed == null) return;
+        if (typed.trim() !== c.id) { alert(T('O id não confere. Nada foi removido.', 'The id does not match. Nothing was removed.', 'El id no coincide. No se eliminó nada.')); return; }
+        try { await apiPost('/treino/admin/contest-remove', { contest: c.id, confirm: typed.trim() }, G()); loadList(); }
         catch (e) { alert(T('Falha ao remover: ', 'Failed to remove: ', 'Error al eliminar: ') + (e.message || T('erro', 'error', 'error'))); }
       } }, T('Remover', 'Remove', 'Eliminar'));
       const sk = statusOf(c);
@@ -1225,8 +1150,8 @@ function makeContestsTab() {
     q, ownerSel, modeSel, statusSel, sortSel,
     el('label', { class: 'row', style: 'gap:.3rem;align-items:center;cursor:pointer' }, mineChk, el('span', { class: 'small' }, T('só os meus', 'only mine', 'solo las mías'))), count);
 
-  panel.append(permBox, el('h3', { style: 'margin:1rem 0 .3rem' }, T('Contests criados pela interface', 'Contests created via the interface', 'Competencias creadas por la interfaz')), scopeNote, filters, tableBox);
-  function load() { loadPerms(); loadList(); }
+  panel.append(el('h3', { style: 'margin:.4rem 0 .3rem' }, T('Contests criados pela interface', 'Contests created via the interface', 'Competencias creadas por la interfaz')), scopeNote, filters, tableBox);
+  function load() { loadList(); }
   return { panel, load };
 }
 
@@ -1264,6 +1189,7 @@ function makeAchievementsTab() {
   panel.append(head, intro, tools, msg, formBox, body);
 
   let REG = [];        // cópia de trabalho
+  let SAVED = [];      // o que está no servidor (p/ dizer o que o Salvar muda)
   let CUSTOM = false;
 
   const paramsText = (a) => Object.entries(a.params || {}).map(([k, v]) => `${k}=${v}`).join(' ');
@@ -1351,6 +1277,12 @@ function makeAchievementsTab() {
   }
 
   async function save() {
+    // o registro é GLOBAL (vale em todo perfil) e o POST o SUBSTITUI inteiro: diga o que entra e o que sai
+    const was = new Set(SAVED.map((a) => a.id)), now = new Set(REG.map((a) => a.id));
+    const added = REG.filter((a) => !was.has(a.id)).length, removed = SAVED.filter((a) => !now.has(a.id)).length;
+    if (!confirm(T(`Salvar o registro de conquistas de TODOS os perfis? ${REG.length} conquista(s): ${added} nova(s), ${removed} removida(s).`,
+      `Save the achievements registry for ALL profiles? ${REG.length} achievement(s): ${added} new, ${removed} removed.`,
+      `¿Guardar el registro de logros de TODOS los perfiles? ${REG.length} logro(s): ${added} nuevo(s), ${removed} eliminado(s).`))) return;
     msg.className = 'small'; msg.textContent = T('Salvando…', 'Saving…', 'Guardando…');
     try {
       const j = await apiPost('/treino/admin/achievements', { achievements: REG }, G());
@@ -1368,7 +1300,7 @@ function makeAchievementsTab() {
     body.innerHTML = ''; body.append(loading());
     try {
       const j = await apiGet('/treino/achievements', G());
-      REG = (j.achievements || []).map(a => ({ ...a }));
+      REG = (j.achievements || []).map(a => ({ ...a })); SAVED = REG.map(a => ({ ...a }));
       CUSTOM = !!j.custom;
       renderList();
     } catch (e) { body.innerHTML = ''; body.append(el('div', { class: 'error-box' }, e.message || T('falha', 'failed', 'fallido'))); }
@@ -1573,6 +1505,7 @@ function makeManagedTab() {
         return it;
       });
       if (!users.length) { ferr.classList.remove('hidden'); ferr.textContent = T('nada para criar', 'nothing to create', 'nada para crear'); return; }
+      if (!confirm(T(`Criar ${users.length} conta(s) gerida(s)?`, `Create ${users.length} managed account(s)?`, `¿Crear ${users.length} cuenta(s) gestionada(s)?`))) return;
       try {
         const j = await post('/treino/admin/managed-create', { users });
         formBox.innerHTML = ''; showCreds(j.created || [], j.skipped || []); await load();
@@ -1599,49 +1532,53 @@ function makeManagedTab() {
   return { panel, load };
 }
 
-// ============================ painel + abas ============================
+// ============================ painel: grupos + abas (nav.js) ============================
+// Cada chave `grupo/painel` do nav.js tem o seu make*(); o painel é montado na 1ª visita e fica (filtros e timers
+// sobrevivem a trocar de aba). O #endereço manda: clicar muda o hash, e o hashchange mostra (voltar do navegador
+// funciona, recarregar fica onde estava).
+const MAKE = {
+  'visao/estatisticas': () => makeStatsTab(), 'visao/fila': () => makeQueueTab(), 'visao/maquinas': () => makeJudgesTab(),
+  'pessoas/geridas': () => makeManagedTab(), 'pessoas/sessoes': () => makeSessionsTab(CTX),
+  'contests/lista': () => makeContestsTab(), 'contests/criar': () => makeContestPermsTab(),
+  'conteudo/noticias': () => makeNewsTab(), 'conteudo/conquistas': () => makeAchievementsTab(),
+  'registros/auditoria': () => makeAuditTab(), 'registros/atividade': () => makeActivityTab(), 'registros/acessos': () => makeAccessLogTab(),
+};
 function renderPanel(content) {
   content.innerHTML = '';
-
-  const TABS = [
-    { id: 'sessions', label: T('👥 Sessões ativas', '👥 Active sessions', '👥 Sesiones activas'), make: makeSessionsTab },
-    { id: 'news', label: T('📰 Notícias', '📰 News', '📰 Noticias'), make: makeNewsTab },
-    { id: 'achievements', label: T('🏅 Conquistas', '🏅 Achievements', '🏅 Logros'), make: makeAchievementsTab },
-    { id: 'managed', label: T('🧒 Contas geridas', '🧒 Managed accounts', '🧒 Cuentas gestionadas'), make: makeManagedTab },
-    { id: 'contests', label: '🏆 Contests', make: makeContestsTab },
-    { id: 'access', label: T('📝 Acessos (log)', '📝 Access (log)', '📝 Accesos (registro)'), make: makeAccessLogTab },
-    { id: 'activity', label: T('📜 Atividade', '📜 Activity', '📜 Actividad'), make: makeActivityTab },
-    { id: 'stats', label: T('📊 Estatísticas', '📊 Statistics', '📊 Estadísticas'), make: makeStatsTab },
-    { id: 'queue', label: T('⏳ Fila & tempo de resposta', '⏳ Queue & response time', '⏳ Cola y tiempo de respuesta'), make: makeQueueTab },
-    { id: 'judges', label: T('🖥️ Máquinas de julgamento', '🖥️ Judging machines', '🖥️ Máquinas de evaluación'), make: makeJudgesTab },
-  ];
-
-  const tabsBar = el('div', { class: 'tabs' });
+  const groups = GROUPS();
+  const groupBar = el('div', { class: 'tabs groupbar', role: 'tablist' });
+  const subBar = el('div', { class: 'tabs subtabs', style: 'margin-top:.35rem' });
   const panelsWrap = el('div', {});
-  const built = {};   // id -> {panel, load, loaded}
-
-  function show(id) {
-    TABS.forEach(t => {
-      const b = built[t.id];
-      const active = t.id === id;
-      b.btn.classList.toggle('active', active);
-      b.panel.hidden = !active;
-    });
-    const b = built[id];
-    if (!b.loaded) { b.loaded = true; b.load(); }   // carrega sob demanda na 1ª vez
-  }
-
-  TABS.forEach((t, i) => {
-    const { panel, load } = t.make();
-    const btn = el('button', { class: 'btn ghost', onclick: () => show(t.id) }, t.label);
-    built[t.id] = { panel, load, btn, loaded: false };
-    tabsBar.append(btn);
-    panel.hidden = i !== 0;
-    panelsWrap.append(panel);
+  const built = {};          // chave -> {panel, load, loaded}
+  const gBtn = {};
+  groups.forEach((g) => {
+    const b = el('button', { class: 'btn ghost', onclick: () => go(g.id + '/' + g.panels[0].id) }, g.label);
+    gBtn[g.id] = b; groupBar.append(b);
   });
-
-  content.append(tabsBar, panelsWrap);
-  show(TABS[0].id);   // primeira aba ativa + carregada
+  function ensure(key) {
+    if (!built[key]) {
+      const { panel, load } = MAKE[key]();
+      panel.hidden = true; panelsWrap.append(panel);
+      built[key] = { panel, load, loaded: false };
+    }
+    return built[key];
+  }
+  function show(hash) {
+    const r = resolveHash(hash), g = groups.find((x) => x.id === r.group);
+    Object.entries(gBtn).forEach(([id, b]) => b.classList.toggle('active', id === r.group));
+    subBar.innerHTML = '';
+    g.panels.forEach((p) => {
+      const k = g.id + '/' + p.id;
+      subBar.append(el('button', { class: 'btn ghost small' + (k === r.key ? ' active' : ''), onclick: () => go(k) }, p.label));
+    });
+    Object.entries(built).forEach(([k, b]) => { b.panel.hidden = k !== r.key; });
+    const b = ensure(r.key); b.panel.hidden = false;
+    if (!b.loaded) { b.loaded = true; b.load(); }
+  }
+  function go(key) { if (location.hash !== '#' + key) location.hash = key; else show(key); }
+  window.addEventListener('hashchange', () => show(location.hash));
+  content.append(groupBar, subBar, panelsWrap);
+  show(location.hash);
 }
 
 // ============================ boot ============================
@@ -1660,6 +1597,9 @@ async function boot() {
     content.append(el('div', { class: 'access-restricted' }, T('🚫 Acesso restrito a administradores', '🚫 Access restricted to administrators', '🚫 Acceso restringido a administradores')));
     return;
   }
+  CTX.me = st.login || '';
+  // o papel de SUPER-ADMIN (SUPERADMINS no conf do treino) — a API recusa o resto de qualquer jeito
+  try { CTX.isSuper = !!(await apiGet('/treino/contest-create/permission', G())).is_superadmin; } catch (_) { CTX.isSuper = false; }
   renderPanel(content);
 }
 boot();

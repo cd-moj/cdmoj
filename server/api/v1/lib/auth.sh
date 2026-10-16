@@ -116,7 +116,22 @@ is_animeitor(){ [[ "$SESSION_LOGIN" == *.animeitor ]]; }
 # legitimamente). Mantém a lista em UM lugar (awk não enxerga a função — ao replicar em regex,
 # lembre do .cjudge/.cstaff/.animeitor: \.(admin|judge|cjudge|staff|cstaff|mon|animeitor)$).
 is_reserved_role_login(){ case "$1" in *.admin|*.judge|*.cjudge|*.staff|*.cstaff|*.mon|*.animeitor) return 0;; *) return 1;; esac; }
+# require_admin = SÓ o sufixo `.admin`, de QUALQUER contest: serve às rotas /contest/admin/*, em que o contest
+# alvo é o da própria sessão. Rota de PLATAFORMA (juízes, fila geral, /ops) NUNCA usa isto — todo criador de
+# contest ganha um `<criador>.admin` LOCAL, e até 16/10/2026 esse admin local configurava/desligava juízes,
+# matava slot e cancelava calibração pelas /ops. Plataforma = require_treino_admin / require_treino_superadmin.
 require_admin(){ require_auth; is_admin || fail 403 "Admin only" "admin_required"; }
+# require_treino_admin — sessão DO TREINO de um `.admin` (o portão do painel /treino/admin e da leitura das /ops).
+require_treino_admin(){
+  require_auth_contest treino
+  is_admin || fail 403 "Apenas administradores do treino" "admin_required"
+}
+# require_treino_superadmin — o mesmo + SUPERADMINS do conf do treino. Só vale com sessão do TREINO: numa sessão de
+# contest o `.admin` é conta LOCAL e o nome não prova nada (o superadmin_login olha só o nome).
+require_treino_superadmin(){
+  require_treino_admin
+  is_superadmin || fail 403 "Só o super-admin da plataforma pode fazer isto" "superadmin_required"
+}
 require_judge(){ require_auth; is_judge || fail 403 "Judge only" "judge_required"; }
 require_chief(){ require_auth; is_chief || fail 403 "Chief judge only" "chief_required"; }
 

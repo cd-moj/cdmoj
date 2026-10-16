@@ -2,7 +2,8 @@
 # Time limits de um problema, do STORE reportado pelos juízes (modelo cache).
 #   {success, problem, checksum, time_limits:{lang:seg} (máx entre hosts), hosts:{...}}
 # time_limits vazio = ninguém calibrou a versão atual ainda (ou o pacote mudou).
-require_admin
+# PORTÃO (16/10/2026): admin com sessão DO TREINO — antes `require_admin` aceitava o .admin local de qualquer contest.
+require_treino_admin
 source "$_DIR/lib/tl-store.sh"
 
 problem="$(param problem)"

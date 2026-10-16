@@ -1,4 +1,4 @@
-<!-- i18n-source: CONTAS-GERIDAS.md blob:1fc6fa8f7dc76d01cd3e8e82743b9fd4e4ad0a6b -->
+<!-- i18n-source: CONTAS-GERIDAS.md blob:695ab76359442de03d63f911bebbdbda86f92eef -->
 # Cuentas gestionadas (menores de edad, sin Telegram)
 
 > **Nota de traducción.** Este manual es una traducción del original en portugués. Las herramientas de línea de comandos (`moj`, `moj-contest`, `moj-comp`) muestran sus mensajes en portugués, y los ejemplos de comandos son idénticos al original.
@@ -12,7 +12,7 @@ con Telegram y tiene bloqueos de privacidad que **se levantan automáticamente a
 
 | | Cuenta normal | Cuenta GESTIONADA (menor) |
 |---|---|---|
-| Se crea | registro web + Telegram | pestaña **🧒 Cuentas gestionadas** de `/treino/admin/` |
+| Se crea | registro web + Telegram | **👥 Personas › Cuentas gestionadas** de `/treino/admin/` |
 | Contraseña | por DM del bot | **generada y mostrada UNA vez** al admin |
 | Olvidé la contraseña | `/trocarsenha` en el bot | **solo el admin** (🔑 en la pestaña) |
 | Perfil público | opcional (público por defecto) | **siempre privado** (el servidor se niega a hacerlo público) |
@@ -46,7 +46,7 @@ lo abra.
   (cuenta vencida: habla con el responsable que la creó). Para renovar, edita o borra la fecha en
   la pestaña.
 
-## Operación (pestaña 🧒 Cuentas gestionadas de `/treino/admin/`)
+## Operación (👥 Personas › Cuentas gestionadas de `/treino/admin/`)
 
 - **➕ Nueva cuenta**: nombre completo + **fecha de nacimiento** (obligatorios), usuario opcional
   (vacío = se genera a partir del nombre, `nome.sobrenome`, sin duplicados), nota libre y
@@ -64,7 +64,7 @@ lo abra.
   conservan).
 - **Filtros**: por texto y **"solo las mías"** (cuentas de las que yo soy el responsable).
 - **Auditoría**: `managed-create/reset/update/remove` entran en el registro de auditoría con el
-  admin que hizo la acción (pestaña 📜 Actividad).
+  admin que hizo la acción (📜 Registros › Actividad y › Auditoría).
 
 ## Por la API (mismo efecto; Bearer de `.admin`)
 

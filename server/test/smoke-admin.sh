@@ -5,7 +5,7 @@ ROOT="$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)"; ROUTER="$ROOT/api/v1/
 FIX="$(mktemp -d)"; SESS="$(mktemp -d)"; trap 'rm -rf "$FIX" "$SESS"' EXIT
 source "$(dirname "$(readlink -f "$0")")/fixture.sh"
 T="$FIX/treino"; mkdir -p "$T/var"
-printf 'CONTEST_ID=treino\nCONTEST_NAME="Treino Livre"\nCONTEST_TYPE=lista-publica\nUSER_STORE=v2\n' > "$T/conf"
+printf 'CONTEST_ID=treino\nCONTEST_NAME="Treino Livre"\nCONTEST_TYPE=lista-publica\nUSER_STORE=v2\nSUPERADMINS=boss.admin\n' > "$T/conf"
 fx_user "$T" alice secret "Alice A"
 fx_user "$T" boss.admin bosspw "Boss Admin"
 printf '100:p#x:C:Not Answered Yet:100:s1\n200:p#x:C:Accepted,100p:200:s2\n' > "$T/users/alice/history"
@@ -57,7 +57,10 @@ call /treino/admin/sessions GET "" "$BTOK"
 ck "agora só 1 sessão (boss)" '[[ "$(jq -r .count <<<"$BODY")" == 1 ]]'
 
 echo "== travar acesso (troca senha) =="
+# travar é só do super-admin e SEMPRE passa pela prévia (lib/admin-bulk.sh): 1ª chamada = plan_id + need
 call /treino/admin/lock-user POST "" "$BTOK" '{"login":"alice"}'
+ck "lock: 1ª chamada é a prévia (nada travado ainda)" '[[ "$(jq -r .preview <<<"$BODY")" == true && "$(jq -r .need <<<"$BODY")" == 1 ]]'
+call /treino/admin/lock-user POST "" "$BTOK" "$(jq -c --arg p "$(jq -r .plan_id <<<"$BODY")" '{login:"alice", plan_id:$p, confirm:1}' <<<'{}')"
 ck "lock ok"                 '[[ "$(jq -r .locked <<<"$BODY")" == "true" ]]'
 ck "senha mudou (login antigo falha)" 'bash -c "PATH_INFO=/auth/login REQUEST_METHOD=POST QUERY_STRING=contest=treino CONTESTSDIR=$FIX SESSIONDIR=$SESS bash $ROUTER <<<'"'"'{\"username\":\"alice\",\"password\":\"secret\"}'"'"' 2>&1 | grep -q \"Status: 401\""'
 call /treino/admin/lock-user POST "" "$BTOK" '{"login":"naoexiste"}'

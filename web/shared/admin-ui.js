@@ -74,3 +74,70 @@ export async function downloadAuthed(contest, path, filename) {
   const a = el('a', { href: url, download: filename }); document.body.append(a); a.click();
   setTimeout(() => { a.remove(); URL.revokeObjectURL(url); }, 0);
 }
+
+// --- confirmação de AÇÃO DE VÁRIOS ALVOS (16/10/2026) ----------------------------------------------------
+// O cartão da PRÉVIA do servidor (lib/admin-bulk.sh): quantas contas, quantas sessões, os primeiros nomes, quem
+// ficou de fora e porquê, e o campo "digite N para confirmar" — o botão só habilita quando o número bate. Em linha,
+// nunca prompt(): foi um clique sem confirmação nenhuma que deslogou 1.310 contas do treino. `run(plan_id, n)` faz o
+// POST de execução e devolve a resposta; se o servidor disser plan_changed/confirm_required, o cartão se refaz com a
+// prévia nova (error.preview). onDone(resposta) / onCancel() avisam quem abriu.
+const SKIP_WHY = () => ({
+  self: T('a sua conta', 'your own account', 'tu propia cuenta'),
+  role: T('conta de papel (.admin, .judge…)', 'role account (.admin, .judge…)', 'cuenta de rol (.admin, .judge…)'),
+  superadmin: T('super-admin', 'super-admin', 'super-admin'),
+  notfound: T('não existe', 'does not exist', 'no existe'),
+});
+export function confirmDanger({ title, verb, preview, run, onDone, onCancel }) {
+  const box = el('div', { class: 'subcard danger-confirm', role: 'alertdialog', style: 'border:2px solid var(--bad, #b42318);padding:.7rem .9rem;margin:.5rem 0' });
+  let pv = preview || {};
+  const paint = (note) => {
+    box.innerHTML = '';
+    const n = Number(pv.need) || 0, ns = Number(pv.sessions_count) || 0;
+    box.append(el('h3', { style: 'margin:.1rem 0 .4rem' }, '⚠️ ' + title));
+    if (note) box.append(el('div', { class: 'notice', style: 'margin:.3rem 0' }, note));
+    box.append(el('p', { style: 'margin:.2rem 0' }, el('b', {}, String(n)),
+      T(' conta(s) serão afetadas', ' account(s) will be affected', ' cuenta(s) serán afectadas'),
+      ns ? T(` (${ns} sessão(ões))`, ` (${ns} session(s))`, ` (${ns} sesión(es))`) : '', '.'));
+    const sample = pv.sample || [];
+    if (sample.length) {
+      box.append(el('div', { class: 'small', style: 'font-family:var(--mono);word-break:break-word' },
+        sample.join(' · ') + (n > sample.length ? T(` … e mais ${n - sample.length}`, ` … and ${n - sample.length} more`, ` … y ${n - sample.length} más`) : '')));
+    }
+    if (Number(pv.skipped_count) > 0) {
+      const why = SKIP_WHY(), by = pv.skipped_by_reason || {};
+      box.append(el('div', { class: 'small muted', style: 'margin-top:.35rem' },
+        T('Ficam de fora: ', 'Left out: ', 'Quedan fuera: ') + Object.entries(by).map(([k, v]) => `${v} × ${why[k] || k}`).join(' · ')));
+    }
+    if (!n) {   // nada a fazer (ex.: nenhuma das contas tem sessão aberta) — não pede "digite 0"
+      box.append(el('div', { class: 'row', style: 'gap:.4rem;align-items:center;margin-top:.5rem' },
+        el('span', { class: 'small' }, T('Nada a fazer.', 'Nothing to do.', 'Nada que hacer.')),
+        el('button', { class: 'btn ghost', onclick: () => { box.remove(); if (onCancel) onCancel(); } }, T('Fechar', 'Close', 'Cerrar'))));
+      return;
+    }
+    const inp = el('input', { type: 'text', inputmode: 'numeric', autocomplete: 'off', style: 'width:7rem',
+      'aria-label': T('número de contas para confirmar', 'number of accounts to confirm', 'número de cuentas para confirmar') });
+    const go = el('button', { class: 'btn danger', disabled: true }, verb);
+    const cancel = el('button', { class: 'btn ghost' }, T('Cancelar', 'Cancel', 'Cancelar'));
+    const msg = el('span', { class: 'small' });
+    inp.addEventListener('input', () => { go.disabled = inp.value.trim() !== String(n); });
+    cancel.addEventListener('click', () => { box.remove(); if (onCancel) onCancel(); });
+    go.addEventListener('click', async () => {
+      go.disabled = true; msg.textContent = T('executando…', 'running…', 'ejecutando…');
+      try { const r = await run(pv.plan_id, n); box.remove(); if (onDone) onDone(r); }
+      catch (e) {
+        const d = (e && e.data) || {};
+        if (d.preview && (e.code === 'plan_changed' || e.code === 'confirm_required')) {
+          pv = d.preview;
+          paint(T('A situação mudou desde a prévia. Confira o número de novo.', 'Things changed since the preview. Check the number again.', 'La situación cambió desde la vista previa. Revisa el número de nuevo.'));
+          return;
+        }
+        msg.textContent = (e && e.message) || T('falha', 'failed', 'fallido'); go.disabled = false;
+      }
+    });
+    box.append(el('div', { class: 'row', style: 'gap:.4rem;align-items:center;flex-wrap:wrap;margin-top:.5rem' },
+      el('span', { class: 'small' }, T(`Digite ${n} para confirmar:`, `Type ${n} to confirm:`, `Escribe ${n} para confirmar:`)), inp, go, cancel, msg));
+    try { inp.focus(); } catch (_) { /* sem foco (teste) */ }
+  };
+  paint();
+  return box;
+}

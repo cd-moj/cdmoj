@@ -13,7 +13,9 @@
 #     share_max×total slots por job. Ver judge-gw/sched-lib.sh (q_claim).
 # Config vive em contests/treino/var/judges-config.json (NÃO no registry — o register do
 # agente sobrescreve o registry inteiro). CLI: `moj judges config <host> …`; web: aba Máquinas.
-require_admin
+# PORTÃO (16/10/2026): LER = admin com sessão do treino; GRAVAR = só o super-admin. Antes `require_admin` aceitava
+# o .admin local de QUALQUER contest — e com ele desligar juízes ou mudar o paralelismo da plataforma.
+require_treino_admin
 source "$_DIR/../../judge-gw/sched-lib.sh"   # valid_hostname
 
 JCONF="${JUDGES_CONFIG_FILE:-$CONTESTSDIR/treino/var/judges-config.json}"
@@ -31,6 +33,7 @@ if [[ "$REQUEST_METHOD" == GET ]]; then
 fi
 
 require_method POST
+is_superadmin || fail 403 "Só o super-admin da plataforma pode fazer isto" "superadmin_required"
 body="$(read_body)"
 jq -e . >/dev/null 2>&1 <<<"$body" || fail 400 "Invalid JSON body" "bad_json"
 host="$(jq -r '.host // empty' <<<"$body")"

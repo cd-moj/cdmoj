@@ -992,8 +992,9 @@ as senhas geradas; cada pessoa loga na MESMA tela do contest e vê os botões do
 
 ## 9½. Painel do treino › Contests e quem pode criar
 
-O painel administrativo do Treino Livre (`/treino/admin/`, conta `.admin`) tem a aba **🏆 Contests**.
-Ela lista os contests criados pela interface e controla quem pode criar contests e problemas.
+O painel administrativo do Treino Livre (`/treino/admin/`, conta `.admin`) tem o grupo **🏆 Contests**,
+com dois painéis: **Contests** lista os contests criados pela interface, e **Quem pode criar** controla quem
+pode criar contests e problemas.
 
 **Quem vê o quê.** A regra vale na API, não só na tela.
 
@@ -1001,8 +1002,10 @@ Ela lista os contests criados pela interface e controla quem pode criar contests
   `SUPERADMINS` no arquivo `contests/treino/conf` (logins separados por espaço). Só quem tem acesso
   ao servidor edita essa lista. Não há tela para isso.
 - **Admin comum** vê os próprios contests e os contests de criadores sem papel de admin (alunos e
-  monitores liberados). Não vê o contest de outro administrador. Remover, duplicar e exportar seguem
-  a mesma regra: um contest fora do seu escopo responde "não encontrado".
+  monitores liberados). Não vê o contest de outro administrador. Duplicar e exportar seguem a mesma
+  regra: um contest fora do seu escopo responde "não encontrado".
+- **Remover** é só do dono do contest ou do super-admin. Para confirmar, digite o id do contest. A
+  API também exige o id: um admin que vê o contest de um aluno não o remove.
 
 **Filtros da lista.** Busque por nome, id ou dono. Filtre por dono, modo e situação (por vir, em
 andamento, encerrado). Ordene por data de criação, início, nome ou dono. Marque **só os meus** para

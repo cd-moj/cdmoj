@@ -1,7 +1,8 @@
 # GET /ops/queue   (Bearer, admin) -> JSON
 # Tamanho da fila por contest: conta arquivos de spool em $SPOOLDIR cujo nome é
 # <contest>:<time>:...  Ignora temporários (.in.*). (substitui o /onqueue do bot)
-require_admin
+# PORTÃO (16/10/2026): admin com sessão DO TREINO — antes `require_admin` aceitava o .admin local de qualquer contest.
+require_treino_admin
 
 emit_json 200 OK
 set +o noglob

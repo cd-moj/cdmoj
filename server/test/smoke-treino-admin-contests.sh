@@ -58,8 +58,14 @@ call /treino/contest-create/export GET '' adma "id=c-b"
 ck "a.admin não exporta o do b.admin (404)" '[[ "$CODE" == 404 ]]'
 call /treino/contest-create/export GET '' adma "id=c-m"
 ck "a.admin exporta o do maker (200)"    '[[ "$CODE" == 200 ]]'
+call /treino/admin/contest-remove POST '{"contest":"c-m","confirm":"c-m"}' adma
+ck "a.admin VÊ o do maker mas não o remove (403 — só o dono ou o super)" '[[ "$CODE" == 403 && -d "$FIX/c-m" ]] && grep -q remove_forbidden <<<"$BODY"'
 call /treino/admin/contest-remove POST '{"contest":"c-b"}' sup
-ck "super remove o do b.admin (200)"     '[[ "$CODE" == 200 && ! -d "$FIX/c-b" ]]'
+ck "sem confirm (CLI antiga): 400 confirm_mismatch, nada removido" '[[ "$CODE" == 400 && -d "$FIX/c-b" ]] && grep -q confirm_mismatch <<<"$BODY"'
+call /treino/admin/contest-remove POST '{"contest":"c-b","confirm":"c-x"}' sup
+ck "confirm com outro id: 400"           '[[ "$CODE" == 400 && -d "$FIX/c-b" ]]'
+call /treino/admin/contest-remove POST '{"contest":"c-b","confirm":"c-b"}' sup
+ck "super remove o do b.admin (200)"     '[[ "$CODE" == 200 && ! -d "$FIX/c-b" ]] && [[ "$(jq -r .trash <<<"$BODY")" == .trash/c-b-* ]]'
 
 echo "== prefixo icpc: só super-admin =="
 SPEC='{"id":"icpc-x","name":"X","mode":"icpc","end":'$FUT',"problems":[{"problem_id":"a/b","name":"AB"}]}'

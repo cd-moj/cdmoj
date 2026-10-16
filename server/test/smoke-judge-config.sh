@@ -13,7 +13,7 @@ trap 'rm -rf "$FIX" "$SESS" "$RUN"' EXIT
 source "$(dirname "$(readlink -f "$0")")/fixture.sh"
 export CONTESTSDIR="$FIX" SESSIONDIR="$SESS" RUNDIR="$RUN" JUDGES_CONFIG_FILE="$FIX/treino/var/judges-config.json"
 mkdir -p "$FIX/treino/var" "$RUN/secrets" "$RUN/registry" "$RUN/queue/080-lista-publica"
-printf 'CONTEST_ID=treino\nCONTEST_NAME=Treino\n' > "$FIX/treino/conf"
+printf 'CONTEST_ID=treino\nCONTEST_NAME=Treino\nSUPERADMINS=hands.admin\n' > "$FIX/treino/conf"   # gravar a config dos juízes é do super
 fx_user "$FIX/treino" hands.admin s "Admin"
 printf 'CONTEST=%q\nLOGIN=%q\nUSERFULLNAME=%q\nLOGINAT=%q\n' treino hands.admin Admin "$EPOCHSECONDS" > "$SESS/adm"
 printf 'mojw_smoketest' > "$RUN/secrets/worker.token"

@@ -35,8 +35,9 @@ printf '<html>report</html>\n' | gzip -6 > "$C/users/alice/mojlog/$SID.html.gz" 
 # treino mínimo p/ /index/open_training
 T="$FIX/treino"; mkdir -p "$T/var"
 { printf 'CONTEST_ID=treino\nCONTEST_NAME="Treino"\nCONTEST_TYPE=lista-publica\n'
-  printf 'CONTEST_START=1000\nCONTEST_END=9999999999\nUSER_STORE=v2\n'; } > "$T/conf"
+  printf 'CONTEST_START=1000\nCONTEST_END=9999999999\nUSER_STORE=v2\nSUPERADMINS=plat.admin\n'; } > "$T/conf"
 fx_user "$T" alice a "Alice Silva"
+fx_user "$T" plat.admin p "Plataforma"   # super-admin do treino: as /ops exigem sessão DO TREINO (16/10/2026)
 printf '1718000000:col#pa:C:Accepted,100p:1718000000:t1\n' > "$T/users/alice/history"
 
 # Forja tokens de sessão (mesmo formato de create_session em lib/auth.sh).
@@ -45,6 +46,13 @@ cat > "$SESS/$TOKEN" <<EOF
 CONTEST="$CONTEST"
 LOGIN="$ADMIN"
 USERFULLNAME="Admin Handson"
+LOGINAT=$EPOCHSECONDS
+EOF
+TTOK="77777777-6666-5555-4444-333333333333"   # super-admin com sessão do treino (as /ops)
+cat > "$SESS/$TTOK" <<EOF
+CONTEST="treino"
+LOGIN="plat.admin"
+USERFULLNAME="Plataforma"
 LOGINAT=$EPOCHSECONDS
 EOF
 NTOK="99999999-8888-7777-6666-555555555555"
@@ -241,19 +249,21 @@ echo "== admin/rejudge (bot alias) =="
 call "/admin/rejudge" POST "" "$TOKEN" '{"contest":"'"$CONTEST"'","problem":"A"}'
 check "admin/rejudge problem queued" 'okstatus && [[ -n "$(ls "$SPOOL"/$CONTEST:*:rejulgarproblema:A 2>/dev/null)" ]]'
 
-echo "== ops/queue (admin) =="
+echo "== ops/queue (admin do treino) =="
 call "/ops/queue" GET "" "$TOKEN"
+check "o .admin LOCAL de um contest não entra nas /ops (403)" '[[ "$OUT" == *"Status: 403"* ]]'
+call "/ops/queue" GET "" "$TTOK"
 check "queue 200 + valid JSON + total>=1" 'okstatus && jvalid && (printf "%s" "$BODY" | jq -e ".total>=1 and (.by_contest|type==\"object\")" >/dev/null)'
 
 echo "== ops/problemtl (admin, best-effort) =="
-call "/ops/problemtl" GET "problem=grafo-chp" "$TOKEN"
+call "/ops/problemtl" GET "problem=grafo-chp" "$TTOK"
 check "problemtl 200 + time_limits field" 'okstatus && jvalid && (printf "%s" "$BODY" | jq -e "has(\"time_limits\")" >/dev/null)'
 
 echo "== ops/updateproblemset (admin, best-effort) =="
 # usa uma ORG real do store de problemas (pós-migração p/ orgs não existe mais "moj-problems")
 REPO="$(ls "${MOJ_PROBLEMS_DIR:-/home/ribas/moj/moj-problems}" 2>/dev/null | head -1)"
 if [[ -n "$REPO" ]]; then
-  call "/ops/updateproblemset" POST "" "$TOKEN" '{"repo":"'"$REPO"'"}'
+  call "/ops/updateproblemset" POST "" "$TTOK" '{"repo":"'"$REPO"'"}'
   check "updateproblemset 200 + success" 'okstatus && jvalid && (printf "%s" "$BODY" | jq -e ".success==true" >/dev/null)'
 else
   echo "  skip: store de problemas vazio"

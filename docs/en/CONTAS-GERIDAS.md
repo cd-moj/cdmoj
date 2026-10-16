@@ -1,4 +1,4 @@
-<!-- i18n-source: CONTAS-GERIDAS.md blob:1fc6fa8f7dc76d01cd3e8e82743b9fd4e4ad0a6b -->
+<!-- i18n-source: CONTAS-GERIDAS.md blob:695ab76359442de03d63f911bebbdbda86f92eef -->
 # Managed accounts (minors, without Telegram)
 
 > **Translation note.** This manual is a translation of the Portuguese original. The command-line tools (`moj`, `moj-contest`, `moj-comp`) print their messages in Portuguese, and the command examples below are identical to the original.
@@ -12,7 +12,7 @@ that **are removed automatically at age 18**.
 
 | | Normal account | MANAGED account (minor) |
 |---|---|---|
-| Created via | web sign-up + Telegram | the **🧒 Managed accounts** tab of `/treino/admin/` |
+| Created via | web sign-up + Telegram | **👥 People › Managed accounts** of `/treino/admin/` |
 | Password | by bot DM | **generated and shown ONCE** to the admin |
 | Forgot the password | `/trocarsenha` in the bot | **only the admin** (🔑 in the tab) |
 | Public profile | optional (default public) | **always private** (the server refuses to make it public) |
@@ -44,7 +44,7 @@ the gates simply stop applying. The `managed` mark stays (for history and listin
   `account_expired`. The message is in Portuguese: `Conta expirada — fale com o responsável que a criou`
   (account expired — talk to the person responsible who created it). To renew, edit or clear the date in the tab.
 
-## Operation (🧒 Managed accounts tab of `/treino/admin/`)
+## Operation (👥 People › Managed accounts of `/treino/admin/`)
 
 - **➕ New account**: full name + **birthdate** (required), optional login
   (empty = generated from the name, `nome.sobrenome`, with dedup), free-text note, and optional expiration.
@@ -59,7 +59,7 @@ the gates simply stop applying. The `managed` mark stays (for history and listin
   are kept).
 - **Filters**: by text and **"only mine"** (accounts for which I am the person responsible).
 - **Audit**: `managed-create/reset/update/remove` go to the audit log with the admin
-  who did the action (📜 Activity tab).
+  who did the action (📜 Records › Activity and › Audit).
 
 ## Through the API (same effect; `.admin` Bearer)
 

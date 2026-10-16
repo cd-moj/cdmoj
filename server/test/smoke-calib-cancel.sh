@@ -8,7 +8,7 @@ HERE="$(dirname "$(readlink -f "$0")")"; ROOT="$(cd "$HERE/.." && pwd)"; ROUTER=
 FIX="$(mktemp -d)"; SESS="$(mktemp -d)"; RUN="$(mktemp -d)"; trap 'rm -rf "$FIX" "$SESS" "$RUN"' EXIT
 source "$HERE/fixture.sh"
 export CONTESTSDIR="$FIX" SESSIONDIR="$SESS" RUNDIR="$RUN"
-T="$FIX/treino"; mkdir -p "$T/var"; printf 'CONTEST_ID=treino\n' > "$T/conf"
+T="$FIX/treino"; mkdir -p "$T/var"; printf 'CONTEST_ID=treino\nSUPERADMINS=rb.admin\n' > "$T/conf"   # /ops de escrita = super
 fx_user "$T" rb.admin s Admin >/dev/null; fx_user "$T" ana s Ana >/dev/null
 printf 'CONTEST=treino\nLOGIN=rb.admin\nLOGINAT=1\n' > "$SESS/adm"; printf 'CONTEST=treino\nLOGIN=ana\nLOGINAT=1\n' > "$SESS/ana"
 U="$RUN/updates"; mkdir -p "$U/pending" "$U/inprogress/j1" "$U/inprogress/j2" "$RUN/commands/j1" "$RUN/commands/j2"

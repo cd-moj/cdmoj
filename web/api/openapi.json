@@ -932,7 +932,7 @@
         "tags": [
           "treino-admin"
         ],
-        "summary": "Agir sobre uma pendente (auditado queue-resolve): requeue re-enfileira (409 no_source sem fonte); resolve aplica Judge Error|Compilation Error via setverdict",
+        "summary": "Só o super-admin (403 superadmin_required): agir sobre uma pendente de qualquer contest (auditado queue-resolve): requeue re-enfileira (409 no_source sem fonte); resolve aplica Judge Error|Compilation Error via setverdict",
         "security": [
           {
             "bearerAuth": []
@@ -1045,12 +1045,48 @@
         }
       }
     },
+    "/treino/admin/action-detail": {
+      "get": {
+        "tags": [
+          "treino-admin"
+        ],
+        "summary": "O detalhe de uma ação de vários alvos (afetados e pulados), pelo nome que o audit cita",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "f",
+            "in": "query",
+            "required": true,
+            "description": "<epoch>-<ação>-<pid>.json (de detalhe=admin-actions/… no audit)",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{detail:{at,by,ip,action,affected,skipped,sessions_removed}}"
+          },
+          "400": {
+            "description": "bad_name"
+          },
+          "404": {
+            "description": "notfound"
+          }
+        }
+      }
+    },
     "/treino/admin/logout-user": {
       "post": {
         "tags": [
           "treino-admin"
         ],
-        "summary": "Desloga um usuário (remove sessões)",
+        "summary": "Desloga contas do treino (1 alvo direto; 2–20 com prévia; 21+ só o super)",
+        "description": "Ação de vários alvos (lib/admin-bulk.sh): a própria conta, contas de papel e o super-admin nunca entram. 1 alvo executa direto; 2..20 (admin do treino) e 21..5000 (só o super-admin) exigem a prévia + plan_id + confirm. Resposta executada: {logged_out, users, users_count, sessions_removed, detail, skipped…}; avisa os super-admins quando há mais de 1 alvo.",
         "security": [
           {
             "bearerAuth": []
@@ -1071,6 +1107,17 @@
                     "items": {
                       "type": "string"
                     }
+                  },
+                  "plan_id": {
+                    "type": "string",
+                    "description": "o da prévia (sem ele, ou com dry_run, a resposta É a prévia)"
+                  },
+                  "confirm": {
+                    "type": "integer",
+                    "description": "o número de contas da prévia (need)"
+                  },
+                  "dry_run": {
+                    "type": "boolean"
                   }
                 }
               }
@@ -1079,7 +1126,16 @@
         },
         "responses": {
           "200": {
-            "description": "{logged_out,sessions_removed}"
+            "description": "prévia {preview:true, action, plan_id, need, affected_count, sessions_count, sample, skipped, skipped_count, skipped_by_reason} — ou, executado, o resultado com detail e skipped"
+          },
+          "403": {
+            "description": "superadmin_required | bulk_superadmin_only"
+          },
+          "409": {
+            "description": "plan_changed (error.preview) | confirm_required (error.need, error.preview)"
+          },
+          "422": {
+            "description": "no_targets (só contas protegidas) | bulk_too_big (> 5000)"
           }
         }
       }
@@ -1089,7 +1145,8 @@
         "tags": [
           "treino-admin"
         ],
-        "summary": "Trava acesso (troca senha por aleatória + desloga)",
+        "summary": "Trava contas (troca a senha por aleatória + desloga) — só o super-admin, sempre com prévia",
+        "description": "Só o super-admin. Sempre exige a prévia + plan_id + confirm, até para 1 conta. Nenhuma conta existente = 404 user_notfound. Resposta: {locked, users, users_count, sessions_removed, detail, skipped…}. Avisa os super-admins.",
         "security": [
           {
             "bearerAuth": []
@@ -1110,6 +1167,17 @@
                     "items": {
                       "type": "string"
                     }
+                  },
+                  "plan_id": {
+                    "type": "string",
+                    "description": "o da prévia (sem ele, ou com dry_run, a resposta É a prévia)"
+                  },
+                  "confirm": {
+                    "type": "integer",
+                    "description": "o número de contas da prévia (need)"
+                  },
+                  "dry_run": {
+                    "type": "boolean"
                   }
                 }
               }
@@ -1118,7 +1186,19 @@
         },
         "responses": {
           "200": {
-            "description": "{locked,sessions_removed}"
+            "description": "prévia {preview:true, action, plan_id, need, affected_count, sessions_count, sample, skipped, skipped_count, skipped_by_reason} — ou, executado, o resultado com detail e skipped"
+          },
+          "403": {
+            "description": "superadmin_required | bulk_superadmin_only"
+          },
+          "409": {
+            "description": "plan_changed (error.preview) | confirm_required (error.need, error.preview)"
+          },
+          "422": {
+            "description": "no_targets (só contas protegidas) | bulk_too_big (> 5000)"
+          },
+          "404": {
+            "description": "user_notfound"
           }
         }
       }
@@ -1128,7 +1208,8 @@
         "tags": [
           "treino-admin"
         ],
-        "summary": "Desloga todas as sessões de um IP",
+        "summary": "Desloga as sessões do treino de um IP — só o super-admin, sempre com prévia",
+        "description": "Só o super-admin. As sessões protegidas (a própria, de papel, do super) naquele IP ficam. Resposta: {logged_out, ip, users, users_count, sessions_removed, detail, skipped…}. Avisa os super-admins.",
         "security": [
           {
             "bearerAuth": []
@@ -1143,6 +1224,17 @@
                 "properties": {
                   "ip": {
                     "type": "string"
+                  },
+                  "plan_id": {
+                    "type": "string",
+                    "description": "o da prévia (sem ele, ou com dry_run, a resposta É a prévia)"
+                  },
+                  "confirm": {
+                    "type": "integer",
+                    "description": "o número de contas da prévia (need)"
+                  },
+                  "dry_run": {
+                    "type": "boolean"
                   }
                 },
                 "required": [
@@ -1154,7 +1246,16 @@
         },
         "responses": {
           "200": {
-            "description": "{logged_out,ip,sessions_removed,users,users_count}"
+            "description": "prévia {preview:true, action, plan_id, need, affected_count, sessions_count, sample, skipped, skipped_count, skipped_by_reason} — ou, executado, o resultado com detail e skipped"
+          },
+          "403": {
+            "description": "superadmin_required | bulk_superadmin_only"
+          },
+          "409": {
+            "description": "plan_changed (error.preview) | confirm_required (error.need, error.preview)"
+          },
+          "422": {
+            "description": "no_targets (só contas protegidas) | bulk_too_big (> 5000)"
           }
         }
       }
@@ -3426,7 +3527,7 @@
         "tags": [
           "ops"
         ],
-        "summary": "Tamanho da fila por contest",
+        "summary": "Tamanho da fila por contest — admin com sessão do treino",
         "security": [
           {
             "bearerAuth": []
@@ -3444,7 +3545,7 @@
         "tags": [
           "ops"
         ],
-        "summary": "Time limits de um problema",
+        "summary": "Time limits de um problema — admin com sessão do treino",
         "security": [
           {
             "bearerAuth": []
@@ -3471,7 +3572,7 @@
         "tags": [
           "ops"
         ],
-        "summary": "Atualizar problemset nos juízes",
+        "summary": "Atualizar problemset nos juízes — só o super-admin (sessão do treino)",
         "security": [
           {
             "bearerAuth": []
@@ -3962,7 +4063,7 @@
         "tags": [
           "admin"
         ],
-        "summary": "Move um contest criado pela interface p/ lixeira (contest fora do escopo do admin = 404)",
+        "summary": "Move um contest criado pela interface p/ lixeira — só o dono ou o super-admin, com confirm = o id (contest fora do escopo do admin = 404)",
         "requestBody": {
           "required": true,
           "content": {
@@ -3972,10 +4073,15 @@
                 "properties": {
                   "contest": {
                     "type": "string"
+                  },
+                  "confirm": {
+                    "type": "string",
+                    "description": "o mesmo id do contest, digitado"
                   }
                 },
                 "required": [
-                  "contest"
+                  "contest",
+                  "confirm"
                 ]
               }
             }
@@ -3983,10 +4089,13 @@
         },
         "responses": {
           "200": {
-            "description": "{removed,contest}"
+            "description": "{removed,contest,trash}"
+          },
+          "400": {
+            "description": "confirm_mismatch (sem confirm ou com outro id — CLI antiga: moj-contest update)"
           },
           "403": {
-            "description": "não criado pela interface"
+            "description": "not_user_created | remove_forbidden (o admin vê o contest mas não é o dono nem o super)"
           }
         }
       }
@@ -9216,7 +9325,7 @@
           "ops"
         ],
         "summary": "Config fina por juiz (multi-slot): particionamento/reserve/disabled",
-        "description": "Admin. Config DESEJADA por host (contests/treino/var/judges-config.json); o heartbeat entrega ao agente quando muda (cfg_hash = hash SÓ de {partition,reserve,disabled} normalizados — updated_at/by e campos do servidor não drenam o juiz) e ele aplica após drenar os jobs. ?host= filtra.",
+        "description": "Admin com sessão DO TREINO (o .admin local de um contest leva 403). Config DESEJADA por host (contests/treino/var/judges-config.json); o heartbeat entrega ao agente quando muda (cfg_hash = hash SÓ de {partition,reserve,disabled} normalizados — updated_at/by e campos do servidor não drenam o juiz) e ele aplica após drenar os jobs. ?host= filtra.",
         "security": [
           {
             "bearerAuth": []
@@ -9242,7 +9351,7 @@
           "ops"
         ],
         "summary": "Define a config de um juiz",
-        "description": "Body {host, partition?: off|numa|cpus:<X>, reserve?: int, disabled?: bool, parallel_max?: int 1..64} — FUNDE na entrada do host (campos não enviados são preservados). partition particiona a máquina em SLOTS de cpus disjuntas (o agente corrige N problemas ao mesmo tempo, cada job pinado no seu cpuset; cpus:<X> fatia dentro de cada nó NUMA); reserve tira as N primeiras cpus dos slots; disabled drena e para de receber trabalho; parallel_max = teto de testes ao mesmo tempo por job NESTE juiz (só o servidor lê; fora do cfg_hash). OU {host:\"*\", parallel?: off|auto, cushion?: 0..1, share_max?: 0..1} = POLÍTICA GLOBAL de testes em paralelo: off = todo job com par_max 1 (recomendado em prova); auto = a sobra de slots além do colchão ceil(total×cushion) vira testes em paralelo, até share_max×total slots por job.",
+        "description": "Só o super-admin, com sessão do treino (403 superadmin_required). Body {host, partition?: off|numa|cpus:<X>, reserve?: int, disabled?: bool, parallel_max?: int 1..64} — FUNDE na entrada do host (campos não enviados são preservados). partition particiona a máquina em SLOTS de cpus disjuntas (o agente corrige N problemas ao mesmo tempo, cada job pinado no seu cpuset; cpus:<X> fatia dentro de cada nó NUMA); reserve tira as N primeiras cpus dos slots; disabled drena e para de receber trabalho; parallel_max = teto de testes ao mesmo tempo por job NESTE juiz (só o servidor lê; fora do cfg_hash). OU {host:\"*\", parallel?: off|auto, cushion?: 0..1, share_max?: 0..1} = POLÍTICA GLOBAL de testes em paralelo: off = todo job com par_max 1 (recomendado em prova); auto = a sobra de slots além do colchão ceil(total×cushion) vira testes em paralelo, até share_max×total slots por job.",
         "security": [
           {
             "bearerAuth": []
@@ -9303,7 +9412,7 @@
           "ops"
         ],
         "summary": "RECUPERAÇÃO de um juiz sem SSH: kill (mata os jobs presos) ou restart (kill + agente se re-executa)",
-        "description": "Admin. Body {host, action?: kill|restart} (default kill). O comando é entregue no PRÓXIMO heartbeat MESMO com o juiz ocupado/desabilitado: o agente SIGKILL-a o grupo de processos de cada slot (job inteiro: build-and-test+bwrap+solução), reporta judge-error/calib-fail ao servidor (nada espera TTL) e reconcilia a config pendente. restart: idem e o agente se re-executa — o register boot:true re-enfileira o que estava atribuído (nenhum item de fila se perde). CLI: moj judges reset/restart.",
+        "description": "Só o super-admin, com sessão do treino (403 superadmin_required). Body {host, action?: kill|restart} (default kill). O comando é entregue no PRÓXIMO heartbeat MESMO com o juiz ocupado/desabilitado: o agente SIGKILL-a o grupo de processos de cada slot (job inteiro: build-and-test+bwrap+solução), reporta judge-error/calib-fail ao servidor (nada espera TTL) e reconcilia a config pendente. restart: idem e o agente se re-executa — o register boot:true re-enfileira o que estava atribuído (nenhum item de fila se perde). CLI: moj judges reset/restart.",
         "security": [
           {
             "bearerAuth": []
@@ -9322,7 +9431,7 @@
           "ops"
         ],
         "summary": "Limpa o cache local de pacotes de um juiz (comando por-host, entregue no heartbeat)",
-        "description": "Admin. Body {host, action?: clearcache} (única ação suportada hoje). Enfileira um comando POR-HOST que o agente pega no próximo heartbeat, quando estiver livre: apaga o $JUDGE_CACHE e se re-registra com inventário vazio. Não bloqueia — o efeito aparece no /judge/list. Use quando um juiz ficou com pacote velho ou corrompido em cache.",
+        "description": "Só o super-admin, com sessão do treino (403 superadmin_required). Body {host, action?: clearcache} (única ação suportada hoje). Enfileira um comando POR-HOST que o agente pega no próximo heartbeat, quando estiver livre: apaga o $JUDGE_CACHE e se re-registra com inventário vazio. Não bloqueia — o efeito aparece no /judge/list. Use quando um juiz ficou com pacote velho ou corrompido em cache.",
         "security": [
           {
             "bearerAuth": []
@@ -9341,7 +9450,7 @@
           "ops"
         ],
         "summary": "Cancela calibrações de um problema na fila (pendentes + direcionadas não entregues)",
-        "description": "Admin. Body {id, inprogress?: false}. Remove da fila as calibrações PENDENTES do problema e os comandos direcionados ainda não entregues. Por padrão NÃO toca as em execução (contadas em inflight — para matá-las use /ops/judge-reset); {inprogress:true} remove também os claims de updates/inprogress. CLI: moj judges cancel <id> [--inprogress].",
+        "description": "Só o super-admin, com sessão do treino (403 superadmin_required). Body {id, inprogress?: false}. Remove da fila as calibrações PENDENTES do problema e os comandos direcionados ainda não entregues. Por padrão NÃO toca as em execução (contadas em inflight — para matá-las use /ops/judge-reset); {inprogress:true} remove também os claims de updates/inprogress. CLI: moj judges cancel <id> [--inprogress].",
         "security": [
           {
             "bearerAuth": []
@@ -9360,7 +9469,7 @@
           "ops"
         ],
         "summary": "Relatório de correções por juiz (últimas N + agregado por host)",
-        "description": "Admin. Varre run/results (cada correção carrega o host que julgou). ?host= filtra; ?limit= (<=500, default 50).",
+        "description": "Admin com sessão DO TREINO. Varre run/results (cada correção carrega o host que julgou). ?host= filtra; ?limit= (<=500, default 50).",
         "security": [
           {
             "bearerAuth": []

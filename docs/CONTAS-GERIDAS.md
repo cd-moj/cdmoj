@@ -9,7 +9,7 @@ travas de privacidade que **caem automaticamente aos 18 anos**.
 
 | | Conta normal | Conta GERIDA (menor) |
 |---|---|---|
-| Nasce | cadastro web + Telegram | aba **🧒 Contas geridas** do `/treino/admin/` |
+| Nasce | cadastro web + Telegram | **👥 Pessoas › Contas geridas** do `/treino/admin/` |
 | Senha | por DM do bot | **gerada e mostrada UMA vez** ao admin |
 | Esqueci a senha | `/trocarsenha` no bot | **só o admin** (🔑 na aba) |
 | Perfil público | opcional (padrão público) | **sempre privado** (o servidor recusa tornar público) |
@@ -40,7 +40,7 @@ o badge `18+`), e o perfil continua privado até o próprio usuário abri-lo.
 - **Expiração (opcional)**: com `expires_at` vencido o login responde 403
   `account_expired` ("fale com o responsável"). Renovar = editar/limpar a data na aba.
 
-## Operação (aba 🧒 Contas geridas do `/treino/admin/`)
+## Operação (👥 Pessoas › Contas geridas do `/treino/admin/`)
 
 - **➕ Nova conta**: nome completo + **nascimento** (obrigatórios), login opcional
   (vazio = gerado do nome, `nome.sobrenome`, com dedup), nota livre e expiração opcional.
@@ -54,7 +54,7 @@ o badge `18+`), e o perfil continua privado até o próprio usuário abri-lo.
   preservadas).
 - **Filtros**: por texto e **"só as minhas"** (contas cujo responsável sou eu).
 - **Auditoria**: `managed-create/reset/update/remove` entram no audit-log com o admin
-  autor (aba 📜 Atividade).
+  autor (📜 Registros › Atividade e › Auditoria).
 
 ## Pela API (mesmo efeito; Bearer de `.admin`)
 

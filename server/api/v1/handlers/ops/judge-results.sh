@@ -4,7 +4,8 @@
 # Fonte: run/results é a cópia central plana escrita pelo daemon (1 arquivo por correção);
 # retenção é "últimas N", não histórico eterno (os permanentes vivem em users/*/results).
 require_method GET
-require_admin
+# PORTÃO (16/10/2026): admin com sessão DO TREINO — antes `require_admin` aceitava o .admin local de qualquer contest.
+require_treino_admin
 
 h="$(param host)"
 limit="$(param limit)"; [[ "$limit" =~ ^[0-9]+$ && "$limit" -le 500 ]] || limit=50

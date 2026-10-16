@@ -4,7 +4,7 @@ set -u
 ROOT="$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)"; ROUTER="$ROOT/api/v1/router.sh"
 FIX="$(mktemp -d)"; SESS="$(mktemp -d)"; ND="$(mktemp -d)"; trap 'rm -rf "$FIX" "$SESS" "$ND"' EXIT
 T="$FIX/treino"; mkdir -p "$T/var"
-printf 'CONTEST_ID=treino\nCONTEST_TYPE=lista-publica\n' > "$T/conf"
+printf 'CONTEST_ID=treino\nCONTEST_TYPE=lista-publica\nSUPERADMINS=boss.admin\n' > "$T/conf"
 source "$(dirname "$(readlink -f "$0")")/fixture.sh"
 fx_user "$T" boss.admin p "Boss Admin"
 fx_user "$T" victim s "Victim"
@@ -59,7 +59,8 @@ call /treino/admin/news/delete POST "{\"key\":\"$EKEY\"}"
 
 echo "== deslogar e travar (gera auditoria) =="
 call /treino/admin/logout-user POST '{"login":"victim"}'
-call /treino/admin/lock-user   POST '{"login":"victim"}'
+call /treino/admin/lock-user   POST '{"login":"victim"}'                    # prévia (travar sempre confirma)
+call /treino/admin/lock-user   POST "$(jq -c --arg p "$(jq -r .plan_id <<<"$BODY")" '{login:"victim", plan_id:$p, confirm:1}' <<<'{}')"
 
 echo "== remover notícia =="
 call /treino/admin/news/delete POST "{\"key\":\"$KEY\"}"
