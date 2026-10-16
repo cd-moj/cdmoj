@@ -14,6 +14,10 @@
 #                    (/opt/moj/cdmoj/server/api/v1/router.sh). Bare-metal: --bare-metal.
 #   --bare-metal     atalho p/ --router <workroot>/cdmoj/server/api/v1/router.sh.
 #   --nginx-user U   usuário dos workers (default: o `user` do /etc/nginx/nginx.conf).
+#   --close-unknown  FECHA o Host desconhecido (o IP cru, nome que não é do MOJ): grava o default_server
+#                    conf.d/zz-moj-unknown-host.conf (421 + o endereço certo). Exige --cert. Sem a flag o
+#                    arquivo NUNCA é apagado (reinstalar não reabre o IP). Rollback: rm do arquivo + reload.
+#                    MEÇA ANTES: o log `moj` traz host=/sni= (quem chega pelo IP) — ver docs/DEPLOY.md.
 #   -n, --dry-run    só mostra o que seria gerado.
 #
 # Gera, a partir dos templates de server/etc/nginx/:
@@ -32,7 +36,8 @@ TPLDIR="$ROOT/server/etc/nginx"
 CONF_DIR="${CONF_DIR:-/etc/nginx/conf.d}"
 SNIPPET_DIR="${SNIPPET_DIR:-/etc/nginx/snippets}"
 SNIPPET="$SNIPPET_DIR/moj-app.conf"
-WORKROOT=""; NAMES=""; CERTNAME=""; OWNER=""; ROUTER=""; NGINX_USER=""; DRYRUN=0; BARE=0
+WORKROOT=""; NAMES=""; CERTNAME=""; OWNER=""; ROUTER=""; NGINX_USER=""; DRYRUN=0; BARE=0; CLOSE_UNKNOWN=0
+UNKNOWN_CONF="$CONF_DIR/zz-moj-unknown-host.conf"
 
 die(){ echo "install-nginx: $*" >&2; exit 2; }
 
@@ -45,13 +50,15 @@ while [ $# -gt 0 ]; do
     --router)     ROUTER="${2:?}"; shift 2 ;;
     --bare-metal) BARE=1; shift ;;
     --nginx-user) NGINX_USER="${2:?}"; shift 2 ;;
+    --close-unknown) CLOSE_UNKNOWN=1; shift ;;
     -n|--dry-run) DRYRUN=1; shift ;;
-    -h|--help)    sed -n '2,30p' "$SELF"; exit 0 ;;
+    -h|--help)    sed -n '2,34p' "$SELF"; exit 0 ;;
     *) die "opção desconhecida: $1 (--help)" ;;
   esac
 done
 
 [ -n "$WORKROOT" ] || die "faltou --workroot"
+[ "$CLOSE_UNKNOWN" = 0 ] || [ -n "$CERTNAME" ] || die "--close-unknown exige --cert (o bloco atende também o :443)"
 [ -n "$NAMES" ]    || die "faltou --names"
 WORKROOT="$(cd "$WORKROOT" && pwd)" || die "--workroot inválido"
 [ -d "$WORKROOT/cdmoj/web" ] || die "$WORKROOT/cdmoj/web não existe (workspace errado?)"
@@ -94,7 +101,7 @@ render() {  # render <template> — substitui os @PLACEHOLDERS@ (sem sed: os val
   c="${c//@SERVER_NAMES@/$SERVER_NAMES}";       c="${c//@SERVER_NAMES_RE@/$SERVER_NAMES_RE}"
   c="${c//@SUBDOMAIN_MAP@/$SUBDOMAIN_MAP}";     c="${c//@NGINX_USER@/$NGINX_USER}"
   c="${c//@OWNER@/$OWNER}";                     c="${c//@HTTP2_LISTEN@/$HTTP2_LISTEN}"
-  c="${c//@HTTP2_ON@/$HTTP2_ON}"
+  c="${c//@HTTP2_ON@/$HTTP2_ON}";               c="${c//@PRIMARY@/${NAMES%% *}}"
   printf '%s\n' "$c"
 }
 
@@ -105,6 +112,7 @@ echo ">> router (visto pelo fcgiwrap)=$ROUTER"
 if [ "$DRYRUN" = 1 ]; then
   echo "=== $SNIPPET ==="; render "$TPLDIR/moj-app.conf.in"
   echo "=== $CONF_DIR/moj.conf ==="; render "$TPL"
+  [ "$CLOSE_UNKNOWN" = 1 ] && { echo "=== $UNKNOWN_CONF ==="; render "$TPLDIR/moj-unknown-host.conf.in"; }
   exit 0
 fi
 
@@ -130,12 +138,24 @@ mkdir -p "$CONF_DIR" "$SNIPPET_DIR" /var/www/html
 # Guarda o que existia: se o `nginx -t` reprovar, VOLTA. Senão fica um conf quebrado em disco e o
 # próximo reload (o do hook de renovação do certificado, p.ex.) derruba o site sem ninguém ver.
 BK="$(mktemp -d)"; trap 'rm -rf "$BK"' EXIT
-for f in "$SNIPPET" "$CONF_DIR/moj.conf"; do
+for f in "$SNIPPET" "$CONF_DIR/moj.conf" "$UNKNOWN_CONF"; do
   [ -f "$f" ] && cp -a "$f" "$BK/$(basename "$f")"
 done
+# Host desconhecido: só COM a flag (e nunca apagado sem ela). Outro default_server ativo faria o `nginx -t` reprovar
+# ("duplicate default server") — melhor dizer antes.
+if [ "$CLOSE_UNKNOWN" = 1 ]; then
+  _dflt="$(grep -rls 'default_server' /etc/nginx/conf.d /etc/nginx/sites-enabled 2>/dev/null | grep -vx "$UNKNOWN_CONF" || true)"
+  [ -z "$_dflt" ] || die "já há outro default_server ativo ($_dflt) — tire-o antes do --close-unknown"
+fi
 render "$TPLDIR/moj-app.conf.in" > "$SNIPPET"
 render "$TPL" > "$CONF_DIR/moj.conf"
 chmod 644 "$SNIPPET" "$CONF_DIR/moj.conf"
+if [ "$CLOSE_UNKNOWN" = 1 ]; then
+  render "$TPLDIR/moj-unknown-host.conf.in" > "$UNKNOWN_CONF"; chmod 644 "$UNKNOWN_CONF"
+  echo ">> host desconhecido FECHADO: $UNKNOWN_CONF (rollback: rm + reload)"
+elif [ -f "$UNKNOWN_CONF" ]; then
+  echo ">> $UNKNOWN_CONF existe e FICA (host desconhecido segue fechado; rollback: rm + reload)"
+fi
 
 # Quebra-circuito do contest: o snippet o inclui por GLOB, então AUSENTE = desligado (estado de
 # emergência, decidido à mão com `rm` + reload). Só criamos se não existe — recriar por cima
@@ -171,7 +191,7 @@ if [ "$(systemctl is-enabled nginx 2>/dev/null)" = masked ]; then
 fi
 if ! nginx -t; then
   echo ">> nginx -t REPROVOU — revertendo os arquivos gerados" >&2
-  for f in "$SNIPPET" "$CONF_DIR/moj.conf"; do
+  for f in "$SNIPPET" "$CONF_DIR/moj.conf" "$UNKNOWN_CONF"; do
     if [ -f "$BK/$(basename "$f")" ]; then cp -a "$BK/$(basename "$f")" "$f"; else rm -f "$f"; fi
   done
   exit 1

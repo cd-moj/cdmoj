@@ -128,6 +128,31 @@ de `<id>.<host>` e o injeta em `CONTEST_HOST`; no site principal ele vem **vazio
 trata vazio como ausente — então **um** server block serve os dois. O isolamento continua sendo da
 API (o nginx só transporta o id).
 
+**DNS curinga + certificado `*.<host>` são REQUISITO** (16/10/2026): o time só entra pelo subdomínio do contest
+(`lib/team-host.sh`, `TEAM_HOST_LOCK=1` no `etc/common.conf`). Instalação sem subdomínio (localhost, um fork) liga
+com `TEAM_HOST_LOCK=0` no ambiente do container. Botão de emergência sem restart: `echo 0 > run/team-host-lock`
+(ou `observe`, que só registra); `rm` volta ao normal.
+
+**Fechar o IP cru (Host desconhecido).** Sem isto, o IP do servidor (`https://<IP>/`) serve o site inteiro, o que
+fura o filtro POR NOME das máquinas de prova. Em duas etapas:
+
+1. **Medir.** O `log_format moj` termina em `host=$host sni=$ssl_server_name a=<0|1>` (`a` = se havia token; nunca
+   o token). Reinstale o nginx (a mesma linha de sempre) e leia uns dias de log:
+   ```bash
+   zcat -f /var/log/nginx/moj.access.log* | grep -o ' host=[^ ]*' | sort | uniq -c | sort -rn
+   ```
+   Procure o IP, nomes alternativos (`moj.mdp…`), monitores e serviços externos (Animeitor, NutellaBoot). Nome que
+   precisa continuar valendo entra no `--names`.
+2. **Fechar.** A mesma linha + `--close-unknown`: grava `/etc/nginx/conf.d/zz-moj-unknown-host.conf` (o
+   `default_server`, com o mesmo certificado) e o Host desconhecido passa a receber **421** com o endereço certo (JSON
+   `host_unknown` na `/api/`). O prefixo `zz-` é obrigatório (o `log_format moj` vem do `moj.conf`). O instalador
+   recusa se já houver outro `default_server`, e sem a flag NUNCA apaga o arquivo. O log segue em
+   `/var/log/nginx/moj.unknown.log`. Conferir: `curl -sk https://<IP>/` → 421; `curl -s https://moj.<host>/` → 200;
+   um subdomínio → 200; juízes online (`moj judges ls`) e o bot. Rollback: `rm` do arquivo + `systemctl reload nginx`.
+
+⚠ Não é fronteira dura: `curl -k -H 'Host: moj.<host>' https://<IP>/` passa (o nginx escolhe o server pelo Host). Quem
+prende a máquina de prova ao contest é a trava de sede por IP.
+
 ## TLS e renovação (Let's Encrypt)
 
 ```bash

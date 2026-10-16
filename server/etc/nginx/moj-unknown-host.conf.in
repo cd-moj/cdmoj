@@ -1,0 +1,40 @@
+# MOJ — HOST DESCONHECIDO (o IP cru, ou um nome que não é do MOJ): não recebe o site nem a API (16/10/2026).
+# TEMPLATE: gerado em /etc/nginx/conf.d/zz-moj-unknown-host.conf por `install-nginx.sh --close-unknown` (exige --cert).
+#
+# Por quê: numa máquina de prova travada (o firewall do Maratona Linux filtra por NOME), o IP cru do MOJ
+# (https://177.70.23.195/…) passava por fora do filtro e servia o site inteiro — o treino, outros contests. Com este
+# bloco como default_server, pedido cujo Host não é um nome do MOJ (o principal ou <id>.<principal>) recebe só 421 e
+# o endereço certo. Os times de contest, além disso, só entram pelo subdomínio do contest (lib/team-host.sh).
+# ⚠ Não é fronteira dura: o nginx escolhe o server pelo Host, então `curl -k -H 'Host: moj…' https://<IP>/` passa —
+#   quem prende a máquina ao contest é a trava de sede por IP (lib/site-lock.sh).
+# ⚠ O prefixo zz- do arquivo é OBRIGATÓRIO: o conf.d é lido em ordem alfabética, e um moj-*.conf viria antes do
+#   moj.conf (o '-' ordena antes do '.') — o `log_format moj` ainda não existiria e o `nginx -t` reprovaria.
+# Rollback: rm /etc/nginx/conf.d/zz-moj-unknown-host.conf && systemctl reload nginx
+# (o install-nginx.sh sem --close-unknown NUNCA apaga este arquivo: reinstalar não reabre o IP calado).
+
+server {
+    listen      80 default_server;
+    listen      [::]:80 default_server;
+    listen      443 ssl@HTTP2_LISTEN@ default_server;
+    listen      [::]:443 ssl@HTTP2_LISTEN@ default_server;
+@HTTP2_ON@
+    server_name _;
+
+    # o MESMO certificado do site (o IP não manda SNI: o navegador avisa do certificado, como antes, e mostra a página)
+    ssl_certificate     /etc/letsencrypt/live/@CERTNAME@/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/@CERTNAME@/privkey.pem;
+    ssl_protocols       TLSv1.2 TLSv1.3;
+
+    # log próprio: a medição de quem chega por fora continua depois do fechamento
+    access_log /var/log/nginx/moj.unknown.log moj;
+
+    # a API responde JSON (a CLI mostra a mensagem); nada da URI é ecoado (sem reflexo)
+    location /api/ {
+        default_type application/json;
+        return 421 '{"success":false,"error":{"code":"host_unknown","message":"Use https://@PRIMARY@ (or the contest address https://<id>.@PRIMARY@)","url":"https://@PRIMARY@/"}}';
+    }
+    location / {
+        default_type text/html;
+        return 421 '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>MOJ</title></head><body style="font-family:sans-serif;max-width:40rem;margin:3rem auto;padding:0 1rem;line-height:1.5"><h1>MOJ</h1><p>Use o endere&ccedil;o do MOJ: <a href="https://@PRIMARY@/">https://@PRIMARY@</a>. Em um contest, use o endere&ccedil;o do contest: https://&lt;id&gt;.@PRIMARY@</p><p lang="en">Use the MOJ address: <a href="https://@PRIMARY@/">https://@PRIMARY@</a>. In a contest, use the contest address: https://&lt;id&gt;.@PRIMARY@</p><p lang="es">Usa la direcci&oacute;n del MOJ: <a href="https://@PRIMARY@/">https://@PRIMARY@</a>. En una competencia, usa la direcci&oacute;n de la competencia: https://&lt;id&gt;.@PRIMARY@</p></body></html>';
+    }
+}
