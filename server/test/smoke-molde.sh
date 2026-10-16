@@ -68,6 +68,26 @@ sleep 0.3
 if kill -0 "$MPID" 2>/dev/null; then bad "worker deveria ter reciclado"; else ok "reciclou (saiu) após K requisições"; fi
 MPID=""
 
+echo "== TIME SÓ PELO SUBDOMÍNIO (lib/team-host.sh) no worker persistente — fixture própria, regra ligada"
+F="$W/fx"; mkdir -p "$F/contests/pv/users/t1" "$F/run/sessions" "$W/w2"
+printf 'CONTEST_ID=pv\nCONTEST_TYPE=icpc\n' > "$F/contests/pv/conf"
+printf '{"login":"t1","password":"a"}' > "$F/contests/pv/users/t1/account.json"
+printf 'CONTEST=pv\nLOGIN=t1\nLOGINAT=1\n' > "$F/run/sessions/tk1"
+: > "$W/w2/body"
+coproc MOLDE2 { CONTESTSDIR="$F/contests" RUNDIR="$F/run" SESSIONDIR="$F/run/sessions" TEAM_HOST_LOCK=1 \
+                MOLDE_WDIR="$W/w2" MOLDE_MAX_REQS=10 bash molde.sh 2>"$W/molde2.err"; }
+exec {CTL2}>&"${MOLDE2[1]}" {ST2}<&"${MOLDE2[0]}"
+M2PID="$MOLDE2_PID"
+req2(){ local kv d; for kv in "$@"; do printf '%s\0' "$kv" >&"$CTL2"; done; printf '\0' >&"$CTL2"
+  IFS= read -r -d '' -u "$ST2" d || { echo EOF; return 1; }; echo "${d#done }"; }
+req2 PATH_INFO=/contest/basic REQUEST_METHOD=GET QUERY_STRING=contest=pv "HTTP_AUTHORIZATION=Bearer tk1" >/dev/null
+grep -q "host_required" "$W/w2/resp.out" && ok "time sem CONTEST_HOST: 403 host_required" || bad "esperava host_required: $(tail -1 "$W/w2/resp.out")"
+req2 PATH_INFO=/contest/basic REQUEST_METHOD=GET QUERY_STRING=contest=pv "HTTP_AUTHORIZATION=Bearer tk1" CONTEST_HOST=pv >/dev/null
+grep -q "host_required" "$W/w2/resp.out" && bad "pelo subdomínio não devia recusar: $(tail -1 "$W/w2/resp.out")" || ok "time pelo subdomínio do contest: passa"
+req2 PATH_INFO=/contest/basic REQUEST_METHOD=GET QUERY_STRING=contest=pv "HTTP_AUTHORIZATION=Bearer tk1" >/dev/null
+grep -q "host_required" "$W/w2/resp.out" && ok "o CONTEST_HOST anterior não vaza: recusa de novo" || bad "vazou o CONTEST_HOST: $(tail -1 "$W/w2/resp.out")"
+kill "$M2PID" 2>/dev/null
+
 echo
 echo "RESULT: $pass passed, $failn failed"
 (( failn == 0 ))
