@@ -38,7 +38,7 @@ function flagPicker(current) {
 }
 
 // o contest abre pelo subdomínio dele (é por ele que o time entra); fora do moj.* (IP, localhost), o ?c= de sempre
-const contestUrl = () => (contestOrigin(TARGET) ? contestOrigin(TARGET) + '/' : `/contest/?c=${encodeURIComponent(TARGET)}`);
+const contestUrl = () => (contestOrigin(TARGET) ? contestOrigin(TARGET) + '/contest/' : `/contest/?c=${encodeURIComponent(TARGET)}`);
 
 function fmtLeft(s) {
   if (s <= 0) return '0s';

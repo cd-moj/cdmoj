@@ -105,6 +105,17 @@ ck "do IP preso, a outro contest: site_locked (antes do host_required)" '[[ "$CO
 RIP=5.5.5.5 call /contest/basic GET '' tk-t1 'contest=pv'
 ck "do IP preso, o próprio contest pelo site principal: host_required" '[[ "$CODE" == 403 && "$(J .error.code)" == host_required ]]'
 
+echo "== foto do cabeçalho: no contest é a do TIME, nunca a do perfil do treino (17/10/2026) =="
+fx_user "$FIX/treino" t1 a "Homônimo no treino" >/dev/null; printf 'png' > "$FIX/treino/users/t1/photo.png"
+printf 'png' > "$FIX/treino/users/alice/photo.png"; ses tk-st pv t1
+CH=pv call /auth/status GET '' tk-st 'contest=pv'
+ck "time sem foto no contest (homônimo COM foto no treino): has_photo false, sem photo_url" '[[ "$(J .has_photo)" == false && "$(J .photo_url)" == null ]]'
+printf 'webp' > "$FIX/pv/users/t1/photo.webp"
+CH=pv call /auth/status GET '' tk-st 'contest=pv'
+ck "time com foto no contest: photo_url = /contest/team-photo (vale no subdomínio)" '[[ "$(J .has_photo)" == true && "$(J .photo_url)" == "/api/v1/contest/team-photo?contest=pv&user=t1&thumb=1" ]]'
+call /auth/status GET '' tk-ali 'contest=treino'
+ck "treino: photo_url = a do perfil do treino" '[[ "$(J .has_photo)" == true && "$(J .photo_url)" == "/api/v1/treino/profile/photo?user=alice" ]]'
+
 echo "== contest_public_url =="
 ( source "$ROOT/api/v1/lib/team-host.sh"
   MOJ_PUBLIC_BASE=https://moj.charge.naquadah.com.br:8443; contest_public_url pv; echo

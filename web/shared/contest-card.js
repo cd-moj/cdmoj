@@ -18,7 +18,7 @@ export function contestCard(c, status) {
   const id = c.id || '';
   // no site principal, abre o contest pelo subdomínio (ID.moj.<base>) — é por ele que o time entra; senão cai no ?c=
   const sub = contestOrigin(id);
-  const url = sub ? (sub + '/') : ('/contest/?c=' + encodeURIComponent(id));
+  const url = sub ? (sub + '/contest/') : ('/contest/?c=' + encodeURIComponent(id));   // direto na prova, sem passar pela raiz
   const score = sub ? (sub + '/contest/score/') : ('/contest/score/?c=' + encodeURIComponent(id));
   const start = c.start_time || c.start, end = c.end_time || c.end;
   const label = { open: T('🟢 Aberto', '🟢 Open', '🟢 Abierto'), upcoming: T('🔵 Em breve', '🔵 Upcoming', '🔵 Próximamente'), closed: T('⚪ Encerrado', '⚪ Ended', '⚪ Finalizado') }[status];

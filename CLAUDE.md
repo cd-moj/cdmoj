@@ -144,7 +144,12 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   login mostra o endereço; links de contest pelo `contestOrigin`. `moj-comp` fala com o subdomínio sozinho
   (`moj_use_contest`, moj-cli `lib/core.sh`). nginx: `install-nginx.sh --close-unknown` (o `zz-moj-unknown-host.conf`,
   421 p/ Host desconhecido — o IP cru) e o `log_format moj` com `host=/sni=/a=` p/ medir antes. ⚠ Não é fronteira
-  dura (`Host` forjado passa): a máquina se prende com a trava de sede. Testes: `smoke-team-host.sh`,
+  dura (`Host` forjado passa): a máquina se prende com a trava de sede. **Página de contest NUNCA chama rota fora do
+  contest** (17/10/2026, achado na prova do IFB: no subdomínio cada uma é 403 `contest_isolated`): o chip do cabeçalho
+  usa a `photo_url` do `/auth/status` (no contest, a foto do TIME por `/contest/team-photo`; o `avatarEl` só cai no
+  perfil do treino sem `src`), e o `contest-guard.js`, depois de redirecionar, PARA a página (`await` que nunca
+  termina: segura todo módulo que importa o `api.js` — a home no subdomínio chamava `index/*` antes de ir embora).
+  Guarda no `smoke-team-host.gjs.sh` (grep em `web/contest/`). Testes: `smoke-team-host.sh`,
   `smoke-team-host.gjs.sh`, casos no `smoke-porteiro.sh`, moj-cli `test/comp-host.sh`.
 - **Auth**: `Authorization: Bearer <token>` → sessão em `run/sessions/` (700), gravada com
   `printf %q` (é *sourced*). **A sessão vale enquanto a CONTA existir** (`_session_account_alive`

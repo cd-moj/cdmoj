@@ -7,8 +7,11 @@ import { contestHost, subdomainRedirect } from './contest-host.js';
 // TIME SÓ PELO SUBDOMÍNIO (16/10/2026): a página de contest aberta no site principal (moj.…/contest/?c=X — link de
 // Moodle, favorito, o "Abrir" do painel) pula p/ https://X.moj…/ com o mesmo caminho, ANTES de qualquer fetch. A API
 // recusa a sessão de time fora do subdomínio (403 host_required); papel também é levado — loga de novo lá uma vez.
+// ⚠ Depois do location.replace a página PARA: o `await` que nunca termina segura este módulo, e com ele todo módulo
+// que importa o api.js — sem isso o resto da página seguia rodando até a navegação e disparava pedidos no endereço
+// errado (a home no subdomínio chamava index/*; um token de time no site principal levaria 403 host_required).
 const _go = subdomainRedirect(location);
-if (_go) location.replace(_go);
+if (_go) { location.replace(_go); await new Promise(() => {}); }
 
 const _cid = contestHost();
 // disponível para as páginas de contest derivarem o id do host (sem import extra).
@@ -35,5 +38,6 @@ if (_cid) {
   const p = location.pathname;
   if (!(p === '/contest' || p.startsWith('/contest/') || ALLOW.some((a) => p.startsWith(a)))) {
     location.replace('/contest/?c=' + encodeURIComponent(_cid));
+    await new Promise(() => {});   // idem: a home (/) do subdomínio não chega a pedir index/* nem treino/*
   }
 }

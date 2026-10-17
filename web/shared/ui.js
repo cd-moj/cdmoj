@@ -94,7 +94,9 @@ export function initialsOf(name, login) {
 // <span> com a foto (com fallback automático p/ iniciais; sem chamada extra de API)
 // hasPhoto: se false, evita a requisição de imagem (renderiza iniciais direto);
 // se omitido, tenta a foto e cai para iniciais no erro (404).
-export function avatarEl(login, name, size = 26, hasPhoto) {
+// `src` = de onde vem a foto (o `photo_url` do /auth/status). Ausente = a foto do perfil do TREINO. Página de contest
+// SEMPRE passa o src: lá a conta é o time, e a rota do treino é recusada no subdomínio (17/10/2026).
+export function avatarEl(login, name, size = 26, hasPhoto, src) {
   const span = el('span', { class: 'avatar-mini', style: `width:${size}px;height:${size}px;font-size:${Math.round(size * 0.42)}px` });
   const showInitials = () => {
     span.innerHTML = ''; span.classList.add('ini');
@@ -105,7 +107,7 @@ export function avatarEl(login, name, size = 26, hasPhoto) {
   // `loading` ANTES do `src` (o el() aplica na ordem): com o src primeiro o navegador já começa a baixar.
   // Preguiçoso porque lista GRANDE de avatares derrubava o treino: a aba Sessões do /treino/admin/ pedia a
   // foto de 1.201 contas num minuto e o anteparo do nginx (treino ≤ 16) devolveu 429 a 1.040 (25/09/2026).
-  const img = el('img', { alt: '', loading: 'lazy', decoding: 'async', src: '/api/v1/treino/profile/photo?user=' + encodeURIComponent(login) });
+  const img = el('img', { alt: '', loading: 'lazy', decoding: 'async', src: src || ('/api/v1/treino/profile/photo?user=' + encodeURIComponent(login)) });
   img.addEventListener('error', showInitials);
   span.append(img);
   return span;

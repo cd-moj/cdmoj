@@ -81,4 +81,11 @@ ck "regex do id igual no servidor (lib/team-host.sh)" 'grep -qF "^[a-z0-9][a-z0-
 ck "contest-guard.js redireciona pelo helper" 'grep -q "subdomainRedirect(location)" "$W/shared/contest-guard.js"'
 ck "card da home e inscrição usam contestOrigin" 'grep -q "contestOrigin(id)" "$W/shared/contest-card.js" && grep -q "contestOrigin(TARGET)" "$W/contests/inscricao/inscricao.js"'
 ck "login do contest mostra o endereço no host_required" 'grep -q "code === .host_required." "$W/contest/contest.js" && grep -q "e.code === .host_required." "$W/shared/auth.js"'
+echo "== páginas de contest nunca chamam rota fora do contest (17/10/2026) =="
+ck "o guard PARA a página depois de redirecionar (os 2 redirecionamentos)" '[[ "$(grep -c "await new Promise(() => {})" "$W/shared/contest-guard.js")" == 2 ]]'
+ck "o chip do contest usa a photo_url do /auth/status" 'grep -q "avatarEl(st.login, st.name, 22, !!(st.has_photo && st.photo_url), st.photo_url)" "$W/shared/contest-shell.js"'
+ck "avatarEl aceita o src (sem ele, o perfil do treino)" 'grep -q "src: src || (./api/v1/treino/profile/photo" "$W/shared/ui.js"'
+ck "card da home e inscrição levam direto a /contest/ (sem passar pela raiz)" 'grep -q "sub + ./contest/." "$W/shared/contest-card.js" && grep -q "contestOrigin(TARGET) + ./contest/." "$W/contests/inscricao/inscricao.js"'
+BAD="$(grep -rnE "api(Get|Post|GetText|GetBlob|GetTextMeta)?\\(['\"\\\`]/(treino|index|problems|orgs|ops)/|/api/v1/(treino|index|problems|orgs|ops)/" "$W/contest" 2>/dev/null | grep -v "moj-comp" | wc -l)"
+ck "nenhuma página de web/contest/ chama rota do treino/índice/gestão ($BAD)" '[[ "$BAD" == 0 ]]'
 echo "team-host(gjs): $PASS ok, $FAIL falhas"; [[ $FAIL -eq 0 ]]

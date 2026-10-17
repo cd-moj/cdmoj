@@ -329,7 +329,7 @@
         ],
         "responses": {
           "200": {
-            "description": "{logged_in, login, name, is_admin, is_judge, is_staff, is_cstaff, is_chief, is_animeitor, is_mon, has_photo} (.cstaff = chefe de sede, não herda is_staff; has_photo evita que o avatar peça uma foto inexistente)"
+            "description": "{logged_in, login, name, is_admin, is_judge, is_staff, is_cstaff, is_chief, is_animeitor, is_mon, has_photo, photo_url?} (.cstaff = chefe de sede, não herda is_staff; has_photo evita que o avatar peça uma foto inexistente; num contest a foto é a do TIME naquele contest e photo_url = /api/v1/contest/team-photo?contest=&user=&thumb=1 — no treino, /api/v1/treino/profile/photo?user=)"
           }
         }
       }

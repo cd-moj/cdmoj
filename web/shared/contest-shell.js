@@ -18,7 +18,8 @@ export function mountContestUserChip(st) {
     // NOME · login, sempre (issue #29): várias telas não mostravam quem está logado, e o login é
     // o que a sede/o juiz precisam ler — o nome sozinho não identifica a conta.
     el('span', { id: 'contestUserChip', class: 'user-chip small', style: 'margin-right:.3rem', title: (st.name ? st.name + ' · ' : '') + st.login },
-      avatarEl(st.login, st.name, 22, st.has_photo), el('span', {}, st.name || st.login),
+      // a foto do TIME neste contest (photo_url do /auth/status); sem ela, as iniciais — nunca a foto do treino
+      avatarEl(st.login, st.name, 22, !!(st.has_photo && st.photo_url), st.photo_url), el('span', {}, st.name || st.login),
       (st.name && st.name !== st.login) ? el('span', { class: 'muted', style: 'margin-left:.3rem' }, st.login) : null),
     anchor);
 }
