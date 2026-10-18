@@ -8,6 +8,7 @@ import { apiGet, apiPost, getToken } from '/shared/api.js';
 import { el } from '/shared/ui.js';
 import { initContestShell } from '/shared/contest-shell.js';
 import { T, uiLocale } from '/shared/i18n.js';
+import { serverNow } from '/shared/server-clock.js';   // contagem pelo relógio do SERVIDOR (shared/server-clock.js)
 
 const qs = new URLSearchParams(location.search);
 const CONTEST = (window.__MOJ_CONTEST || qs.get('c') || '');
@@ -42,7 +43,7 @@ function syncFreezeNote() {
   const b = BASIC || {};
   const fz = +b.freeze_time || 0;
   const on = fz > 0 && !b.balloons_during_freeze && (b.modules || []).includes('baloes');
-  const now = Math.floor(Date.now() / 1000);
+  const now = serverNow();
   const hh = on ? new Date(fz * 1000).toLocaleTimeString(uiLocale(), { hour: '2-digit', minute: '2-digit' }) : '';
   const txt = !on ? '' : now >= fz
     ? T('🧊 Placar congelado desde ' + hh + ': acertos a partir desse horário NÃO viram balão — o balão revelaria o placar congelado. É o padrão da prova; só o admin muda (Regras › balões durante o congelamento).',

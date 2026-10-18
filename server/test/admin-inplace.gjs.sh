@@ -38,6 +38,8 @@ Object.defineProperty(FakeNode.prototype,'disabled',{get(){return !!this._d},set
 globalThis.document={ createElement:(t)=>new FakeNode(t), createTextNode:(t)=>({nodeType:3,text:String(t),textContent:String(t)}),
   createElementNS:(ns,t)=>new FakeNode(t), activeElement:null, body:new FakeNode('body') };
 function T(pt,en,es){ return pt; } function uiLocale(){ return 'pt-BR'; } function getLang(){ return 'pt'; }
+// relógio do servidor (web/shared/server-clock.js; o import sai junto com os outros): aqui, o do teste
+function serverNowMs(){ return Date.now(); } function serverNow(){ return Math.floor(Date.now() / 1000); }
 globalThis.confirm=()=>false; globalThis.alert=()=>{}; globalThis.setInterval=(f,ms)=>1; globalThis.clearInterval=()=>{};
 globalThis.setTimeout=(f)=>1; globalThis.clearTimeout=()=>{};
 globalThis.location={hash:'', search:'', hostname:'x', origin:'https://c.x'}; globalThis.URL={createObjectURL:()=>'blob:x', revokeObjectURL:()=>{}}; globalThis.Blob=function(){};

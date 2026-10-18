@@ -38,6 +38,8 @@ Object.defineProperty(FakeNode.prototype,'value',{
 globalThis.document={ createElement:(t)=>new FakeNode(t), createTextNode:(t)=>({nodeType:3,text:String(t),textContent:String(t)}),
   body: new FakeNode('body'), getElementById: () => null };
 function T(pt){ return pt; } function uiLocale(){ return 'pt-BR'; }
+// relógio do servidor (web/shared/server-clock.js; o import sai junto com os outros): aqui, o do teste
+function serverNowMs(){ return Date.now(); } function serverNow(){ return Math.floor(Date.now() / 1000); }
 // timers FALSOS (o "✓ Enviado" de 1,5 s e o poll da tabela)
 let NOW = 1790000000000; const TIMERS = [];
 globalThis.setTimeout = (f, ms) => { const t = { f, at: NOW + (ms || 0), ms, done: false }; TIMERS.push(t); return t; };

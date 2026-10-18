@@ -19,6 +19,7 @@ import { parseICPC } from './score-icpc.js';
 import { balloonColorHex, balloonDot, paintSolvedCell } from './score-colors.js';
 import { flagEl, flagName } from '/shared/flags.js';
 import { scoreCols, cellTitle } from './score-cols.js';
+import { serverNow } from '/shared/server-clock.js';   // contagem pelo relógio do SERVIDOR (shared/server-clock.js)
 
 const CONTEST = new URLSearchParams(location.search).get('c') || '';
 const G = { contest: CONTEST, auth: true };
@@ -237,7 +238,7 @@ async function main() {
   // cerimônia assim mostraria um placar parado, com "?" que nunca se revelam. Conveniência de UX —
   // a garantia é o gate do /contest/score (site_reveal_open).
   if (CSTAFF && fullFrozen) {
-    app.textContent = (basic && (basic.end_time || 0) > Math.floor(Date.now() / 1000))
+    app.textContent = (basic && (basic.end_time || 0) > serverNow())
       ? T('A revelação da sua sede abre quando o contest termina para todas as sedes.', "Your site's reveal opens when the contest ends for all sites.", 'La revelación de tu sede se abre cuando la competencia termina para todas las sedes.')
       : T('A revelação da sua sede ainda não foi liberada: ela abre quando a organização liberar a revelação às sedes.', "Your site's reveal has not been released yet: it opens when the organizers release the reveal to the sites.", 'La revelación de tu sede todavía no fue liberada: se abre cuando la organización libere la revelación a las sedes.');
     return;
@@ -260,7 +261,7 @@ async function main() {
     try {
       const cfg = await apiGet('/contest/admin/settings?contest=' + enc(CONTEST), G);
       const at = +(cfg && cfg.freeze_release_at) || 0;
-      if (at && Math.floor(Date.now() / 1000) < at) {
+      if (at && serverNow() < at) {
         unfreezeBtn.disabled = true;
         const hh = new Date(at * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         unfreezeBtn.title = T('disponível a partir de ', 'available from ', 'disponible a partir de ') + hh + T(' (fim para todas as sedes + 1 min)', ' (end for every site + 1 min)', ' (fin para todas las sedes + 1 min)');

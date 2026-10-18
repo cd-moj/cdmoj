@@ -12,9 +12,10 @@ import { el } from '/shared/ui.js';
 import { T } from '/shared/i18n.js';
 import { fmtDate, fmtS, toCsv, downloadText, swapIf, sigOf, everyVisible } from '/shared/admin-ui.js';
 import { rgAssign, rgFlatten, rgKey } from '/shared/regions-match.js';
+import { serverNow } from '/shared/server-clock.js';   // contagem pelo relógio do SERVIDOR (shared/server-clock.js)
 
 const enc = encodeURIComponent;
-const nowE = () => Math.floor(Date.now() / 1000);
+const nowE = () => serverNow();
 // fábrica, não const de módulo: T() no topo congelaria o idioma antes do LOCALE do contest
 const STATUS = () => ({
   pending: { t: T('🕓 pendente', '🕓 pending', '🕓 pendiente'), cls: 'flag-warn' },

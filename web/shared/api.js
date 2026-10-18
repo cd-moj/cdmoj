@@ -1,5 +1,6 @@
 // shared/api.js — cliente da API MOJ v1 (fetch + Bearer + envelope).
 import './contest-guard.js';   // isolamento por subdomínio (roda em toda página que usa a API)
+import { noteServerDate } from './server-clock.js';
 export const API_BASE = '/api/v1';
 
 export class ApiError extends Error {
@@ -31,8 +32,16 @@ async function unwrap(r) {
 }
 
 // GET JSON (envelope desempacotado)
+// toda resposta da API traz o cabeçalho `Date`: é com ele que a página conhece o relógio do SERVIDOR (shared/server-clock.js)
+// — as contagens de início/fim/freeze contam por ele, nunca pelo relógio do computador (relato de 18/10/2026)
+async function timedFetch(url, opts) {
+  const t0 = Date.now();
+  const r = await fetch(url, opts);
+  try { noteServerDate(r.headers.get('Date'), t0, Date.now()); } catch { /* sem Date: segue o relógio local */ }
+  return r;
+}
 export async function apiGet(path, { contest, auth = false } = {}) {
-  const r = await fetch(API_BASE + path, { headers: auth ? authHeaders(contest) : {} });
+  const r = await timedFetch(API_BASE + path, { headers: auth ? authHeaders(contest) : {} });
   return unwrap(r);
 }
 // GET texto cru + os CABEÇALHOS da resposta. O /contest/score responde `X-MOJ-Frozen: 0|1`:
@@ -40,7 +49,7 @@ export async function apiGet(path, { contest, auth = false } = {}) {
 // este login, e é isso que a página usa p/ avisar o competidor. Quem recebe o completo (juiz,
 // telão, SCORE_FULL_USERS) recebe 0.
 export async function apiGetTextMeta(path, { contest, auth = false } = {}) {
-  const r = await fetch(API_BASE + path, { headers: auth ? authHeaders(contest) : {} });
+  const r = await timedFetch(API_BASE + path, { headers: auth ? authHeaders(contest) : {} });
   if (!r.ok) throw new ApiError(r.status, 'HTTP ' + r.status);
   return { text: await r.text(), headers: r.headers };
 }
@@ -50,13 +59,13 @@ export async function apiGetText(path, opts = {}) {
 }
 // GET binário (enunciado em PDF): texto corromperia os bytes
 export async function apiGetBlob(path, { contest, auth = false } = {}) {
-  const r = await fetch(API_BASE + path, { headers: auth ? authHeaders(contest) : {} });
+  const r = await timedFetch(API_BASE + path, { headers: auth ? authHeaders(contest) : {} });
   if (!r.ok) throw new ApiError(r.status, 'HTTP ' + r.status);
   return r.blob();
 }
 // POST JSON
 export async function apiPost(path, body, { contest, auth = false } = {}) {
-  const r = await fetch(API_BASE + path, {
+  const r = await timedFetch(API_BASE + path, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...(auth ? authHeaders(contest) : {}) },
     body: JSON.stringify(body || {}),

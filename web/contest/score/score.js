@@ -17,6 +17,7 @@ import { parseOBI, renderOBI } from './score-obi.js';
 import { parseGeneric, renderGeneric } from './score-generic.js';
 import { T, setLang, getLang, uiLocale } from '/shared/i18n.js';
 import { navLabel } from '/shared/nav-i18n.js';
+import { serverNow, serverNowMs } from '/shared/server-clock.js';   // contagem pelo relógio do SERVIDOR (shared/server-clock.js)
 
 const qs = new URLSearchParams(location.search);
 const CONTEST = (window.__MOJ_CONTEST || qs.get('c') || '');
@@ -82,7 +83,7 @@ function startCountdown() {
   const preLeft = document.getElementById('prestartLeft');
   let wasBefore = false;
   const tick = () => {
-    const now = Math.floor(Date.now() / 1000);
+    const now = serverNow();
     // PRÉ-INÍCIO: o servidor já serve a vitrine (times SEM colunas de problema); aqui é só
     // o aviso + a contagem regressiva até o start. Ao zerar, busca o placar de verdade.
     const toStart = (basic.start_time || 0) - now;
@@ -468,7 +469,7 @@ async function boot() {
   // quando o PORTÃO deixa — /contest/virtual roda o mesmo vr_load das rotas do virtual. Antes bastava "módulo ligado +
   // prova encerrada" e o link aparecia num contest com problema privado (07/10/2026). Só pergunta quando pode dar
   // certo (módulo ligado, prova encerrada), e não segura o placar: roda à parte.
-  if ((basic.modules || []).includes('virtual') && basic.end_time && Date.now() / 1000 > basic.end_time) {
+  if ((basic.modules || []).includes('virtual') && basic.end_time && serverNowMs() / 1000 > basic.end_time) {
     apiGet('/contest/virtual?contest=' + encodeURIComponent(CONTEST), {}).then((v) => {
       if (!v || v.available !== true) return;
       // o virtual mora no site principal (sessão do treino): no subdomínio, o link sobe p/ ele

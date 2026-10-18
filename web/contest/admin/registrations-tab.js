@@ -17,6 +17,7 @@ import { T } from '/shared/i18n.js';
 import { field, toCsv, downloadText } from '/shared/admin-ui.js';
 import { toLocalDT, dtToEpoch } from '/shared/contest-config/index.js';
 import { flagEl } from '/shared/flags.js';
+import { serverNow } from '/shared/server-clock.js';   // contagem pelo relógio do SERVIDOR (shared/server-clock.js)
 
 const enc = encodeURIComponent;
 // ⚠ datas: SEMPRE o par toLocalDT/dtToEpoch. `<input type=datetime-local>` é lido por Date.parse
@@ -44,7 +45,7 @@ export function makeRegistrationsTab(CONTEST) {
   // ele congelaria o idioma antes de o LOCALE do contest ser aplicado)
   function ago(at) {
     if (!at) return '';
-    const s = Math.max(0, Math.floor(Date.now() / 1000) - at);
+    const s = Math.max(0, serverNow() - at);
     const d = Math.floor(s / 86400), h = Math.floor(s / 3600);
     if (d >= 1) return T('há ' + d + ' d', d + 'd ago', 'hace ' + d + ' d');
     if (h >= 1) return T('há ' + h + ' h', h + 'h ago', 'hace ' + h + ' h');

@@ -15,6 +15,7 @@ import { toLocalDT, dtToEpoch } from '/shared/contest-config/index.js';
 import { field, swapIf, sigOf } from '/shared/admin-ui.js';
 import { T } from '/shared/i18n.js';
 import { MODULES } from './modules.js';
+import { serverNow } from '/shared/server-clock.js';   // contagem pelo relógio do SERVIDOR (shared/server-clock.js)
 
 const enc = encodeURIComponent;
 const ICON = { ok: '🟢', warn: '🟡', fail: '🔴' };
@@ -85,7 +86,7 @@ export function makeCentralTab(CONTEST, opts = {}) {
   // "🔥 Aquecer juízes" (item judges_warm): calibração dirigida SÓ p/ os pares juiz×problema frios.
   // Cada uma ocupa um slot do juiz por alguns minutos — depois do início, a confirmação diz isso.
   async function warmJudges(btn, msg) {
-    const started = !!(lastSt && lastSt.start && Math.floor(Date.now() / 1000) >= lastSt.start);
+    const started = !!(lastSt && lastSt.start && serverNow() >= lastSt.start);
     const ask = started
       ? T('A prova já começou. Cada calibração ocupa um slot do juiz por alguns minutos, e as submissões esperam atrás dela. Aquecer mesmo assim?',
           'The contest has already started. Each calibration takes one judge slot for a few minutes, and submissions wait behind it. Warm up anyway?',
@@ -196,7 +197,7 @@ export function makeCentralTab(CONTEST, opts = {}) {
     // Renderiza sempre que o cartão é ESPERADO (fim base já passou), mesmo quando
     // can_finish=false (prorrogação de sede) ou o GET falhou — sumir em silêncio foi o bug
     // da Maratona 29/08. can_act=false (juiz-chefe) = checklist somente-leitura.
-    const postEnd = !st || !st.end || Math.floor(Date.now() / 1000) > st.end;
+    const postEnd = !st || !st.end || serverNow() > st.end;
     if (fin && fin._err) {
       if (postEnd) panel.append(el('div', { class: 'section' },
         el('h2', { style: 'margin:.1rem 0' }, T('🏁 Depois da prova', '🏁 After the contest', '🏁 Después de la competencia')),
@@ -250,7 +251,7 @@ export function makeCentralTab(CONTEST, opts = {}) {
           btn.disabled = true;
           // can_finish também espera o fim geral + 1 min quando há freeze (freeze_release_at)
           const at = +fin.freeze_release_at || 0;
-          btn.title = (at && Math.floor(Date.now() / 1000) < at)
+          btn.title = (at && serverNow() < at)
             ? T('disponível a partir de ', 'available from ', 'disponible a partir de ') + new Date(at * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) + T(' (fim para todas as sedes + 1 min)', ' (end for every site + 1 min)', ' (fin para todas las sedes + 1 min)')
             : T('disponível depois do fim para todas as sedes', 'available after every site finishes', 'disponible después de que todas las sedes terminen');
         }

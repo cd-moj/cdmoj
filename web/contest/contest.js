@@ -17,6 +17,7 @@ import { openHtmlReport } from '/shared/submission-links.js';
 import { balloonColorHex, balloonSVG, balloonEdge, balloonTint } from '/contest/score/score-colors.js';
 import { pickStmtLang, makeStmtLangChips, setChipsActive, rememberStmtLang, stmtHtmlLang } from '/shared/statement-langs.js';
 import { decorateSamples, downloadSamplesZip, SAMPLES_TAB_SCRIPT } from '/shared/statement-samples.js';
+import { serverNow } from '/shared/server-clock.js';   // contagem pelo relógio do SERVIDOR (shared/server-clock.js)
 
 const qs = new URLSearchParams(location.search);
 const CONTEST = (window.__MOJ_CONTEST || qs.get('c') || '');
@@ -190,7 +191,7 @@ let orgLogin = false;
 function enableOrgLogin() { orgLogin = true; updateLoginCountdown(); document.getElementById('loginPass')?.focus(); }
 function updateLoginCountdown() {
   clearTimeout(loginCountdownTimer);
-  const now = Math.floor(Date.now() / 1000);
+  const now = serverNow();
   const loginStart = basic.login_start_time != null ? basic.login_start_time : basic.start_time;
   const left = loginStart - now;
   const box = document.getElementById('loginCountdown');
@@ -288,7 +289,7 @@ function bootLogin() {
 function startContestCountdown() {
   const eln = document.getElementById('contestCountdown');
   const tick = () => {
-    const now = Math.floor(Date.now() / 1000);
+    const now = serverNow();
     const left = (basic.end_time || 0) - now;
     if (left > 0) {
       eln.textContent = T('Termina em: ', 'Ends in: ', 'Termina en: ') + fmtLeft(left);
@@ -1057,7 +1058,7 @@ async function bootMain() {
   // início — tela de contagem regressiva (a API também recusa: /contest/problems devolve
   // {locked:"not_started"} e /submit -> 403). .admin/.judge entram direto (sempre).
   const privileged = !!(userinfo && (userinfo.is_admin || userinfo.is_judge));
-  const nowS = Math.floor(Date.now() / 1000);
+  const nowS = serverNow();
   if (!privileged && basic.start_time && nowS < basic.start_time) {
     renderPreStart();
     return;
@@ -1120,7 +1121,7 @@ function renderPreStart() {
     'Los problemas aparecen automáticamente cuando empieza la competencia.');
   const tick = async () => {
     clearTimeout(preStartTimer);
-    const left = (basic.start_time || 0) - Math.floor(Date.now() / 1000);
+    const left = (basic.start_time || 0) - serverNow();
     if (left > 0) {
       cd.textContent = fmtLeft(left);
       preStartTimer = setTimeout(tick, 1000);
@@ -1133,7 +1134,7 @@ function renderPreStart() {
       await new Promise(r => setTimeout(r, Math.random() * 1200));
       // começou: revalida com a API (que agora libera) e carrega o corpo do contest
       try { basic = await apiGet('/contest/basic?contest=' + encodeURIComponent(CONTEST), {}); } catch {}
-      if ((basic.start_time || 0) - Math.floor(Date.now() / 1000) > 0) { preStartTimer = setTimeout(tick, 1000); return; }
+      if ((basic.start_time || 0) - serverNow() > 0) { preStartTimer = setTimeout(tick, 1000); return; }
       await loadContestBody();
     }
   };

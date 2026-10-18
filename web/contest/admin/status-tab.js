@@ -11,6 +11,7 @@ import { el } from '/shared/ui.js';
 import { apiGet, apiPost } from '/shared/api.js';
 import { fmtS, fmtClock, vClass, swap, swapIf, sigOf, everyVisible } from '/shared/admin-ui.js';
 import { T } from '/shared/i18n.js';
+import { serverNow } from '/shared/server-clock.js';   // contagem pelo relógio do SERVIDOR (shared/server-clock.js)
 
 const enc = encodeURIComponent;
 
@@ -70,7 +71,7 @@ export function makeStatusTab(CONTEST, opts = {}) {
     // tarefas do staff (impressão+balões): só quando existem
     const tasks = (tq && tq.requests) || [];
     const tPend = tasks.filter((t) => t.status === 'pending');
-    const tOld = tPend.length ? Math.max(...tPend.map((t) => Math.floor(Date.now() / 1000) - (t.time || 0))) : 0;
+    const tOld = tPend.length ? Math.max(...tPend.map((t) => serverNow() - (t.time || 0))) : 0;
     // balões que a regra do freeze suprimiu (nunca viram tarefa) — o admin tem de saber que
     // existem, senão o silêncio da fila durante o freeze parece defeito
     const bFrozen = (tq && Number(tq.balloons_frozen)) || 0;
@@ -154,7 +155,7 @@ export function makeStatusTab(CONTEST, opts = {}) {
     const alerts = sess ? (sess.alerts || []) : [];
     const tasks = (tq && tq.requests) || [];
     const tPend = tasks.filter((t) => t.status === 'pending');
-    const tOld = tPend.length ? Math.max(...tPend.map((t) => Math.floor(Date.now() / 1000) - (t.time || 0))) : 0;
+    const tOld = tPend.length ? Math.max(...tPend.map((t) => serverNow() - (t.time || 0))) : 0;
     const actions = [];
     if ((j.total || 0) === 0) actions.push(T('Nenhum juiz registrado — nada será julgado. Suba um agente de juiz.', 'No judge registered — nothing will be judged. Bring up a judge agent.', 'Ningún juez registrado — nada será evaluado. Levanta un agente de juez.'));
     else if ((j.online || 0) === 0) actions.push(T('Todos os juízes estão OFFLINE — submissões não serão julgadas. Verifique os agentes.', 'All judges are OFFLINE — submissions will not be judged. Check the agents.', 'Todos los jueces están OFFLINE — los envíos no serán evaluados. Revisa los agentes.'));

@@ -14,6 +14,7 @@ import { el, verdictClass, isPending, fmtDate, resumoText } from '/shared/ui.js'
 import { openHtmlReport } from '/shared/submission-links.js';
 import { swapIf, sigOf } from '/shared/admin-ui.js';
 import { T } from '/shared/i18n.js';
+import { serverNow, serverNowMs } from '/shared/server-clock.js';   // contagem pelo relógio do SERVIDOR (shared/server-clock.js)
 
 // tempo:username:problemid:lang:verdict:epoch:subid  (verdict pode conter ':')
 // ⚠ o campo 0 ("tempo") NÃO é minuto de prova: a reforma do store grava o EPOCH nele. O minuto
@@ -113,16 +114,16 @@ export function makeSubmissionsTable({ contest, basic, problems, userinfo, filte
 
   // o servidor manda; a otimista só fica enquanto ele ainda não a trouxe (e por no máx. OPT_TTL s)
   function mergeOptimistic(list) {
-    const now = Date.now() / 1000, have = new Set(list.map((s) => s.subid));
+    const now = serverNowMs() / 1000, have = new Set(list.map((s) => s.subid));
     for (const [id, o] of optimistic) { if (have.has(id) || now - o.added > OPT_TTL) optimistic.delete(id); }
     return list.concat([...optimistic.values()].map((o) => o.row));
   }
   function addPending({ subid, problem, lang, epoch } = {}) {
     if (!subid || submissions.some((s) => s.subid === subid)) return;
-    const ep = Number(epoch) > 0 ? Number(epoch) : Math.floor(Date.now() / 1000);
+    const ep = Number(epoch) > 0 ? Number(epoch) : serverNow();
     const row = { sinceStart: ep, user: '', problem: problem || '', lang: lang || '', subid, epoch: ep,
       verdict: 'Not Answered Yet', optimistic: true };
-    optimistic.set(subid, { row, added: Date.now() / 1000 });
+    optimistic.set(subid, { row, added: serverNowMs() / 1000 });
     submissions = submissions.concat([row]);
     renderFilter(); renderTable();
   }

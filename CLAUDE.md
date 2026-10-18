@@ -2001,6 +2001,13 @@ mexa na outra. O índice separa as coleções por `\u001f` (nome é texto livre:
   ainda refaz o DOM — pendente. **Teste**: `server/test/admin-inplace.gjs.sh` (FakeNode + dom.js +
   admin-ui.js + o painel sem imports; `load()` 2× com o mesmo dado mantém a identidade dos nós,
   `<details>` aberto e o texto digitado) — painel novo com timer ganha um caso lá.
+- **CONTAGEM DE PROVA CONTA PELO RELÓGIO DO SERVIDOR** (`web/shared/server-clock.js`, 18/10/2026; relato do Daniel Saad na
+  Maratona Padawan do IFB: duas máquinas de juízes mostravam tempos diferentes para o fim — cada contagem usava o relógio
+  do computador). Toda resposta da API passa pelo `timedFetch` do `api.js`, que lê o cabeçalho `Date` e alimenta a
+  estimativa servidor − navegador (mediana das últimas 15; sem requisição a mais). Comparar com horário que veio da API
+  (início, fim, freeze, idade de tarefa/voto) = **`serverNow()`/`serverNowMs()`**, NUNCA `Date.now()` — que fica só p/
+  intervalo local e cache-buster. Guarda: `smoke-server-clock.gjs.sh` (3 máquinas com relógios diferentes mostram o mesmo
+  tempo; grep em `web/contest/`). A participação virtual tem o seu (`m.now`) e o `moj-comp` mede o desvio no login.
 - **Toda tela/string nova NASCE nos TRÊS idiomas** (`T('pt','en','es')` no JS, `data-en` + `data-es` no
   HTML; espanhol latino-americano neutro, glossário em `docs/I18N.md`) — deixar só em PT é **bug**, igual
   doc atrasada; nunca renderize texto de exibição sem passar pelo `T`/`data-en`/`data-es`.

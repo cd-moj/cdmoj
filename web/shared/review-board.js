@@ -9,9 +9,10 @@ import { el } from '/shared/ui.js';
 import { T } from '/shared/i18n.js';
 import { logLink, srcLink } from '/shared/submission-links.js';
 import { pokeChiefAlert } from '/shared/chief-alert.js';
+import { serverNow } from '/shared/server-clock.js';   // contagem pelo relógio do SERVIDOR (shared/server-clock.js)
 
 const enc = encodeURIComponent;
-const nowE = () => Math.floor(Date.now() / 1000);
+const nowE = () => serverNow();
 const fmtS = (s) => { s = Math.max(0, Math.round(+s || 0)); if (s < 60) return s + 's'; const m = Math.floor(s / 60); return m < 60 ? m + 'min' : Math.floor(m / 60) + 'h' + (m % 60 ? (m % 60) + 'min' : ''); };
 const STATUS = () => ({
   open: T('🕓 não avaliada', '🕓 not evaluated', '🕓 no evaluado'), claimed: T('👀 em avaliação', '👀 under evaluation', '👀 en evaluación'), voting: T('1️⃣ aguarda 2º voto', '1️⃣ awaiting 2nd vote', '1️⃣ espera 2º voto'),

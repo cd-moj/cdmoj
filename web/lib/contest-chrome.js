@@ -7,6 +7,7 @@ import { mountContestUserChip } from '/shared/contest-shell.js';
 import { T, setLang } from '/shared/i18n.js';
 import { navLabel } from '/shared/nav-i18n.js';
 import { mountSiteFooter } from '/shared/site-footer.js';
+import { serverNow } from '/shared/server-clock.js';   // contagem pelo relógio do SERVIDOR (shared/server-clock.js)
 
 
 function navHref(contest, url) {
@@ -36,7 +37,7 @@ export async function mountChrome(contest, basic, { auth = true } = {}) {
   const cdEl = document.getElementById('contestCountdown');
   if (cdEl) {
     const tick = () => {
-      const left = (basic.end_time || 0) - Math.floor(Date.now() / 1000);
+      const left = (basic.end_time || 0) - serverNow();
       if (left > 0) { cdEl.textContent = T('Termina em: ', 'Ends in: ', 'Termina en: ') + fmtLeft(left); setTimeout(tick, 1000); }
       else cdEl.textContent = T('Competição encerrada', 'Contest ended', 'Competencia terminada');
     };
