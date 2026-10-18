@@ -18,7 +18,9 @@ export function noteServerDate(dateHeader, t0, t1) {
   const d = Date.parse(dateHeader || '');
   if (!Number.isFinite(d) || !(t1 >= t0)) return offsetMs;
   const est = d + 500 - (t0 + t1) / 2;
-  if (Math.abs(est) > 7 * 86400e3) return offsetMs;    // absurdo (Date quebrado): não entra
+  // só lixo fica de fora (50 anos): máquina de laboratório com a bateria da placa fraca anda MESES ou ANOS errada — e é
+  // justamente ela que precisa da correção (a trava antiga, de 7 dias, a deixava no relógio dela; achado no Chrome headless)
+  if (Math.abs(est) > 50 * 365 * 86400e3) return offsetMs;
   samples.push(est);
   if (samples.length > MAX_SAMPLES) samples.shift();
   const s = [...samples].sort((a, b) => a - b);
