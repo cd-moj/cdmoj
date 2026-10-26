@@ -60,8 +60,9 @@ infeasible_sweep
 [[ -n "$agent_status" ]] && upd_touch_host "$host"
 
 # inventário mudou? pede re-registro
-# inv_hash e mem_kb do registro num jq só (o mem_kb é do claim, lá embaixo; nada regrava o registro no meio)
-IFS=$'\x01' read -r stored_hash memkb < <(jq -j '[(.inv_hash // ""), ((.mem_kb // "") | tostring)] | join("\u0001")' "$REGISTRYDIR/$host.json" 2>/dev/null)
+# inv_hash, mem_kb e hwclass do registro num jq só (os dois últimos são do claim, lá embaixo; nada regrava o
+# registro no meio). hwclass = a classe de hardware (register.sh): o claim põe no job o TL dela (`tl_class`).
+IFS=$'\x01' read -r stored_hash memkb hwclass < <(jq -j '[(.inv_hash // ""), ((.mem_kb // "") | tostring), (.hwclass // "")] | join("\u0001")' "$REGISTRYDIR/$host.json" 2>/dev/null)
 reregister=false
 [[ -n "$inv_hash" && "$inv_hash" != "$stored_hash" ]] && reregister=true
 
@@ -75,7 +76,7 @@ IFS=$'\x01' read -r srv_hash disabled < <(jq -j '[(.cfg_hash // ""), ((.disabled
 
 # LARGURA / paralelismo: o que o claim precisa saber do juiz (registro + beat + política)
 IFS=$'\x01' read -r pol cushion share pmax < <(sched_policy "$host")
-export QC_SLOT_CPUS="${slot_cpus:-0}" QC_MAX_FREE_GROUP="$mfg" QC_TOTAL_SLOTS="$total_slots" QC_MEM_KB="$memkb" \
+export QC_SLOT_CPUS="${slot_cpus:-0}" QC_MAX_FREE_GROUP="$mfg" QC_TOTAL_SLOTS="$total_slots" QC_MEM_KB="$memkb" QC_HWCLASS="${hwclass:-}" \
        QC_POLICY="$pol" QC_CUSHION="$cushion" QC_SHARE_MAX="$share" QC_PARALLEL_MAX="$pmax" QC_FREE="$free_slots"
 
 assigned=null

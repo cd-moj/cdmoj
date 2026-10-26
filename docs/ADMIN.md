@@ -334,6 +334,10 @@ Ferramentas (todas **dry-run por padrão**; `--apply` executa):
   calibrações na fila) e reescreve o `.id` de dentro dos jsons que um move antigo deixou com o id velho. Órfão =
   o pacote não existe mais. Desde 26/10/2026 o delete e o move não deixam mais nada; rode uma vez depois do
   deploy (dry-run primeiro).
+- `server/bin/tl-class-backfill.sh [--apply]` — carimba a classe de hardware dos juízes (`hosts[h].class`, do
+  `hwclass` do registro) nos stores de TL de antes dela. É o que faz juízes idênticos julgarem com o mesmo TL (o
+  claim manda o máx da classe no job). O re-report do boot de cada agente já carimba o cache dele; isto carimba
+  sem reiniciar juiz (dry-run primeiro).
 - `server/bin/mojlog-prune.sh --ended-days N [--contest <c>] --apply` — **apaga** os reports de contests
   encerrados há mais de N dias. Veredicto, `results/<id>.json` e o código-fonte ficam; a web passa a
   dizer "report removido pela política de retenção". Nunca toca no treino (ele não tem `CONTEST_END`

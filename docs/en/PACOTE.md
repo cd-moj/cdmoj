@@ -1,4 +1,4 @@
-<!-- i18n-source: PACOTE.md blob:83e570b3167c370ab85874b29e338da7cc2b729c -->
+<!-- i18n-source: PACOTE.md blob:75e1ad4271e55408448b78674ac59922759a1911 -->
 # MOJ: the problem package (canonical format)
 
 > **Translation note.** This manual is a translation of the Portuguese original. The command-line tools (`moj`, `moj-contest`, `moj-comp`) print their messages in Portuguese, and the command examples below are identical to the original.
@@ -874,6 +874,12 @@ The time limit **served** to the student is the **largest value across the machi
 submission is not rejected because it went to a slower judge. A language gets a time limit only if a
 `good` solution in that language was **accepted** on a judge. Without a time limit, the language is not
 available.
+
+**Identical judges judge with the same time limit.** Each machine has a hardware class: the processor,
+the number of CPUs and the memory. When the server hands out a submission, it also sends the largest
+time limit across the machines in the class of the judge. The judge uses the larger of this value and
+its own measurement. Thus, the verdict does not depend on which identical judge got the submission. The
+measurement stays per machine, and the editor shows the one of each judge.
 
 Calibration runs **one test at a time**. In a parallel problem, each test runs with the **k CPUs** of
 `CPUNEEDED` — exactly the way in which judging runs each test (this is why the TL for k=2 is not valid

@@ -847,6 +847,12 @@ reprovada por ter caído num juiz mais lento. Uma linguagem só ganha tempo-limi
 `good` naquela linguagem foi **aceita** em algum juiz. Sem tempo-limite, a linguagem não fica
 disponível.
 
+**Juízes idênticos julgam com o mesmo tempo-limite.** Cada máquina tem uma classe de hardware: o
+processador, o número de CPUs e a memória. Ao entregar uma submissão, o servidor manda junto o maior
+tempo-limite entre as máquinas da classe do juiz. O juiz julga pelo maior entre esse valor e a própria
+medição. Assim, o veredicto não depende de qual juiz idêntico pegou a submissão. A medição continua por
+máquina, e o editor mostra a de cada juiz.
+
 A calibração roda **um teste por vez** e, num problema paralelo, cada teste com as **k CPUs** do
 `CPUNEEDED` — exatamente a forma em que o julgamento roda cada teste (por isso o TL de k=2 não
 vale para k=4 e mudar a chave recalibra).

@@ -576,7 +576,13 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   `tl_conf_mods` lê o conf (sem source; só linguagem canônica, sem `default` — o juiz procura
   `TLMOD[$LANGUAGE.sum]`). Cópia LITERAL no mojtools `gen-problem-json.sh`; `smoke-tl-mods.sh` confere a regra
   contra o PRÓPRIO trecho do build-and-test e as duas cópias. Rotas que exibem TL mandam `tl_mods` ao lado do
-  `tl_override`; (3) **test-run** (`/problems/test-run`, `moj testrun`) roda solução
+  `tl_override`. **JUÍZES IDÊNTICOS, MESMO TL (26/10/2026)**: o `register` deriva `hwclass` dos specs
+  (`<arch>|<cpu>|<ncpu>|<GiB em blocos de 4>`), o `tl-report` carimba `hosts[h].class` no store, o heartbeat exporta
+  `QC_HWCLASS` e o claim (`q_claim`/`q_claim_id`, `_TLCLASS_DEF` no sched-lib, `--slurpfile` do store no MESMO jq
+  que carimba o job) manda `tl_class` = o máx da classe; o agente julga pelo maior entre ela e a própria tabela
+  (`tl.job` + `MOJ_TLFILE`). O `_SCHED_TLMAX_DEF` do sched-lib é cópia LITERAL do `_TL_MAX_DEF` (o heartbeat não
+  carrega o tl-store); `smoke-sched-tlclass.sh` confere. `/problems/calib` mostra `hosts[].class` e `classes[]`;
+  `bin/tl-class-backfill.sh` carimba store antigo; (3) **test-run** (`/problems/test-run`, `moj testrun`) roda solução
   avulsa no juiz com o contest **sentinela `_testrun`** (id de contest criável começa com
   `[a-z0-9]` — sentinela inatingível), desviado p/ `run/testrun/` no `ingest_result` — nunca
   history. Gate de tudo: `require_problem_edit`. Testes: `smoke-{tl-override,calib-sols,testrun}.sh`.

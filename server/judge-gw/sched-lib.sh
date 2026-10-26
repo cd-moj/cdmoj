@@ -237,6 +237,38 @@ _pkg_tlmethod_v() {
   [[ "$_PP_TLM" == kattis ]] || _PP_TLM=moj
   return 0
 }
+# ===== TL DA CLASSE DE HARDWARE (26/10/2026) ====================================================================
+# Juízes IDÊNTICOS (a mesma `hwclass` do registro: arch|cpu|ncpu|memória em blocos de 4 GiB, register.sh) calibram
+# TLs um pouco diferentes, e o veredicto de um aluno no limite dependia de qual juiz pegava o envio ("assim parece
+# sorte" — pedido do Ribas). O claim põe no job `tl_class` = o MÁXIMO, por linguagem, entre os juízes da classe do
+# juiz que reivindica, nas duas metades do store (run/tl/<id>.json; o tl-report carimba hosts[h].class), com o
+# checksum do store. O agente só o usa se o checksum bate com o tl_checksum do pacote dele, e julga pelo maior
+# entre a classe e a tabela local (nunca abaixo da própria medição). Sem classe (registro de agente antigo), sem
+# store ou sem juiz da classe no store: sem o campo — a tabela local, como antes. Custo no claim: o --slurpfile do
+# store (~1 KB) no MESMO jq que já carimba o job.
+# _SCHED_TLMAX_DEF é cópia LITERAL do _TL_MAX_DEF de api/v1/lib/tl-store.sh (o heartbeat não carrega aquela lib);
+# o smoke-sched-tlclass.sh confere que as duas são iguais.
+_SCHED_TLMAX_DEF='def _tlkey: if .=="py3" or .=="py2" then "py" elif .=="cc" or .=="cxx" or .=="c++" or .=="hpp" then "cpp" elif .=="h" then "c" else . end;
+def tlmax(maps): reduce (maps | to_entries[]) as $e ({}; ($e.key|_tlkey) as $k
+    | .[$k]=([(.[$k]//0),($e.value|tonumber? // 0)]|max)) | with_entries(.value|=tostring);'
+_TLCLASS_DEF="$_SCHED_TLMAX_DEF"'
+def tlclass($cls; $st):
+  ($st[0] // {}) as $s
+  | if $cls == "" or ($s.checksum // "") == "" then null
+    else [($s.hosts // {}) | to_entries[] | select((.value.class // "") == $cls)] as $m
+    | if ($m | length) == 0 then null
+      else {class: $cls, checksum: $s.checksum, hosts: ($m | map(.key)),
+            tl: tlmax($m[] | .value.tl // {}), tl_kattis: tlmax($m[] | .value.tl_kattis // {})} end
+    end;
+def withclass($cls; $st): tlclass($cls; $st) as $tc | if $tc == null then . else . + {tl_class: $tc} end;'
+# _tlclass_src_v <problem_id> : em _TLC_SRC, o store de TL do problema p/ o --slurpfile do claim (/dev/null = sem
+# store ou juiz sem classe), SEM fork
+_tlclass_src_v() {
+  local id="${1//\//#}"
+  _TLC_SRC=/dev/null
+  [[ -n "${QC_HWCLASS:-}" && "$id" == *#* && -s "${TL_STORE_DIR:-$RUNDIR/tl}/$id.json" ]] && _TLC_SRC="${TL_STORE_DIR:-$RUNDIR/tl}/$id.json"
+  return 0
+}
 # _kslots <k> <slot_cpus> -> ceil(k/slot_cpus) (slot_cpus<1 ⇒ 1)
 _kslots() { local k="$1" sc="$2"; [[ "$sc" =~ ^[0-9]+$ && "$sc" -ge 1 ]] || sc=1; printf '%s' "$(( (k + sc - 1) / sc ))"; }
 
@@ -449,7 +481,7 @@ q_claim() {
     [[ "$memkb" =~ ^[0-9]+$ ]] || memkb=""
     local -A PKGPAR=()
     # lote reivindicado (p/ o par_max no fim): dest, k_slots, k, numa, par, m
-    local -a C_DEST=() C_KS=() C_K=() C_KORIG=() C_NUMA=() C_PAR=() C_M=() C_GROUPS=() C_TLM=()
+    local -a C_DEST=() C_KS=() C_K=() C_KORIG=() C_NUMA=() C_PAR=() C_M=() C_GROUPS=() C_TLM=() C_PROB=()
     # conjuntos do JUIZ, calculados UMA vez por chamada (2 jq no total)
     local -A PH=()
     while IFS= read -r pk; do [[ -n "$pk" ]] && PH["$pk"]=1; done \
@@ -520,7 +552,7 @@ q_claim() {
         if mv "$f" "$dest" 2>/dev/null; then
           rm -f "$f.cmeta" 2>/dev/null
           C_DEST+=("$dest"); C_KS+=("$ks"); C_K+=("$k"); C_KORIG+=("$korig"); C_NUMA+=("$numa"); C_PAR+=("$par"); C_M+=("$m"); C_GROUPS+=(1)
-          _pkg_tlmethod_v "$prob"; C_TLM+=("$_PP_TLM")
+          _pkg_tlmethod_v "$prob"; C_TLM+=("$_PP_TLM"); C_PROB+=("$prob")
           slots_left=$(( slots_left - ks ))
           [[ "$numa" == y && -n "$mfg" ]] && mfg=$(( mfg - ks ))
         fi
@@ -554,15 +586,18 @@ q_claim() {
     for (( i=0; i<n; i++ )); do
       dest="${C_DEST[i]}"; local tmp="$dest.tmp" cap_i="${C_M[i]:-$pmax}"
       (( cap_i > pmax )) && cap_i=$pmax
-      # tl_method (o método do TL do conf AGORA) vai p/ todo juiz: o antigo ignora o campo e usa o conf do cache
+      # tl_method (o método do TL do conf AGORA) vai p/ todo juiz: o antigo ignora o campo e usa o conf do cache;
+      # tl_class (o TL da classe de hardware do juiz, ver _TLCLASS_DEF) idem
+      _tlclass_src_v "${C_PROB[i]}"
       if (( legacy )); then
-        jq -c --arg h "$host" --argjson now "$now" --arg tlm "${C_TLM[i]:-moj}" '. + {assigned_to:$h, assigned_at:$now, tl_method:$tlm}' "$dest" > "$tmp" 2>/dev/null && mv -f "$tmp" "$dest"
+        jq -c --arg h "$host" --argjson now "$now" --arg tlm "${C_TLM[i]:-moj}" --arg cls "${QC_HWCLASS:-}" --slurpfile st "$_TLC_SRC" \
+           "$_TLCLASS_DEF"'. + {assigned_to:$h, assigned_at:$now, tl_method:$tlm} | withclass($cls; $st)' "$dest" > "$tmp" 2>/dev/null && mv -f "$tmp" "$dest"
       else
         # cpu_needed (o CPUNEEDED) só p/ as TELAS: test_cpus > cpu_needed = slots a mais pela memória
         jq -c --arg h "$host" --argjson now "$now" --argjson k "${C_K[i]}" --argjson nm "$([[ "${C_NUMA[i]}" == y ]] && echo true || echo false)" \
            --argjson sl "$(( C_GROUPS[i] * C_KS[i] ))" --argjson pm "${C_GROUPS[i]}" --argjson pc "$cap_i" --argjson kn "${C_KORIG[i]}" \
-           --arg tlm "${C_TLM[i]:-moj}" \
-           '. + {assigned_to:$h, assigned_at:$now, test_cpus:$k, same_numa:$nm, slots:$sl, par_max:$pm, par_cap:$pc, cpu_needed:$kn, tl_method:$tlm}' "$dest" > "$tmp" 2>/dev/null && mv -f "$tmp" "$dest"
+           --arg tlm "${C_TLM[i]:-moj}" --arg cls "${QC_HWCLASS:-}" --slurpfile st "$_TLC_SRC" \
+           "$_TLCLASS_DEF"'. + {assigned_to:$h, assigned_at:$now, test_cpus:$k, same_numa:$nm, slots:$sl, par_max:$pm, par_cap:$pc, cpu_needed:$kn, tl_method:$tlm} | withclass($cls; $st)' "$dest" > "$tmp" 2>/dev/null && mv -f "$tmp" "$dest"
       fi
       cat "$dest"; printf '\n'
     done
@@ -1051,10 +1086,11 @@ q_claim_id() {
     base="${f##*/}"; mkdir -p "$ASSIGNEDDIR/$host" 2>/dev/null; dest="$ASSIGNEDDIR/$host/$base"
     mv "$f" "$dest" 2>/dev/null || exit 0
     rm -f "$f.cmeta" 2>/dev/null
-    tmp="$dest.tmp"; _pkg_tlmethod_v "$prob"
+    tmp="$dest.tmp"; _pkg_tlmethod_v "$prob"; _tlclass_src_v "$prob"
     jq -c --arg h "$host" --argjson now "$EPOCHSECONDS" --argjson k "$k" --argjson nm "$([[ "$numa" == y ]] && echo true || echo false)" \
        --argjson sl "$ks" --argjson pc "${m:-$PARALLEL_MAX_DEFAULT}" --argjson kn "$korig" --arg tlm "$_PP_TLM" \
-       '. + {assigned_to:$h, assigned_at:$now, test_cpus:$k, same_numa:$nm, slots:$sl, par_max:1, par_cap:$pc, cpu_needed:$kn, tl_method:$tlm}' "$dest" > "$tmp" 2>/dev/null && mv -f "$tmp" "$dest"
+       --arg cls "${QC_HWCLASS:-}" --slurpfile st "$_TLC_SRC" \
+       "$_TLCLASS_DEF"'. + {assigned_to:$h, assigned_at:$now, test_cpus:$k, same_numa:$nm, slots:$sl, par_max:1, par_cap:$pc, cpu_needed:$kn, tl_method:$tlm} | withclass($cls; $st)' "$dest" > "$tmp" 2>/dev/null && mv -f "$tmp" "$dest"
     cat "$dest"; printf '\n'
   ) 9>"$QUEUEDIR/.lock"
 }

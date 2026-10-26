@@ -1,4 +1,4 @@
-<!-- i18n-source: PACOTE.md blob:83e570b3167c370ab85874b29e338da7cc2b729c -->
+<!-- i18n-source: PACOTE.md blob:75e1ad4271e55408448b78674ac59922759a1911 -->
 # MOJ: el paquete de problema (formato canónico)
 
 > **Nota de traducción.** Este manual es una traducción del original en portugués. Las herramientas de línea de comandos (`moj`, `moj-contest`, `moj-comp`) muestran sus mensajes en portugués, y los ejemplos de comandos son idénticos al original.
@@ -857,6 +857,12 @@ El tiempo límite **servido** al estudiante es el **mayor entre las máquinas**,
 reprobado por haber caído en un juez más lento. Un lenguaje solo obtiene tiempo límite si alguna solución
 `good` en ese lenguaje fue **aceptada** en algún juez. Sin tiempo límite, el lenguaje no queda
 disponible.
+
+**Jueces idénticos evalúan con el mismo tiempo límite.** Cada máquina tiene una clase de hardware: el
+procesador, el número de CPUs y la memoria. Al entregar un envío, el servidor manda también el mayor
+tiempo límite entre las máquinas de la clase del juez. El juez evalúa por el mayor entre ese valor y su
+propia medición. Así, el veredicto no depende de qué juez idéntico tomó el envío. La medición sigue por
+máquina, y el editor muestra la de cada juez.
 
 La calibración ejecuta **una prueba a la vez** y, en un problema paralelo, cada prueba con las **k CPUs** de
 `CPUNEEDED` — exactamente la forma en que la evaluación ejecuta cada prueba (por eso el TL de k=2 no

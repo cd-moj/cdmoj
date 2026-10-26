@@ -11,6 +11,10 @@
 #   a este host (jobs + calibrações — os processos morreram no restart; nada espera TTL).
 # resp inclui `config` (a vigente do judges-config.json) — o agente a adota ANTES do 1º
 # heartbeat, então restart nunca sobe com partição divergente (C5 do incidente 2026-07-15).
+# `hwclass` (26/10/2026) = a CLASSE DE HARDWARE do juiz, derivada aqui dos specs (o agente não muda):
+# "<arch>|<cpu, espaços normalizados>|<ncpu>|<memória em GiB, arredondada p/ cima em blocos de 4>" — juízes
+# idênticos caem na MESMA classe (a memória varia uns MB entre máquinas iguais). Spec faltando = null. O claim
+# põe no job o TL da classe (`tl_class`, sched-lib) e os juízes idênticos julgam com o MESMO TL.
 require_method POST
 require_worker
 source "$_DIR/../../judge-gw/sched-lib.sh"
@@ -44,6 +48,10 @@ reg="$(jq -c --argjson now "$EPOCHSECONDS" '
     langs:   (.langs   // []),
     toolchain:(.toolchain // {}),
     os:      (if (.os|type)=="string" then .os[0:160] else null end),   # PRETTY_NAME da rootfs (agente novo); a folha de ambiente lê (texto, ≤160)
+    hwclass: (((.arch // "") | tostring) as $a | ((.cpu // "") | tostring | gsub("\\s+"; " ") | ltrimstr(" ") | rtrimstr(" ")) as $c
+              | ((.ncpu // 0) | tonumber? // 0) as $n | ((.mem_kb // 0) | tonumber? // 0) as $m
+              | if $a == "" or $c == "" or $n < 1 or $m < 1 then null
+                else "\($a)|\($c)|\($n)|\((($m / 4194304) | ceil) * 4)" end),
     cage_root:(.cage_root // null),
     cache_bytes:(.cache_bytes // 0),
     inv_hash:(.inv_hash// null),

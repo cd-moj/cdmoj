@@ -1303,6 +1303,7 @@ function valRenderSig() {
     summary_alt: JSON.stringify((LASTCALIB && LASTCALIB.summary_alt) || null),
     method: (LASTCALIB && LASTCALIB.tl_method) || '',
     bym: JSON.stringify((LASTCALIB && LASTCALIB.time_limits_by_method) || null),
+    classes: JSON.stringify((LASTCALIB && LASTCALIB.classes) || null),
     served: Object.entries(served).map(([k, v]) => `${k}=${v}`),
     ovr: Object.entries((LASTINFO && LASTINFO.tl_override) || {}).map(([k, v]) => `${k}=${v}`),
     mods: JSON.stringify((LASTINFO && LASTINFO.tl_mods) || {}),
@@ -1340,6 +1341,12 @@ function renderVal() {
   if (hosts.length) {
     const sum = tlSummaryTable(hosts, served);   // quadro-resumo por linguagem (antes dos cards de cada juiz)
     if (sum) box.append(sum);
+    // JUÍZES IDÊNTICOS (a mesma classe de hardware) julgam com o MESMO tempo-limite: o maior entre eles, que o
+    // servidor põe em cada job (`classes` do /problems/calib). As colunas por juiz seguem sendo a medição de cada um.
+    ((calib && calib.classes) || []).filter(c => (c.hosts || []).length > 1).forEach(c => box.append(el('div', { class: 'small muted', style: 'margin:.2rem 0' },
+      T('Juízes idênticos (', 'Identical judges (', 'Jueces idénticos (') + c.hosts.join(', ')
+        + T(') julgam com o mesmo tempo-limite, o maior entre eles: ', ') judge with the same time limit, the largest among them: ', ') juzgan con el mismo tiempo límite, el mayor entre ellos: ')
+        + (tlLine(curMethod() === 'kattis' ? c.tl_kattis : c.tl) || '—'))));
     // A calibração IGNORA o override de propósito (o calibreitor exporta MOJ_CALIBRATING=1: ali
     // se mede de verdade). Sem este aviso, o autor lê os tempos dos cartões abaixo e conclui que
     // o override não pegou — foi exatamente o relato que gerou esta tela.

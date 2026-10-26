@@ -250,12 +250,14 @@ tl_index_checksums(){
 # 6º/7º args (26/10/2026, os métodos de TL): o mapa da metade KATTIS da tabela do juiz (vazio = juiz/mojtools
 # anterior, sem a metade — o Kattis desse host fica "não calibrado") e o MÉTODO do conf agora (`.method` do
 # store: o sumário do Painel o lê sem abrir pacote; o problem_commit o reescreve quando o conf muda).
+# 8º arg (26/10/2026): a CLASSE DE HARDWARE do juiz (`hwclass` do registro) em hosts[h].class — o claim põe no job o
+# TL da classe (judge-gw/sched-lib.sh `_TLCLASS_DEF`); vazio = juiz sem classe (registro antigo).
 tl_store_record(){
   [[ -n "${1:-}" && -n "${2:-}" && -n "${3:-}" ]] || return 1
   _tl_locked "$2" _tl_store_record_locked "$@"
 }
 _tl_store_record_locked(){
-  local host="$1" id="$2" cks="$3" tl="$4" pkv="${5:-}" tlk="${6:-}" meth="${7:-}" f cur tmp
+  local host="$1" id="$2" cks="$3" tl="$4" pkv="${5:-}" tlk="${6:-}" meth="${7:-}" cls="${8:-}" f cur tmp
   # o pacote ainda existe? (sob o lock: o delete apaga o store sob o MESMO lock — um report que passou do 404 do
   # handler antes do delete não recria o store do problema apagado). rc 3 = o handler responde 404 problem_gone.
   [[ -n "$(pkg_path "$id")" ]] || return 3
@@ -265,7 +267,7 @@ _tl_store_record_locked(){
   mkdir -p "$TL_STORE_DIR" 2>/dev/null; f="$(tl_store_file "$id")"; tmp="$f.tmp.${BASHPID}"
   cur="$(cat "$f" 2>/dev/null)"; [[ -n "$cur" ]] || cur='{}'
   ( umask 077; jq -n --argjson cur "$cur" --arg id "$id" --arg h "$host" \
-      --arg cks "$cks" --argjson tl "$tl" --argjson tlk "$tlk" --arg pkv "$pkv" --arg meth "$meth" \
+      --arg cks "$cks" --argjson tl "$tl" --argjson tlk "$tlk" --arg pkv "$pkv" --arg meth "$meth" --arg cls "$cls" \
       --argjson now "$EPOCHSECONDS" "$_TL_MAX_DEF"'
       def norm: reduce to_entries[] as $e ({}; ($e.key | _tlkey) as $k
          | .[$k] = (if has($k) and ((.[$k]|tonumber? // 0) >= ($e.value|tonumber? // 0))
@@ -276,7 +278,8 @@ _tl_store_record_locked(){
       | {id:$id, checksum:$cks, updated_at:$now,
          hosts: ($hosts + {($h): ({tl:$ntl, at:$now}
                                   + (if ($ntlk|length) > 0 then {tl_kattis:$ntlk} else {} end)
-                                  + (if $pkv=="" then {} else {pkg_version:$pkv} end))})}
+                                  + (if $pkv=="" then {} else {pkg_version:$pkv} end)
+                                  + (if $cls=="" then {} else {class:$cls} end))})}
       + (if $meth != "" then {method:$meth} elif ($cur.method // "") != "" then {method:$cur.method} else {} end)
     ' ) > "$tmp" 2>/dev/null && mv -f "$tmp" "$f" || return 1
   tl_summary_upsert "$id"   # sumário do Painel segue o evento (nunca TTL)

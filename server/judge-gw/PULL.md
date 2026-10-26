@@ -87,6 +87,17 @@ envelhecer porque alguém salvou uma solução `wrong`. Serve o **máximo entre 
 recalibrar). Se o pacote muda de verdade, o `tl_checksum` novo **descarta** o TL antigo (todos
 recalibram).
 
+**TL da classe de hardware (26/10/2026).** Juízes idênticos calibram TLs um pouco diferentes, e o veredicto de quem
+está no limite dependia de qual juiz pegava o envio. O `register` deriva dos specs a classe `hwclass`
+(`<arch>|<cpu>|<ncpu>|<memória em GiB, em blocos de 4>`), o `tl-report` a carimba em `hosts[h].class` do store e o
+heartbeat a exporta (`QC_HWCLASS`) p/ o claim: cada job leva `tl_class` = o máx, por linguagem, entre os juízes da
+classe de quem reivindica, nas duas metades, com o checksum do store (`_TLCLASS_DEF` em `sched-lib.sh`; o
+`_SCHED_TLMAX_DEF` de lá é cópia literal do `_TL_MAX_DEF` do `tl-store.sh`). O agente só o usa com o mesmo
+`tl_checksum` do pacote em cache: grava `tl.job` = a tabela local com a classe onde ela é maior e o passa ao
+build-and-test (`MOJ_TLFILE`) e ao teto do job. Sem classe (agente antigo), sem store ou checksum diferente: a
+tabela local, como antes. Store de antes: o re-report do boot carimba; `bin/tl-class-backfill.sh` carimba sem
+reiniciar juiz.
+
 **Problema que não existe mais (26/10/2026).** Apagado ou movido de org, ele segue no cache dos juízes, e o
 re-report do boot batia nele: o `tl-report` respondia 500 e o `calib-report` criava `run/calib/<id>/` órfão. Hoje
 os dois respondem **404 `problem_gone`** antes de qualquer escrita (e de novo sob o lock do problema, que o

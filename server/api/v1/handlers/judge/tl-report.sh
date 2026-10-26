@@ -47,7 +47,10 @@ else
   [[ -n "$cur" ]] && tl_fresh_set "$id" "$tlc"
   # o método do conf AGORA (rota de juiz: pode abrir o pacote) vai carimbado no store, p/ o sumário do Painel
   meth=moj; tl_conf_method_to meth "$_pkg"
-  tl_store_record "$host" "$id" "$tlc" "$tl" "$cks" "$tlk" "$meth"; _rc=$?
+  # a CLASSE DE HARDWARE do juiz (registro, register.sh) vai em hosts[h].class: o claim põe no job o TL da classe
+  # (o máx entre os juízes idênticos — sched-lib `_TLCLASS_DEF`). Registro de agente antigo = sem classe.
+  cls="$(jq -r '.hwclass // empty' "$REGISTRYDIR/$host.json" 2>/dev/null)"
+  tl_store_record "$host" "$id" "$tlc" "$tl" "$cks" "$tlk" "$meth" "$cls"; _rc=$?
   (( _rc == 3 )) && fail 404 "Problem not found (removed or moved)" "problem_gone"   # apagado enquanto esperava o lock
   (( _rc == 0 )) || fail 500 "Could not store TL" "tl_store_fail"
   upd_cmd_clear "$host" "$id"   # calibração DIRIGIDA terminou: tira o marcador da tela
