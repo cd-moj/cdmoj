@@ -87,6 +87,13 @@ envelhecer porque alguém salvou uma solução `wrong`. Serve o **máximo entre 
 recalibrar). Se o pacote muda de verdade, o `tl_checksum` novo **descarta** o TL antigo (todos
 recalibram).
 
+**Raias da calibração (26/10/2026).** A calibração completa (update `calibrate` e o comando dirigido) leva
+`par_max`/`par_cap` = G grupos de CPU e `slots` = G × k_slots: G = min(`CALIB_PAR_MAX` (4; `1` desliga),
+livres ÷ k_slots, a maior fase — #good ou #pass+slow+wrong, contadas com `find`: a API roda sem glob), e 1 com job
+na fila ou juiz legado (`_calib_lanes_v` em `sched-lib.sh`). O heartbeat soma os `slots` no `claimed`. O agente só
+aceita G > 1 com o calibreitor que tem raias (o nome `MOJ_CALIB_LANES` no arquivo) e `AGENT_CALIB_LANES≠0`; o
+calibreitor roda as soluções do mesmo tipo em paralelo, uma por grupo, e o resultado é o do serial.
+
 **TL da classe de hardware (26/10/2026).** Juízes idênticos calibram TLs um pouco diferentes, e o veredicto de quem
 está no limite dependia de qual juiz pegava o envio. O `register` deriva dos specs a classe `hwclass`
 (`<arch>|<cpu>|<ncpu>|<memória em GiB, em blocos de 4>`), o `tl-report` a carimba em `hosts[h].class` do store e o

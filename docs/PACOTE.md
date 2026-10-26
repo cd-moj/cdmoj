@@ -857,6 +857,11 @@ A calibração roda **um teste por vez** e, num problema paralelo, cada teste co
 `CPUNEEDED` — exatamente a forma em que o julgamento roda cada teste (por isso o TL de k=2 não
 vale para k=4 e mudar a chave recalibra).
 
+Cada solução roda um teste por vez, mas **soluções do mesmo tipo rodam em paralelo** quando o juiz tem
+CPU livre e nenhuma submissão espera na fila. Cada solução fica num grupo de CPUs próprio. Primeiro rodam
+as `good` (o tempo-limite sai delas), depois as `pass`, `slow` e `wrong`. O resultado e o log são os
+mesmos da calibração em série; só a espera diminui.
+
 O "Calibrar" explícito (editor, `moj calibrate`, publicar) roda **todas** as soluções. A calibração
 sob demanda, que um juiz faz sozinho na 1ª submissão de um pacote novo, roda **só as `good`** (é
 rápida de propósito): depois dela, as outras categorias aparecem "sem resultado".

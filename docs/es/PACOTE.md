@@ -1,4 +1,4 @@
-<!-- i18n-source: PACOTE.md blob:75e1ad4271e55408448b78674ac59922759a1911 -->
+<!-- i18n-source: PACOTE.md blob:a91fbfbca861885cff4183ea9678e34335e56e41 -->
 # MOJ: el paquete de problema (formato canónico)
 
 > **Nota de traducción.** Este manual es una traducción del original en portugués. Las herramientas de línea de comandos (`moj`, `moj-contest`, `moj-comp`) muestran sus mensajes en portugués, y los ejemplos de comandos son idénticos al original.
@@ -867,6 +867,11 @@ máquina, y el editor muestra la de cada juez.
 La calibración ejecuta **una prueba a la vez** y, en un problema paralelo, cada prueba con las **k CPUs** de
 `CPUNEEDED` — exactamente la forma en que la evaluación ejecuta cada prueba (por eso el TL de k=2 no
 vale para k=4 y cambiar la clave recalibra).
+
+Cada solución ejecuta una prueba a la vez, pero **las soluciones del mismo tipo se ejecutan en paralelo**
+cuando el juez tiene CPU libre y ningún envío espera en la cola. Cada solución queda en su propio grupo de
+CPUs. Primero se ejecutan las `good` (el tiempo límite sale de ellas) y después las `pass`, `slow` y
+`wrong`. El resultado y el log son los mismos de la calibración en serie; solo la espera disminuye.
 
 El "Calibrar" explícito (editor, `moj calibrate`, publicar) ejecuta **todas** las soluciones. La calibración
 bajo demanda, que un juez hace solo en el 1.er envío de un paquete nuevo, ejecuta **solo las `good`** (es

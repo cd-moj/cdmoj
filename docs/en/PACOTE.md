@@ -1,4 +1,4 @@
-<!-- i18n-source: PACOTE.md blob:75e1ad4271e55408448b78674ac59922759a1911 -->
+<!-- i18n-source: PACOTE.md blob:a91fbfbca861885cff4183ea9678e34335e56e41 -->
 # MOJ: the problem package (canonical format)
 
 > **Translation note.** This manual is a translation of the Portuguese original. The command-line tools (`moj`, `moj-contest`, `moj-comp`) print their messages in Portuguese, and the command examples below are identical to the original.
@@ -884,6 +884,11 @@ measurement stays per machine, and the editor shows the one of each judge.
 Calibration runs **one test at a time**. In a parallel problem, each test runs with the **k CPUs** of
 `CPUNEEDED` — exactly the way in which judging runs each test (this is why the TL for k=2 is not valid
 for k=4, and a change to the key recalibrates).
+
+Each solution runs one test at a time, but **solutions of the same type run in parallel** when the judge
+has free CPUs and no submission waits in the queue. Each solution gets its own group of CPUs. The `good`
+solutions run first (the time limit comes from them), then the `pass`, `slow` and `wrong` ones. The result
+and the log are the same as in a serial calibration; only the wait is shorter.
 
 The explicit "Calibrate" (editor, `moj calibrate`, publish) runs **all** the solutions. The on-demand
 calibration, which a judge does automatically at the first submission of a new package, runs **only the

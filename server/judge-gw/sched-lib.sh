@@ -269,6 +269,33 @@ _tlclass_src_v() {
   [[ -n "${QC_HWCLASS:-}" && "$id" == *#* && -s "${TL_STORE_DIR:-$RUNDIR/tl}/$id.json" ]] && _TLC_SRC="${TL_STORE_DIR:-$RUNDIR/tl}/$id.json"
   return 0
 }
+# ===== RAIAS DA CALIBRAÇÃO (26/10/2026) =========================================================================
+# A calibração completa roda as soluções do mesmo tipo em paralelo (mojtools calibreitor.sh: uma raia por grupo de
+# CPU). O claim (upd_claim/cmd_claim) dá G = min(CALIB_PAR_MAX, livres ÷ k_slots, a maior fase: #good ou
+# #pass+slow+wrong) grupos — e 1 quando há job na fila (a calibração não toma o slot de quem espera veredicto) ou o
+# juiz é legado. Carimba par_max/par_cap = G e slots = G × k_slots (o heartbeat soma os `slots` no `claimed`).
+# O agente antigo, ou com AGENT_CALIB_LANES=0, usa 1 grupo de qualquer jeito. CALIB_PAR_MAX=1 desliga aqui.
+: "${CALIB_PAR_MAX:=4}"
+# _calib_lanes_v <problem_id> <k_slots> <livres> : G em _CLG. Conta as soluções com `find` (a API roda sem glob:
+# `sols/good/*` seria o padrão literal, "1 solução") e só quando o teto, os livres e a fila deixam G > 1.
+_calib_lanes_v() {
+  local id="${1//\//#}" ks="$2" free="$3" pkg ng no g
+  _CLG=1
+  [[ "$CALIB_PAR_MAX" =~ ^[0-9]+$ && "$ks" =~ ^[0-9]+$ && "$free" =~ ^[0-9]+$ ]] || return 0
+  (( ks >= 1 )) || return 0
+  g=$(( free / ks )); (( g > CALIB_PAR_MAX )) && g=$CALIB_PAR_MAX
+  (( g > 1 )) || return 0
+  q_has_jobs && return 0
+  [[ -n "${MOJ_PROBLEMS_DIR:-}" && "$id" == *#* ]] || return 0
+  pkg="$MOJ_PROBLEMS_DIR/${id%%#*}/${id#*#}"
+  ng="$(find "$pkg/sols/good" -maxdepth 1 -type f 2>/dev/null | wc -l)"
+  no="$(find "$pkg/sols/pass" "$pkg/sols/slow" "$pkg/sols/wrong" -maxdepth 1 -type f 2>/dev/null | wc -l)"
+  ng="${ng//[^0-9]/}"; no="${no//[^0-9]/}"
+  (( ${no:-0} > ${ng:-0} )) && ng=$no
+  (( ${ng:-0} < g )) && g=${ng:-0}
+  (( g > 1 )) && _CLG=$g
+  return 0
+}
 # _kslots <k> <slot_cpus> -> ceil(k/slot_cpus) (slot_cpus<1 ⇒ 1)
 _kslots() { local k="$1" sc="$2"; [[ "$sc" =~ ^[0-9]+$ && "$sc" -ge 1 ]] || sc=1; printf '%s' "$(( (k + sc - 1) / sc ))"; }
 
@@ -740,7 +767,7 @@ upd_claim() {
     flock 9 || exit 0
     while IFS= read -r f; do
       [[ -f "$f" ]] || continue
-      k=1; numa=n
+      k=1; numa=n; _CLG=1
       if jq -e '.kind=="calibrate"' "$f" >/dev/null 2>&1; then
         t="$(jq -r '.target // ""' "$f" 2>/dev/null)"
         if [[ -n "$t" ]]; then
@@ -754,6 +781,7 @@ upd_claim() {
           ks="$(_kslots "$k" "$sc")"
           (( ks > free )) && continue
           [[ "$numa" == y && -n "$mfg" ]] && (( ks > mfg )) && continue
+          (( legacy )) || _calib_lanes_v "$t" "$ks" "$free"   # raias: G grupos (1 com fila, teto, legado)
         fi
       fi
       base="$(basename "$f")"; dest="$UPDATESDIR/inprogress/$host/$base"
@@ -763,7 +791,9 @@ upd_claim() {
           jq -c --argjson now "$EPOCHSECONDS" '. + {claimed_at:$now}' "$dest" > "$tmp" 2>/dev/null && mv -f "$tmp" "$dest"
         else
           jq -c --argjson now "$EPOCHSECONDS" --argjson k "$k" --argjson nm "$([[ "$numa" == y ]] && echo true || echo false)" \
-             --argjson sl "$(_kslots "$k" "$sc")" '. + {claimed_at:$now, test_cpus:$k, same_numa:$nm, slots:$sl}' "$dest" > "$tmp" 2>/dev/null && mv -f "$tmp" "$dest"
+             --argjson sl "$(( _CLG * $(_kslots "$k" "$sc") ))" --argjson g "$_CLG" \
+             '. + {claimed_at:$now, test_cpus:$k, same_numa:$nm, slots:$sl}
+              + (if $g > 1 then {par_max:$g, par_cap:$g} else {} end)' "$dest" > "$tmp" 2>/dev/null && mv -f "$tmp" "$dest"
         fi
         cat "$dest"; exit 0
       fi
@@ -930,8 +960,10 @@ cmd_claim() {  # <host> : reivindica 1 comando pendente do host (ecoa + remove),
         (( ks > free )) && continue
         [[ "$numa" == y && -n "$mfg" ]] && (( ks > mfg )) && continue
         if (( legacy )); then cat "$f"
-        else jq -c --argjson k "$k" --argjson nm "$([[ "$numa" == y ]] && echo true || echo false)" --argjson sl "$ks" \
-               '. + {test_cpus:$k, same_numa:$nm, slots:$sl}' "$f" 2>/dev/null; fi
+        else _calib_lanes_v "$(jq -r '.id // ""' "$f" 2>/dev/null)" "$ks" "$free"   # raias, como no upd_claim
+             jq -c --argjson k "$k" --argjson nm "$([[ "$numa" == y ]] && echo true || echo false)" --argjson sl "$(( _CLG * ks ))" \
+               --argjson g "$_CLG" '. + {test_cpus:$k, same_numa:$nm, slots:$sl}
+                                    + (if $g > 1 then {par_max:$g, par_cap:$g} else {} end)' "$f" 2>/dev/null; fi
         rm -f "$f"; exit 0
       fi
       cat "$f"; rm -f "$f"; exit 0
