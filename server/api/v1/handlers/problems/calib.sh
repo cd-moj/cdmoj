@@ -109,11 +109,13 @@ jq -cn --argjson store "$store" --slurpfile lg "$LOGF" --argjson gl "$goodlangs"
       summary:calx_sum([ $hx[] | select(.stale | not) ]; $pfiles),
       summary_alt:calx_sum([ $hx[] | select(.stale | not) | .sols |= map(.expect = .expect_alt) ]; $pfiles),
       # CLASSES DE HARDWARE (26/10/2026): juízes idênticos (o tl-report carimba hosts[h].class) julgam com o TL da
-      # classe = o máx entre eles (o claim o põe no job; judge-gw/sched-lib.sh `_TLCLASS_DEF`). Cru (calibrado):
-      # o TLMOD/override do conf vale por cima, como em tudo.
+      # classe = o máx entre eles (o claim o põe no job; judge-gw/sched-lib.sh `_TLCLASS_DEF`). `tl`/`tl_kattis` crus
+      # (calibrados); `effective`/`effective_kattis` com o TLMOD e o TLOVERRIDE do conf (tl_eff), o que o juiz cobra.
       classes: [ $h | to_entries | map(select((.value.class // "") != "")) | group_by(.value.class)[]
                  | (map({(.key): .value}) | add) as $ch
-                 | {class: .[0].value.class, hosts: map(.key), tl: calmax($ch; "tl"), tl_kattis: calmax($ch; "tl_kattis")} ],
+                 | calmax($ch; "tl") as $ct | calmax($ch; "tl_kattis") as $ck
+                 | {class: .[0].value.class, hosts: map(.key), tl: $ct, tl_kattis: $ck,
+                    effective: tl_eff($ct; $ov; $mods), effective_kattis: tl_eff($ck; $ov; $mods)} ],
       hosts: [ $hosts[] as $n
                | ($h[$n][$fld] // {}) as $htl
                | ($htl | keys | map(npy)) as $htlk

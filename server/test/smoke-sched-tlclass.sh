@@ -99,6 +99,11 @@ OUT="$(PATH_INFO=/problems/calib REQUEST_METHOD=GET QUERY_STRING="id=o%23pa" HTT
 BODY="$(printf '%s' "$OUT" | awk 'f{print} /^\r?$/{f=1}')"
 ck "hosts[].class"                              '[[ "$(jq -r ".hosts[] | select(.host == \"judge\") | .class" <<<"$BODY")" == "$(cls judge)" ]]'
 ck "classes[]: o máx por classe, com os juízes"  '[[ "$(jq -r ".classes[] | select(.class == \"$(cls judge)\") | .tl.c" <<<"$BODY")" == 0.4 && "$(jq -r ".classes | length" <<<"$BODY")" == 2 ]]'
+printf 'CALIBRATIONTL=5\nTLMOD[c.sum]=1\n' > "$P/conf"
+OUT="$(PATH_INFO=/problems/calib REQUEST_METHOD=GET QUERY_STRING="id=o%23pa" HTTP_AUTHORIZATION="Bearer aut" bash "$ROUTER" 2>/dev/null)"
+BODY="$(printf '%s' "$OUT" | awk 'f{print} /^\r?$/{f=1}')"
+ck "classes[].effective = o que o juiz cobra (TLMOD por cima: 0,4 + 1)" '[[ "$(jq -r ".classes[] | select(.class == \"$(cls judge)\") | [.tl.c, .effective.c] | join(\" \")" <<<"$BODY")" == "0.4 1.4" ]]'
+printf 'CALIBRATIONTL=5\n' > "$P/conf"
 
 echo "== bin/tl-class-backfill.sh: o store antigo (sem class) ganha a classe do registro =="
 jq -c '.hosts |= map_values(del(.class))' "$TL_STORE_DIR/o#pa.json" > "$RUN/x" && mv "$RUN/x" "$TL_STORE_DIR/o#pa.json"

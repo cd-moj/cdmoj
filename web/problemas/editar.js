@@ -1413,7 +1413,7 @@ function renderVal() {
     ((calib && calib.classes) || []).filter(c => (c.hosts || []).length > 1).forEach(c => box.append(el('div', { class: 'small muted', style: 'margin:.2rem 0' },
       T('Juízes idênticos (', 'Identical judges (', 'Jueces idénticos (') + c.hosts.join(', ')
         + T(') julgam com o mesmo tempo-limite, o maior entre eles: ', ') judge with the same time limit, the largest among them: ', ') juzgan con el mismo tiempo límite, el mayor entre ellos: ')
-        + (tlLine(curMethod() === 'kattis' ? c.tl_kattis : c.tl) || '—'))));
+        + tlsimLine(curMethod() === 'kattis' ? (c.effective_kattis || c.tl_kattis) : (c.effective || c.tl)))));
     // A calibração IGNORA o override de propósito (o calibreitor exporta MOJ_CALIBRATING=1: ali
     // se mede de verdade). Sem este aviso, o autor lê os tempos dos cartões abaixo e conclui que
     // o override não pegou — foi exatamente o relato que gerou esta tela.
