@@ -591,7 +591,12 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   por cf do MOJ e por r do Kattis com o TL EFETIVO e as soluções que sairiam erradas/não medidas, o intervalo de cf)
   e `tl_suggest` (códigos); com calibração em voo não calcula (`tl_sim_state: calibrating`; ~160 ms no fixture de
   10 juízes × 30 soluções × 100 testes). A web (`renderTlSim`, aba Limites, "aplicar" só preenche os campos) e o
-  `moj calib` só mostram. Testes: `smoke-tl-sim.sh`, `smoke-tl-sim.gjs.sh`; (3) **test-run** (`/problems/test-run`, `moj testrun`) roda solução
+  `moj calib` só mostram. **SALVAR RECALIBRA** (26/10/2026, decisão do Ribas): o save do editor — e o envio de pacote —
+  que muda a `version` (pkg_judge_version) de um problema JÁ calibrado (ou com calibração em voo) faz o editor pedir a
+  calibração sozinho nos juízes que o tinham calibrado e estão online (nenhum = um juiz livre): `recalibIfOutdated`, que
+  compara com o `calib` que o próprio `loadValidation` pós-save buscou (um poll atrasado sobrescreve o LASTCALIB). O
+  servidor e a CLI não mudaram (o `problem_commit` segue pedindo só ao virar kattis sem a metade); enunciado e
+  `TLMETHOD` não mudam a versão. Teste: `smoke-save-recalib.gjs.sh`. Testes: `smoke-tl-sim.sh`, `smoke-tl-sim.gjs.sh`; (3) **test-run** (`/problems/test-run`, `moj testrun`) roda solução
   avulsa no juiz com o contest **sentinela `_testrun`** (id de contest criável começa com
   `[a-z0-9]` — sentinela inatingível), desviado p/ `run/testrun/` no `ingest_result` — nunca
   history. Gate de tudo: `require_problem_edit`. Testes: `smoke-{tl-override,calib-sols,testrun}.sh`.

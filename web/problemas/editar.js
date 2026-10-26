@@ -1063,8 +1063,10 @@ async function preview() {
 }
 
 // ---- validação & calibração (painel + prontidão, best-effort) -----------------------------
+// Devolve o /problems/calib que ESTA chamada buscou (null se falhou): quem compara antes × depois (o salvar, em
+// recalibIfOutdated) usa ele, nunca o LASTCALIB global — um poll que saiu antes do save e voltou depois o sobrescreve.
 async function loadValidation() {
-  if (!ID) { VAL = { validated: 'na', calibrated: 'na' }; LASTVAL = LASTINFO = LASTCALIB = PSTAT = null; renderVal(); updateReady(); return; }
+  if (!ID) { VAL = { validated: 'na', calibrated: 'na' }; LASTVAL = LASTINFO = LASTCALIB = PSTAT = null; renderVal(); updateReady(); return null; }
   const g = (pfx) => apiGet(pfx + encodeURIComponent(ID), { contest: CONTEST, auth: true }).catch(() => null);
   const [val, info, calib, st] = await Promise.all([     // 4 GETs em paralelo (antes era sequencial)
     g('/problems/validation?id='), g('/problems/get?id='), g('/problems/calib?id='), g('/problems/status?id='),
@@ -1085,6 +1087,7 @@ async function loadValidation() {
   VAL.validated = (RUNNING === 'publish') ? 'run' : ((LASTVAL && Array.isArray(LASTVAL.checks) && LASTVAL.checks.length) ? (LASTVAL.ok ? 'ok' : 'todo') : 'na');
   VAL.calibrated = (RUNNING || calibRunning()) ? 'run' : (nHosts ? 'ok' : 'na');
   maybeRenderVal(); updateReady();   // só reconstrói o painel se algo mudou (não a cada poll)
+  return calib;
 }
 // dispara Calibrar/Validar e fica buscando o resultado sozinho (a calibração roda no juiz).
 //
@@ -1293,8 +1296,9 @@ function calibWhere() {
 // SIMULAÇÃO DO TEMPO-LIMITE (o servidor calcula: lib/tl-sim.sh; o /problems/calib serve tl_sim + tl_suggest): com os
 // tempos desta calibração, como o TL sairia em outras configurações (fator do MOJ; resolução do Kattis), que soluções
 // sairiam com o veredicto errado em cada uma, e a sugestão de cada método. "Aplicar" só PREENCHE os campos da aba
-// Limites (o mesmo caminho de editar à mão): salvar grava o conf — o fator e os parâmetros do Kattis recalibram; o
-// método sozinho, não. Fica FORA do trecho que o smoke-limits-tab recorta (confVal … hiddenFile).
+// Limites (o mesmo caminho de editar à mão): salvar grava o conf, e o fator ou os parâmetros do Kattis novos mudam a
+// versão do pacote — o editor pede a recalibração sozinho (recalibIfOutdated); o método sozinho não muda a versão.
+// Fica FORA do trecho que o smoke-limits-tab recorta (confVal … hiddenFile).
 const tlsimLine = (tl) => {
   const e = Object.entries(tl || {}).filter(([k]) => k !== 'default');
   return e.length ? e.map(([k, v]) => `${tlLangName(k)} ${tlSecs(v)}`).join(' · ') : 'default ' + tlSecs((tl || {}).default);
@@ -1302,9 +1306,9 @@ const tlsimLine = (tl) => {
 function tlsimApply(fields) {
   Object.entries(fields).forEach(([id, v]) => { const e = $(id); if (e) { e.value = String(v); e.dispatchEvent(new Event('change')); } });
   applyTlMethod();
-  setMsg(T('Campos preenchidos na aba Limites. Salve para gravar o conf: mudar o fator ou os parâmetros do Kattis recalibra; trocar só o método não recalibra.',
-           'Fields filled in on the Limits tab. Save to write the conf: changing the factor or the Kattis parameters recalibrates; changing only the method does not.',
-           'Campos completados en la pestaña Límites. Guarda para grabar el conf: cambiar el factor o los parámetros de Kattis recalibra; cambiar solo el método no recalibra.'), '');
+  setMsg(T('Campos preenchidos na aba Limites. Salve para gravar o conf: com o fator ou os parâmetros do Kattis novos, o editor recalibra sozinho depois de salvar; trocar só o método não recalibra.',
+           'Fields filled in on the Limits tab. Save to write the conf: with a new factor or new Kattis parameters, the editor recalibrates by itself after saving; changing only the method does not recalibrate.',
+           'Campos completados en la pestaña Límites. Guarda para grabar el conf: con un factor nuevo o parámetros de Kattis nuevos, el editor recalibra solo después de guardar; cambiar solo el método no recalibra.'), '');
 }
 function tlsimTable(rows, head, label) {
   const tb = rows.map(r => el('tr', r.current ? { style: 'font-weight:600' } : {},
@@ -1596,16 +1600,21 @@ async function uploadTar(file) {
     body = { repo: REPO, prob };
   }
   setMsg(T('Enviando pacote…', 'Uploading package…', 'Subiendo paquete…'));
+  // o envio SUBSTITUI o pacote: como no Salvar, o painel relê o servidor (o loadSource não relia — ficava a
+  // calibração de antes até recarregar a página) e, se o problema já era calibrado e a versão mudou, recalibra
+  const prev = ID ? calibSnapshot() : null;
+  const done = T('Pacote enviado e recarregado ✓', 'Package uploaded and reloaded ✓', 'Paquete subido y recargado ✓');
+  const after = () => loadValidation().then((cal) => recalibIfOutdated(prev, cal, done)).then(ensurePolling, () => {});
   try {
     body.tar_b64 = await fileToBase64(file);
     const j = await apiPost('/problems/upload', body, { contest: CONTEST, auth: true });
     ID = j.id; MODE = 'edit'; history.replaceState({}, '', '?id=' + encodeURIComponent(ID));
     $('prob').disabled = true; $('title').textContent = T('Editar: ', 'Edit: ', 'Editar: ') + ID;
-    await loadSource(ID); HIST_LOADED = false; setMsg(T('Pacote enviado e recarregado ✓', 'Package uploaded and reloaded ✓', 'Paquete subido y recargado ✓'), 'v-ok');
+    await loadSource(ID); HIST_LOADED = false; setMsg(done, 'v-ok'); after();
   } catch (e) {
     if (e instanceof ApiError && e.code === 'stale_rev') {
       setMsg(T('Não enviado: o problema mudou desde que você o abriu.', 'Not uploaded: the problem changed since you opened it.', 'No subido: el problema cambió desde que lo abriste.'), 'error');
-      showConflict(e, async () => { try { await apiPost('/problems/upload', { ...body, force: true }, { contest: CONTEST, auth: true }); await loadSource(ID); HIST_LOADED = false; setMsg(T('Pacote enviado e recarregado ✓', 'Package uploaded and reloaded ✓', 'Paquete subido y recargado ✓'), 'v-ok'); } catch (x) { setMsg(x.message || String(x), 'error'); } });
+      showConflict(e, async () => { try { await apiPost('/problems/upload', { ...body, force: true }, { contest: CONTEST, auth: true }); await loadSource(ID); HIST_LOADED = false; setMsg(done, 'v-ok'); after(); } catch (x) { setMsg(x.message || String(x), 'error'); } });
     } else setMsg((e instanceof ApiError ? e.message : T('Falha no upload', 'Upload failed', 'Error al subir')) + (e.code ? ` (${e.code})` : ''), 'error');
   }
 }
@@ -1765,6 +1774,7 @@ async function save(opts = {}) {
   let f; try { f = collectFields(); }
   catch (e) { setMsg(T('Erro ao preparar os dados do problema: ', 'Error preparing the problem data: ', 'Error al preparar los datos del problema: ') + (e && e.message || e), 'error'); return; }
   $('save').disabled = true; setMsg(T('Salvando…', 'Saving…', 'Guardando…'));
+  const prev = (MODE === 'edit') ? calibSnapshot() : null;   // a versão calibrada ANTES do save (recalibIfOutdated)
   try {
     if (MODE === 'new') {
       const prob = $('prob').value.trim();
@@ -1786,9 +1796,9 @@ async function save(opts = {}) {
     updateReady();
     setMsg(T('Salvo ✓', 'Saved ✓', 'Guardado ✓'), 'v-ok');   // SALVAR não mexe em público — publicar é ação explícita (botão na aba Publicação)
     // o painel de validação/calibração RELÊ o servidor: trocar o TLMETHOD vale na hora (o servido, o juízo das
-    // soluções e o resumo mudam de método sem recalibrar) e uma edição que muda o carimbo mostra "precisa
-    // recalibrar" já — antes o painel seguia com o dado de antes do save até recarregar a página
-    if (ID) loadValidation().then(ensurePolling, () => {});
+    // soluções e o resumo mudam de método sem recalibrar) — antes o painel seguia com o dado de antes do save até
+    // recarregar a página. E uma edição que muda a versão do pacote num problema já calibrado RECALIBRA sozinha.
+    if (ID) loadValidation().then((cal) => recalibIfOutdated(prev, cal, T('Salvo ✓', 'Saved ✓', 'Guardado ✓'))).then(ensurePolling, () => {});
   } catch (e) {
     if (e instanceof ApiError && e.code === 'stale_rev') { setMsg(T('Não salvo: o problema mudou desde que você o abriu.', 'Not saved: the problem changed since you opened it.', 'No guardado: el problema cambió desde que lo abriste.'), 'error'); showConflict(e, () => save({ force: true })); }
     else setMsg((e instanceof ApiError ? e.message : T('Falha ao salvar', 'Failed to save', 'Error al guardar')) + (e.code ? ` (${e.code})` : ''), 'error');
@@ -1847,6 +1857,40 @@ async function calibrateHosts(hosts) {
                      'Esos jueces ya tenían una calibración de este problema en cola — sigue el progreso abajo.'), 'v-ok');
     showTab('pub'); renderVal(); updateReady(); startPolling();
   } catch (e) { setMsg(e.message, 'error'); }
+}
+// ---- SALVAR RECALIBRA (26/10/2026, decisão do Ribas: o editor pede a calibração sozinho) ---------------------------
+// A calibração do painel é a de uma VERSÃO do pacote (`version` do /problems/calib: conf, testes, scripts e todas as
+// soluções; o enunciado e a linha TLMETHOD ficam fora). Um save — ou um envio de pacote — que muda essa versão deixava
+// os juízes "desatualizado — recalibre" e nada recalibrava: o servidor só pede calibração ao virar kattis sem a
+// metade, e o juiz só recalibra quando chega um job, com o aluno esperando. Foi o "aplicar" da simulação + Salvar
+// (olamundo, 26/10/2026): o texto prometia "recalibra" e o problema ficou desatualizado. Agora, se o problema já tinha
+// calibração (ou uma em voo) e o save mudou a versão, o editor pede a calibração nos juízes que o tinham calibrado e
+// estão online (nenhum deles online = um juiz livre, como o "Calibrar"). Problema nunca calibrado segue manual.
+function calibSnapshot() {
+  const c = LASTCALIB;
+  if (!ID || !c || !c.version) return null;
+  const hosts = (c.hosts || []).map(h => h.host).filter(Boolean);
+  return (hosts.length || calibRunning()) ? { version: c.version, hosts } : null;
+}
+// `cal` = o /problems/calib que o loadValidation PÓS-save buscou (não o LASTCALIB global: um poll que saiu antes do
+// save pode voltar depois com a versão velha); `done` = a mensagem do que acabou de dar certo (Salvo ✓, Pacote enviado ✓)
+async function recalibIfOutdated(prev, cal, done) {
+  if (!prev || !cal || !cal.version || cal.version === prev.version) return false;
+  const online = new Set(JUDGES.filter(j => j.online).map(j => j.host));
+  const hosts = prev.hosts.filter(h => online.has(h));
+  try {
+    await apiPost('/problems/request-calibration', hosts.length ? { id: ID, hosts } : { id: ID }, { contest: CONTEST, auth: true });
+    RUNNING = 'calibrate';
+    setMsg(done + T(' — a mudança desatualizou a calibração: recalibrando ', ' — the change made the calibration outdated: recalibrating ', ' — el cambio dejó la calibración desactualizada: recalibrando ')
+      + (hosts.length ? T('em ', 'on ', 'en ') + hosts.join(', ') : T('num juiz livre', 'on a free judge', 'en un juez libre'))
+      + T('. Acompanhe em “Validação & calibração” (aba Publicação).', '. Follow it in “Validation & calibration” (Publishing tab).', '. Sigue el progreso en “Validación y calibración” (pestaña Publicación).'), 'v-ok');
+    renderVal(); updateReady(); startPolling();
+    return true;
+  } catch (e) {
+    setMsg(done + T(', mas o pedido de recalibração falhou (', ', but the recalibration request failed (', ', pero la solicitud de recalibración falló (')
+      + ((e && e.message) || e) + T('). Clique “Calibrar”.', '). Click “Calibrate”.', '). Haz clic en “Calibrar”.'), 'error');
+    return false;
+  }
 }
 async function newDir() {
   const name = prompt(T('Nome da nova org — minúsculas, sem espaço:', 'New org name — lowercase, no spaces:', 'Nombre de la nueva org — minúsculas, sin espacios:')); if (!name) return;

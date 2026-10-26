@@ -113,6 +113,6 @@ out="$(gjs "$W/t.js" 2>&1)"; printf '%s\n' "$out"
 # SALVAR relê o painel de validação/calibração: trocar o TLMETHOD vale na hora, e sem a releitura o painel seguia
 # no método de antes até recarregar a página (achado na verificação ao vivo dos métodos de TL, 26/10/2026)
 sv="$(awk 'index($0,"async function save(")==1{f=1} f&&index($0,"async function act(")==1{exit} f' "$WEB/problemas/editar.js")"
-svok=0; grep -q 'loadValidation().then(ensurePolling' <<<"$sv" && svok=1
+svok=0; grep -qE 'loadValidation\(\)\.then\(.*\.then\(ensurePolling' <<<"$sv" && svok=1   # (o meio é o recalibIfOutdated)
 if (( svok )); then echo "  ok: salvar relê o painel de calibração"; else echo "FALHOU: salvar não relê o painel de calibração (loadValidation)"; fi
 grep -q 'RESULT: [0-9]* passed, 0 failed' <<<"$out" && (( svok ))
