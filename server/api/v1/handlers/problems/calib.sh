@@ -142,9 +142,12 @@ jq -cn --argjson store "$store" --slurpfile lg "$LOGF" --argjson gl "$goodlangs"
     # Kattis) contra os tempos desta calibração, dos juízes da versão atual; a web e a CLI só mostram. Com calibração
     # em voo, não calcula (tl_sim_state "calibrating"): os dados estão pela metade e o editor consulta esta rota a cada
     # 4 s justamente nessa hora — no fixture de 10 juízes × 30 soluções × 100 testes a simulação custa ~160 ms
+    # Erro em tempo de execução na simulação (só exibição) NÃO derruba a rota inteira: vira tl_sim_state "error" e o
+    # resto do painel de calibração sai normal.
     + (if ($clive | length) > 0 then {tl_sim: null, tl_suggest: null, tl_sim_state: "calibrating"}
-       else tlsim([ $hx[] | {host, stale, sols} ]; $ov; $mods; $drift; $kp; $cfc; $allowtle)
-            | . + {tl_sim_state: (if .tl_sim == null then "no_data" else "ok" end)} end)' > "$BODYF" 2>/dev/null
+       else (try (tlsim([ $hx[] | {host, stale, sols} ]; $ov; $mods; $drift; $kp; $cfc; $allowtle)
+                  | . + {tl_sim_state: (if .tl_sim == null then "no_data" else "ok" end)})
+             catch {tl_sim: null, tl_suggest: null, tl_sim_state: "error"}) end)' > "$BODYF" 2>/dev/null
 [[ -s "$BODYF" ]] || fail 500 "Falha ao montar a resposta" "calib_fail"
 emit_json 200 OK
 cat "$BODYF"

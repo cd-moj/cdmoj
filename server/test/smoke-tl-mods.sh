@@ -125,5 +125,21 @@ else
   echo "  (sem mojtools ao lado: pulado)"
 fi
 
+echo "== a prova: a folha de TL só lista linguagem permitida (o spim do TLMOD não aparece numa prova C/C++) =="
+printf 'CALIBRATIONTL=5\nTLMOD[spim.sum]=2\nTLMOD[cpp.mult]=1.5\n' > "$P/conf"
+tl_store_record juiz1 "col#pa" "$(pkg_tl_checksum "$P")" "$CAL" >/dev/null
+for c in cw cl; do mkdir -p "$FIX/$c"
+  { printf 'CONTEST_ID=%s\nCONTEST_NAME="Prova %s"\nCONTEST_TYPE=icpc\n' "$c" "$c"
+    [[ "$c" == cw ]] && printf 'LANGUAGES="c cpp"\n'
+    printf 'PROBS=( cdmoj col#pa Soma A col#pa )\n'; } > "$FIX/$c/conf"; done
+# a ordem do render-docs.sh (common.sh primeiro: sem o load_contest_conf, a whitelist do conf sairia vazia)
+source "$ROOT/api/v1/lib/common.sh" 2>/dev/null; source "$ROOT/api/v1/lib/langs.sh" 2>/dev/null
+source "$ROOT/api/v1/lib/contest-create.sh" 2>/dev/null
+source "$ROOT/api/v1/lib/contest-docs.sh"
+BODY="$(doc_tl_rows cw)"
+ck "prova só C/C++: c e cpp com o TLMOD (0,2 × 1,5), sem spim" '[[ "$(cut -f3 <<<"$BODY")" == "c: 0.304 · cpp: 0.3" ]]'
+BODY="$(doc_tl_rows cl)"
+ck "prova sem whitelist: o spim (permitido) sai com o TL que o juiz cobra" '[[ "$(cut -f3 <<<"$BODY")" == *"spim: 2.304"* ]]'
+
 echo; echo "RESULT: $pass passed, $fail failed"
 (( fail == 0 ))

@@ -1326,6 +1326,7 @@ function renderTlSim() {
   box.append(el('h5', { style: 'margin:.8rem 0 .2rem' }, T('Simulação do tempo-limite', 'Time-limit simulation', 'Simulación del tiempo límite')));
   const note = (t) => el('p', { class: 'small muted', style: 'margin:.2rem 0' }, t);
   if (st === 'calibrating') { box.append(note(T('Disponível quando a calibração terminar.', 'Available when the calibration ends.', 'Disponible cuando termine la calibración.'))); return; }
+  if (st === 'error') { box.append(note(T('A simulação não pôde ser calculada com os dados desta calibração.', 'The simulation could not be computed with the data of this calibration.', 'La simulación no se pudo calcular con los datos de esta calibración.'))); return; }
   if (st !== 'ok' || !c.tl_sim) { box.append(note(T('Calibre o problema para simular outras configurações com os tempos medidos.', 'Calibrate the problem to simulate other settings with the measured times.', 'Calibra el problema para simular otras configuraciones con los tiempos medidos.'))); return; }
   const sim = c.tl_sim, sg = c.tl_suggest || {};
   box.append(note(T('Com os tempos que a calibração mediu (juízes ', 'With the times the calibration measured (judges ', 'Con los tiempos que midió la calibración (jueces ') + (sim.hosts || []).join(', ')

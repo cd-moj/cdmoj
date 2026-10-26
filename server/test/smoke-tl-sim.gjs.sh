@@ -42,6 +42,8 @@ LASTCALIB = { tl_sim_state: 'calibrating', tl_sim: null }; renderTlSim();
 ck('calibrando: espera o fim', box.textContent.includes('Disponível quando a calibração terminar'));
 LASTCALIB = { tl_sim_state: 'no_data', tl_sim: null }; renderTlSim();
 ck('sem dados: pede calibrar', box.textContent.includes('Calibre o problema'));
+LASTCALIB = { tl_sim_state: 'error', tl_sim: null }; renderTlSim();
+ck('erro na simulação: diz que não deu, sem pedir calibrar', box.textContent.includes('não pôde ser calculada') && !box.textContent.includes('Calibre'));
 const sim = { hosts: ['j1','j2'], w: {c: 0.45, default: 0.45}, overrides: [],
   moj: { cf: 1.35, off: 0, interval: {min: 1.177778, min_by: 'pass/p.c', max: 4.4, max_by: 'slow/s.c'},
          rows: [ {cf: 1, current: false, tl: {c: 0.47, default: 0.47}, ok: false, fail: ['pass/p.c'], unmeasured: []},
