@@ -1365,6 +1365,7 @@ function valRenderSig() {
   const checks = (LASTVAL && LASTVAL.checks) || [];
   const served = (LASTINFO && (LASTINFO.time_limits || LASTINFO.tl)) || {};
   return JSON.stringify({
+    id: ID,   // o 1º Salvar dá o id e MOSTRA o cartão (#calibsec) — sem isto, nada mais mudava e ele seguia escondido
     run: RUNNING,
     live: CALIB_LIVE.map(c => `${c.host}|${c.state}|${minsSince(c.since)}`),
     checks: checks.map(c => `${c.name}:${c.ok}:${c.detail || ''}`),
@@ -1390,9 +1391,10 @@ function renderVal() {
   const hosts = (calib && calib.hosts) || [];
   const served = (info && (info.time_limits || info.tl)) || {};   // o que o aluno vê (json servido)
   const checks = (val && Array.isArray(val.checks)) ? val.checks : [];
-  if (!ID || (!checks.length && !hosts.length && !RUNNING && !calibRunning())) { box.style.display = 'none'; return; }
-  box.style.display = '';
-  box.append(el('h3', {}, T('Validação & calibração', 'Validation & calibration', 'Validación y calibración')));
+  // o CARTÃO (#calibsec: o título e os juízes onde calibrar, no HTML) é de problema salvo; sem nada ainda, o painel
+  // diz o que fazer (antes ele sumia, e a calibração direcionada morava no fim da aba, longe daqui)
+  const sec = $('calibsec'); if (sec) sec.style.display = ID ? '' : 'none';
+  if (!ID) { LAST_RENDER_SIG = valRenderSig(); return; }
   // o aviso conta ONDE e HÁ QUANTO TEMPO: uma calibração leva minutos, e "Calibrando no juiz…" sem
   // mais nada, por 7 min, é indistinguível de "travou" (relatos de 21/09/2026)
   if (RUNNING || calibRunning()) box.append(el('div', { class: 'running' }, el('span', { class: 'spin' }),
@@ -1484,7 +1486,13 @@ function renderVal() {
       }
       box.append(el('div', { class: 'judgecard' }, head, sols, h.stale ? null : validatorBlock(h), reps, det));
     });
-  } else if (!RUNNING && !calibRunning()) box.append(el('p', { class: 'small muted' }, T('Ainda não calibrado — clique “Calibrar” na barra de baixo.', 'Not calibrated yet — click “Calibrate” on the bottom bar.', 'Todavía no calibrado — haz clic en “Calibrar” en la barra de abajo.')));
+  } else if (!RUNNING && !calibRunning()) box.append(el('p', { class: 'small muted' }, checks.length
+    ? T('Ainda não calibrado — clique “Calibrar” na barra de baixo ou calibre nos juízes marcados acima.',
+        'Not calibrated yet — click “Calibrate” on the bottom bar or calibrate on the judges checked above.',
+        'Todavía no calibrado — haz clic en “Calibrar” en la barra de abajo o calibra en los jueces marcados arriba.')
+    : T('Ainda não validado nem calibrado — use “Validar” ou “Calibrar” na barra de baixo, ou calibre nos juízes marcados acima.',
+        'Not validated or calibrated yet — use “Validate” or “Calibrate” on the bottom bar, or calibrate on the judges checked above.',
+        'Todavía no validado ni calibrado — usa “Validar” o “Calibrar” en la barra de abajo, o calibra en los jueces marcados arriba.')));
   // sem juízes calibrados mas com TL servido (legado): mostra o tempo-limite usado na correção
   if (!hosts.length && Object.keys(served).length) box.append(el('div', { class: 'small', style: 'margin-top:.4rem' }, T('Tempo-limite usado na correção: ', 'Time limit used for grading: ', 'Tiempo límite usado en la corrección: ') + tlLine(served)));
   box.querySelectorAll('.caliblog').forEach(p => { if (CALIB_SCROLL[p.dataset.host]) p.scrollTop = CALIB_SCROLL[p.dataset.host]; });   // restaura o scroll

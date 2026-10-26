@@ -76,7 +76,9 @@
     .running{display:flex;align-items:center;gap:.5rem;color:#ffd98a;margin:.3rem 0 .4rem;font-size:.9rem}
     .spin{width:.95rem;height:.95rem;border:2px solid #ffd98a;border-top-color:transparent;border-radius:50%;display:inline-block;animation:moj-spin .8s linear infinite;flex:none}
     @keyframes moj-spin{to{transform:rotate(360deg)}}
-    /* calibração direcionada: juízes agrupados por CPU */
+    /* calibração direcionada: juízes agrupados por CPU, no topo do cartão Validação & calibração (tracejado = controle;
+       os cartões de juiz, de borda cheia, são o resultado) */
+    .calibtarget{border:1px dashed var(--border,#2a2a2a);border-radius:.5rem;padding:.45rem .7rem;margin:.3rem 0 .7rem}
     .cpugrp{margin:.35rem 0}
     .jcheck{display:inline-flex;align-items:center;gap:.25rem;font-size:.85rem;margin-right:.4rem;white-space:nowrap}
     .jcheck.off{opacity:.5}
@@ -483,7 +485,23 @@
           <div id="pubOrgHint" class="small" style="display:none;margin-top:.4rem;color:#ffd98a"></div>
         </div>
 
-        <div class="section" id="valpanel" style="display:none"></div>
+        <!-- 1b) Validação & calibração: onde calibrar (os juízes, por processador) e, logo abaixo, o resultado de cada juiz
+             (#valpanel, montado pelo renderVal). A calibração direcionada morava no fim da aba, em "Avançado" — longe do
+             resultado que ela produz (pedido do Ribas, 26/10/2026). O cartão só aparece com o problema salvo (com id). -->
+        <div class="section" id="calibsec" style="display:none">
+          <h3 data-en="Validation &amp; calibration" data-es="Validación y calibración">Validação &amp; calibração</h3>
+          <div class="calibtarget">
+            <p class="small muted" style="margin:0"><span data-en="Calibrate on specific judges to see the time limit and the reports on" data-es="Calibra en jueces específicos para ver el tiempo límite y los informes en">Calibre em juízes específicos para ver o tempo-limite e os reports em</span>
+              <b data-en="different processors" data-es="distintos procesadores">processadores diferentes</b><span data-en=". The checked (online) judges recalibrate in parallel, and the result of each judge appears below. The “Calibrate” button on the bottom bar uses one free judge." data-es=". Los jueces marcados (en línea) recalibran en paralelo, y el resultado de cada juez aparece abajo. El botón “Calibrar” de la barra de abajo usa un juez libre.">. Os juízes marcados (online) recalibram em paralelo, e o resultado de cada juiz aparece abaixo. O botão “Calibrar” da barra de baixo usa um juiz livre.</span></p>
+            <div id="judgePick"></div>
+            <div class="row" style="gap:.5rem;flex-wrap:wrap;margin-top:.4rem">
+              <button id="calibSel" class="btn ghost" type="button" title="Calibrar nos juízes marcados" data-en-title="Calibrate on the checked judges" data-es-title="Calibrar en los jueces marcados" data-en="Calibrate selected" data-es="Calibrar seleccionados">Calibrar selecionados</button>
+              <button id="calibPerCpu" class="btn ghost" type="button" title="Um juiz de cada modelo de processador" data-en-title="One judge of each processor model" data-es-title="Un juez de cada modelo de procesador" data-en="1 per processor" data-es="1 por procesador">1 por processador</button>
+              <button id="calibAll" class="btn ghost" type="button" title="Todos os juízes online" data-en-title="All online judges" data-es-title="Todos los jueces en línea" data-en="Calibrate on all" data-es="Calibrar en todos">Calibrar em todos</button>
+            </div>
+          </div>
+          <div id="valpanel"></div>
+        </div>
 
         <!-- 2) Coleções (agrupamento — rótulos m:n; NÃO dão acesso) -->
         <div class="section">
@@ -526,22 +544,10 @@
           <div id="shareList" class="small muted" style="margin-top:.3rem"></div>
         </div>
 
-        <!-- 4) Avançado: calibração direcionada + pacote bruto -->
+        <!-- 4) Pacote do problema: o pacote bruto (baixar / enviar). A calibração direcionada que morava aqui ("Avançado")
+             foi para o cartão Validação & calibração, junto do resultado. -->
         <div class="section">
-          <h3 data-en="Advanced" data-es="Avanzado">Avançado</h3>
-
-          <h4 style="margin:.6rem 0 .2rem" data-en="Targeted calibration" data-es="Calibración dirigida">Calibração direcionada</h4>
-          <p class="small muted"><span data-en="Force calibration on a set of judges to see the behavior (time limit and reports) on" data-es="Fuerza la calibración en un conjunto de jueces para ver el comportamiento (tiempo límite e informes) en">Force a calibração num conjunto de juízes para ver o comportamento (tempo-limite e
-            reports) em</span> <b data-en="different processors" data-es="distintos procesadores">processadores diferentes</b><span data-en=". The checked (online) ones recalibrate in parallel; the result appears in" data-es=". Los marcados (en línea) recalibran en paralelo; el resultado aparece en">. Os marcados (online) recalibram em paralelo; o resultado
-            aparece em</span> <b data-en="Validation &amp; calibration" data-es="Validación &amp; calibración">Validação &amp; calibração</b><span data-en=", per judge." data-es=", por juez.">, por juiz.</span></p>
-          <div id="judgePick"></div>
-          <div class="row" style="gap:.5rem;flex-wrap:wrap;margin-top:.5rem">
-            <button id="calibSel" class="btn ghost" type="button" title="Calibrar nos juízes marcados" data-en-title="Calibrate on the checked judges" data-es-title="Calibrar en los jueces marcados" data-en="Calibrate selected" data-es="Calibrar seleccionados">Calibrar selecionados</button>
-            <button id="calibPerCpu" class="btn ghost" type="button" title="Um juiz de cada modelo de processador" data-en-title="One judge of each processor model" data-es-title="Un juez de cada modelo de procesador" data-en="1 per processor" data-es="1 por procesador">1 por processador</button>
-            <button id="calibAll" class="btn ghost" type="button" title="Todos os juízes online" data-en-title="All online judges" data-es-title="Todos los jueces en línea" data-en="Calibrate on all" data-es="Calibrar en todos">Calibrar em todos</button>
-          </div>
-
-          <h4 style="margin:1rem 0 .2rem" data-en="Problem package" data-es="Paquete del problema">Pacote do problema</h4>
+          <h3 data-en="Problem package" data-es="Paquete del problema">Pacote do problema</h3>
           <div id="pkgInfo" class="small muted">—</div>
           <div id="pkgTree" class="pkgtree"></div>
           <div class="row" style="gap:.5rem;margin-top:.4rem">
