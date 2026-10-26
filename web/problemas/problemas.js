@@ -65,6 +65,16 @@ const scard = (n, l, hl, fkey) => {
   return el('div', a, el('div', { class: 'n' }, String(n)), el('div', { class: 'l' }, l));
 };
 const fmtTL = (tl) => { const e = Object.entries(tl || {}).filter(([k]) => k !== 'default'); return e.length ? e.map(([k, v]) => `${k} ${(+v).toFixed(3)}s`).join(' · ') : '—'; };
+// TLMOD[<lang>.sum|.mult] do conf (o `tl_mods` das rotas): o juiz soma/multiplica por cima do calibrado, e o
+// time_limits já vem com o ajuste. Texto curto: "spim +1s · cpp ×1.5"; '' sem ajuste.
+const fmtMods = (m) => {
+  const s = (m && m.sum) || {}, x = (m && m.mult) || {};
+  return [...new Set([...Object.keys(s), ...Object.keys(x)])].sort().map(l =>
+    [l, s[l] != null ? (s[l] < 0 ? '−' + Math.abs(s[l]) : '+' + s[l]) + 's' : '', x[l] != null ? '×' + x[l] : ''].filter(Boolean).join(' ')).join(' · ');
+};
+const MODS_TITLE = () => T('Ajuste do conf por linguagem (TLMOD[<linguagem>.sum|.mult]): o juiz soma/multiplica isto por cima do tempo calibrado, e o tempo-limite mostrado já inclui o ajuste. ',
+  'Per-language adjustment in the conf (TLMOD[<language>.sum|.mult]): the judge adds/multiplies this on top of the calibrated time, and the time limit shown already includes it. ',
+  'Ajuste del conf por lenguaje (TLMOD[<lenguaje>.sum|.mult]): el juez suma/multiplica esto sobre el tiempo calibrado, y el tiempo límite mostrado ya lo incluye. ');
 // A coluna mostra o TL EFETIVO (o que o juiz cobra). Quando o autor pôs TLOVERRIDE no conf do
 // pacote, o número deixa de ser o medido — então vai um selo, e o calibrado fica no title.
 // Sem isto o autor lia o calibrado e achava que o override não tinha pegado (relato de 24/08).
@@ -77,6 +87,8 @@ const tlCell = (p) => {
                'Time limit by the Kattis method (TLMETHOD=kattis in the conf): the smallest multiple of the resolution that is at least the multiplier × the worst time of the good solutions.',
                'Tiempo límite por el método Kattis (TLMETHOD=kattis en el conf): el menor múltiplo de la resolución que es al menos el multiplicador × el peor tiempo de las soluciones buenas.') }, 'K'));
   }
+  const mods = fmtMods(p.tl_mods);
+  if (mods) box.append(el('span', { class: 'pill', style: 'margin-left:.35rem', title: MODS_TITLE() + mods }, '± TLMOD'));
   if (p.tl_override && Object.keys(p.tl_override).length) {
     const s = el('span', { class: 'pill warn', style: 'margin-left:.35rem' }, '⚡ override');
     s.title = T('Tempo-limite definido pelo autor no conf do pacote (TLOVERRIDE) — vence o calibrado. Calibrado: ',
@@ -643,6 +655,9 @@ async function openDetail(id) {
           'Set by you in the package conf (TLOVERRIDE) — it is what the judge enforces and what the student reads. Measured by calibration: ',
           'Definido por ti en el conf del paquete (TLOVERRIDE) — es lo que el juez exige y lo que el estudiante lee. Medido por la calibración: '),
         el('span', { style: 'font-family:var(--mono,monospace)' }, fmtTL(t.time_limits_calibrated))));
+      const tmods = fmtMods(t.tl_mods);
+      if (tmods) calbox.append(el('div', { class: 'small muted2' }, MODS_TITLE(),
+        el('span', { style: 'font-family:var(--mono,monospace)' }, tmods)));
     } catch { calbox.innerHTML = ''; }
   })();
 

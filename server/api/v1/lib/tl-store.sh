@@ -424,27 +424,67 @@ tl_conf_kattis(){
     {a: ($a | num(2; 1; 100; false)), b: ($b | num(1.5; 1; 100; false)), r: ($r | num(1; 0; 10; true))}'
 }
 
-# tl_override_apply <tl-json> <ov-json> -> TL efetivo: p/ cada linguagem (união das chaves),
-# TLOVERRIDE[lang] // TLOVERRIDE[default] // calibrado[lang]. Valores string (convenção do store).
+# ===== TLMOD sum/mult — o ajuste do conf que o JUIZ aplica por cima da tabela (26/10/2026) ==========
+# O build-and-test faz, p/ a linguagem L do envio: TL = (tabela[L] // tabela[default]) + TLMOD[L.sum], depois
+# × TLMOD[L.mult] (bc -l), e só então o TLOVERRIDE (final). O servidor exibia a tabela crua: 404 pacotes têm
+# TLMOD[spim.sum]=1, e a página da prova mostrava 1 s a menos do que o juiz cobra. Só a chave de linguagem
+# CANÔNICA vale (o juiz procura TLMOD[$LANGUAGE.sum] com o LANGUAGE já normalizado: py3/cc/… nunca casam), e
+# `default` não entra (o juiz não lê TLMOD[default.sum]). A regra mora em _TL_EFF_DEF.
+# tl_conf_mods <pkgdir> -> {"sum":{lang:n},"mult":{lang:n}} (números; a última linha vence), ou {} sem nenhum.
+tl_conf_mods(){
+  local conf="$1/conf" _c
+  [[ -n "$1" && -f "$conf" ]] || { echo '{}'; return; }
+  _c="$(<"$conf")" 2>/dev/null || _c=""
+  [[ "$_c" == *'.sum]'* || "$_c" == *'.mult]'* ]] || { echo '{}'; return; }   # quase todo conf: sem processo
+  sed -nE 's/^[[:space:]]*TLMOD\[([A-Za-z0-9]{1,16})\.(sum|mult)\]=(-?([0-9]+\.?[0-9]*|\.[0-9]+))[[:space:]]*(#.*)?$/\1\t\2\t\3/p' \
+      "$conf" 2>/dev/null \
+    | jq -Rnc '[inputs | split("\t") | select(length == 3 and ((.[2] | tonumber?) != null))
+                | select(.[0] as $l | ["default", "py2", "py3", "cc", "cxx", "hpp", "h"] | index($l) | not)]
+               | if length == 0 then {}
+                 else reduce .[] as $e ({sum: {}, mult: {}}; .[$e[1]][$e[0]] = ($e[2] | tonumber)) end'
+}
+# _TL_EFF_DEF — o TL EFETIVO numa definição jq só (todo lugar que EXIBE TL usa esta; ⚠ cópia LITERAL no
+# mojtools gen-problem-json.sh — o smoke-tl-mods.sh confere que as duas são iguais):
+#   tl_eff($cal; $ov; $m) p/ cada linguagem L (união das chaves do calibrado, do override e dos mods):
+#   $ov[L] // $ov.default // (($cal[L] // $cal.default) + sum[L]) × mult[L], arredondado a 1e-6 (o bc do juiz
+#   não arredonda; isto só limpa o ruído do ponto flutuante). default = $ov.default // $cal.default. Valores
+#   string (convenção do store); linguagem sem base nem override some.
+_TL_EFF_DEF='
+def tl_eff($cal; $ov; $m):
+  ($m.sum // {}) as $s | ($m.mult // {}) as $x
+  | ((($cal | keys) + ($ov | keys) + ($s | keys) + ($x | keys)) | unique) as $ks
+  | reduce $ks[] as $k ({};
+      .[$k] = (if $k == "default" then ($ov["default"] // $cal["default"])
+               else ($ov[$k] // $ov["default"]
+                     // (($cal[$k] // $cal["default"]) as $b
+                         | if $b == null or ((($s | has($k)) or ($x | has($k))) | not) then $b
+                           else (((((($b | tonumber) + ($s[$k] // 0)) * ($x[$k] // 1)) * 1000000) | round) / 1000000)
+                           end))
+               end))
+  | with_entries(select(.value != null) | .value |= tostring);
+'
+
+# tl_override_apply <tl-json> <ov-json> [mods-json] -> TL efetivo (tl_eff): p/ cada linguagem,
+# TLOVERRIDE[lang] // TLOVERRIDE[default] // (calibrado[lang] // calibrado[default]) com o TLMOD sum/mult.
+# Valores string (convenção do store).
 tl_override_apply(){
-  local tl="$1" ov="$2"
+  local tl="$1" ov="$2" m="${3:-}"
   jq -e . >/dev/null 2>&1 <<<"$tl" || tl='{}'
+  [[ -n "$ov" && "$ov" != "null" ]] || ov='{}'
+  [[ -n "$m" && "$m" != "null" ]] || m='{}'
   # era um jq só p/ perguntar "o objeto tem chave?" — o bash responde sem forkar
-  [[ -n "$ov" && "$ov" != "{}" && "$ov" != "null" ]] || { printf '%s' "$tl"; return; }
-  jq -cn --argjson tl "$tl" --argjson ov "$ov" '
-    (($tl|keys) + ($ov|keys) | unique) as $ks
-    | reduce $ks[] as $k ({}; .[$k] = ($ov[$k] // $ov["default"] // $tl[$k]))
-    | with_entries(select(.value != null) | .value |= tostring)'
+  [[ "$ov" != "{}" || "$m" != "{}" ]] || { printf '%s' "$tl"; return; }
+  jq -cn --argjson tl "$tl" --argjson ov "$ov" --argjson m "$m" "$_TL_EFF_DEF"'tl_eff($tl; $ov; $m)'
 }
 
-# tl_by_method_json <id> <checksum> <ov-json> -> {moj:{calibrated, effective}, kattis:{calibrated, effective}}:
-# as DUAS metades lado a lado (as rotas de GESTÃO mostram ao autor o que a troca de método daria); o override
-# vale nas duas.
+# tl_by_method_json <id> <checksum> <ov-json> [mods-json] -> {moj:{calibrated, effective}, kattis:{calibrated,
+# effective}}: as DUAS metades lado a lado (as rotas de GESTÃO mostram ao autor o que a troca de método daria); o
+# override e o TLMOD valem nas duas.
 tl_by_method_json(){
   local m k
   m="$(tl_store_served_for "$1" "$2" tl)"; k="$(tl_store_served_for "$1" "$2" tl_kattis)"
-  jq -cn --argjson m "$m" --argjson k "$k" --argjson me "$(tl_override_apply "$m" "$3")" \
-     --argjson ke "$(tl_override_apply "$k" "$3")" \
+  jq -cn --argjson m "$m" --argjson k "$k" --argjson me "$(tl_override_apply "$m" "$3" "${4:-}")" \
+     --argjson ke "$(tl_override_apply "$k" "$3" "${4:-}")" \
      '{moj:{calibrated:$m, effective:$me}, kattis:{calibrated:$k, effective:$ke}}'
 }
 
@@ -458,7 +498,7 @@ tl_by_method_json(){
 # num contest de 14 problemas. Quem já tem o checksum MATERIALIZADO (o índice de problemas o
 # carimba; é a mesma comparação-de-dois-checksums que o /problems/status faz) deve passá-lo.
 # 4º arg (26/10/2026): o MÉTODO (moj|kattis); ausente = o TLMETHOD do conf (lido sem processo, no mesmo arquivo
-# do TLOVERRIDE). O override é final nos dois métodos.
+# do TLOVERRIDE). O override é final nos dois métodos; o TLMOD sum/mult do conf entra antes dele (tl_eff).
 tl_store_served(){
   local pkg tl ov cks="${3:-}" meth="${4:-}" fld=tl
   pkg="$(pkg_path "$1")"
@@ -467,7 +507,7 @@ tl_store_served(){
   [[ "$meth" == kattis ]] && fld=tl_kattis
   tl="$(tl_store_served_hosts "$1" "$cks" "${2:-}" "$fld")"
   ov="$(tl_conf_overrides "$pkg")"
-  tl_override_apply "$tl" "$ov"
+  tl_override_apply "$tl" "$ov" "$(tl_conf_mods "$pkg")"
 }
 # tl_store_get <id> -> store bruto (ou {})
 tl_store_get(){ cat "$(tl_store_file "$1")" 2>/dev/null || echo '{}'; }

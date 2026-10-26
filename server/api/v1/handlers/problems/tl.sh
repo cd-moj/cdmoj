@@ -55,17 +55,18 @@ meth=moj; tl_conf_method_to meth "$pdir"
 tlf=tl; [[ "$meth" == kattis ]] && tlf=tl_kattis
 tlcal="$(tl_store_served_for "$id" "$cur" "$tlf")"
 ov="$(tl_conf_overrides "$pdir")"
+mods="$(tl_conf_mods "$pdir")"   # TLMOD sum/mult do conf: o juiz soma/multiplica antes do override
 body="$(jq -cn --arg p "$id" --arg cks "$cur" \
-   --argjson tl "$(tl_override_apply "$tlcal" "$ov")" \
-   --argjson tlcal "$tlcal" --argjson ov "$ov" \
-   --arg meth "$meth" --argjson bm "$(tl_by_method_json "$id" "$cur" "$ov")" --argjson kp "$(tl_conf_kattis "$pdir")" \
+   --argjson tl "$(tl_override_apply "$tlcal" "$ov" "$mods")" \
+   --argjson tlcal "$tlcal" --argjson ov "$ov" --argjson mods "$mods" \
+   --arg meth "$meth" --argjson bm "$(tl_by_method_json "$id" "$cur" "$ov" "$mods")" --argjson kp "$(tl_conf_kattis "$pdir")" \
    --argjson store "$store" --argjson calibrating "$calibrating" \
    --arg reason "$reason" --argjson changes "$changes" --argjson chfiles "$chfiles" '
    ($store.checksum // "") as $cal
    | (($store.hosts // {}) | length > 0) as $calibrated
    | ($calibrated and $cal != $cks and $cal != "") as $recal
    | {success:true, problem:$p, checksum:$cks, time_limits:$tl,
-      time_limits_calibrated:$tlcal, tl_override:$ov,
+      time_limits_calibrated:$tlcal, tl_override:$ov, tl_mods:$mods,
       tl_method:$meth, kattis:$kp, time_limits_by_method:$bm,
       calibrated_checksum:$cal, hosts:($store.hosts // {}),
       updated_at:($store.updated_at // null), calibrated_at:($store.updated_at // null),

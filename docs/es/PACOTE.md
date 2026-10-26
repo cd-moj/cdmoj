@@ -1,4 +1,4 @@
-<!-- i18n-source: PACOTE.md blob:32038671fc887ffafc7a707e92b50c82644918da -->
+<!-- i18n-source: PACOTE.md blob:83e570b3167c370ab85874b29e338da7cc2b729c -->
 # MOJ: el paquete de problema (formato canónico)
 
 > **Nota de traducción.** Este manual es una traducción del original en portugués. Las herramientas de línea de comandos (`moj`, `moj-contest`, `moj-comp`) muestran sus mensajes en portugués, y los ejemplos de comandos son idénticos al original.
@@ -444,8 +444,8 @@ Todas las claves que entiende `build-and-test.sh`:
 | `KATTIS_TIME_RESOLUTION` | `1.0` | método Kattis: el tiempo límite es múltiplo de esto, redondeado hacia arriba (más de 0 y hasta 10 s; el `time_resolution` de la spec) | 0 |
 | `TLMOD[<lang>.drift]` | `0` | tolerancia (en segundos) por encima del tiempo límite antes de dar TLE, en ese lenguaje: la prueba solo es TLE cuando `tempo − TL > tolerância` (el tiempo menos el TL es mayor que la tolerancia) | 404 (`java`) |
 | `TLMOD[default.drift]` | — | la misma tolerancia para **todo** lenguaje que no tiene la suya (`TLMOD[<lang>.drift]` gana). Vale en la evaluación y en la verificación de las soluciones de la calibración (una `good` dentro de la tolerancia no es "divergente") | 0 |
-| `TLMOD[<lang>.sum]` | `0` | suma un valor fijo (en segundos) al tiempo límite de ese lenguaje | 405 (`spim`) |
-| `TLMOD[<lang>.mult]` | `1` | multiplica el tiempo límite de ese lenguaje | 0 |
+| `TLMOD[<lang>.sum]` | `0` | suma un valor fijo (en segundos) al tiempo límite de ese lenguaje. El tiempo límite mostrado (contest, entrenamiento, gestión) ya incluye la suma. Solo vale el nombre canónico del lenguaje (`py`, `cpp`; `py3` y `cc` no valen) y no existe `TLMOD[default.sum]` | 405 (`spim`) |
+| `TLMOD[<lang>.mult]` | `1` | multiplica el tiempo límite de ese lenguaje, después de la suma. El mostrado también ya lo incluye. `TLOVERRIDE` vence a los dos | 0 |
 | `ULIMITS[-u]` | `1024` | número máximo de procesos. Java y otros runtimes necesitan más (el acervo usa `10000`) | 453 |
 | `ULIMITS[-s]` | `131072` (128 MB, en KB) | tamaño de la pila. Prefiere `STACKLIMITMB` | 0 |
 | `ULIMITS[-f]` | `256000` | tamaño máximo de archivo que el programa puede escribir | 0 |

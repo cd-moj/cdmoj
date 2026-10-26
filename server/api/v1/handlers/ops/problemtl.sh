@@ -16,13 +16,14 @@ meth=moj; tl_conf_method_to meth "$pdir"   # o método do TL do conf (26/10/2026
 tlf=tl; [[ "$meth" == kattis ]] && tlf=tl_kattis
 tlcal="$(tl_store_served_for "$problem" "$cur" "$tlf")"
 ov="$(tl_conf_overrides "$pdir")"   # time_limits = efetivo (TLOVERRIDE do conf vence)
+mods="$(tl_conf_mods "$pdir")"      # …e o TLMOD sum/mult do conf entra antes dele (a conta do juiz)
 body="$(jq -cn --arg p "$problem" --arg cks "$cur" \
-   --argjson tl "$(tl_override_apply "$tlcal" "$ov")" \
-   --argjson tlcal "$tlcal" --argjson ov "$ov" --arg meth "$meth" \
-   --argjson bm "$(tl_by_method_json "$problem" "$cur" "$ov")" \
+   --argjson tl "$(tl_override_apply "$tlcal" "$ov" "$mods")" \
+   --argjson tlcal "$tlcal" --argjson ov "$ov" --argjson mods "$mods" --arg meth "$meth" \
+   --argjson bm "$(tl_by_method_json "$problem" "$cur" "$ov" "$mods")" \
    --argjson store "$(tl_store_get "$problem")" '
    {success:true, problem:$p, checksum:$cks, time_limits:$tl,
-    time_limits_calibrated:$tlcal, tl_override:$ov, tl_method:$meth, time_limits_by_method:$bm,
+    time_limits_calibrated:$tlcal, tl_override:$ov, tl_mods:$mods, tl_method:$meth, time_limits_by_method:$bm,
     calibrated_checksum:($store.checksum // ""),
     hosts:($store.hosts // {}), updated_at:($store.updated_at // null),
     stale:(($store.checksum // "") != $cks and ($store.checksum // "") != "")}')"

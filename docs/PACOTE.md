@@ -435,8 +435,8 @@ Todas as chaves que o `build-and-test.sh` entende:
 | `KATTIS_TIME_RESOLUTION` | `1.0` | método Kattis: o tempo-limite é múltiplo disto, arredondado para cima (mais de 0 e até 10 s; o `time_resolution` da spec) | 0 |
 | `TLMOD[<lang>.drift]` | `0` | tolerância (em segundos) acima do tempo-limite antes de dar TLE, naquela linguagem: o teste só é TLE quando `tempo − TL > tolerância` | 404 (`java`) |
 | `TLMOD[default.drift]` | — | a mesma tolerância para **toda** linguagem que não tem a sua (`TLMOD[<lang>.drift]` vence). Vale no julgamento e na conferência das soluções da calibração (uma `good` dentro da tolerância não é "divergente") | 0 |
-| `TLMOD[<lang>.sum]` | `0` | soma um valor fixo (em segundos) ao tempo-limite daquela linguagem | 405 (`spim`) |
-| `TLMOD[<lang>.mult]` | `1` | multiplica o tempo-limite daquela linguagem | 0 |
+| `TLMOD[<lang>.sum]` | `0` | soma um valor fixo (em segundos) ao tempo-limite daquela linguagem. O tempo-limite exibido (prova, treino, gestão) já inclui a soma. Vale só o nome canônico da linguagem (`py`, `cpp`; `py3` e `cc` não valem) e não existe `TLMOD[default.sum]` | 405 (`spim`) |
+| `TLMOD[<lang>.mult]` | `1` | multiplica o tempo-limite daquela linguagem, depois da soma. O exibido também já inclui. O `TLOVERRIDE` vence os dois | 0 |
 | `ULIMITS[-u]` | `1024` | número máximo de processos. Java e outras runtimes precisam de mais (o acervo usa `10000`) | 453 |
 | `ULIMITS[-s]` | `131072` (128 MB, em KB) | tamanho da pilha. Prefira `STACKLIMITMB` | 0 |
 | `ULIMITS[-f]` | `256000` | tamanho máximo de arquivo que o programa pode escrever | 0 |

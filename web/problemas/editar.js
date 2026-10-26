@@ -1244,6 +1244,13 @@ function tlSummaryTable(hosts, served) {
   // autor — então cada linha sobreposta leva o selo, com o calibrado no title.
   const ovr = (LASTINFO && LASTINFO.tl_override) || {};
   const ovrOf = (lang) => ovr[lang] != null ? ovr[lang] : (ovr.default != null ? ovr.default : null);
+  // TLMOD[<lang>.sum|.mult] no conf: o juiz soma/multiplica por cima do calibrado (o servido já inclui); o
+  // override, quando há, é final e vence o ajuste — então o selo do TLMOD só sai sem override na linha.
+  const mods = (LASTINFO && LASTINFO.tl_mods) || {};
+  const modOf = (lang) => {
+    const a = (mods.sum || {})[lang], m = (mods.mult || {})[lang];
+    return [a != null ? (a < 0 ? '−' + Math.abs(a) : '+' + a) + 's' : '', m != null ? '×' + m : ''].filter(Boolean).join(' ');
+  };
   const body = langs.map(lang => el('tr', {},
     el('td', {}, tlLangName(lang)),
     el('td', { class: 'served' }, el('b', {}, tlSecs(servedOf(lang))),
@@ -1255,7 +1262,13 @@ function tlSummaryTable(hosts, served) {
                                'Definido por ti en el conf (TLOVERRIDE). Medido por la calibración: ')
                              + (cal.length ? tlSecs(Math.max(...cal)) : '—');
                    return s; })()
-        : null),
+        : modOf(lang)
+          ? el('span', { class: 'pill', style: 'margin-left:.3rem',
+              title: T(`Ajuste do conf (TLMOD[${lang}.sum|.mult]): o juiz soma/multiplica isto por cima do tempo calibrado — o servido já inclui.`,
+                       `Conf adjustment (TLMOD[${lang}.sum|.mult]): the judge adds/multiplies this on top of the calibrated time — the served value already includes it.`,
+                       `Ajuste del conf (TLMOD[${lang}.sum|.mult]): el juez suma/multiplica esto sobre el tiempo calibrado — el servido ya lo incluye.`) },
+              modOf(lang))
+          : null),
     altEff ? el('td', { class: 'muted' }, tlSecs(altOf(lang))) : null,
     ...hosts.map(h => el('td', {}, tlSecs(hostTl(h)[lang])))));
   return el('div', { class: 'tlsummary-wrap' },
@@ -1292,6 +1305,7 @@ function valRenderSig() {
     bym: JSON.stringify((LASTCALIB && LASTCALIB.time_limits_by_method) || null),
     served: Object.entries(served).map(([k, v]) => `${k}=${v}`),
     ovr: Object.entries((LASTINFO && LASTINFO.tl_override) || {}).map(([k, v]) => `${k}=${v}`),
+    mods: JSON.stringify((LASTINFO && LASTINFO.tl_mods) || {}),
   });
 }
 function maybeRenderVal() { if (valRenderSig() !== LAST_RENDER_SIG) renderVal(); }   // re-render só quando algo muda

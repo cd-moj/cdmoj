@@ -1,4 +1,4 @@
-<!-- i18n-source: PACOTE.md blob:32038671fc887ffafc7a707e92b50c82644918da -->
+<!-- i18n-source: PACOTE.md blob:83e570b3167c370ab85874b29e338da7cc2b729c -->
 # MOJ: the problem package (canonical format)
 
 > **Translation note.** This manual is a translation of the Portuguese original. The command-line tools (`moj`, `moj-contest`, `moj-comp`) print their messages in Portuguese, and the command examples below are identical to the original.
@@ -453,8 +453,8 @@ All the keys that `build-and-test.sh` understands:
 | `KATTIS_TIME_RESOLUTION` | `1.0` | Kattis method: the time limit is a multiple of this, rounded up (more than 0 and up to 10 s; the `time_resolution` of the spec) | 0 |
 | `TLMOD[<lang>.drift]` | `0` | tolerance (in seconds) above the time limit before TLE, in that language: the test is TLE only when `tempo − TL > tolerância` (time minus TL is greater than the tolerance) | 404 (`java`) |
 | `TLMOD[default.drift]` | — | the same tolerance for **each** language that does not have its own (`TLMOD[<lang>.drift]` wins). It applies in judging and in the calibration check of the solutions (a `good` within the tolerance is not "diverging") | 0 |
-| `TLMOD[<lang>.sum]` | `0` | adds a fixed value (in seconds) to the time limit of that language | 405 (`spim`) |
-| `TLMOD[<lang>.mult]` | `1` | multiplies the time limit of that language | 0 |
+| `TLMOD[<lang>.sum]` | `0` | adds a fixed value (in seconds) to the time limit of that language. The time limit shown (contest, training, management) already includes the addition. Only the canonical language name counts (`py`, `cpp`; `py3` and `cc` do not), and there is no `TLMOD[default.sum]` | 405 (`spim`) |
+| `TLMOD[<lang>.mult]` | `1` | multiplies the time limit of that language, after the addition. The time limit shown also includes it. `TLOVERRIDE` beats both | 0 |
 | `ULIMITS[-u]` | `1024` | maximum number of processes. Java and other runtimes need more (the archive uses `10000`) | 453 |
 | `ULIMITS[-s]` | `131072` (128 MB, in KB) | stack size. Prefer `STACKLIMITMB` | 0 |
 | `ULIMITS[-f]` | `256000` | maximum size of a file that the program can write | 0 |

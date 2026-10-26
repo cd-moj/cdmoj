@@ -35,8 +35,9 @@ meth=moj; tl_conf_method_to meth "$(pkg_path "$id")"
 tlf=tl; [[ "$meth" == kattis ]] && tlf=tl_kattis
 tlcal="$(tl_store_served_for "$id" "$cks" "$tlf" 2>/dev/null)"; [[ -n "$tlcal" ]] || tlcal='{}'
 ov="$(tl_conf_overrides "$(pkg_path "$id")" 2>/dev/null)"; [[ -n "$ov" ]] || ov='{}'
-tleff="$(tl_override_apply "$tlcal" "$ov")"; [[ -n "$tleff" ]] || tleff='{}'
-tlbm="$(tl_by_method_json "$id" "$cks" "$ov" 2>/dev/null)"; [[ -n "$tlbm" ]] || tlbm='{}'
+mods="$(tl_conf_mods "$(pkg_path "$id")" 2>/dev/null)"; [[ -n "$mods" ]] || mods='{}'   # TLMOD sum/mult do conf
+tleff="$(tl_override_apply "$tlcal" "$ov" "$mods")"; [[ -n "$tleff" ]] || tleff='{}'
+tlbm="$(tl_by_method_json "$id" "$cks" "$ov" "$mods" 2>/dev/null)"; [[ -n "$tlbm" ]] || tlbm='{}'
 kp="$(tl_conf_kattis "$(pkg_path "$id")" 2>/dev/null)"; [[ -n "$kp" ]] || kp='{}'
 
 # o enunciado/tags continuam vindo do json servível — com fallback p/ o privado (mesmo padrão de
@@ -47,17 +48,17 @@ jf="$CONTESTSDIR/treino/var/jsons/$id.json"
 emit_json 200 OK
 if [[ -f "$jf" ]]; then
   jq -c --argjson base "$base" --argjson val "$val" --argjson tl "$tleff" \
-        --argjson tlc "$tlcal" --argjson ov "$ov" --arg meth "$meth" --argjson bm "$tlbm" --argjson kp "$kp" '
+        --argjson tlc "$tlcal" --argjson ov "$ov" --argjson mods "$mods" --arg meth "$meth" --argjson bm "$tlbm" --argjson kp "$kp" '
     {success:true} + $base
     + { validation:$val,
         statement_html_b64:(.statement_html_b64 // null),
-        time_limits:$tl, time_limits_calibrated:$tlc, tl_override:$ov,
+        time_limits:$tl, time_limits_calibrated:$tlc, tl_override:$ov, tl_mods:$mods,
         tl_method:$meth, kattis:$kp, time_limits_by_method:$bm,
         tags:(.tags // []) }' "$jf" 2>/dev/null
 else
   jq -cn --argjson base "$base" --argjson val "$val" --argjson tl "$tleff" \
-         --argjson tlc "$tlcal" --argjson ov "$ov" --arg meth "$meth" --argjson bm "$tlbm" --argjson kp "$kp" \
+         --argjson tlc "$tlcal" --argjson ov "$ov" --argjson mods "$mods" --arg meth "$meth" --argjson bm "$tlbm" --argjson kp "$kp" \
     '{success:true} + $base + {validation:$val, time_limits:$tl,
-                               time_limits_calibrated:$tlc, tl_override:$ov,
+                               time_limits_calibrated:$tlc, tl_override:$ov, tl_mods:$mods,
                                tl_method:$meth, kattis:$kp, time_limits_by_method:$bm}'
 fi

@@ -67,20 +67,18 @@ kp="$(tl_conf_kattis "$pkg")"; [[ -n "$kp" ]] || kp='{}'
 BODYF="$(mktemp)"; trap 'rm -f "$LOGF" "$BODYF"' EXIT
 jq -cn --argjson store "$store" --slurpfile lg "$LOGF" --argjson gl "$goodlangs" \
    --arg pkgver "$pkgver" --argjson clive "$calibrating" --argjson ov "$(tl_conf_overrides "$pkg")" \
+   --argjson mods "$(tl_conf_mods "$pkg")" \
    --argjson pfiles "$pfiles" --argjson allowtle "$allowtle" --argjson drift "$drift" \
-   --arg meth "$meth" --argjson kp "$kp" "$CALX_JQ"'
+   --arg meth "$meth" --argjson kp "$kp" "$CALX_JQ$_TL_EFF_DEF"'
   def npy: if .=="py3" or .=="py2" then "py" else . end;
   # o MÁXIMO entre os juízes de uma metade da tabela (tl = MOJ, tl_kattis = Kattis)
   def calmax($h; $f): [ $h[]?[$f] // {} | to_entries[] ] | group_by(.key | npy)
      | map({ (.[0].key | npy): (map(.value | tonumber? // 0) | max | tostring) }) | add // {};
   # TL EFETIVO ao lado do medido: o cartão precisa dizer "os tempos abaixo são a MEDIÇÃO da
   # calibração, mas o julgamento usa X" — a calibração ignora o override de propósito
-  # (MOJ_CALIBRATING=1 no calibreitor), então hosts[].tl NUNCA vai refletir o override.
-  def effof($cal): if ($ov|length) == 0 then $cal
-     else ((($cal|keys) + ($ov|keys)) | unique) as $ks
-          | reduce $ks[] as $k ({}; .[$k] = ($ov[$k] // $ov["default"] // $cal[$k]))
-          | with_entries(select(.value != null) | .value |= tostring)
-     end;
+  # (MOJ_CALIBRATING=1 no calibreitor), então hosts[].tl NUNCA vai refletir o override. Nem o TLMOD
+  # sum/mult, que o juiz soma por cima da tabela (tl_eff, lib/tl-store.sh: a MESMA regra do resto).
+  def effof($cal): tl_eff($cal; $ov; $mods);
   ($lg[0] // {}) as $logs
   | ($store.hosts // {}) as $h
   | (if $meth == "kattis" then "moj" else "kattis" end) as $alt
@@ -101,7 +99,7 @@ jq -cn --argjson store "$store" --slurpfile lg "$LOGF" --argjson gl "$goodlangs"
   | ($hx | map({(.host): .}) | add // {}) as $hxm
   | { success:true, id:($store.id // ""), checksum:($store.checksum // ""), version:$pkgver,
       being_calibrated:(($clive|length) > 0), calibrating:$clive,
-      good_langs:$gl, tl_override:$ov,
+      good_langs:$gl, tl_override:$ov, tl_mods:$mods,
       tl_method:$meth, kattis:$kp,
       time_limits:$eff, time_limits_calibrated:$cal,
       time_limits_by_method:{moj:{calibrated:$calm, effective:$effm}, kattis:{calibrated:$calk, effective:$effk}},

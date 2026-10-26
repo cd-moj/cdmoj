@@ -569,7 +569,14 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   (2) **`TLOVERRIDE[<lang>|default]`** no conf do PACOTE = o autor manda no TL — julgamento
   (build-and-test) e TODA exibição usam o efetivo (`tl_store_served` aplica; servidor lê por
   **grep**, `tl_conf_overrides`/`tl_override_apply` em lib/tl-store.sh — conf de autor NUNCA é
-  sourced no servidor); (3) **test-run** (`/problems/test-run`, `moj testrun`) roda solução
+  sourced no servidor). **O `TLMOD[<lang>.sum|.mult]` também entra (26/10/2026)**: o juiz soma/multiplica
+  por cima da tabela ANTES do override, e o servidor exibia a tabela crua (404 pacotes têm `TLMOD[spim.sum]=1`).
+  Regra ÚNICA em jq, `_TL_EFF_DEF` (`tl_eff($cal; $ov; $m)`), usada por `tl_override_apply`/`tl_by_method_json`/
+  `tl_store_served`, pelo `calib.sh` (`effof`) e pelo `status.sh` (o `tl_mods` vem carimbado no índice de donos);
+  `tl_conf_mods` lê o conf (sem source; só linguagem canônica, sem `default` — o juiz procura
+  `TLMOD[$LANGUAGE.sum]`). Cópia LITERAL no mojtools `gen-problem-json.sh`; `smoke-tl-mods.sh` confere a regra
+  contra o PRÓPRIO trecho do build-and-test e as duas cópias. Rotas que exibem TL mandam `tl_mods` ao lado do
+  `tl_override`; (3) **test-run** (`/problems/test-run`, `moj testrun`) roda solução
   avulsa no juiz com o contest **sentinela `_testrun`** (id de contest criável começa com
   `[a-z0-9]` — sentinela inatingível), desviado p/ `run/testrun/` no `ingest_result` — nunca
   history. Gate de tudo: `require_problem_edit`. Testes: `smoke-{tl-override,calib-sols,testrun}.sh`.
