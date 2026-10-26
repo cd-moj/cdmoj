@@ -30,6 +30,9 @@ id="$(jq -r '.id // empty' "$bf")"; valid_id "$id" || fail 400 "Invalid id" "id_
 cks="$(jq -r '.checksum // empty' "$bf")"; [[ "$cks" =~ ^[a-f0-9]{0,64}$ ]] || cks=""
 
 d="$CALIB_DIR/$id"; rdir="$d/r/$host"; mkdir -p "$d" "$rdir" 2>/dev/null
+# o ler-e-regravar do arquivo do host (junção por versão) e o sumário são SERIALIZADOS por problema: o fd fica
+# aberto até o fim da requisição (a ordem dos locks: este → o do calib-sum → o do sumário agregado)
+exec 8>>"$d/.lock"; flock -w 20 8 || fail 409 "Calibration report busy" "busy"
 f="$d/$host.json"
 oldcks="$(jq -r '.checksum // ""' "$f" 2>/dev/null)"
 same=0; [[ -n "$cks" && "$cks" == "$oldcks" ]] && same=1

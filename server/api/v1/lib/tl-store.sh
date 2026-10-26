@@ -13,6 +13,14 @@
 : "${CONTESTSDIR:=/home/ribas/moj/contests}"
 
 tl_store_file(){ printf '%s/%s.json' "$TL_STORE_DIR" "$1"; }   # id tem '#', não tem '/': seguro
+# _tl_locked <id> <comando…> — roda o comando sob o flock POR PROBLEMA do store de TL (run/tl/<id>.lock). Todo
+# ler-e-regravar de run/tl/<id>.json passa por aqui: dois juízes reportando ao mesmo tempo perdiam a entrada de
+# um deles (o último `mv` vencia). Ordem dos locks: este e, dentro dele, o do sumário. Timeout de 10 s ⇒ rc 75.
+_tl_locked(){
+  local id="$1"; shift
+  mkdir -p "$TL_STORE_DIR" 2>/dev/null
+  ( flock -w 10 9 || exit 75; "$@" ) 9>>"$TL_STORE_DIR/$id.lock"
+}
 
 # ============ SUMÁRIOS AGREGADOS (mantidos POR EVENTO, não por TTL) ==================
 # O Painel (/problems/status) precisava de run/tl/<id>.json + run/validation/<id>.json de
@@ -189,7 +197,7 @@ tl_fresh_file(){ printf '%s/treino/var/tl-checksum-fresh.json' "$CONTESTSDIR"; }
 _tl_fresh_edit(){   # <programa-jq> [args-jq…] — reescreve o arquivo sob flock; lixo = recomeça de {}
   local f t prog="$1"; shift; f="$(tl_fresh_file)"; t="$f.tmp.$BASHPID"   # BASHPID resolvido ANTES do redirect
   mkdir -p "${f%/*}" 2>/dev/null
-  ( flock -w 5 9 2>/dev/null
+  ( flock -w 5 9 2>/dev/null || exit 0     # sem o lock, não grava (antes seguia sem lock e perdia escrita)
     local cur; cur="$(cat "$f" 2>/dev/null)"; jq -e 'type=="object"' >/dev/null 2>&1 <<<"$cur" || cur='{}'
     printf '%s' "$cur" | jq -c "$@" "$prog" > "$t" 2>/dev/null && [[ -s "$t" ]] && mv -f "$t" "$f" || rm -f "$t"
     [[ "$(<"$f")" == '{}' ]] 2>/dev/null && rm -f "$f"      # vazio não fica para trás (o `-s` curto-circuita a poda)
@@ -234,8 +242,11 @@ tl_index_checksums(){
 # anterior, sem a metade — o Kattis desse host fica "não calibrado") e o MÉTODO do conf agora (`.method` do
 # store: o sumário do Painel o lê sem abrir pacote; o problem_commit o reescreve quando o conf muda).
 tl_store_record(){
+  [[ -n "${1:-}" && -n "${2:-}" && -n "${3:-}" ]] || return 1
+  _tl_locked "$2" _tl_store_record_locked "$@"
+}
+_tl_store_record_locked(){
   local host="$1" id="$2" cks="$3" tl="$4" pkv="${5:-}" tlk="${6:-}" meth="${7:-}" f cur tmp
-  [[ -n "$host" && -n "$id" && -n "$cks" ]] || return 1
   jq -e 'type == "object"' >/dev/null 2>&1 <<<"$tl" || tl='{}'
   jq -e 'type == "object"' >/dev/null 2>&1 <<<"$tlk" || tlk='{}'
   [[ "$meth" == kattis || "$meth" == moj ]] || meth=""
@@ -262,8 +273,12 @@ tl_store_record(){
 # do Painel NA HORA. Os TLs dos dois métodos já estão medidos (o TLMETHOD fica fora do tl-checksum): nada a
 # recalibrar. Store ausente (nunca calibrado) = nada a carimbar.
 tl_store_set_method(){
+  [[ "${2:-}" == kattis || "${2:-}" == moj ]] || return 0
+  [[ -s "$(tl_store_file "$1")" ]] || return 0
+  _tl_locked "$1" _tl_store_set_method_locked "$@"
+}
+_tl_store_set_method_locked(){
   local id="$1" m="$2" f t
-  [[ "$m" == kattis || "$m" == moj ]] || return 0
   f="$(tl_store_file "$id")"; [[ -s "$f" ]] || return 0
   [[ "$(jq -r '.method // "moj"' "$f" 2>/dev/null)" == "$m" ]] && return 0
   t="$f.tmp.${BASHPID}"

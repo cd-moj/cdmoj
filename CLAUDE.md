@@ -592,6 +592,12 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   se a VERSÃO do pacote mudou — senão RECALCULA (`calx_summary_write`). O `/judge/calib-report` JUNTA por
   categoria/arquivo na mesma versão. Testes: `smoke-tl-method.sh`, `smoke-calib-expect.sh` (1b), `smoke-sched-width.sh`,
   `smoke-limits-tab.gjs.sh`, `smoke-sols-expect.gjs.sh`; mojtools `make test-calib test-kattis`.
+- **LOCKS do store de TL e da calibração (26/10/2026)**: todo ler-e-regravar de `run/tl/<id>.json` passa por
+  `_tl_locked <id>` (`lib/tl-store.sh`: `run/tl/<id>.lock`, `flock -w 10`, rc 75 ⇒ o tl-report responde 500) — dois
+  juízes reportando juntos perdiam a entrada de um (o último `mv` vencia); o sumário das soluções por `_calx_locked`
+  (`run/calib-sum/<id>.lock`) e o `/judge/calib-report` segura `run/calib/<id>/.lock` a requisição inteira (409
+  `busy`). Ordem: dir da calibração → calib-sum → sumário agregado; e o id do TL → sumário. O carimbo fresco
+  (`_tl_fresh_edit`) não grava sem o lock. Teste: `smoke-tl-store-lock.sh` (20 juízes concorrentes).
 - **O `conf` e o `tl` do PACOTE nunca são `source`ados no servidor** (incidente de 26/10/2026): o `kattis/sidecar.sh`
   (create/edit/upload) e o fallback do `gen-problem-json.sh` faziam — um `X=$(…)` no conf do autor executava código
   na API. Hoje é tudo regex (mojtools `kt_conf_json`, `tl_conf_*` aqui); teste: mojtools `make test-no-source`.

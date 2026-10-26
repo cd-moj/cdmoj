@@ -182,7 +182,16 @@ calx_summary_ensure(){ mkdir -p "$CALX_SUM_DIR" 2>/dev/null; _summary_ensure "$C
 # calx_summary_write <id> — recalcula o sumário a partir de run/calib/<id>/<host>.json, só com os hosts
 # que calibraram a VERSÃO ATUAL do pacote (a mesma regra de `stale` do /problems/calib). Chamado pelo
 # /judge/calib-report (rota de juiz: pode abrir o pacote) e pelo bin/calib-summary-rebuild.sh.
-calx_summary_write(){
+# _calx_locked <id> <comando…> — o flock POR PROBLEMA do sumário de calibração (run/calib-sum/<id>.lock): dois
+# calib-report juntos calculavam o sumário cada um com os arquivos de host que via, e o último `mv` podia deixar
+# um juiz de fora. Ordem dos locks: o diretório run/calib/<id> (calib-report) → este → o do sumário agregado.
+_calx_locked(){
+  local id="$1"; shift
+  mkdir -p "$CALX_SUM_DIR" 2>/dev/null
+  ( flock -w 10 9 || exit 75; "$@" ) 9>>"$CALX_SUM_DIR/$id.lock"
+}
+calx_summary_write(){ _calx_locked "$1" _calx_summary_write_locked "$1"; }
+_calx_summary_write_locked(){
   local id="$1" pkg ver eff allow drift files d out t meth=moj kp
   pkg="$(pkg_path "$id")"; [[ -n "$pkg" && -d "$pkg" ]] || return 0
   d="$CALIB_DIR/$id"; [[ -d "$d" ]] || return 0
@@ -208,7 +217,8 @@ calx_summary_write(){
 # calx_mark_stale <id> — o pacote mudou naquilo que a calibração exercita (sols/, tests/, scripts/,
 # conf): o resultado das soluções deixou de ser o de AGORA. Chamado pelo problem_commit. Barato: só
 # mexe se já existe sumário e ele ainda não está marcado.
-calx_mark_stale(){
+calx_mark_stale(){ [[ -s "$(calx_summary_file "$1")" ]] || return 0; _calx_locked "$1" _calx_mark_stale_locked "$1"; }
+_calx_mark_stale_locked(){
   local f t; f="$(calx_summary_file "$1")"
   [[ -s "$f" ]] || return 0
   jq -e '.stale == true' "$f" >/dev/null 2>&1 && return 0
