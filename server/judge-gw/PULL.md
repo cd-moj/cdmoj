@@ -90,8 +90,9 @@ recalibram).
 **Problema que não existe mais (26/10/2026).** Apagado ou movido de org, ele segue no cache dos juízes, e o
 re-report do boot batia nele: o `tl-report` respondia 500 e o `calib-report` criava `run/calib/<id>/` órfão. Hoje
 os dois respondem **404 `problem_gone`** antes de qualquer escrita (e de novo sob o lock do problema, que o
-delete segura ao apagar o estado). O agente novo trata o 404 `problem_gone` como definitivo: não repete o POST,
-marca a entrada do cache (`gone:true`), não a re-reporta mais e o GC a apaga. O delete/move do problema também
+delete segura ao apagar o estado). O agente novo trata o 404 `problem_gone` como definitivo: não repete o POST
+(só repete sem resposta, 408, 409 `busy`, 429 e 5xx), marca a entrada do cache (`<cache>/<id>/.gone`; também no
+`exists:false` do `package-meta`), tira-a do inventário do register, não a re-reporta mais e o GC a apaga. O delete/move do problema também
 tira da fila as calibrações dele (`sched_calib_drop`, a MESMA função do `/ops/calib-cancel`; o move pede a do id
 novo se havia alguma).
 
