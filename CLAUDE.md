@@ -585,7 +585,13 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   `bin/tl-class-backfill.sh` carimba store antigo. **RAIAS DA CALIBRAÇÃO (26/10/2026)**: `upd_claim`/`cmd_claim` dão
   G = min(`CALIB_PAR_MAX`=4, livres ÷ k_slots, maior fase) grupos (`_calib_lanes_v`; 1 com job na fila; soluções
   contadas com `find` — a API não tem glob) e carimbam `par_max`/`par_cap`/`slots = G × k_slots`; o calibreitor
-  roda uma solução por grupo (mojtools); `smoke-calib-lanes.sh`; (3) **test-run** (`/problems/test-run`, `moj testrun`) roda solução
+  roda uma solução por grupo (mojtools); `smoke-calib-lanes.sh`. **SIMULAÇÃO E SUGESTÃO DO TL (26/10/2026)**:
+  `lib/tl-sim.sh` (`TLSIM_JQ`, composto DEPOIS de `CALX_JQ` e `_TL_EFF_DEF` no MESMO jq do `/problems/calib`;
+  `tl_conf_cf` lê o fator, inclusive `"A+B"` = off+cf, a conta do bc do calibreitor) dá `tl_sim` (W servido, linhas
+  por cf do MOJ e por r do Kattis com o TL EFETIVO e as soluções que sairiam erradas/não medidas, o intervalo de cf)
+  e `tl_suggest` (códigos); com calibração em voo não calcula (`tl_sim_state: calibrating`; ~160 ms no fixture de
+  10 juízes × 30 soluções × 100 testes). A web (`renderTlSim`, aba Limites, "aplicar" só preenche os campos) e o
+  `moj calib` só mostram. Testes: `smoke-tl-sim.sh`, `smoke-tl-sim.gjs.sh`; (3) **test-run** (`/problems/test-run`, `moj testrun`) roda solução
   avulsa no juiz com o contest **sentinela `_testrun`** (id de contest criável começa com
   `[a-z0-9]` — sentinela inatingível), desviado p/ `run/testrun/` no `ingest_result` — nunca
   history. Gate de tudo: `require_problem_edit`. Testes: `smoke-{tl-override,calib-sols,testrun}.sh`.

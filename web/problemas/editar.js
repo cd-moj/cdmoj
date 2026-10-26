@@ -1290,6 +1290,71 @@ function calibWhere() {
   });
   return ' · ' + parts.join(' · ') + '.';
 }
+// SIMULAÇÃO DO TEMPO-LIMITE (o servidor calcula: lib/tl-sim.sh; o /problems/calib serve tl_sim + tl_suggest): com os
+// tempos desta calibração, como o TL sairia em outras configurações (fator do MOJ; resolução do Kattis), que soluções
+// sairiam com o veredicto errado em cada uma, e a sugestão de cada método. "Aplicar" só PREENCHE os campos da aba
+// Limites (o mesmo caminho de editar à mão): salvar grava o conf — o fator e os parâmetros do Kattis recalibram; o
+// método sozinho, não. Fica FORA do trecho que o smoke-limits-tab recorta (confVal … hiddenFile).
+const tlsimLine = (tl) => {
+  const e = Object.entries(tl || {}).filter(([k]) => k !== 'default');
+  return e.length ? e.map(([k, v]) => `${tlLangName(k)} ${tlSecs(v)}`).join(' · ') : 'default ' + tlSecs((tl || {}).default);
+};
+function tlsimApply(fields) {
+  Object.entries(fields).forEach(([id, v]) => { const e = $(id); if (e) { e.value = String(v); e.dispatchEvent(new Event('change')); } });
+  applyTlMethod();
+  setMsg(T('Campos preenchidos na aba Limites. Salve para gravar o conf: mudar o fator ou os parâmetros do Kattis recalibra; trocar só o método não recalibra.',
+           'Fields filled in on the Limits tab. Save to write the conf: changing the factor or the Kattis parameters recalibrates; changing only the method does not.',
+           'Campos completados en la pestaña Límites. Guarda para grabar el conf: cambiar el factor o los parámetros de Kattis recalibra; cambiar solo el método no recalibra.'), '');
+}
+function tlsimTable(rows, head, label) {
+  const tb = rows.map(r => el('tr', r.current ? { style: 'font-weight:600' } : {},
+    el('td', {}, label(r), r.current ? el('span', { class: 'pill', style: 'margin-left:.3rem' }, T('atual', 'current', 'actual')) : null),
+    el('td', {}, tlsimLine(r.tl)),
+    el('td', {}, r.ok ? '✓' : '✗ ' + (r.fail || []).join(', '),
+      (r.unmeasured || []).length ? el('span', { class: 'muted', title: T('O teste morreu no teto de tempo da calibração antes de decidir: a calibração não mediu o bastante para dizer.', 'The test died at the calibration time ceiling before it could decide: the calibration did not measure enough to tell.', 'La prueba murió en el techo de tiempo de la calibración antes de decidir: la calibración no midió lo suficiente para saberlo.') },
+        ' · ' + T('não medido: ', 'not measured: ', 'no medido: ') + r.unmeasured.join(', ')) : null)));
+  return el('div', { class: 'tlsummary-wrap' }, el('table', { class: 'tlsummary' },
+    el('thead', {}, el('tr', {}, el('th', {}, head), el('th', {}, T('tempo-limite', 'time limit', 'tiempo límite')),
+      el('th', {}, T('soluções com veredicto errado', 'solutions with the wrong verdict', 'soluciones con veredicto equivocado')))),
+    el('tbody', {}, ...tb)));
+}
+function renderTlSim() {
+  const box = $('cf_tlsim_box'); if (!box) return;
+  box.innerHTML = '';
+  const c = LASTCALIB, st = c && c.tl_sim_state;
+  if (!st) return;                                    // servidor anterior à simulação: nada a mostrar
+  box.append(el('h5', { style: 'margin:.8rem 0 .2rem' }, T('Simulação do tempo-limite', 'Time-limit simulation', 'Simulación del tiempo límite')));
+  const note = (t) => el('p', { class: 'small muted', style: 'margin:.2rem 0' }, t);
+  if (st === 'calibrating') { box.append(note(T('Disponível quando a calibração terminar.', 'Available when the calibration ends.', 'Disponible cuando termine la calibración.'))); return; }
+  if (st !== 'ok' || !c.tl_sim) { box.append(note(T('Calibre o problema para simular outras configurações com os tempos medidos.', 'Calibrate the problem to simulate other settings with the measured times.', 'Calibra el problema para simular otras configuraciones con los tiempos medidos.'))); return; }
+  const sim = c.tl_sim, sg = c.tl_suggest || {};
+  box.append(note(T('Com os tempos que a calibração mediu (juízes ', 'With the times the calibration measured (judges ', 'Con los tiempos que midió la calibración (jueces ') + (sim.hosts || []).join(', ')
+    + T('), como o tempo-limite sairia em cada configuração e que soluções sairiam com o veredicto errado. Nada roda de novo.', '), how the time limit would come out in each setting and which solutions would get the wrong verdict. Nothing runs again.', '), cómo saldría el tiempo límite en cada configuración y qué soluciones tendrían el veredicto equivocado. Nada se ejecuta de nuevo.')));
+  if ((sim.overrides || []).includes('default')) box.append(note(T('O TLOVERRIDE[default] do conf decide o tempo-limite de toda linguagem: nenhuma configuração abaixo muda o julgamento.', 'The conf TLOVERRIDE[default] sets the time limit of every language: no setting below changes the judging.', 'El TLOVERRIDE[default] del conf decide el tiempo límite de todo lenguaje: ninguna configuración de abajo cambia la evaluación.')));
+  const btn = (fields) => el('button', { type: 'button', class: 'btn small', style: 'margin-left:.4rem', onclick: () => tlsimApply(fields) }, T('aplicar', 'apply', 'aplicar'));
+  const sline = (...kids) => el('p', { class: 'small', style: 'margin:.25rem 0 .7rem' }, ...kids);
+  // ---- MOJ ----
+  box.append(el('b', { class: 'small' }, T('Método MOJ: fator × pior tempo + 0,02 s', 'MOJ method: factor × worst time + 0.02 s', 'Método MOJ: factor × peor tiempo + 0,02 s')));
+  box.append(tlsimTable(sim.moj.rows || [], T('fator', 'factor', 'factor'), (r) => r.cf + '×'));
+  const iv = sim.moj.interval || {}, sm = sg.moj || {};
+  const ivTxt = iv.min == null ? '' : (iv.max == null ? T(`Fatores que deixam tudo certo: a partir de ${iv.min} (piso: ${iv.min_by}).`, `Factors that keep everything right: from ${iv.min} (floor: ${iv.min_by}).`, `Factores que dejan todo correcto: desde ${iv.min} (piso: ${iv.min_by}).`)
+    : T(`Fatores que deixam tudo certo: de ${iv.min} até abaixo de ${iv.max} (piso: ${iv.min_by}; teto: ${iv.max_by}).`, `Factors that keep everything right: from ${iv.min} to below ${iv.max} (floor: ${iv.min_by}; ceiling: ${iv.max_by}).`, `Factores que dejan todo correcto: desde ${iv.min} hasta menos de ${iv.max} (piso: ${iv.min_by}; techo: ${iv.max_by}).`));
+  if (sm.state === 'keep') box.append(sline(T(`Sugestão: manter o fator atual (${sm.cf}). `, `Suggestion: keep the current factor (${sm.cf}). `, `Sugerencia: mantener el factor actual (${sm.cf}). `) + ivTxt));
+  else if (sm.state === 'change') box.append(sline(T(`Sugestão: fator ${sm.cf}`, `Suggestion: factor ${sm.cf}`, `Sugerencia: factor ${sm.cf}`)
+    + (sm.why === 'default_valid' ? T(' (o padrão da plataforma). ', ' (the platform default). ', ' (el predeterminado de la plataforma). ') : '. ') + ivTxt, btn({ cf_calibrafactor: sm.cf, cf_tlmethod: 'moj' })));
+  else if (sm.state === 'conflict') box.append(sline(T(`Nenhum fator deixa tudo certo: a ${sm.pass} precisa de mais tempo do que a ${sm.slow} gasta. Revise as duas soluções.`, `No factor keeps everything right: ${sm.pass} needs more time than ${sm.slow} takes. Review both solutions.`, `Ningún factor deja todo correcto: ${sm.pass} necesita más tiempo del que ${sm.slow} gasta. Revisa las dos soluciones.`)));
+  else if (sm.why === 'no_constraints') box.append(sline(T('Sem soluções pass ou slow para conferir: o fator atual serve.', 'No pass or slow solutions to check: the current factor works.', 'Sin soluciones pass o slow para verificar: el factor actual sirve.')));
+  // ---- Kattis ----
+  const kp = sim.kattis || {}, sk = sg.kattis || {};
+  box.append(el('b', { class: 'small' }, T(`Método Kattis: o menor múltiplo da resolução ≥ ${kp.a} × pior tempo (margem da lenta ${kp.b}×)`, `Kattis method: the smallest multiple of the resolution ≥ ${kp.a} × worst time (slow margin ${kp.b}×)`, `Método Kattis: el menor múltiplo de la resolución ≥ ${kp.a} × peor tiempo (margen de la lenta ${kp.b}×)`)));
+  box.append(tlsimTable(kp.rows || [], T('resolução', 'resolution', 'resolución'), (r) => r.r + ' s'));
+  const kf = { cf_kattis_a: sk.a, cf_kattis_b: sk.b, cf_kattis_r: sk.r, cf_tlmethod: 'kattis' };
+  if (sk.state === 'keep') box.append(sline(T(`Sugestão: manter a resolução atual (${sk.r} s), a maior que deixa tudo certo.`, `Suggestion: keep the current resolution (${sk.r} s), the largest that keeps everything right.`, `Sugerencia: mantener la resolución actual (${sk.r} s), la mayor que deja todo correcto.`)));
+  else if (sk.state === 'change' && sk.why === 'largest_r') box.append(sline(T(`Sugestão: resolução ${sk.r} s, a maior que deixa tudo certo.`, `Suggestion: resolution ${sk.r} s, the largest that keeps everything right.`, `Sugerencia: resolución ${sk.r} s, la mayor que deja todo correcto.`), btn(kf)));
+  else if (sk.state === 'change' && sk.why === 'adjust_a') box.append(sline(T(`Nenhuma resolução serve com o multiplicador ${kp.a}. Sugestão: multiplicador ${sk.a} com a resolução ${sk.r} s.`, `No resolution works with the multiplier ${kp.a}. Suggestion: multiplier ${sk.a} with resolution ${sk.r} s.`, `Ninguna resolución sirve con el multiplicador ${kp.a}. Sugerencia: multiplicador ${sk.a} con la resolución ${sk.r} s.`), btn(kf)));
+  else if (sk.state === 'change' && sk.why === 'adjust_b') box.append(sline(T(`Nem a resolução nem o multiplicador resolvem. Sugestão: margem da lenta ${sk.b}×.`, `Neither the resolution nor the multiplier solves it. Suggestion: slow margin ${sk.b}×.`, `Ni la resolución ni el multiplicador lo resuelven. Sugerencia: margen de la lenta ${sk.b}×.`), btn(kf)));
+  else if (sk.state === 'conflict') box.append(sline(T(`Nenhuma combinação deixa tudo certo: a ${sk.pass} precisa de mais tempo do que a ${sk.slow} gasta, com a margem. Revise as duas soluções.`, `No combination keeps everything right: ${sk.pass} needs more time than ${sk.slow} takes, with the margin. Review both solutions.`, `Ninguna combinación deja todo correcto: ${sk.pass} necesita más tiempo del que ${sk.slow} gasta, con el margen. Revisa las dos soluciones.`)));
+}
 function valRenderSig() {
   const hosts = (LASTCALIB && LASTCALIB.hosts) || [];
   const checks = (LASTVAL && LASTVAL.checks) || [];
@@ -1303,6 +1368,7 @@ function valRenderSig() {
     summary_alt: JSON.stringify((LASTCALIB && LASTCALIB.summary_alt) || null),
     method: (LASTCALIB && LASTCALIB.tl_method) || '',
     bym: JSON.stringify((LASTCALIB && LASTCALIB.time_limits_by_method) || null),
+    sim: JSON.stringify(LASTCALIB ? [LASTCALIB.tl_sim_state || null, LASTCALIB.tl_sim || null, LASTCALIB.tl_suggest || null] : null),
     classes: JSON.stringify((LASTCALIB && LASTCALIB.classes) || null),
     served: Object.entries(served).map(([k, v]) => `${k}=${v}`),
     ovr: Object.entries((LASTINFO && LASTINFO.tl_override) || {}).map(([k, v]) => `${k}=${v}`),
@@ -1311,6 +1377,7 @@ function valRenderSig() {
 }
 function maybeRenderVal() { if (valRenderSig() !== LAST_RENDER_SIG) renderVal(); }   // re-render só quando algo muda
 function renderVal() {
+  renderTlSim();   // a caixa da simulação mora na aba Limites; renderiza junto com o painel de calibração
   const box = $('valpanel'); if (!box) return;
   box.querySelectorAll('.caliblog').forEach(p => { CALIB_SCROLL[p.dataset.host] = p.scrollTop; });   // preserva o scroll do log
   box.innerHTML = '';

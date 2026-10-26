@@ -1,4 +1,4 @@
-<!-- i18n-source: PACOTE.md blob:a91fbfbca861885cff4183ea9678e34335e56e41 -->
+<!-- i18n-source: PACOTE.md blob:164af7f7ec105abe461ab3e9558fd9c4eb1eed4c -->
 # MOJ: the problem package (canonical format)
 
 > **Translation note.** This manual is a translation of the Portuguese original. The command-line tools (`moj`, `moj-contest`, `moj-comp`) print their messages in Portuguese, and the command examples below are identical to the original.
@@ -936,6 +936,23 @@ changes the stamp at the first save, and that save requests a recalibration, as 
 > 0.5 s in MOJ) gets exactly 1 s in Kattis. Many `slow` solutions that give TLE at 0.3 s today pass at
 > 1 s, and their Kattis chip shows ✗. This is expected, because Kattis requires really slow solutions.
 > For a finer time limit, use `KATTIS_TIME_RESOLUTION=0.1`.
+
+**Time-limit simulation and suggestion.** After the calibration, the server simulates the time limit in other
+settings with the times that the calibration measured. Nothing runs again. In MOJ, the simulation changes the
+factor (`TLMOD[calibrafactor]`); in Kattis, the resolution (`KATTIS_TIME_RESOLUTION`), with the multiplier and
+the margin of the `conf`. Each setting lists the solutions that would get the wrong verdict: a `good` or `pass`
+above the time limit, or a `slow` that does not go above it (in Kattis, above b × the time limit). `TLMOD` and
+`TLOVERRIDE` apply as in judging. A test that died at the calibration time ceiling before it could decide is "not
+measured", and it does not fail the setting. The simulation also suggests the best setting for each method:
+
+- **MOJ:** the current factor, if it keeps everything right; if not, 1.35; if not, the middle of the range of
+  factors that keep everything right. Without a range, it is a conflict: the `pass` needs more time than the
+  `slow` takes.
+- **Kattis:** the largest resolution that keeps everything right; if not, a multiplier that works with the
+  resolution of the `conf`; if not, the largest `slow` margin that works; if not, a conflict.
+
+The Limits tab of the editor shows the tables and the suggestions, and the **apply** button fills in the fields.
+`moj calib` shows the same. Saving writes the `conf`: a new factor or new Kattis parameters recalibrate.
 
 ### Solutions: does each one do what its category requires?
 

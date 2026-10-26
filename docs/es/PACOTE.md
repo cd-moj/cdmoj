@@ -1,4 +1,4 @@
-<!-- i18n-source: PACOTE.md blob:a91fbfbca861885cff4183ea9678e34335e56e41 -->
+<!-- i18n-source: PACOTE.md blob:164af7f7ec105abe461ab3e9558fd9c4eb1eed4c -->
 # MOJ: el paquete de problema (formato canónico)
 
 > **Nota de traducción.** Este manual es una traducción del original en portugués. Las herramientas de línea de comandos (`moj`, `moj-contest`, `moj-comp`) muestran sus mensajes en portugués, y los ejemplos de comandos son idénticos al original.
@@ -919,6 +919,23 @@ ese guardado pide recalibración, como cualquier edición del `conf`.
 > en MOJ) queda con exactamente 1 s en Kattis. Muchas `slow` que hoy dan TLE a 0,3 s pasan a 1 s, y su
 > etiqueta de Kattis muestra ✗: es lo esperado, porque Kattis pide soluciones lentas de verdad. Para un
 > tiempo límite más fino, usa `KATTIS_TIME_RESOLUTION=0.1`.
+
+**Simulación y sugerencia del tiempo límite.** Después de la calibración, el servidor simula el tiempo límite en
+otras configuraciones con los tiempos que ella midió. Nada se ejecuta de nuevo. En MOJ, la simulación varía el
+factor (`TLMOD[calibrafactor]`); en Kattis, la resolución (`KATTIS_TIME_RESOLUTION`), con el multiplicador y el
+margen del `conf`. Cada configuración lista las soluciones que tendrían el veredicto equivocado: una `good` o
+`pass` por encima del tiempo límite, o una `slow` que no lo supera (en Kattis, b × el tiempo límite). `TLMOD` y
+`TLOVERRIDE` se aplican como en la evaluación. Una prueba que murió en el techo de tiempo de la calibración antes
+de decidir queda "no medida", y no reprueba la configuración. La simulación también sugiere la mejor configuración
+de cada método:
+
+- **MOJ:** el factor actual, si deja todo correcto; si no, 1,35; si no, el medio del intervalo de factores que
+  dejan todo correcto. Sin intervalo, es un conflicto: la `pass` necesita más tiempo del que la `slow` gasta.
+- **Kattis:** la mayor resolución que deja todo correcto; si no, un multiplicador que sirva con la resolución del
+  `conf`; si no, el mayor margen de la `slow` que sirva; si no, un conflicto.
+
+La pestaña Límites del editor muestra las tablas y las sugerencias, y el botón **aplicar** completa los campos.
+`moj calib` muestra lo mismo. Guardar graba el `conf`: un factor nuevo o parámetros de Kattis nuevos recalibran.
 
 ### Soluciones: ¿cada una hace lo que pide su categoría?
 

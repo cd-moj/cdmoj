@@ -5,6 +5,7 @@
 require_method GET
 require_auth
 source "$_DIR/lib/tl-store.sh"; source "$_DIR/lib/orgs.sh"; source "$_DIR/lib/problems.sh"
+source "$_DIR/lib/tl-sim.sh"   # tl_sim/tl_suggest: o TL de outras configurações, com os tempos desta calibração
 source "$_DIR/lib/calib-expect.sh"   # CALX_JQ: o que cada categoria tem de fazer (fonte única)
 : "${RUNDIR:=/home/ribas/moj/run}"; : "${CALIB_DIR:=$RUNDIR/calib}"
 
@@ -67,9 +68,9 @@ kp="$(tl_conf_kattis "$pkg")"; [[ -n "$kp" ]] || kp='{}'
 BODYF="$(mktemp)"; trap 'rm -f "$LOGF" "$BODYF"' EXIT
 jq -cn --argjson store "$store" --slurpfile lg "$LOGF" --argjson gl "$goodlangs" \
    --arg pkgver "$pkgver" --argjson clive "$calibrating" --argjson ov "$(tl_conf_overrides "$pkg")" \
-   --argjson mods "$(tl_conf_mods "$pkg")" \
+   --argjson mods "$(tl_conf_mods "$pkg")" --argjson cfc "$(tl_conf_cf "$pkg")" \
    --argjson pfiles "$pfiles" --argjson allowtle "$allowtle" --argjson drift "$drift" \
-   --arg meth "$meth" --argjson kp "$kp" "$CALX_JQ$_TL_EFF_DEF"'
+   --arg meth "$meth" --argjson kp "$kp" "$CALX_JQ$_TL_EFF_DEF$TLSIM_JQ"'
   def npy: if .=="py3" or .=="py2" then "py" else . end;
   # o MÁXIMO entre os juízes de uma metade da tabela (tl = MOJ, tl_kattis = Kattis)
   def calmax($h; $f): [ $h[]?[$f] // {} | to_entries[] ] | group_by(.key | npy)
@@ -134,7 +135,14 @@ jq -cn --argjson store "$store" --slurpfile lg "$LOGF" --argjson gl "$goodlangs"
                    validator:(if $stale then null
                               else ([ $hxm[$n].sols[] | select(.category == "validator") ] | .[0]
                                     | if . == null then null
-                                      else (calx_val + {file: (.file // ""), tests: (.tests // [])}) end) end) } ] }' > "$BODYF" 2>/dev/null
+                                      else (calx_val + {file: (.file // ""), tests: (.tests // [])}) end) end) } ] }
+    # SIMULAÇÃO E SUGESTÃO DO TL (lib/tl-sim.sh): o TL de outras configurações (cf do MOJ; resolução, a e b do
+    # Kattis) contra os tempos desta calibração, dos juízes da versão atual; a web e a CLI só mostram. Com calibração
+    # em voo, não calcula (tl_sim_state "calibrating"): os dados estão pela metade e o editor consulta esta rota a cada
+    # 4 s justamente nessa hora — no fixture de 10 juízes × 30 soluções × 100 testes a simulação custa ~160 ms
+    + (if ($clive | length) > 0 then {tl_sim: null, tl_suggest: null, tl_sim_state: "calibrating"}
+       else tlsim([ $hx[] | {host, stale, sols} ]; $ov; $mods; $drift; $kp; $cfc; $allowtle)
+            | . + {tl_sim_state: (if .tl_sim == null then "no_data" else "ok" end)} end)' > "$BODYF" 2>/dev/null
 [[ -s "$BODYF" ]] || fail 500 "Falha ao montar a resposta" "calib_fail"
 emit_json 200 OK
 cat "$BODYF"

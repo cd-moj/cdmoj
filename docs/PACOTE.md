@@ -908,6 +908,22 @@ outro final muda o carimbo no 1º save, e esse save pede recalibração, como qu
 > chip do Kattis delas mostra ✗: é o esperado, porque o Kattis pede soluções lentas de verdade. Para
 > um tempo-limite mais fino, use `KATTIS_TIME_RESOLUTION=0.1`.
 
+**Simulação e sugestão do tempo-limite.** Depois da calibração, o servidor simula o tempo-limite em outras
+configurações com os tempos que ela mediu. Nada roda de novo. No MOJ, a simulação varia o fator
+(`TLMOD[calibrafactor]`); no Kattis, a resolução (`KATTIS_TIME_RESOLUTION`), com o multiplicador e a margem do
+`conf`. Cada configuração lista as soluções que sairiam com o veredicto errado: uma `good` ou `pass` acima do
+tempo-limite, ou uma `slow` que não passa dele (no Kattis, de b × o tempo-limite). O `TLMOD` e o `TLOVERRIDE`
+entram como no julgamento. Um teste que morreu no teto de tempo da calibração antes de decidir fica "não medido",
+e não reprova a configuração. A simulação também sugere a melhor configuração de cada método:
+
+- **MOJ:** o fator atual, se deixa tudo certo; senão 1,35; senão o meio do intervalo de fatores que deixam tudo
+  certo. Sem intervalo, é um conflito: a `pass` precisa de mais tempo do que a `slow` gasta.
+- **Kattis:** a maior resolução que deixa tudo certo; senão um multiplicador que serve com a resolução do `conf`;
+  senão a maior margem da `slow` que serve; senão um conflito.
+
+A aba Limites do editor mostra as tabelas e as sugestões, e o botão **aplicar** preenche os campos. O `moj calib`
+mostra o mesmo. Salvar grava o `conf`: um fator novo ou parâmetros do Kattis novos recalibram.
+
 ### Soluções: cada uma faz o que a categoria pede?
 
 A calibração devolve, por juiz e por solução, o código de **cada teste** (`AC`, `WA`, `TLE`, `MLE`,
