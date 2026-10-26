@@ -91,6 +91,11 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   "Resposta inválida do servidor" na tela, sem NADA no log — hoje o `ok_json` monta o corpo
   antes do cabeçalho e uma falha do jq vira `500 build_fail` com o stderr no error.log.
   Teste que fecha a porta: caso *oversized* (>128 KiB) no smoke — ver `smoke-contest-jplag.sh`.
+  ⚠ **E conteúdo grande nunca atravessa `while read`**: o `read` do bash lê PIPE byte a byte (um `read(2)` por
+  caractere). O `/judge/calib-report` lia cada report (base64) assim: 61 MB levavam 30 s segurando o lock do problema
+  — os outros juízes da mesma calibração tomavam 409 `busy` — e passavam do teto do curl do agente. Hoje um jq tira
+  nome+conteúdo em TSV e o `gawk` grava cada um num arquivo (1,8 s); o bash só lê os nomes (26/10/2026, quando o
+  agente passou a mandar todos os reports, até 10 MB cada). Teste: `smoke-calib-sols.sh` (MUITOS reports).
 - **Sessão única por time + índice de sessões (`lib/session-index.sh`, 2026-09-02)**: a sessão
   grava `MKEY` (chave de máquina: `m:<machine_id>/<boot_id>` do UA do mlinux — o boot_id é
   OBRIGATÓRIO porque o machine_id vem CLONADO em sedes inteiras —, senão `ip:<ip>`) e é indexada

@@ -93,4 +93,28 @@ rm -f "$BIG" "$BIG.body"
 ck "aceito mesmo assim"              'grep -q "\"recorded\":true" <<<"$BODY"'
 ck "sols descartado (teto)"          '[[ "$(jq -r ".sols | length" "$F")" == 0 ]]'
 
+echo "== MUITOS reports, um GRANDE e nomes tortos (26/10/2026: o conteúdo não passa mais pelo bash) =="
+# o agente passou a mandar TODOS os reports, até 10 MB cada; o laço `while read` lia o pipe byte a byte (61 MB = 30 s
+# segurando o lock do problema). Agora jq → TSV → gawk grava cada base64 num arquivo; o bash só lê os nomes.
+RB="$(mktemp -d)"; head -c 3000000 /dev/urandom | base64 -w0 > "$RB/big.html"
+{ for i in $(seq -w 1 14); do jq -cn --arg n "good-s$i.c" --arg h "$(printf '<p>%s</p>' "$i" | base64 -w0)" '{name:$n, html_b64:$h}'; done
+  jq -cn --rawfile h "$RB/big.html" '{name:"slow-grande.c", html_b64:($h|@base64)}'
+  jq -cn --arg h "$(printf 'x' | base64 -w0)" '[{name:"..", html_b64:$h}, {name:"-op.c", html_b64:$h}, {name:"good-a b/c.c", html_b64:$h},
+                                                 {name:"good-s01.c", html_b64:($h)}][]'
+} > "$RB/r.jsonl"
+jq -cn --slurpfile r "$RB/r.jsonl" '{host:"juiz2", id:"col#pa", checksum:"eeff0011", log:"muitos", reports:$r}' > "$RB/body"
+t0=$EPOCHREALTIME
+OUT="$(PATH_INFO=/judge/calib-report REQUEST_METHOD=POST HTTP_AUTHORIZATION="Bearer mojw_smoketest" bash "$ROUTER" < "$RB/body" 2>/dev/null)"
+t1=$EPOCHREALTIME; BODY="$(printf '%s' "$OUT" | awk 'f{print} /^\r?$/{f=1}')"
+F2="$RUN/calib/col#pa/juiz2.json"; R2="$RUN/calib/col#pa/r/juiz2"
+ck "aceito"                          'grep -q "\"recorded\":true" <<<"$BODY"'
+ck "os 14 pequenos + o grande + o saneado gravados (nomes)" '[[ "$(jq -c "[(.reports | length), (.reports | index(\"slow-grande.c\") != null), (.reports | index(\"good-ab/c.c\") == null), (.reports | index(\"good-abc.c\") != null)]" "$F2")" == "[16,true,true,true]" ]]'
+ck "o grande no disco, idêntico"     'cmp -s "$RB/big.html" "$R2/slow-grande.c.html"'
+ck "um pequeno no disco: o ÚLTIMO de mesmo nome vence" '[[ "$(cat "$R2/good-s01.c.html")" == x ]]'
+ck "nomes que começam com . ou - não entram" '[[ ! -e "$R2/...html" && ! -e "$R2/-op.c.html" && "$(jq -r "[.reports[] | select(startswith(\".\") or startswith(\"-\"))] | length" "$F2")" == 0 ]]'
+ck "nenhum temporário do handler sobra no dir dos reports" '[[ -z "$(find "$R2" -type f ! -name "*.html")" ]]'
+DT="$(awk -v a="$t0" -v b="$t1" 'BEGIN{printf "%.1f", b-a}')"
+ck "4 MB de base64 em menos de 5 s (era byte a byte: ~2 s/MB) — levou ${DT}s" 'awk -v d="$DT" "BEGIN{exit !(d < 5)}"'
+rm -rf "$RB"
+
 echo ""; echo "RESULT: $pass passed, $fail failed"; exit $(( fail>0?1:0 ))

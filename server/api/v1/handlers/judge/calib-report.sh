@@ -51,12 +51,21 @@ if (( nreps > 0 )); then
   # apaga os de pass/slow/wrong, que seguem valendo (o pacote é o mesmo). Versão nova: zera.
   if (( same )); then names="$(jq -c '.reports // []' "$f" 2>/dev/null)"; [[ -n "$names" ]] || names='[]'
   else find "$rdir" -maxdepth 1 -name '*.html' -type f -delete 2>/dev/null; names='[]'; fi   # a API roda noglob: `rm *.html` não expandia
-  while IFS= read -r rep; do
-    rn="$(jq -r '.name // empty' <<<"$rep" | tr -cd 'A-Za-z0-9._-')"; [[ -n "$rn" ]] || continue
-    if jq -r '.html_b64 // ""' <<<"$rep" | base64 -d > "$rdir/$rn.html" 2>/dev/null; then
+  # O CONTEÚDO dos reports nunca atravessa o bash (26/10/2026): `while read` lê pipe BYTE A BYTE — 61 MB de reports
+  # levavam 30 s só neste laço, segurando o lock do problema (os outros juízes da mesma calibração tomavam 409 busy) e
+  # passando do teto do curl do agente (o agente passou a mandar todos os reports, até 10 MB cada). Um jq tira o nome
+  # (o mesmo saneamento de antes, e não pode começar com . ou -) e o base64, uma linha TSV por report; o gawk grava
+  # cada base64 num arquivo do temporário (lê com buffer); o bash só lê os NOMES.
+  RT="$(mktemp -d)"; trap 'rm -f "$bf"; rm -rf "$RT"' EXIT
+  jq -r '.reports[]? | [((.name // "") | tostring | gsub("[^A-Za-z0-9._-]"; "")), ((.html_b64 // "") | tostring)]
+         | select(.[0] | test("^[A-Za-z0-9_][A-Za-z0-9._-]*$")) | @tsv' "$bf" 2>/dev/null \
+    | gawk -F'\t' -v d="$RT" '{ n++; f = d "/" n; printf "%s", $2 > f; close(f); print n "\t" $1 }' > "$RT/.names" 2>/dev/null
+  while IFS=$'\t' read -r i rn; do
+    if base64 -d < "$RT/$i" > "$rdir/$rn.html" 2>/dev/null; then
       names="$(jq -c --arg n "$rn" '(. - [$n]) + [$n]' <<<"$names")"
     fi
-  done < <(jq -c '.reports[]?' "$bf")
+  done < "$RT/.names"
+  rm -rf "$RT"; trap 'rm -f "$bf"' EXIT
 elif (( same )); then
   names="$(jq -c '.reports // []' "$f" 2>/dev/null)"; [[ -n "$names" ]] || names='[]'
 else
