@@ -69,6 +69,15 @@ _summary_ensure(){   # <dir> <prog> <out> — leitor: rebuild a frio (1×), depo
   [[ -s "$3" ]] && return 0
   ( flock 9; [[ -s "$3" ]] || _summary_rebuild "$1" "$2" "$3" ) 9>>"$3.lock"
 }
+# _summary_drop <out> <id> — tira a chave do id do sumário agregado, sob o MESMO lock do upsert (delete/move)
+_summary_drop(){
+  local out="$1" id="$2"
+  [[ -n "$id" && -s "$out" ]] || return 0
+  ( flock 9; t="$out.tmp.${BASHPID}"
+    jq -c --arg id "$id" 'del(.[$id])' "$out" > "$t" 2>/dev/null && [[ -s "$t" ]] && mv -f "$t" "$out" || rm -f "$t"
+  ) 9>>"$out.lock"
+  return 0
+}
 tl_summary_upsert(){  _summary_upsert "$1" "$(tl_store_file "$1")" "$_TL_SUM_PROG" "$TL_SUMMARY"; }
 tl_summary_ensure(){  _summary_ensure "$TL_STORE_DIR" "$_TL_SUM_PROG" "$TL_SUMMARY"; }
 val_summary_upsert(){ _summary_upsert "$1" "$VAL_STORE_DIR/$1.json" "$_VAL_SUM_PROG" "$VAL_SUMMARY"; }
@@ -247,6 +256,9 @@ tl_store_record(){
 }
 _tl_store_record_locked(){
   local host="$1" id="$2" cks="$3" tl="$4" pkv="${5:-}" tlk="${6:-}" meth="${7:-}" f cur tmp
+  # o pacote ainda existe? (sob o lock: o delete apaga o store sob o MESMO lock — um report que passou do 404 do
+  # handler antes do delete não recria o store do problema apagado). rc 3 = o handler responde 404 problem_gone.
+  [[ -n "$(pkg_path "$id")" ]] || return 3
   jq -e 'type == "object"' >/dev/null 2>&1 <<<"$tl" || tl='{}'
   jq -e 'type == "object"' >/dev/null 2>&1 <<<"$tlk" || tlk='{}'
   [[ "$meth" == kattis || "$meth" == moj ]] || meth=""
@@ -272,6 +284,50 @@ _tl_store_record_locked(){
 # tl_store_set_method <id> <moj|kattis> — o conf mudou de método (problem_commit): carimba o store e o sumário
 # do Painel NA HORA. Os TLs dos dois métodos já estão medidos (o TLMETHOD fica fora do tl-checksum): nada a
 # recalibrar. Store ausente (nunca calibrado) = nada a carimbar.
+# tl_state_drop <id> — o problema deixou de existir com esse id (delete): o store de TL (json, .cks, .pkv), as chaves
+# do id nos sumários de TL e de validação, o relatório de validação e o carimbo fresco. Antes o delete deixava o
+# run/tl/<id>.* órfão: contava como "calibrado" no painel dos juízes e o tl-report dos agentes batia nele. O
+# .lock fica (apagá-lo com alguém esperando nele abriria um 2º lock no mesmo id); o sweep o recolhe.
+tl_state_drop(){
+  local id="$1"
+  [[ -n "$id" ]] || return 0
+  _tl_locked "$id" rm -f "$(tl_store_file "$id")" "$TL_STORE_DIR/$id.cks" "$TL_STORE_DIR/$id.pkv"
+  _summary_drop "$TL_SUMMARY" "$id"
+  rm -f "$VAL_STORE_DIR/$id.json" 2>/dev/null
+  _summary_drop "$VAL_SUMMARY" "$id"
+  tl_fresh_drop "$id"
+  return 0
+}
+# tl_state_move <old> <new> — o problema mudou de id (move entre orgs): o store de TL e o de validação vão junto,
+# com o `.id` de DENTRO reescrito (o rebuild a frio dos sumários chaveia pelo `.id` — sem isto o problema movido
+# voltava ao sumário com o id antigo), e os sumários trocam a chave. Os memos .cks/.pkv saem (a assinatura deles
+# inclui o caminho do pacote: o próximo leitor refaz).
+tl_state_move(){
+  local old="$1" new="$2" fo fn vo vn t
+  [[ -n "$old" && -n "$new" && "$old" != "$new" ]] || return 0
+  fo="$(tl_store_file "$old")"; fn="$(tl_store_file "$new")"
+  if [[ -f "$fo" ]]; then
+    _tl_locked "$old" _tl_move_json "$fo" "$fn" "$new"
+    rm -f "$TL_STORE_DIR/$old.cks" "$TL_STORE_DIR/$old.pkv" 2>/dev/null
+    [[ -f "$fn" ]] && tl_summary_upsert "$new"
+  fi
+  _summary_drop "$TL_SUMMARY" "$old"
+  vo="$VAL_STORE_DIR/$old.json"; vn="$VAL_STORE_DIR/$new.json"
+  if [[ -f "$vo" ]]; then
+    _tl_move_json "$vo" "$vn" "$new"
+    [[ -f "$vn" ]] && val_summary_upsert "$new"
+  fi
+  _summary_drop "$VAL_SUMMARY" "$old"
+  tl_fresh_drop "$old"
+  return 0
+}
+# _tl_move_json <de> <para> <novo-id> — copia reescrevendo o `.id` (atômico) e apaga a origem
+_tl_move_json(){
+  local from="$1" to="$2" nid="$3" t
+  t="$to.tmp.${BASHPID}"
+  ( umask 077; jq -c --arg id "$nid" '.id = $id' "$from" ) > "$t" 2>/dev/null && [[ -s "$t" ]] \
+    && mv -f "$t" "$to" && rm -f "$from" || { rm -f "$t"; return 1; }
+}
 tl_store_set_method(){
   [[ "${2:-}" == kattis || "${2:-}" == moj ]] || return 0
   [[ -s "$(tl_store_file "$1")" ]] || return 0

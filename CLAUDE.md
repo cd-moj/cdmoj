@@ -598,6 +598,16 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   (`run/calib-sum/<id>.lock`) e o `/judge/calib-report` segura `run/calib/<id>/.lock` a requisição inteira (409
   `busy`). Ordem: dir da calibração → calib-sum → sumário agregado; e o id do TL → sumário. O carimbo fresco
   (`_tl_fresh_edit`) não grava sem o lock. Teste: `smoke-tl-store-lock.sh` (20 juízes concorrentes).
+- **ESTADO DE RUNTIME DO PROBLEMA SEGUE O ID (26/10/2026)**: delete e move passam pelas funções únicas —
+  `tl_state_drop/move` (`lib/tl-store.sh`: store de TL + memos `.cks/.pkv`, validação, chaves dos sumários via
+  `_summary_drop`, carimbo fresco; o move REESCREVE o `.id` de dentro — o rebuild a frio chaveia por ele),
+  `calib_state_drop/move` (`lib/calib-expect.sh`: `run/calib/<id>/` sob o lock dele; o move refaz o sumário das
+  soluções no id novo) e `sched_calib_drop <id> [inprogress]` (sched-lib: a fila de calibração; o `/ops/calib-cancel`
+  é a mesma função). Report de juiz de problema que não existe mais = **404 `problem_gone`** antes de qualquer
+  escrita (`tl-report`/`calib-report`, e de novo sob o lock: `tl_store_record` rc 3). Estado órfão de antes:
+  `server/bin/problem-state-sweep.sh [--apply]`. ⚠ API roda `noglob`: o `rm "$rdir"/*.html` do calib-report nunca
+  apagou nada — `find -delete`. Estado novo por id ⇒ entra nessas funções. Testes: `smoke-problem-state.sh`,
+  `smoke-judge-gone.sh`.
 - **O `conf` e o `tl` do PACOTE nunca são `source`ados no servidor** (incidente de 26/10/2026): o `kattis/sidecar.sh`
   (create/edit/upload) e o fallback do `gen-problem-json.sh` faziam — um `X=$(…)` no conf do autor executava código
   na API. Hoje é tudo regex (mojtools `kt_conf_json`, `tl_conf_*` aqui); teste: mojtools `make test-no-source`.

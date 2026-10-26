@@ -30,6 +30,10 @@ tlk="$(jq -c "(.tl_kattis // {}) | $TLSANE" <<<"$body")"; [[ -n "$tlk" ]] || tlk
 # guardado sob o tl_checksum ESTREITO calculado AQUI — é ele que o índice/contest comparam, e uma
 # mexida em solução `wrong` não pode apagar o TL da prova (lib/tl-store.sh; commit 41ec3f6).
 _pkg="$(pkg_path "$id")"
+# PROBLEMA APAGADO (26/10/2026): 404 problem_gone, sem escrever nada. Antes caía no tl_store_record com o checksum
+# vazio e respondia 500 — e todo restart de agente re-reporta o cache inteiro, inclusive os problemas que não
+# existem mais (o agente novo marca a entrada e para de reportar).
+[[ -n "$_pkg" ]] || fail 404 "Problem not found (removed or moved)" "problem_gone"
 cur="$(pkg_judge_version "$_pkg" "$id")"
 tlc="$(pkg_tl_checksum "$_pkg" "$id")"
 if [[ -n "$cur" && "$cur" != "$cks" ]]; then
@@ -43,7 +47,9 @@ else
   [[ -n "$cur" ]] && tl_fresh_set "$id" "$tlc"
   # o método do conf AGORA (rota de juiz: pode abrir o pacote) vai carimbado no store, p/ o sumário do Painel
   meth=moj; tl_conf_method_to meth "$_pkg"
-  tl_store_record "$host" "$id" "$tlc" "$tl" "$cks" "$tlk" "$meth" || fail 500 "Could not store TL" "tl_store_fail"
+  tl_store_record "$host" "$id" "$tlc" "$tl" "$cks" "$tlk" "$meth"; _rc=$?
+  (( _rc == 3 )) && fail 404 "Problem not found (removed or moved)" "problem_gone"   # apagado enquanto esperava o lock
+  (( _rc == 0 )) || fail 500 "Could not store TL" "tl_store_fail"
   upd_cmd_clear "$host" "$id"   # calibração DIRIGIDA terminou: tira o marcador da tela
   index_problem_bg "$id" 0
   audit_log "tl-report" "id=$id host=$host pkg=${cks:0:8} tl=${tlc:0:8}"

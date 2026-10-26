@@ -29,10 +29,15 @@ host="$(jq -r '.host // empty' "$bf")"; valid_hostname "$host" || fail 400 "Inva
 id="$(jq -r '.id // empty' "$bf")"; valid_id "$id" || fail 400 "Invalid id" "id_invalid"
 cks="$(jq -r '.checksum // empty' "$bf")"; [[ "$cks" =~ ^[a-f0-9]{0,64}$ ]] || cks=""
 
+# PROBLEMA APAGADO (26/10/2026): 404 problem_gone ANTES de criar diretório — antes o report de um problema que não
+# existe mais criava run/calib/<id>/ órfão e respondia 200
+[[ -n "$(pkg_path "$id")" ]] || fail 404 "Problem not found (removed or moved)" "problem_gone"
 d="$CALIB_DIR/$id"; rdir="$d/r/$host"; mkdir -p "$d" "$rdir" 2>/dev/null
 # o ler-e-regravar do arquivo do host (junção por versão) e o sumário são SERIALIZADOS por problema: o fd fica
 # aberto até o fim da requisição (a ordem dos locks: este → o do calib-sum → o do sumário agregado)
 exec 8>>"$d/.lock"; flock -w 20 8 || fail 409 "Calibration report busy" "busy"
+# de novo SOB o lock: o delete apaga o diretório segurando o mesmo lock (calib_state_drop)
+[[ -n "$(pkg_path "$id")" ]] || fail 404 "Problem not found (removed or moved)" "problem_gone"
 f="$d/$host.json"
 oldcks="$(jq -r '.checksum // ""' "$f" 2>/dev/null)"
 same=0; [[ -n "$cks" && "$cks" == "$oldcks" ]] && same=1
@@ -45,7 +50,7 @@ if (( nreps > 0 )); then
   # na mesma versão (só as good: o agente recalibrando um job kattis com a tabela antiga, cache perdido) não
   # apaga os de pass/slow/wrong, que seguem valendo (o pacote é o mesmo). Versão nova: zera.
   if (( same )); then names="$(jq -c '.reports // []' "$f" 2>/dev/null)"; [[ -n "$names" ]] || names='[]'
-  else rm -f "$rdir"/*.html 2>/dev/null; names='[]'; fi
+  else find "$rdir" -maxdepth 1 -name '*.html' -type f -delete 2>/dev/null; names='[]'; fi   # a API roda noglob: `rm *.html` não expandia
   while IFS= read -r rep; do
     rn="$(jq -r '.name // empty' <<<"$rep" | tr -cd 'A-Za-z0-9._-')"; [[ -n "$rn" ]] || continue
     if jq -r '.html_b64 // ""' <<<"$rep" | base64 -d > "$rdir/$rn.html" 2>/dev/null; then
@@ -55,7 +60,7 @@ if (( nreps > 0 )); then
 elif (( same )); then
   names="$(jq -c '.reports // []' "$f" 2>/dev/null)"; [[ -n "$names" ]] || names='[]'
 else
-  rm -f "$rdir"/*.html 2>/dev/null; names='[]'
+  find "$rdir" -maxdepth 1 -name '*.html' -type f -delete 2>/dev/null; names='[]'
 fi
 
 # sols: projeção FECHADA por item (campo desconhecido morre na borda) + teto de 1 MB.

@@ -87,6 +87,14 @@ envelhecer porque alguém salvou uma solução `wrong`. Serve o **máximo entre 
 recalibrar). Se o pacote muda de verdade, o `tl_checksum` novo **descarta** o TL antigo (todos
 recalibram).
 
+**Problema que não existe mais (26/10/2026).** Apagado ou movido de org, ele segue no cache dos juízes, e o
+re-report do boot batia nele: o `tl-report` respondia 500 e o `calib-report` criava `run/calib/<id>/` órfão. Hoje
+os dois respondem **404 `problem_gone`** antes de qualquer escrita (e de novo sob o lock do problema, que o
+delete segura ao apagar o estado). O agente novo trata o 404 `problem_gone` como definitivo: não repete o POST,
+marca a entrada do cache (`gone:true`), não a re-reporta mais e o GC a apaga. O delete/move do problema também
+tira da fila as calibrações dele (`sched_calib_drop`, a MESMA função do `/ops/calib-cancel`; o move pede a do id
+novo se havia alguma).
+
 **Os DOIS métodos de TL (26/10/2026; mojtools `tl-methods.sh`, `docs/PACOTE.md` §10 "Métodos de TL").** A tabela
 `tl.<host>` leva as duas metades — `TL[]` (o método MOJ) e `TLKATTIS[]` (o do Kattis, por linguagem) — e o
 agente reporta as duas (`tl`, `tl_kattis`; o servidor guarda `hosts[h].tl_kattis` e saneia os dois mapas). Quem

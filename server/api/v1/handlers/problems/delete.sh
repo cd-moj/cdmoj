@@ -19,11 +19,15 @@ pdir="$MOJ_PROBLEMS_DIR/$org/$prob"; [[ -d "$pdir" ]] || fail 404 "Problema não
 rm -rf "$pdir" 2>/dev/null
 unindex_problem "$id"
 rm -f "$CONTESTSDIR/treino/var/jsons-private/$id.json" 2>/dev/null
-rm -f "$RUNDIR/validation/$id.json" 2>/dev/null
 authored_remove "$id"
-tl_fresh_drop "$id"          # carimbo de checksum fresco do id que deixou de existir
+# o estado do id que deixou de existir (26/10/2026: antes o run/tl/<id>.*, a chave nos sumários e o
+# run/calib/<id>/ ficavam órfãos): store de TL + validação + carimbo fresco, a calibração por host + o sumário
+# das soluções, e as calibrações ainda na fila (o juiz não calibra o que não existe)
+tl_state_drop "$id"
 declare -F calx_drop >/dev/null || source "$_DIR/lib/calib-expect.sh"
-calx_drop "$id"              # sumário das soluções (Painel) do id que deixou de existir
+calib_state_drop "$id"
+declare -F sched_calib_drop >/dev/null || source "$_DIR/../../judge-gw/sched-lib.sh"
+sched_calib_drop "$id" inprogress >/dev/null
 source "$_DIR/lib/problem-issues.sh"; pi_drop "$id"   # as issues vão junto com o problema
 ( MOJ_PROBLEMS_DIR="$MOJ_PROBLEMS_DIR" CONTESTSDIR="$CONTESTSDIR" \
     setsid bash "$MOJTOOLS_DIR/gen-problem-owners.sh" >/dev/null 2>&1 & ) 2>/dev/null

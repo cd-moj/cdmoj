@@ -35,16 +35,19 @@ mv "$src" "$dst" || fail 500 "Falha ao mover o diretório" "move_fail"
 owner="$(problem_owner "$id")"; [[ -n "$owner" ]] || owner="$SESSION_LOGIN"
 write_meta "$dst" "$owner" "$to_org" "" "" ""
 problem_commit "$dst" "$SESSION_LOGIN" "move: $from_org#$prob -> $to_org" >/dev/null
-# re-chaveia o estado por id (rascunho: normalmente vazio)
-[[ -f "$RUNDIR/tl/$id.json" ]] && mv "$RUNDIR/tl/$id.json" "$RUNDIR/tl/$newid.json" 2>/dev/null
-[[ -f "$RUNDIR/validation/$id.json" ]] && mv "$RUNDIR/validation/$id.json" "$RUNDIR/validation/$newid.json" 2>/dev/null
-[[ -d "$RUNDIR/calib/$id" ]] && mv "$RUNDIR/calib/$id" "$RUNDIR/calib/$newid" 2>/dev/null
+# re-chaveia o estado por id (26/10/2026: antes o mv deixava o `.id` de dentro velho — o rebuild a frio dos
+# sumários voltava a chavear o problema pelo id antigo —, os .cks/.pkv e as chaves dos sumários no id antigo, e o
+# sumário das soluções nunca nascia no id novo)
+tl_state_move "$id" "$newid"
+declare -F calx_drop >/dev/null || source "$_DIR/lib/calib-expect.sh"
+calib_state_move "$id" "$newid"
+# calibração na fila p/ o id antigo: sai, e se havia alguma, pede a do id novo
+declare -F sched_calib_drop >/dev/null || source "$_DIR/../../judge-gw/sched-lib.sh"
+read -r _cp _ct _cr _ci < <(sched_calib_drop "$id" inprogress)
+(( _cp + _ct + _cr > 0 )) && cal_request "$to_org" "$newid" "$SESSION_LOGIN" >/dev/null
 unindex_problem "$id"
 rm -f "$CONTESTSDIR/treino/var/jsons-private/$id.json" 2>/dev/null
 authored_remove "$id"
-tl_fresh_drop "$id"          # carimbo de checksum fresco do id que deixou de existir
-declare -F calx_drop >/dev/null || source "$_DIR/lib/calib-expect.sh"
-calx_drop "$id"              # sumário das soluções (Painel) do id que deixou de existir
 source "$_DIR/lib/problem-issues.sh"; pi_move "$id" "$newid"   # as issues seguem o problema
 colls="$(jq -c '.collections // []' "$dst/.moj-meta.json" 2>/dev/null)"; [[ -n "$colls" ]] || colls='[]'
 title="$(jq -r '.display_title // ""' "$dst/.moj-meta.json" 2>/dev/null)"

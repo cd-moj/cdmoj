@@ -914,6 +914,49 @@ cmd_claim() {  # <host> : reivindica 1 comando pendente do host (ecoa + remove),
 # cmd_find_calibrate <host> <problem_id> : ecoa o cmdid de um calibrate direcionado AINDA NÃO
 # entregue a esse host p/ o problema (dedup do caminho targeted; comando entregue some do dir,
 # então "em execução" não é visível aqui — o dedup do agente cobre esse resto).
+# sched_calib_drop <problem_id> [inprogress] — tira da fila as calibrações do problema: as PENDENTES (updates/pending,
+# sob o lock do upd_claim), os comandos DIRECIONADOS ainda não entregues (commands/<host>, flock por host) e, com
+# `inprogress`, também os claims/marcadores em execução (o juiz ainda reporta nesse reqid: cai num reqid
+# inexistente, inofensivo). Sem `inprogress` só os CONTA. Ecoa "pendentes direcionados removidos_em_execução
+# em_voo". Fonte única do /ops/calib-cancel e do delete/move de problema (que levam inprogress: o problema sumiu).
+sched_calib_drop() {
+  local id="$1" inprog="${2:-}" p t out r i
+  [[ -n "$id" ]] || { echo "0 0 0 0"; return 0; }
+  mkdir -p "$UPDATESDIR/pending" 2>/dev/null
+  p="$( (
+    flock 9 || exit 0
+    n=0
+    while IFS= read -r f; do
+      [[ -f "$f" ]] || continue
+      jq -e --arg t "$id" '.kind=="calibrate" and .target==$t' "$f" >/dev/null 2>&1 || continue
+      rm -f "$f" && n=$((n+1))
+    done < <(find "$UPDATESDIR/pending" -maxdepth 1 -name '*.json' 2>/dev/null)
+    echo "$n"
+  ) 9>"$UPDATESDIR/.lock" )"
+  p="${p//[^0-9]/}"; p="${p:-0}"
+  out="$(while IFS= read -r hostdir; do
+    [[ -d "$hostdir" ]] || continue
+    (
+      flock 9 || exit 0
+      while IFS= read -r f; do
+        [[ -f "$f" ]] || continue
+        jq -e --arg t "$id" '.action=="calibrate" and .id==$t' "$f" >/dev/null 2>&1 || continue
+        rm -f "$f" && echo x
+      done < <(find "$hostdir" -maxdepth 1 -name '*.json' 2>/dev/null)
+    ) 9>"$hostdir/.lock"
+  done < <(find "$CMDDIR" -mindepth 1 -maxdepth 1 -type d 2>/dev/null))"
+  t="${out//[^x]/}"; t="${#t}"
+  out="$( (
+    flock 9 || exit 0
+    while IFS= read -r f; do
+      [[ -f "$f" ]] || continue
+      jq -e --arg t "$id" '.kind=="calibrate" and .target==$t' "$f" >/dev/null 2>&1 || continue
+      if [[ -n "$inprog" ]]; then rm -f "$f" && echo r; else echo i; fi
+    done < <(find "$UPDATESDIR/inprogress" -mindepth 2 -name '*.json' 2>/dev/null)
+  ) 9>"$UPDATESDIR/.lock" )"
+  r="${out//[^r]/}"; r="${#r}"; i="${out//[^i]/}"; i="${#i}"
+  echo "$p $t $r $i"
+}
 cmd_find_calibrate() {
   local r
   r="$(find "$CMDDIR/$1" -maxdepth 1 -name '*.json' -exec cat {} + 2>/dev/null \

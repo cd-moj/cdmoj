@@ -17,52 +17,8 @@ id="$(jq -r '.id // empty' <<<"$body")"
 valid_id "$id" || fail 400 "Invalid id" "id_invalid"
 with_inprog="$(jq -r '.inprogress // false' <<<"$body")"
 
-removed_pending=0; removed_targeted=0; removed_inprog=0; inflight=0
-mkdir -p "$UPDATESDIR/pending" 2>/dev/null
-
-# As contagens saem por CAPTURA ($(…)), sem arquivo temporário: antes cada bloco gravava em
-# "$UPDATESDIR/.cancel-*.${BASHPID}" de dentro de um SUBSHELL (ou com o redirect no subshell), onde o BASHPID
-# é o do FILHO — o pai lia outro nome, então removed_pending/removed_inprogress/inflight saíam SEMPRE 0 e os
-# temporários ficavam largados em UPDATESDIR (achado de 04/10/2026, mesma armadilha do tg_rename).
-
-# pendentes (sob o MESMO lock do upd_claim — sem janela com um claim concorrente)
-removed_pending="$( (
-  flock 9 || exit 0
-  n=0
-  while IFS= read -r f; do
-    [[ -f "$f" ]] || continue
-    jq -e --arg t "$id" '.kind=="calibrate" and .target==$t' "$f" >/dev/null 2>&1 || continue
-    rm -f "$f" && n=$((n+1))
-  done < <(find "$UPDATESDIR/pending" -maxdepth 1 -name '*.json' 2>/dev/null)
-  echo "$n"
-) 9>"$UPDATESDIR/.lock" )"
-removed_pending="${removed_pending//[^0-9]/}"; removed_pending="${removed_pending:-0}"
-
-# direcionados ainda não entregues (flock por host)
-out="$(while IFS= read -r hostdir; do
-  [[ -d "$hostdir" ]] || continue
-  (
-    flock 9 || exit 0
-    while IFS= read -r f; do
-      [[ -f "$f" ]] || continue
-      jq -e --arg t "$id" '.action=="calibrate" and .id==$t' "$f" >/dev/null 2>&1 || continue
-      rm -f "$f" && echo x
-    done < <(find "$hostdir" -maxdepth 1 -name '*.json' 2>/dev/null)
-  ) 9>"$hostdir/.lock"
-done < <(find "$CMDDIR" -mindepth 1 -maxdepth 1 -type d 2>/dev/null))"
-removed_targeted="${out//[^x]/}"; removed_targeted="${#removed_targeted}"
-
-# em execução: conta sempre; remove SÓ com inprogress:true
-out="$( (
-  flock 9 || exit 0
-  while IFS= read -r f; do
-    [[ -f "$f" ]] || continue
-    jq -e --arg t "$id" '.kind=="calibrate" and .target==$t' "$f" >/dev/null 2>&1 || continue
-    if [[ "$with_inprog" == true ]]; then rm -f "$f" && echo r; else echo i; fi
-  done < <(find "$UPDATESDIR/inprogress" -mindepth 2 -name '*.json' 2>/dev/null)
-) 9>"$UPDATESDIR/.lock" )"
-removed_inprog="${out//[^r]/}"; removed_inprog="${#removed_inprog}"
-inflight="${out//[^i]/}"; inflight="${#inflight}"
+# a remoção mora no sched-lib (sched_calib_drop): a mesma do delete/move de problema
+read -r removed_pending removed_targeted removed_inprog inflight < <(sched_calib_drop "$id" $( [[ "$with_inprog" == true ]] && echo inprogress ))
 
 audit_log "calib-cancel" "id=$id pending=$removed_pending targeted=$removed_targeted inprog_removed=$removed_inprog inflight=$inflight"
 ok_json '{action:"calib-cancel", id:$id, removed_pending:$p, removed_targeted:$t,

@@ -329,6 +329,11 @@ Ferramentas (todas **dry-run por padrão**; `--apply` executa):
 - `server/bin/cache-purge.sh --apply` — apaga PDFs da impressão de contests encerrados há mais de 7 dias
   (`--pdf-days`), entradas da lixeira com mais de 60 dias (`--trash-days`) e tmp órfãos. O PDF volta
   sozinho na próxima impressão.
+- `server/bin/problem-state-sweep.sh [--apply]` — recolhe o estado de runtime ÓRFÃO de problema apagado
+  (`run/tl/<id>.*`, `run/calib/<id>/`, as chaves nos sumários de TL/validação/calibração, o carimbo fresco e as
+  calibrações na fila) e reescreve o `.id` de dentro dos jsons que um move antigo deixou com o id velho. Órfão =
+  o pacote não existe mais. Desde 26/10/2026 o delete e o move não deixam mais nada; rode uma vez depois do
+  deploy (dry-run primeiro).
 - `server/bin/mojlog-prune.sh --ended-days N [--contest <c>] --apply` — **apaga** os reports de contests
   encerrados há mais de N dias. Veredicto, `results/<id>.json` e o código-fonte ficam; a web passa a
   dizer "report removido pela política de retenção". Nunca toca no treino (ele não tem `CONTEST_END`

@@ -226,6 +226,25 @@ _calx_mark_stale_locked(){
   jq -c '.stale = true' "$f" > "$t" 2>/dev/null && [[ -s "$t" ]] && mv -f "$t" "$f" || { rm -f "$t"; return 0; }
   calx_summary_upsert "$1"
 }
+# calib_state_drop <id> — o diretório da calibração por host (run/calib/<id>: logs, sols, reports HTML) e o
+# sumário das soluções. Sob o lock do diretório (o mesmo que o /judge/calib-report segura): um report em curso
+# termina antes, e o que esperava o lock re-confere o pacote e responde 404.
+calib_state_drop(){
+  local id="$1" d="$CALIB_DIR/$1"
+  [[ -n "$id" ]] || return 0
+  if [[ -d "$d" ]]; then ( exec 8>>"$d/.lock"; flock -w 20 8; rm -rf "$d" ); fi
+  calx_drop "$id"
+}
+# calib_state_move <old> <new> — move entre orgs: o diretório vai junto e o sumário é REFEITO no id novo (antes
+# saía do antigo e nunca nascia no novo: o Painel dizia "sem calibração" com o TL servido)
+calib_state_move(){
+  local old="$1" new="$2" d="$CALIB_DIR/$1"
+  [[ -n "$old" && -n "$new" && "$old" != "$new" ]] || return 0
+  if [[ -d "$d" && ! -e "$CALIB_DIR/$new" ]]; then ( exec 8>>"$d/.lock"; flock -w 20 8; mv "$d" "$CALIB_DIR/$new" ); fi
+  calx_drop "$old"
+  [[ -d "$CALIB_DIR/$new" ]] && calx_summary_write "$new"
+  return 0
+}
 # calx_drop <id> — o problema deixou de existir com esse id (delete/move)
 calx_drop(){
   local f; f="$(calx_summary_file "$1")"
