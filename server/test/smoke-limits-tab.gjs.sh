@@ -73,6 +73,23 @@ ck('salvar sem mexer mantém a linha igual', confVal(out, 'FUNCTION_LANGS') === 
 $('cf_fnlangs').value = ''; out = save();
 ck('limpar o campo remove a linha', !has(out, 'FUNCTION_LANGS'));
 
+// ---- MÉTODO DO TL (26/10/2026, docs/PACOTE.md "Métodos de TL"): TLMETHOD moj (padrão) | kattis + parâmetros
+load('CALIBRATIONTL=5');
+ck('sem TLMETHOD: o seletor mostra moj e a caixa do Kattis fica escondida', $('cf_tlmethod').value === 'moj' && $('cf_kattis_box').hidden === true);
+out = save();
+ck('salvar sem mexer não grava TLMETHOD', !has(out, 'TLMETHOD'));
+$('cf_tlmethod').value = 'kattis'; out = save();
+ck('kattis entra no TOPO do conf (regra do tl-checksum) e o resto fica igual', out === 'TLMETHOD=kattis\nCALIBRATIONTL=5');
+ck('…e a caixa dos parâmetros aparece', $('cf_kattis_box').hidden === false);
+$('cf_kattis_r').value = '0.5'; $('cf_kattis_b').value = '2'; out = save();
+ck('parâmetros gravados', confVal(out, 'KATTIS_TIME_RESOLUTION') === '0.5' && confVal(out, 'KATTIS_TIME_LIMIT_TO_TLE') === '2');
+load('KATTIS_AC_TO_TIME_LIMIT=3\nTLMETHOD="Kattis"');
+ck('lê kattis com aspas e maiúscula, e os parâmetros', $('cf_tlmethod').value === 'kattis' && $('cf_kattis_a').value === '3');
+$('cf_tlmethod').value = 'moj'; out = save();
+ck('voltar a moj com a linha presente grava moj explícito, no lugar dela', confVal(out, 'TLMETHOD') === 'moj' && out.split('\n')[1] === 'TLMETHOD=moj');
+load('TLMETHOD=boca');
+ck('valor desconhecido aparece como moj (o juiz faz o mesmo)', $('cf_tlmethod').value === 'moj');
+
 // ---- AVISO da aba Limites contra os juízes de hoje (judge_capacity; incidente de 30/09/2026: MEMLIMITMB=262144)
 const kids = (id) => $(id).kids.map((k) => k.cls + '|' + k.text);
 load('MEMLIMITMB=262144');
@@ -93,4 +110,9 @@ print(`RESULT: ${PASS} passed, ${FAIL} failed`);
 JS
 } > "$W/t.js"
 out="$(gjs "$W/t.js" 2>&1)"; printf '%s\n' "$out"
-grep -q 'RESULT: [0-9]* passed, 0 failed' <<<"$out"
+# SALVAR relê o painel de validação/calibração: trocar o TLMETHOD vale na hora, e sem a releitura o painel seguia
+# no método de antes até recarregar a página (achado na verificação ao vivo dos métodos de TL, 26/10/2026)
+sv="$(awk 'index($0,"async function save(")==1{f=1} f&&index($0,"async function act(")==1{exit} f' "$WEB/problemas/editar.js")"
+svok=0; grep -q 'loadValidation().then(ensurePolling' <<<"$sv" && svok=1
+if (( svok )); then echo "  ok: salvar relê o painel de calibração"; else echo "FALHOU: salvar não relê o painel de calibração (loadValidation)"; fi
+grep -q 'RESULT: [0-9]* passed, 0 failed' <<<"$out" && (( svok ))

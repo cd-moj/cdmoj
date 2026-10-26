@@ -50,11 +50,15 @@ calibrating="$(calibrating_set 2>/dev/null)"; [[ -n "$calibrating" ]] || calibra
 
 # TLOVERRIDE do conf: time_limits sai o EFETIVO (o que o aluno vê e o juiz honra);
 # o calibrado cru fica em time_limits_calibrated e o override declarado em tl_override.
-tlcal="$(tl_store_served_for "$id" "$cur")"
+# MÉTODO DO TL (26/10/2026): a metade da tabela que o TLMETHOD do conf escolhe; as duas em time_limits_by_method.
+meth=moj; tl_conf_method_to meth "$pdir"
+tlf=tl; [[ "$meth" == kattis ]] && tlf=tl_kattis
+tlcal="$(tl_store_served_for "$id" "$cur" "$tlf")"
 ov="$(tl_conf_overrides "$pdir")"
 body="$(jq -cn --arg p "$id" --arg cks "$cur" \
    --argjson tl "$(tl_override_apply "$tlcal" "$ov")" \
    --argjson tlcal "$tlcal" --argjson ov "$ov" \
+   --arg meth "$meth" --argjson bm "$(tl_by_method_json "$id" "$cur" "$ov")" --argjson kp "$(tl_conf_kattis "$pdir")" \
    --argjson store "$store" --argjson calibrating "$calibrating" \
    --arg reason "$reason" --argjson changes "$changes" --argjson chfiles "$chfiles" '
    ($store.checksum // "") as $cal
@@ -62,6 +66,7 @@ body="$(jq -cn --arg p "$id" --arg cks "$cur" \
    | ($calibrated and $cal != $cks and $cal != "") as $recal
    | {success:true, problem:$p, checksum:$cks, time_limits:$tl,
       time_limits_calibrated:$tlcal, tl_override:$ov,
+      tl_method:$meth, kattis:$kp, time_limits_by_method:$bm,
       calibrated_checksum:$cal, hosts:($store.hosts // {}),
       updated_at:($store.updated_at // null), calibrated_at:($store.updated_at // null),
       calibrated:$calibrated,

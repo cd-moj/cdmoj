@@ -363,10 +363,30 @@
             <div class="limits-grid">
               <div class="lfield"><label><span data-en="Calibration factor" data-es="Factor de calibración">Fator de calibração</span> <code>TLMOD[calibrafactor]</code></label>
                 <span class="lrow"><input id="cf_calibrafactor" type="text" placeholder="1.35"><span class="unit">×</span></span>
-                <span class="small muted" data-en="TL = factor × worst time of the good solutions" data-es="TL = factor × peor tiempo de las soluciones buenas">TL = fator × pior tempo das soluções good</span></div>
+                <span class="small muted" data-en="MOJ method: TL = factor × worst time of the good solutions + 0.02 s" data-es="Método MOJ: TL = factor × peor tiempo de las soluciones buenas + 0,02 s">Método MOJ: TL = fator × pior tempo das soluções good + 0,02 s</span></div>
               <div class="lfield"><label><span data-en="good ceiling in calibration" data-es="techo de las buenas en la calibración">Teto da good na calibração</span> <code>CALIBRATIONTL</code></label>
                 <span class="lrow"><input id="cf_calibrationtl" type="text" placeholder="5"><span class="unit">s</span></span>
                 <span class="small muted" data-en="good above this fails calibration" data-es="una buena por encima de esto reprueba la calibración">good acima disso reprova a calibração</span></div>
+              <div class="lfield"><label><span data-en="Time-limit method" data-es="Método del tiempo límite">Método do tempo-limite</span> <code>TLMETHOD</code></label>
+                <span class="lrow"><select id="cf_tlmethod">
+                  <option value="moj" data-en="MOJ (default)" data-es="MOJ (por defecto)">MOJ (padrão)</option>
+                  <option value="kattis">Kattis</option>
+                </select></span>
+                <span class="small muted" data-en="The calibration measures both methods every time: changing this does not require recalibration." data-es="La calibración mide los dos métodos siempre: cambiar esto no requiere recalibración.">A calibração mede os dois métodos sempre: trocar não pede recalibração.</span></div>
+            </div>
+            <div id="cf_kattis_box" hidden>
+              <p class="small muted" style="margin:.5rem 0 .2rem"><span data-en="Kattis method (spec 2025-09), per language: the time limit is the smallest multiple of the resolution that is at least the multiplier × the worst time of the good solutions of that language. A slow solution must exceed the margin × the time limit on some test, and the calibration checks that." data-es="Método Kattis (spec 2025-09), por lenguaje: el tiempo límite es el menor múltiplo de la resolución que es al menos el multiplicador × el peor tiempo de las soluciones buenas de ese lenguaje. Una solución lenta tiene que superar el margen × el tiempo límite en alguna prueba, y la calibración lo verifica.">Método Kattis (spec 2025-09), por linguagem: o tempo-limite é o menor múltiplo da resolução que é pelo menos o multiplicador × o pior tempo das soluções good daquela linguagem. Uma solução lenta tem de passar da margem × o tempo-limite em algum teste, e a calibração confere isso.</span></p>
+              <div class="limits-grid">
+                <div class="lfield"><label><span data-en="Multiplier" data-es="Multiplicador">Multiplicador</span> <code>KATTIS_AC_TO_TIME_LIMIT</code></label>
+                  <span class="lrow"><input id="cf_kattis_a" type="text" inputmode="decimal" placeholder="2.0"><span class="unit">×</span></span>
+                  <span class="small muted" data-en="from 1 to 100; ac_to_time_limit in the spec" data-es="de 1 a 100; ac_to_time_limit en la spec">de 1 a 100; ac_to_time_limit na spec</span></div>
+                <div class="lfield"><label><span data-en="Slow-solution margin" data-es="Margen de la solución lenta">Margem da solução lenta</span> <code>KATTIS_TIME_LIMIT_TO_TLE</code></label>
+                  <span class="lrow"><input id="cf_kattis_b" type="text" inputmode="decimal" placeholder="1.5"><span class="unit">×</span></span>
+                  <span class="small muted" data-en="from 1 to 100; time_limit_to_tle in the spec" data-es="de 1 a 100; time_limit_to_tle en la spec">de 1 a 100; time_limit_to_tle na spec</span></div>
+                <div class="lfield"><label><span data-en="Resolution" data-es="Resolución">Resolução</span> <code>KATTIS_TIME_RESOLUTION</code></label>
+                  <span class="lrow"><input id="cf_kattis_r" type="text" inputmode="decimal" placeholder="1.0"><span class="unit">s</span></span>
+                  <span class="small muted" data-en="more than 0 and up to 10; the time limit rounds up to a multiple of this" data-es="más de 0 y hasta 10; el tiempo límite se redondea hacia arriba a un múltiplo de esto">mais de 0 e até 10; o tempo-limite arredonda para cima a um múltiplo disto</span></div>
+              </div>
             </div>
           </div>
 

@@ -17,11 +17,11 @@ inventário e **puxam jobs no heartbeat**. O escalonador é o próprio handler d
   GET  /judge/package?id ────────────▶  handlers/judge/package.sh ─▶ .tar.gz + X-Moj-Checksum
         (+ X-Moj-Tl-Checksum = o carimbo estreito, p/ diagnóstico)
   ...cacheia em ~/.cache/moj/problems/<id>, CALIBRA na 1ª vez (calibreitor → tl.<host>)...
-  POST /judge/tl-report(id,checksum,tl)▶ handlers/judge/tl-report.sh ─▶ run/tl/<id>.json (por host)
+  POST /judge/tl-report(id,checksum,tl,tl_kattis)▶ handlers/judge/tl-report.sh ─▶ run/tl/<id>.json (por host)
   POST /judge/heartbeat(state,inv,free_slots,total_slots,cfg_hash,status,slot_cpus,max_free_group) ─▶ heartbeat.sh = ESCALONADOR
         ◀── {assigned:[…]|null, update|null, command|null, reregister, config?, holding?} ──
         (claim atômico; LOTE de até free_slots SLOTS — job de CPUNEEDED=k ocupa k_slots e leva
-         {test_cpus,same_numa,slots,par_max,par_cap}; config por juiz quando o cfg_hash difere;
+         {test_cpus,same_numa,slots,par_max,par_cap} + tl_method (o TLMETHOD do conf AGORA); config por juiz quando o cfg_hash difere;
          status ∈ ok|draining|disabled = auto-relato honesto; comando URGENTE kill|restart é
          entregue MESMO ocupado — recuperação sem SSH, /ops/judge-reset; holding = juiz
          SEGURADO p/ um job largo)
@@ -86,11 +86,24 @@ envelhecer porque alguém salvou uma solução `wrong`. Serve o **máximo entre 
 `var/jsons` (conservador). Ao **relançar**, o agente re-reporta os TLs do cache (sem
 recalibrar). Se o pacote muda de verdade, o `tl_checksum` novo **descarta** o TL antigo (todos
 recalibram).
+
+**Os DOIS métodos de TL (26/10/2026; mojtools `tl-methods.sh`, `docs/PACOTE.md` §10 "Métodos de TL").** A tabela
+`tl.<host>` leva as duas metades — `TL[]` (o método MOJ) e `TLKATTIS[]` (o do Kattis, por linguagem) — e o
+agente reporta as duas (`tl`, `tl_kattis`; o servidor guarda `hosts[h].tl_kattis` e saneia os dois mapas). Quem
+escolhe a metade é o `TLMETHOD` do conf do problema, que fica FORA dos dois carimbos (trocar não recalibra nem
+rebaixa o pacote) — então o juiz não pode confiar no conf do cache: o **claim** (`q_claim`/`q_claim_id`,
+`sched-lib.sh` `_pkg_tlmethod_v`, um `read` do conf sem fork) põe **`tl_method`** no job, e o agente o repassa
+ao build-and-test (`MOJ_TL_METHOD`), ao teto do job (`_job_cap`) e ao `ensure_cached` (job `kattis` com tabela
+sem a metade Kattis recalibra antes de julgar). Fora do `.cmeta` de propósito: um 13º campo na ordem fixa que
+os três leitores leem igual é a armadilha já paga uma vez. Agente antigo ignora o campo e usa o conf do cache.
 O `POST /judge/calib-report` leva, além do log texto e dos `reports` (report.html por solução),
 o campo **`sols`** = o `.calib-sols.json` do calibreitor (a calibração POR EXTENSO:
-`[{file,lang,category,verdict,tests:[{name,code,time,tl}]}]`, ≤300 KB; cópia em
+`[{file,lang,category,verdict,method,etl,tests:[{name,code,time,tl,code_alt,tl_alt}]}]` — `code_alt`/`tl_alt` =
+o veredicto e o TL pelo OUTRO método de TL, só pass/slow/wrong —, ≤300 KB; cópia em
 `<cache>/<id>/.calib-sols.json` p/ o re-envio de boot). O servidor PRESERVA `sols`/`reports`
-de um POST sem esses campos com o MESMO checksum (boot/agente velho não apagam o dado).
+de um POST sem esses campos com o MESMO checksum (boot/agente velho não apagam o dado) e, com o MESMO checksum,
+JUNTA o que vem por categoria/arquivo (26/10/2026): a calibração RÁPIDA, só das good — normal na mesma versão,
+já que o `TLMETHOD` fica fora dela —, troca as linhas das good e deixa as de pass/slow/wrong. Versão nova zera.
 
 - **GC do cache no juiz** (lado agente): pacote sem uso há `AGENT_CACHE_MAX_DAYS` (14) vira
   **stub** — o `pkg/` pesado sai, `tl.<host>`+meta ficam (o registro segue anunciando o

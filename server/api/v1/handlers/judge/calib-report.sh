@@ -38,11 +38,15 @@ same=0; [[ -n "$cks" && "$cks" == "$oldcks" ]] && same=1
 # antes o rm incondicional apagava os HTML a cada reboot de juiz)
 nreps="$(jq -r '(.reports // []) | length' "$bf" 2>/dev/null)"; nreps="${nreps//[^0-9]/}"; nreps="${nreps:-0}"
 if (( nreps > 0 )); then
-  rm -f "$rdir"/*.html 2>/dev/null; names='[]'
+  # MESMA versão: JUNTA (os reports do envio trocam os de mesmo nome; os outros ficam) — uma calibração rápida
+  # na mesma versão (só as good: o agente recalibrando um job kattis com a tabela antiga, cache perdido) não
+  # apaga os de pass/slow/wrong, que seguem valendo (o pacote é o mesmo). Versão nova: zera.
+  if (( same )); then names="$(jq -c '.reports // []' "$f" 2>/dev/null)"; [[ -n "$names" ]] || names='[]'
+  else rm -f "$rdir"/*.html 2>/dev/null; names='[]'; fi
   while IFS= read -r rep; do
     rn="$(jq -r '.name // empty' <<<"$rep" | tr -cd 'A-Za-z0-9._-')"; [[ -n "$rn" ]] || continue
     if jq -r '.html_b64 // ""' <<<"$rep" | base64 -d > "$rdir/$rn.html" 2>/dev/null; then
-      names="$(jq -c --arg n "$rn" '. + [$n]' <<<"$names")"
+      names="$(jq -c --arg n "$rn" '(. - [$n]) + [$n]' <<<"$names")"
     fi
   done < <(jq -c '.reports[]?' "$bf")
 elif (( same )); then
@@ -53,7 +57,10 @@ fi
 
 # sols: projeção FECHADA por item (campo desconhecido morre na borda) + teto de 1 MB.
 # Vai por ARQUIVO (--slurpfile): o vetor cresce com nº de soluções × testes.
-SOLSF="$(mktemp)"; trap 'rm -f "$bf" "$SOLSF"' EXIT
+# Os DOIS métodos de TL (26/10/2026, mojtools tl-methods.sh): `method` (o dos `code`), `etl` (o teto de tempo
+# de cada teste) e, por teste, `code_alt`/`tl_alt` (o veredicto e o TL pelo OUTRO método — só pass/slow/wrong)
+# — lib/calib-expect.sh escolhe um ou outro conforme o método avaliado.
+SOLSF="$(mktemp)"; trap 'rm -f "$bf" "$SOLSF" "$SOLSF.n"' EXIT
 if jq -e '(.sols // null) | type == "array"' "$bf" >/dev/null 2>&1 \
    && (( $(jq -c '.sols' "$bf" 2>/dev/null | wc -c) <= 1048576 )); then
   jq -c '[ .sols[]
@@ -62,8 +69,24 @@ if jq -e '(.sols // null) | type == "array"' "$bf" >/dev/null 2>&1 \
               tests:[ (.tests // [])[]
                       | {name:(.name // "" | tostring), code:(.code // "" | tostring),
                          time:(.time | (tonumber? // null)), tl:(.tl | (tonumber? // null))}
-                        + (if (.msg // null) == null then {} else {msg:(.msg | tostring | .[0:300])} end) ]} ]' \
+                        + (if (.msg // null) == null then {} else {msg:(.msg | tostring | .[0:300])} end)
+                        + (if (.code_alt // null) == null then {}
+                           else {code_alt:(.code_alt | tostring | .[0:16]), tl_alt:(.tl_alt | (tonumber? // null))} end) ]}
+             + (if (.method // "") == "kattis" or (.method // "") == "moj" then {method:.method} else {} end)
+             + ((.etl | tonumber? // null) as $e | if $e != null then {etl:$e} else {} end) ]' \
     "$bf" > "$SOLSF" 2>/dev/null
+  # MESMA versão: JUNTA por categoria/arquivo (a linha nova troca a do mesmo arquivo; a categoria ausente do
+  # envio fica). Com o TLMETHOD fora da versão do pacote, uma calibração RÁPIDA na mesma versão (só as good) é
+  # normal — e apagaria o juízo de pass/slow/wrong, que segue valendo (o pacote é o mesmo).
+  if (( same )) && [[ -s "$SOLSF" ]] && jq -e '(.sols // []) | length > 0' "$f" >/dev/null 2>&1; then
+    jq -c --slurpfile new "$SOLSF" '
+      def k: (.category // "") + "/" + (.file // "");
+      ($new[0] // []) as $n | (.sols // []) as $o
+      | ($n | map({key: k, value: .}) | from_entries) as $nm
+      | ($o | map(k)) as $ok
+      | [ $o[] | ($nm[k] // .) ] + [ $n[] | select(k as $x | ($ok | index($x)) == null) ]' "$f" > "$SOLSF.n" 2>/dev/null \
+      && [[ -s "$SOLSF.n" ]] && mv -f "$SOLSF.n" "$SOLSF"
+  fi
 elif (( same )); then
   jq -c '.sols // []' "$f" > "$SOLSF" 2>/dev/null
 fi

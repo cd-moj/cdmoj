@@ -25,6 +25,7 @@ JS
   sed -E '/^import /d; s/^export (async )?(function|const|let|class) /\1\2 /; /^export \{/d' "$WEB/problemas/readiness.js"
   cat <<'JS'
 const OPEN_SOLS = new Set();
+const altMethod = () => 'kattis';   // o editor: o método que NÃO está no conf (aqui o conf é moj)
 const testsTable = (t) => el('table', { class: 'soltests' });
 const openCalibReport = () => {};
 JS
@@ -69,6 +70,19 @@ const exps = byCls(b,'solexp');
 ck('linha "esperado/obtido" nas que têm categoria', exps.length===4);
 ck('"obtido" destacado quando não é ok', byCls(exps[0],'got').length===1 && byCls(exps[2],'got').length===0);
 ck('texto do esperado da slow', exps[0].textContent.includes('estourar o tempo'));
+// ---- os DOIS métodos de TL (26/10/2026): o chip do outro método e as margens do Kattis
+const hk = { host:'j1', reports:[], sols:[
+  {category:'slow', file:'m.c', verdict:'Time Limit Exceeded,0p', tests:[{code:'TLE'}], expect:{state:'ok',why:'tle',counts:{TLE:1}},
+   expect_alt:{state:'bad',why:'no_tle',counts:{AC:1},method:'kattis',need:1.5}},
+  {category:'slow', file:'s.c', verdict:'Time Limit Exceeded,0p', tests:[{code:'TLE'}], expect:{state:'ok',why:'tle',counts:{TLE:1}}} ] };
+const rk = byCls(solsBlock(hk),'solrow');
+ck('chip do outro método: "Kattis ✗ divergente", depois da pílula principal', rk[0].children[1].textContent==='Kattis ✗ divergente' && pillTxt(rk[0]).startsWith('✓'));
+ck('sem expect_alt (juiz antigo): sem o chip', rk[1].children[1].tagName==='B');
+ck('unmeasured = "· não medido" (neutro, com explicação)', expectPill({state:'unmeasured'}).label.includes('não medido') && expectPill({state:'unmeasured'}).cls==='' && !!expectPill({state:'unmeasured'}).title);
+ck('esperado do Kattis: good com folga de a ×; slow por b × o TL', expectWant('good',{method:'kattis',need:2}).includes('2 × o pior tempo') && expectWant('slow',{method:'kattis',need:1.5}).includes('1.5 × o tempo-limite') && expectWant('slow',{method:'moj'}).startsWith('esperado: estourar'));
+ck('tle_no_margin: diz a razão e a margem exigida', (()=>{ const g=expectGot({why:'tle_no_margin',ratio:1.2,need:1.5}); return g.includes('1.2 × o tempo-limite') && g.includes('pede 1.5 ×'); })());
+ck('tle_unmeasured cita o teto; tl_no_margin a conta; other_method pede recalibrar', expectGot({why:'tle_unmeasured',etl:1.25,need:1.5}).includes('1.25s') && expectGot({why:'tl_no_margin',need:2,tmax:0.6,tl:1}).includes('2 × 0.6s') && expectGot({why:'other_method'}).includes('recalibre'));
+ck('nome do método', tlMethodName('kattis')==='Kattis' && tlMethodName('moj')==='MOJ' && tlMethodName(undefined)==='MOJ');
 // ---- validatorBlock
 ck('juiz sem validador rodado = nada', validatorBlock({})===null);
 const vn = validatorBlock({validator:{state:'none',total:0,invalid:0,tests:[]}});

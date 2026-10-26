@@ -53,6 +53,11 @@ fi
 pfiles="$(calx_pkg_files "$pkg")"; [[ -n "$pfiles" ]] || pfiles='[]'
 allowtle="$(calx_allowtle "$pkg")"
 drift="$(calx_drift "$pkg")"; [[ -n "$drift" ]] || drift='{}'   # TLMOD[<lang>|default.drift] do conf
+# OS DOIS MÉTODOS DE TL (26/10/2026, mojtools tl-methods.sh): o do conf (TLMETHOD) é o que vale — `time_limits`,
+# `expect`, `summary` —; o outro sai ao lado (`time_limits_by_method`, `expect_alt`, `summary_alt`) p/ o autor
+# comparar antes de trocar (a troca não recalibra: os juízes medem os dois).
+meth=moj; tl_conf_method_to meth "$pkg"
+kp="$(tl_conf_kattis "$pkg")"; [[ -n "$kp" ]] || kp='{}'
 
 # CORPO ANTES DO CABEÇALHO (pode ser grande: log + sols por host — sai p/ arquivo).
 # npy normaliza chaves de TL py3/py2 legadas (calibração pré-unificação) p/ 'py'.
@@ -62,43 +67,56 @@ drift="$(calx_drift "$pkg")"; [[ -n "$drift" ]] || drift='{}'   # TLMOD[<lang>|d
 BODYF="$(mktemp)"; trap 'rm -f "$LOGF" "$BODYF"' EXIT
 jq -cn --argjson store "$store" --slurpfile lg "$LOGF" --argjson gl "$goodlangs" \
    --arg pkgver "$pkgver" --argjson clive "$calibrating" --argjson ov "$(tl_conf_overrides "$pkg")" \
-   --argjson pfiles "$pfiles" --argjson allowtle "$allowtle" --argjson drift "$drift" "$CALX_JQ"'
+   --argjson pfiles "$pfiles" --argjson allowtle "$allowtle" --argjson drift "$drift" \
+   --arg meth "$meth" --argjson kp "$kp" "$CALX_JQ"'
   def npy: if .=="py3" or .=="py2" then "py" else . end;
-  ($lg[0] // {}) as $logs
-  | ($store.hosts // {}) as $h
-  | (($h|keys) + ($logs|keys) | unique) as $hosts
-  | ([ $h[]?.tl // {} | keys[] | npy | select(.!="default") ] | unique) as $served   # calibrado em >=1 host
+  # o MÁXIMO entre os juízes de uma metade da tabela (tl = MOJ, tl_kattis = Kattis)
+  def calmax($h; $f): [ $h[]?[$f] // {} | to_entries[] ] | group_by(.key | npy)
+     | map({ (.[0].key | npy): (map(.value | tonumber? // 0) | max | tostring) }) | add // {};
   # TL EFETIVO ao lado do medido: o cartão precisa dizer "os tempos abaixo são a MEDIÇÃO da
   # calibração, mas o julgamento usa X" — a calibração ignora o override de propósito
   # (MOJ_CALIBRATING=1 no calibreitor), então hosts[].tl NUNCA vai refletir o override.
-  | ([ $h[]?.tl // {} | to_entries[] ] | group_by(.key | npy)
-     | map({ (.[0].key | npy): (map(.value | tonumber? // 0) | max | tostring) }) | add // {}) as $cal
-  | (if ($ov|length) == 0 then $cal
+  def effof($cal): if ($ov|length) == 0 then $cal
      else ((($cal|keys) + ($ov|keys)) | unique) as $ks
           | reduce $ks[] as $k ({}; .[$k] = ($ov[$k] // $ov["default"] // $cal[$k]))
           | with_entries(select(.value != null) | .value |= tostring)
-     end) as $eff
+     end;
+  ($lg[0] // {}) as $logs
+  | ($store.hosts // {}) as $h
+  | (if $meth == "kattis" then "moj" else "kattis" end) as $alt
+  | (if $meth == "kattis" then "tl_kattis" else "tl" end) as $fld
+  | (($h|keys) + ($logs|keys) | unique) as $hosts
+  | ([ $h[]?[$fld] // {} | keys[] | npy | select(.!="default") ] | unique) as $served   # calibrado em >=1 host
+  | calmax($h; "tl") as $calm | calmax($h; "tl_kattis") as $calk
+  | (if $meth == "kattis" then $calk else $calm end) as $cal
+  | (effof($calm)) as $effm | (effof($calk)) as $effk
+  | (if $meth == "kattis" then $effk else $effm end) as $eff
+  | (if $meth == "kattis" then $effm else $effk end) as $effalt
   | [ $hosts[] as $n
       | ($logs[$n].version // "") as $hv
       | { host:$n,
           stale:(($pkgver != "") and ($hv != "") and ($hv != $pkgver)),
-          sols:(($logs[$n].sols // []) | map(. + {expect: calx($eff; $allowtle; $drift)})) } ] as $hx
+          sols:(($logs[$n].sols // []) | map(. + {expect: calx($eff; $allowtle; $drift; $meth; $kp),
+                                                  expect_alt: calx($effalt; $allowtle; $drift; $alt; $kp)})) } ] as $hx
   | ($hx | map({(.host): .}) | add // {}) as $hxm
   | { success:true, id:($store.id // ""), checksum:($store.checksum // ""), version:$pkgver,
       being_calibrated:(($clive|length) > 0), calibrating:$clive,
       good_langs:$gl, tl_override:$ov,
+      tl_method:$meth, kattis:$kp,
       time_limits:$eff, time_limits_calibrated:$cal,
+      time_limits_by_method:{moj:{calibrated:$calm, effective:$effm}, kattis:{calibrated:$calk, effective:$effk}},
       missing_langs:[ $gl[] | select(. as $g | ($served|index($g)|not)) ],     # sem TL em NENHUM host
       allow_tle:$allowtle, drift:$drift,
       summary:calx_sum([ $hx[] | select(.stale | not) ]; $pfiles),
+      summary_alt:calx_sum([ $hx[] | select(.stale | not) | .sols |= map(.expect = .expect_alt) ]; $pfiles),
       hosts: [ $hosts[] as $n
-               | ($h[$n].tl // {}) as $htl
+               | ($h[$n][$fld] // {}) as $htl
                | ($htl | keys | map(npy)) as $htlk
                | ($logs[$n].version // "") as $hv
                # desatualizado = calibrou OUTRA versão do pacote (só dá p/ afirmar quando as duas
                # versões são conhecidas: juiz antigo/report sem versão não é acusado de nada)
                | (($pkgver != "") and ($hv != "") and ($hv != $pkgver)) as $stale
-               | { host:$n, tl:$htl,
+               | { host:$n, tl:($h[$n].tl // {}), tl_kattis:($h[$n].tl_kattis // {}),
                    missing:[ $gl[] | select(. as $g | ($htlk|index($g)|not)) ],  # sem TL NESTE host
                    # o MAIOR entre o carimbo do store de TL e o do log: calibração que termina
                    # SEM TL novo (good que falhou/TLE — justo o caso de quem está consertando

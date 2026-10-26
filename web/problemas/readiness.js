@@ -19,11 +19,28 @@ export function expectPill(ex) {
              'La solución hizo lo que la categoría pide, pero no de la forma típica (mira "obtenido").') };
   if (st === 'bad') return { cls: 'no', label: T('✗ divergente', '✗ diverges', '✗ diverge') };
   if (st === 'norun') return { cls: 'no', label: T('✗ não rodou', '✗ did not run', '✗ no se ejecutó') };
+  // os dois métodos de TL (26/10/2026): a linha não tem o juízo pelo método avaliado (calibrada antes deles)
+  if (st === 'unmeasured') return { cls: '', label: T('· não medido', '· not measured', '· no medido'),
+    title: T('Esta calibração não julgou a solução por este método de TL — recalibre.',
+             'This calibration did not judge the solution by this time-limit method — recalibrate.',
+             'Esta calibración no juzgó la solución por este método de tiempo límite — recalibra.') };
   return null;
 }
+// nome do método de TL (docs/PACOTE.md "Métodos de TL")
+export const tlMethodName = (m) => (m === 'kattis' ? 'Kattis' : 'MOJ');
 
-// o que a CATEGORIA exige (uma linha, para o autor não ter de lembrar a regra)
-export function expectWant(cat) {
+// o que a CATEGORIA exige (uma linha, para o autor não ter de lembrar a regra). Com o `expect` do método
+// Kattis, a regra leva as MARGENS da spec (a × tempo da good ≤ TL; a lenta passa de b × o TL).
+export function expectWant(cat, ex) {
+  if (ex && ex.method === 'kattis' && ex.need) {
+    const k = +(+ex.need).toFixed(2);
+    if (cat === 'good') return T(`esperado (Kattis): aceita em todos os testes, com folga — ${k} × o pior tempo cabe no tempo-limite`,
+                                 `expected (Kattis): accepted on every test, with headroom — ${k} × the worst time fits in the time limit`,
+                                 `esperado (Kattis): aceptada en todas las pruebas, con margen — ${k} × el peor tiempo cabe en el tiempo límite`);
+    if (cat === 'slow') return T(`esperado (Kattis): estourar o tempo em pelo menos 1 teste por ${k} × o tempo-limite, sem errar os outros`,
+                                 `expected (Kattis): exceed the time on at least 1 test by ${k} × the time limit, without wrong answers`,
+                                 `esperado (Kattis): exceder el tiempo en al menos 1 prueba por ${k} × el tiempo límite, sin fallar las demás`);
+  }
   switch (cat) {
     case 'good': return T('esperado: aceita em todos os testes, dentro do tempo-limite que o juiz cobra',
                           'expected: accepted on every test, within the time limit the judge enforces',
@@ -78,6 +95,28 @@ export function expectGot(ex) {
     case 'lang': return T('linguagem indisponível neste juiz', 'language not available on this judge', 'lenguaje no disponible en este juez');
     case 'ue': return T('erro do corretor/juiz (UE) em algum teste', 'checker/judge error (UE) on some test', 'error del corrector/juez (UE) en alguna prueba');
     case 'noverdict': return T('sem veredicto', 'no verdict', 'sin veredicto');
+    // as MARGENS do método Kattis (lib/calib-expect.sh)
+    case 'tl_no_margin': {
+      const k = +(+(ex.need || 2)).toFixed(2);
+      return T(`aceita, mas sem a folga do Kattis: ${k} × ${s2(ex.tmax)} passa do tempo-limite de ${s2(ex.tl)} (TLOVERRIDE baixo demais?)`,
+               `accepted, but without the Kattis headroom: ${k} × ${s2(ex.tmax)} is above the ${s2(ex.tl)} time limit (TLOVERRIDE too low?)`,
+               `aceptada, pero sin el margen de Kattis: ${k} × ${s2(ex.tmax)} supera el tiempo límite de ${s2(ex.tl)} (¿TLOVERRIDE demasiado bajo?)`);
+    }
+    case 'tle_no_margin': {
+      const k = +(+(ex.need || 1.5)).toFixed(2), r = ex.ratio != null ? +(+ex.ratio).toFixed(2) : null;
+      return T(`estourou o tempo, mas só ${r != null ? r + ' × ' : 'um pouco acima d'}o tempo-limite — o Kattis pede ${k} × (a spec recusaria o pacote: a solução lenta tem de ser lenta de verdade)`,
+               `exceeded the time, but only by ${r != null ? r + ' ×' : 'a little over'} the time limit — Kattis requires ${k} × (the spec would reject the package: a slow solution must be really slow)`,
+               `excedió el tiempo, pero solo ${r != null ? r + ' × ' : 'un poco por encima d'}el tiempo límite — Kattis pide ${k} × (la spec rechazaría el paquete: la solución lenta tiene que ser lenta de verdad)`);
+    }
+    case 'tle_unmeasured': {
+      const k = +(+(ex.need || 1.5)).toFixed(2);
+      return T(`estourou o tempo, mas o teste parou no teto de ${s2(ex.etl)} antes de ${k} × o tempo-limite — a margem do Kattis não pôde ser medida`,
+               `exceeded the time, but the test stopped at the ${s2(ex.etl)} ceiling before ${k} × the time limit — the Kattis headroom could not be measured`,
+               `excedió el tiempo, pero la prueba se detuvo en el techo de ${s2(ex.etl)} antes de ${k} × el tiempo límite — el margen de Kattis no se pudo medir`);
+    }
+    case 'other_method': return T('esta calibração não julgou a solução por este método de TL — recalibre',
+                                  'this calibration did not judge the solution by this time-limit method — recalibrate',
+                                  'esta calibración no juzgó la solución por este método de tiempo límite — recalibra');
     default: return '';
   }
 }

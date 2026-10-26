@@ -12,14 +12,17 @@ valid_id "$problem" || fail 400 "Invalid problem" "problem_invalid"
 
 pdir="$(pkg_path "$problem")"
 cur="$(pkg_tl_checksum "$pdir")"
-tlcal="$(tl_store_served_for "$problem" "$cur")"
+meth=moj; tl_conf_method_to meth "$pdir"   # o método do TL do conf (26/10/2026): a metade que vale
+tlf=tl; [[ "$meth" == kattis ]] && tlf=tl_kattis
+tlcal="$(tl_store_served_for "$problem" "$cur" "$tlf")"
 ov="$(tl_conf_overrides "$pdir")"   # time_limits = efetivo (TLOVERRIDE do conf vence)
 body="$(jq -cn --arg p "$problem" --arg cks "$cur" \
    --argjson tl "$(tl_override_apply "$tlcal" "$ov")" \
-   --argjson tlcal "$tlcal" --argjson ov "$ov" \
+   --argjson tlcal "$tlcal" --argjson ov "$ov" --arg meth "$meth" \
+   --argjson bm "$(tl_by_method_json "$problem" "$cur" "$ov")" \
    --argjson store "$(tl_store_get "$problem")" '
    {success:true, problem:$p, checksum:$cks, time_limits:$tl,
-    time_limits_calibrated:$tlcal, tl_override:$ov,
+    time_limits_calibrated:$tlcal, tl_override:$ov, tl_method:$meth, time_limits_by_method:$bm,
     calibrated_checksum:($store.checksum // ""),
     hosts:($store.hosts // {}), updated_at:($store.updated_at // null),
     stale:(($store.checksum // "") != $cks and ($store.checksum // "") != "")}')"

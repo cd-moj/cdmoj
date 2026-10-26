@@ -87,6 +87,10 @@ out="$(jq -c --slurpfile TL "$tlmap" --slurpfile VAL "$valmap" --slurpfile CX "$
   | [ .problems[]
       | .id as $id
       | ($val[$id]) as $v | ($tl[$id]) as $t
+      # MÉTODO DO TL (26/10/2026): o sumário carimba o do conf (tl-report / problem_commit) e traz as duas
+      # metades; vale a do método — o Kattis ainda não calibrado (juiz anterior) sai vazio, não o MOJ no lugar
+      | (($t.method // "moj") | if . == "kattis" then "kattis" else "moj" end) as $tlm
+      | (if $tlm == "kattis" then ($t.tl_kattis // {}) else ($t.tl // {}) end) as $ttl
       | (($v.checks // []) | any(.name=="good_sol_accepts" and (.ok|not))) as $gsbad
       | (if $v==null then "none" elif ($v.ok==true) then "ok" else "error" end) as $vstate
       | ($t.calibrated // false) as $cal
@@ -100,7 +104,7 @@ out="$(jq -c --slurpfile TL "$tlmap" --slurpfile VAL "$valmap" --slurpfile CX "$
       # linguagens good SEM TL servido = solução good que não calibrou (o TL servido é a UNIÃO entre
       # hosts, então ausente = falhou em TODOS os juízes). Só vale p/ calibração ATUAL (senão é "stale").
       | ([ (.good_langs // [])[] | (if .=="py3" or .=="py2" then "py" else . end)
-           | select(. as $g | ($SUP|index($g)) and (($t.tl // {})|has($g)|not)) ] | unique) as $miss
+           | select(. as $g | ($SUP|index($g)) and ($ttl|has($g)|not)) ] | unique) as $miss
       | ($cal and ($stale|not) and ($miss|length>0)) as $gsnotl
       | (($vstate=="error") or $gsbad) as $err
       | (.public and ($cal|not)) as $pubuncal            # público mas SEM calibração (sem TL p/ o aluno)
@@ -181,14 +185,15 @@ out="$(jq -c --slurpfile TL "$tlmap" --slurpfile VAL "$valmap" --slurpfile CX "$
           # Painel é rota quente e lista os 1400 problemas de um .admin.
           # ⚠ `$ovr`/`$cal` são ligados ANTES do reduce: lá dentro o `.` é o ACUMULADOR, não o
           # problema (a mesma armadilha de escopo do jq que já mordeu o gate de UA).
-          time_limits:( (.tl_override // {}) as $ovr | ($t.tl // {}) as $cal
+          time_limits:( (.tl_override // {}) as $ovr | $ttl as $cal
                         | if ($ovr|length) == 0 then $cal
                           else ((($cal|keys) + ($ovr|keys)) | unique) as $ks
                                | reduce $ks[] as $k ({};
                                    .[$k] = ($ovr[$k] // $ovr["default"] // $cal[$k]))
                                | with_entries(select(.value != null) | .value |= tostring)
                           end ),
-          time_limits_calibrated:($t.tl // {}),
+          time_limits_calibrated:$ttl,
+          tl_method:$tlm,
           tl_override:(.tl_override // {}),
           updated_at:($t.at // null),
           validated_at:($v.at // null),

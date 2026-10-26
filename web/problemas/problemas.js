@@ -70,6 +70,13 @@ const fmtTL = (tl) => { const e = Object.entries(tl || {}).filter(([k]) => k !==
 // Sem isto o autor lia o calibrado e achava que o override não tinha pegado (relato de 24/08).
 const tlCell = (p) => {
   const box = el('span', {}, fmtTL(p.time_limits));
+  // método do TL (docs/PACOTE.md "Métodos de TL"): só o Kattis se anuncia — o MOJ é o de sempre
+  if (p.tl_method === 'kattis') {
+    box.append(el('span', { class: 'pill', style: 'margin-left:.35rem',
+      title: T('Tempo-limite pelo método Kattis (TLMETHOD=kattis no conf): o menor múltiplo da resolução que é pelo menos o multiplicador × o pior tempo das soluções good.',
+               'Time limit by the Kattis method (TLMETHOD=kattis in the conf): the smallest multiple of the resolution that is at least the multiplier × the worst time of the good solutions.',
+               'Tiempo límite por el método Kattis (TLMETHOD=kattis en el conf): el menor múltiplo de la resolución que es al menos el multiplicador × el peor tiempo de las soluciones buenas.') }, 'K'));
+  }
   if (p.tl_override && Object.keys(p.tl_override).length) {
     const s = el('span', { class: 'pill warn', style: 'margin-left:.35rem' }, '⚡ override');
     s.title = T('Tempo-limite definido pelo autor no conf do pacote (TLOVERRIDE) — vence o calibrado. Calibrado: ',

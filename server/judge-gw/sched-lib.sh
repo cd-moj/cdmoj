@@ -219,6 +219,24 @@ _pkg_par_v() {
   [[ "$mem" =~ ^[0-9]+$ ]] || mem=0
   _PP_K=$k; _PP_NUMA=$numa; _PP_PAR=$par; _PP_M=$m; _PP_MEM=$mem
 }
+# _pkg_tlmethod_v <problem_id> : o TLMETHOD do conf ATUAL do pacote (moj|kattis) em _PP_TLM, SEM fork. Vai no job
+# reivindicado (`tl_method`, 26/10/2026; mojtools tl-methods.sh): o juiz julga pela metade da tabela que o conf
+# escolhe AGORA — o TLMETHOD fica fora dos carimbos do pacote, então o conf do CACHE do juiz pode estar velho.
+# Fora do .cmeta de propósito: um 13º campo na ordem fixa que os três leitores leem igual é a armadilha já
+# paga uma vez. A ÚLTIMA linha vence, como no `source` do juiz.
+_pkg_tlmethod_v() {
+  local id="${1//\//#}" conf c="" re
+  _PP_TLM=moj
+  [[ -n "${MOJ_PROBLEMS_DIR:-}" && "$id" == *#* ]] || return 0
+  conf="$MOJ_PROBLEMS_DIR/${id%%#*}/${id#*#}/conf"
+  [[ -f "$conf" ]] || return 0
+  IFS= read -r -d '' c < "$conf" || true
+  [[ "$c" == *TLMETHOD* ]] || return 0
+  c=$'\n'"$c"; re=$'\n[[:space:]]*TLMETHOD=["\x27]?([A-Za-z]+)'
+  while [[ "$c" =~ $re ]]; do _PP_TLM="${BASH_REMATCH[1]}"; c="${c#*"${BASH_REMATCH[0]}"}"; done
+  [[ "$_PP_TLM" == kattis ]] || _PP_TLM=moj
+  return 0
+}
 # _kslots <k> <slot_cpus> -> ceil(k/slot_cpus) (slot_cpus<1 ⇒ 1)
 _kslots() { local k="$1" sc="$2"; [[ "$sc" =~ ^[0-9]+$ && "$sc" -ge 1 ]] || sc=1; printf '%s' "$(( (k + sc - 1) / sc ))"; }
 
@@ -431,7 +449,7 @@ q_claim() {
     [[ "$memkb" =~ ^[0-9]+$ ]] || memkb=""
     local -A PKGPAR=()
     # lote reivindicado (p/ o par_max no fim): dest, k_slots, k, numa, par, m
-    local -a C_DEST=() C_KS=() C_K=() C_KORIG=() C_NUMA=() C_PAR=() C_M=() C_GROUPS=()
+    local -a C_DEST=() C_KS=() C_K=() C_KORIG=() C_NUMA=() C_PAR=() C_M=() C_GROUPS=() C_TLM=()
     # conjuntos do JUIZ, calculados UMA vez por chamada (2 jq no total)
     local -A PH=()
     while IFS= read -r pk; do [[ -n "$pk" ]] && PH["$pk"]=1; done \
@@ -502,6 +520,7 @@ q_claim() {
         if mv "$f" "$dest" 2>/dev/null; then
           rm -f "$f.cmeta" 2>/dev/null
           C_DEST+=("$dest"); C_KS+=("$ks"); C_K+=("$k"); C_KORIG+=("$korig"); C_NUMA+=("$numa"); C_PAR+=("$par"); C_M+=("$m"); C_GROUPS+=(1)
+          _pkg_tlmethod_v "$prob"; C_TLM+=("$_PP_TLM")
           slots_left=$(( slots_left - ks ))
           [[ "$numa" == y && -n "$mfg" ]] && mfg=$(( mfg - ks ))
         fi
@@ -535,13 +554,15 @@ q_claim() {
     for (( i=0; i<n; i++ )); do
       dest="${C_DEST[i]}"; local tmp="$dest.tmp" cap_i="${C_M[i]:-$pmax}"
       (( cap_i > pmax )) && cap_i=$pmax
+      # tl_method (o método do TL do conf AGORA) vai p/ todo juiz: o antigo ignora o campo e usa o conf do cache
       if (( legacy )); then
-        jq -c --arg h "$host" --argjson now "$now" '. + {assigned_to:$h, assigned_at:$now}' "$dest" > "$tmp" 2>/dev/null && mv -f "$tmp" "$dest"
+        jq -c --arg h "$host" --argjson now "$now" --arg tlm "${C_TLM[i]:-moj}" '. + {assigned_to:$h, assigned_at:$now, tl_method:$tlm}' "$dest" > "$tmp" 2>/dev/null && mv -f "$tmp" "$dest"
       else
         # cpu_needed (o CPUNEEDED) só p/ as TELAS: test_cpus > cpu_needed = slots a mais pela memória
         jq -c --arg h "$host" --argjson now "$now" --argjson k "${C_K[i]}" --argjson nm "$([[ "${C_NUMA[i]}" == y ]] && echo true || echo false)" \
            --argjson sl "$(( C_GROUPS[i] * C_KS[i] ))" --argjson pm "${C_GROUPS[i]}" --argjson pc "$cap_i" --argjson kn "${C_KORIG[i]}" \
-           '. + {assigned_to:$h, assigned_at:$now, test_cpus:$k, same_numa:$nm, slots:$sl, par_max:$pm, par_cap:$pc, cpu_needed:$kn}' "$dest" > "$tmp" 2>/dev/null && mv -f "$tmp" "$dest"
+           --arg tlm "${C_TLM[i]:-moj}" \
+           '. + {assigned_to:$h, assigned_at:$now, test_cpus:$k, same_numa:$nm, slots:$sl, par_max:$pm, par_cap:$pc, cpu_needed:$kn, tl_method:$tlm}' "$dest" > "$tmp" 2>/dev/null && mv -f "$tmp" "$dest"
       fi
       cat "$dest"; printf '\n'
     done
@@ -987,10 +1008,10 @@ q_claim_id() {
     base="${f##*/}"; mkdir -p "$ASSIGNEDDIR/$host" 2>/dev/null; dest="$ASSIGNEDDIR/$host/$base"
     mv "$f" "$dest" 2>/dev/null || exit 0
     rm -f "$f.cmeta" 2>/dev/null
-    tmp="$dest.tmp"
+    tmp="$dest.tmp"; _pkg_tlmethod_v "$prob"
     jq -c --arg h "$host" --argjson now "$EPOCHSECONDS" --argjson k "$k" --argjson nm "$([[ "$numa" == y ]] && echo true || echo false)" \
-       --argjson sl "$ks" --argjson pc "${m:-$PARALLEL_MAX_DEFAULT}" --argjson kn "$korig" \
-       '. + {assigned_to:$h, assigned_at:$now, test_cpus:$k, same_numa:$nm, slots:$sl, par_max:1, par_cap:$pc, cpu_needed:$kn}' "$dest" > "$tmp" 2>/dev/null && mv -f "$tmp" "$dest"
+       --argjson sl "$ks" --argjson pc "${m:-$PARALLEL_MAX_DEFAULT}" --argjson kn "$korig" --arg tlm "$_PP_TLM" \
+       '. + {assigned_to:$h, assigned_at:$now, test_cpus:$k, same_numa:$nm, slots:$sl, par_max:1, par_cap:$pc, cpu_needed:$kn, tl_method:$tlm}' "$dest" > "$tmp" 2>/dev/null && mv -f "$tmp" "$dest"
     cat "$dest"; printf '\n'
   ) 9>"$QUEUEDIR/.lock"
 }

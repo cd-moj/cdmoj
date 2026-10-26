@@ -455,11 +455,16 @@ for ((i=0; i+4<${#PROBS[@]}; i+=5)); do
       jq -e --arg h "$h" 'any(.[]; .host == $h)' >/dev/null 2>&1 <<<"$judges" && { live=1; break; }
     done
     (( live == 0 )) && noPool+=" $id"
-    # calibrado = algum host DO POOL reportou TL p/ o problema
-    jq -e --arg p "$ppool" '(.hosts // {}) | keys | any(. as $h | ($p|split(" ")|index($h)))' \
+    # calibrado = algum host DO POOL reportou TL p/ o problema — no MÉTODO do problema: com TLMETHOD=kattis
+    # (carimbado no store pelo tl-report/problem_commit; rota de contest não abre pacote), só conta host com a
+    # metade Kattis da tabela (juiz anterior aos dois métodos não a manda: o TL não seria servido)
+    jq -e --arg p "$ppool" '(.method // "moj") as $m | (.hosts // {}) | to_entries
+        | any((.key as $h | ($p|split(" ")|index($h))) and ($m != "kattis" or ((.value.tl_kattis // {}) | length > 0)))' \
       "$(tl_store_file "$id")" >/dev/null 2>&1 || { noTL+=" $id"; continue; }
   else
     if [[ ! -s "$(tl_store_file "$id")" ]]; then noTL+=" $id"; continue; fi
+    jq -e '(.method // "moj") != "kattis" or ([(.hosts // {})[] | (.tl_kattis // {}) | length > 0] | any)' \
+      "$(tl_store_file "$id")" >/dev/null 2>&1 || { noTL+=" $id"; continue; }
   fi
 done
 if (( nprob == 0 )); then

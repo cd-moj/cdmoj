@@ -28,10 +28,16 @@ vf="$RUNDIR/validation/$id.json"; val='null'; [[ -f "$vf" ]] && val="$(cat "$vf"
 # função do /contest/problems. Rota de GESTÃO de UM problema: a fronteira "não abrir pacote no
 # request" é do contest/treino, não daqui. E o checksum vem MATERIALIZADO do índice, então não há
 # tl-checksum (que lê tests/*) por requisição.
+# MÉTODO DO TL (26/10/2026): o TLMETHOD do conf escolhe a metade que vale (tl ou tl_kattis); as duas vão em
+# `time_limits_by_method` p/ o autor comparar.
 cks="$(tl_index_checksums "$id" 2>/dev/null | cut -f2)"
-tlcal="$(tl_store_served_for "$id" "$cks" 2>/dev/null)"; [[ -n "$tlcal" ]] || tlcal='{}'
+meth=moj; tl_conf_method_to meth "$(pkg_path "$id")"
+tlf=tl; [[ "$meth" == kattis ]] && tlf=tl_kattis
+tlcal="$(tl_store_served_for "$id" "$cks" "$tlf" 2>/dev/null)"; [[ -n "$tlcal" ]] || tlcal='{}'
 ov="$(tl_conf_overrides "$(pkg_path "$id")" 2>/dev/null)"; [[ -n "$ov" ]] || ov='{}'
 tleff="$(tl_override_apply "$tlcal" "$ov")"; [[ -n "$tleff" ]] || tleff='{}'
+tlbm="$(tl_by_method_json "$id" "$cks" "$ov" 2>/dev/null)"; [[ -n "$tlbm" ]] || tlbm='{}'
+kp="$(tl_conf_kattis "$(pkg_path "$id")" 2>/dev/null)"; [[ -n "$kp" ]] || kp='{}'
 
 # o enunciado/tags continuam vindo do json servível — com fallback p/ o privado (mesmo padrão de
 # contest/problems.sh e lib/langs.sh: o gen grava sempre em jsons-private/ e só COPIA p/ jsons/
@@ -41,15 +47,17 @@ jf="$CONTESTSDIR/treino/var/jsons/$id.json"
 emit_json 200 OK
 if [[ -f "$jf" ]]; then
   jq -c --argjson base "$base" --argjson val "$val" --argjson tl "$tleff" \
-        --argjson tlc "$tlcal" --argjson ov "$ov" '
+        --argjson tlc "$tlcal" --argjson ov "$ov" --arg meth "$meth" --argjson bm "$tlbm" --argjson kp "$kp" '
     {success:true} + $base
     + { validation:$val,
         statement_html_b64:(.statement_html_b64 // null),
         time_limits:$tl, time_limits_calibrated:$tlc, tl_override:$ov,
+        tl_method:$meth, kattis:$kp, time_limits_by_method:$bm,
         tags:(.tags // []) }' "$jf" 2>/dev/null
 else
   jq -cn --argjson base "$base" --argjson val "$val" --argjson tl "$tleff" \
-         --argjson tlc "$tlcal" --argjson ov "$ov" \
+         --argjson tlc "$tlcal" --argjson ov "$ov" --arg meth "$meth" --argjson bm "$tlbm" --argjson kp "$kp" \
     '{success:true} + $base + {validation:$val, time_limits:$tl,
-                               time_limits_calibrated:$tlc, tl_override:$ov}'
+                               time_limits_calibrated:$tlc, tl_override:$ov,
+                               tl_method:$meth, kattis:$kp, time_limits_by_method:$bm}'
 fi

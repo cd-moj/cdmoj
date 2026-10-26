@@ -413,11 +413,33 @@ problem_commit(){
     # AGORA — vira "não conferido desde a última edição" até a próxima calibração. Só paga o
     # `git status` quem já tem sumário.
     declare -F calx_mark_stale >/dev/null || source "$(dirname "${BASH_SOURCE[0]}")/calib-expect.sh" 2>/dev/null
+    declare -F tl_conf_method_to >/dev/null || source "$(dirname "${BASH_SOURCE[0]}")/tl-store.sh" 2>/dev/null
+    # MÉTODO DO TL (26/10/2026, mojtools tl-methods.sh): o TLMETHOD fica fora dos carimbos do pacote — os juízes
+    # medem os dois métodos sempre, e trocar não recalibra nada. Na troca, o servidor: carimba o método no store
+    # e no sumário (o Painel troca na hora); regenera o json servível do treino (o `time_limits` do aluno; o edit
+    # não reindexa); e, se virou kattis sem nenhum juiz com a metade Kattis (problema calibrado antes dos dois
+    # métodos), pede UMA calibração completa — a auto-cura do agente fica p/ a exceção.
+    local _m=moj _sf; tl_conf_method_to _m "$pkg"; _sf="$(tl_store_file "$_pid")"
+    if [[ -s "$_sf" && "$(jq -r '.method // "moj"' "$_sf" 2>/dev/null)" != "$_m" ]]; then
+      tl_store_set_method "$_pid" "$_m"
+      index_problem_bg "$_pid" 0
+      if [[ "$_m" == kattis ]] \
+         && ! jq -e '[(.hosts // {})[] | ((.tl_kattis // {}) | length > 0)] | any' "$_sf" >/dev/null 2>&1; then
+        declare -F cal_request >/dev/null || source "$(dirname "${BASH_SOURCE[0]}")/../../../judge-gw/sched-lib.sh" 2>/dev/null
+        declare -F cal_request >/dev/null && cal_request "${_pid%%#*}" "$_pid" "$login" >/dev/null 2>&1
+      fi
+    fi
     if declare -F calx_summary_file >/dev/null && [[ -s "$(calx_summary_file "$_pid")" ]]; then
       if [[ ! -d "$pkg/.git" ]] \
          || [[ -n "$(git -C "$pkg" status --porcelain -- sols tests scripts conf 2>/dev/null)" ]]; then
-        declare -F _summary_upsert >/dev/null || source "$(dirname "${BASH_SOURCE[0]}")/tl-store.sh" 2>/dev/null
-        calx_mark_stale "$_pid"
+        # VERSÃO do pacote igual à das soluções julgadas (só mudou o que fica FORA dela: TLMETHOD, SAMPLE,
+        # FUNCTION_LANGS) = o juízo guardado segue valendo — RECALCULA (o método pode ter mudado: o calx escolhe
+        # code/code_alt) em vez de marcar "não conferido". Versão nova = marca, como sempre.
+        local _sv _cv
+        _sv="$(jq -r '.version // ""' "$(calx_summary_file "$_pid")" 2>/dev/null)"
+        _cv="$(pkg_judge_version "$pkg" "$_pid" 2>/dev/null)"; _cv="${_cv//[^0-9a-f]/}"
+        if [[ -n "$_sv" && "$_sv" == "$_cv" ]]; then calx_summary_write "$_pid" || true
+        else calx_mark_stale "$_pid"; fi
       fi
     fi
   fi

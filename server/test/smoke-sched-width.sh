@@ -114,6 +114,16 @@ rm -f "$HOLDDIR/.sweep-stamp"; hold_sweep; DBG="$(ls "$HOLDDIR"; cat "$HOLDDIR"/
 ck "MEMLIMITMB=4000 em slots de 3,8 GB (64 GB/16), 1 livre: hold de 2 slots p/ ele (e não p/ o de 1 GB)" '[[ "$(jq -r ".job,.k_slots" "$HOLDDIR/h1.json" 2>/dev/null | tr "\n" " ")" == "j1 2 " ]]'
 out="$(QC_SLOT_CPUS=1 QC_TOTAL_SLOTS=16 QC_MEM_KB=67108864 q_claim_id h1 j1)"; DBG="$out"
 ck "q_claim_id do segurado: a mesma largura por memória (test_cpus=2, slots=2, cpu_needed=1)" '[[ "$(jq -r ".id,.test_cpus,.slots,.cpu_needed" <<<"$out" | tr "\n" " ")" == "j1 2 2 1 " ]]'
+ck "q_claim_id também leva o tl_method (conf sem TLMETHOD = moj)" '[[ "$(jq -r .tl_method <<<"$out")" == moj ]]'
+
+echo "== tl_method no job reivindicado (26/10/2026: o método do TL do conf ATUAL — mojtools tl-methods.sh) =="
+clearq; PROBS="$(jq -c '. + {"o#kat":1}' <<<"$PROBS")"   # o juiz também tem o pacote novo em cache
+mkp kat 'TLMETHOD=kattis'; enq j1 kat; enq j2 plain
+out="$(claim h1 16)"; DBG="$out"
+ck "TLMETHOD=kattis no conf: o job leva tl_method=kattis; o outro, moj" '[[ "$(jq -r "select(.id==\"j1\") | .tl_method" <<<"$out")" == kattis && "$(jq -r "select(.id==\"j2\") | .tl_method" <<<"$out")" == moj ]]'
+clearq; enq j1 kat; mkp kat $'TLMETHOD=kattis\nTLMETHOD="moj"'
+out="$(claim h1 16)"; DBG="$out"
+ck "o conf de AGORA (não o do enfileiramento), e a última linha vence" '[[ "$(jq -r .tl_method <<<"$out")" == moj ]]'
 
 echo "== par_max: só política auto + fila vazia + nada pulado por tempo =="
 clearq; enq j1 par

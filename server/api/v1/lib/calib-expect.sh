@@ -19,6 +19,16 @@
 #   wrong     │ ≥1 WA                         │ falhou só por TLE/MLE/RE      │ todos AC
 #   qualquer  │ norun: CE, UE, linguagem indisponível, sem veredicto (a solução não exercitou os testes)
 #
+# OS DOIS MÉTODOS DE TL (26/10/2026; mojtools tl-methods.sh, cdmoj/docs/PACOTE.md "Métodos de TL"): o juiz
+# julga pass/slow/wrong pelo método do conf (`code`, `tl`) E pelo outro (`code_alt`, `tl_alt`), e a linha
+# diz qual é qual (`method`). `calx(…; $m; $kp)` avalia pelo método `$m`: os códigos do próprio método, senão
+# os alternativos — trocar o TLMETHOD do conf não perde o juízo. Linha sem o juízo por `$m` (calibrada antes,
+# ou juiz anterior) = `unmeasured` (fica fora do sumário: conta como solução sem resultado). No Kattis entram
+# as MARGENS da spec ($kp = {a, b}):
+#   good  │ ≈ tl_no_margin: aceita, mas a × tmax > TL (só com TLOVERRIDE abaixo: o servido é ≥ a × W de cada juiz)
+#   slow  │ ✓ só se algum teste com TLE passou de b × TL (`ratio` = o maior tempo/TL); ≈ tle_no_margin (é o
+#         │ "no such multiple" da spec, sem bloquear); ≈ tle_unmeasured (o teste morreu no teto `etl` < b × TL)
+#
 # Quem usa: handlers/problems/calib.sh (serve `expect` por solução + `summary`), handlers/judge/
 # calib-report.sh (grava o sumário do Painel), lib/problems.sh (problem_commit marca stale),
 # server/bin/calib-summary-rebuild.sh. A tela e a CLI só MOSTRAM `expect` — nunca reescreva a regra lá.
@@ -32,12 +42,22 @@ def calx_cls: if . == "AC" or . == "AC,PE" then "AC" elif . == "WA" then "WA" el
   elif . == "MLE" then "MLE" elif . == "RE" or . == "RE_NZEC" or . == "TMT" then "RE"
   elif . == "UE" then "UE" else "X" end;
 def calx_num: if type == "number" then . elif . == null then null else (tostring | tonumber? // null) end;
-# calx($eff; $allowtle; $drift): a expectativa de UMA solução. $eff = TL efetivo {lang:"seg"}; $allowtle =
-# bool; $drift = a TOLERÂNCIA do conf {lang|default: seg} (calx_drift) — o juiz só dá TLE acima de TL +
-# tolerância (mojtools/build-and-test.sh), então "good mais lenta que o TL" também só é divergente acima dela.
-def calx($eff; $allowtle; $drift):
+# calx_tests($m): os testes da solução pelo método $m — [{c, t, tl}] —, ou null se a linha não tem esse juízo.
+# As good rodam com o TL fictício da calibração: o juízo delas é por TEMPO (contra o servido), qualquer método.
+def calx_tests($m):
+  if (.category // "") == "good" or ((.method // "moj") == $m) then
+    [ (.tests // [])[] | {c: ((.code // "") | calx_cls), t: (.time | calx_num), tl: (.tl | calx_num)} ]
+  elif ((.tests // []) | length) > 0 and ((.tests // []) | all(has("code_alt"))) then
+    [ (.tests // [])[] | {c: ((.code_alt // "") | calx_cls), t: (.time | calx_num), tl: (.tl_alt | calx_num)} ]
+  else null end;
+# calx($eff; $allowtle; $drift; $m; $kp): a expectativa de UMA solução pelo método $m. $eff = TL efetivo
+# {lang:"seg"} DESSE método; $allowtle = bool; $drift = a TOLERÂNCIA do conf {lang|default: seg} (calx_drift)
+# — o juiz só dá TLE acima de TL + tolerância (mojtools/build-and-test.sh), então "good mais lenta que o TL"
+# também só é divergente acima dela; $kp = {a, b} do Kattis (tl_conf_kattis).
+def calx($eff; $allowtle; $drift; $m; $kp):
   (.category // "") as $cat
-  | [ (.tests // [])[] | {c: ((.code // "") | calx_cls), t: (.time | calx_num)} ] as $ts
+  | calx_tests($m) as $tsm
+  | ($tsm // []) as $ts
   | ($ts | reduce .[] as $x ({AC: 0, WA: 0, TLE: 0, MLE: 0, RE: 0, UE: 0, X: 0}; .[$x.c] += 1)) as $n
   | ($ts | length) as $tot
   | (.verdict // "" | tostring) as $v
@@ -47,17 +67,34 @@ def calx($eff; $allowtle; $drift):
   # a folga de 1e-9 é a da aritmética: o juiz decide em decimal exato (bc), o jq em ponto flutuante
   | (($tl != null) and ($tmax != null) and ($tmax > ($tl + $d + 0.000000001))) as $over
   | ($n.WA + $n.RE + $n.MLE) as $wrongish
+  # MARGENS do Kattis: a = ac_to_time_limit (good), b = time_limit_to_tle (slow); a maior razão tempo/TL entre
+  # os testes que deram TLE; o teto de tempo de cada teste (`etl`) diz se a margem chegou a ser medida
+  | ($m == "kattis") as $isk
+  | ((($kp // {}).a | calx_num) // 2) as $ka | ((($kp // {}).b | calx_num) // 1.5) as $kb
+  | ([ $ts[] | select(.c == "TLE" and .t != null and .tl != null and .tl > 0) | (.t / .tl) ] | max) as $rmax
+  | ((.etl // null) | calx_num) as $etl
+  | ([ $ts[] | select(.c == "TLE" and .tl != null) | .tl ] | max) as $tltle
   | (if ($cat | IN("good", "pass", "slow", "wrong") | not) then {state: "skip", why: "category"}
      elif ($v | test("^Compilation Error")) then {state: "norun", why: "ce"}
      elif ($v | test("not availa"; "i")) then {state: "norun", why: "lang"}
+     elif $tsm == null then {state: "unmeasured", why: "other_method"}
      elif ($n.UE > 0) or ($n.X > 0) then {state: "norun", why: "ue"}
      elif $tot == 0 then {state: "norun", why: "noverdict"}
      elif ($cat == "good") or ($cat == "pass") then
-       (if $n.AC == $tot then (if $over then {state: "bad", why: "over_tl"} else {state: "ok", why: "all_ac"} end)
+       (if $n.AC == $tot then
+          (if $over then {state: "bad", why: "over_tl"}
+           elif $isk and ($cat == "good") and ($tl != null) and ($tmax != null) and (($ka * $tmax) > ($tl + 0.000000001))
+             then {state: "note", why: "tl_no_margin"}
+           else {state: "ok", why: "all_ac"} end)
         elif ($cat == "good") and $allowtle and ($n.TLE > 0) and ($wrongish == 0) then {state: "note", why: "tle_allowed"}
         else {state: "bad", why: "failed"} end)
      elif $cat == "slow" then
-       (if ($n.TLE > 0) and ($wrongish == 0) then {state: "ok", why: "tle"}
+       (if ($n.TLE > 0) and ($wrongish == 0) then
+          (if ($isk | not) then {state: "ok", why: "tle"}
+           elif ($rmax != null) and ($rmax >= ($kb - 0.000000001)) then {state: "ok", why: "tle"}
+           elif ($etl != null) and ($tltle != null) and ($etl < ($kb * $tltle - 0.000000001))
+             then {state: "note", why: "tle_unmeasured"}
+           else {state: "note", why: "tle_no_margin"} end)
         elif $n.TLE > 0 then {state: "note", why: "tle_and_wrong"}
         elif $wrongish > 0 then {state: "bad", why: "wrong_no_tle"}
         else {state: "bad", why: "no_tle"} end)
@@ -66,7 +103,10 @@ def calx($eff; $allowtle; $drift):
         elif ($n.TLE + $n.MLE + $n.RE) > 0 then {state: "note", why: "failed_other"}
         else {state: "bad", why: "accepted"} end)
      end)
-  + {counts: ($n | del(.X) | with_entries(select(.value > 0))), tmax: $tmax, tl: $tl, drift: $d};
+  + {counts: ($n | del(.X) | with_entries(select(.value > 0))), tmax: $tmax, tl: $tl, drift: $d, method: $m}
+  + (if $isk and ($cat == "good") then {need: $ka} elif $isk and ($cat == "slow") then {need: $kb, ratio: $rmax, etl: $etl} else {} end);
+# calx($eff; $allowtle; $drift): a expectativa de UMA solução pelo método MOJ (a forma de antes dos dois métodos).
+def calx($eff; $allowtle; $drift): calx($eff; $allowtle; $drift; "moj"; {});
 # calx_val: o resultado do VALIDADOR DE ENTRADA de um host (entrada category=="validator" do sols).
 #   verdict: none (pacote sem validador) | ok | invalid | error (não compilou / infra)
 def calx_val:
@@ -81,8 +121,10 @@ def calx_val:
 #   $files = ["good/a.cpp", "wrong/b.py", …] — as soluções que o PACOTE tem hoje (upcoming fica fora)
 # Uma solução conta como `bad` se é bad/norun em ALGUM host; `note` se não é bad em nenhum e é note em
 # algum. `missing` = solução do pacote sem resultado em host nenhum (calibração rápida só roda as good).
+# `unmeasured` (sem o juízo pelo método avaliado) fica de fora: a solução conta como sem resultado (`missing`).
 def calx_sum($hs; $files):
   [ $hs[] | (.sols // [])[] | select((.category // "") | IN("good", "pass", "slow", "wrong"))
+    | select((.expect.state // "") != "unmeasured")
     | {k: ((.category // "") + "/" + (.file // "")), s: (.expect.state // "")} ] as $r
   | ($r | group_by(.k) | map({k: .[0].k, st: map(.s)})) as $by
   | [ $by[] | select(.st | any(. == "bad" or . == "norun")) | .k ] as $bad
@@ -141,11 +183,13 @@ calx_summary_ensure(){ mkdir -p "$CALX_SUM_DIR" 2>/dev/null; _summary_ensure "$C
 # que calibraram a VERSÃO ATUAL do pacote (a mesma regra de `stale` do /problems/calib). Chamado pelo
 # /judge/calib-report (rota de juiz: pode abrir o pacote) e pelo bin/calib-summary-rebuild.sh.
 calx_summary_write(){
-  local id="$1" pkg ver eff allow drift files d out t
+  local id="$1" pkg ver eff allow drift files d out t meth=moj kp
   pkg="$(pkg_path "$id")"; [[ -n "$pkg" && -d "$pkg" ]] || return 0
   d="$CALIB_DIR/$id"; [[ -d "$d" ]] || return 0
   ver="$(pkg_judge_version "$pkg" "$id" 2>/dev/null)"; ver="${ver//[^0-9a-f]/}"
-  eff="$(tl_store_served "$id" 2>/dev/null)"; jq -e 'type == "object"' >/dev/null 2>&1 <<<"$eff" || eff='{}'
+  # o MÉTODO do TL do conf AGORA (o sumário do Painel segue o método que vale) + os parâmetros do Kattis
+  tl_conf_method_to meth "$pkg"; kp="$(tl_conf_kattis "$pkg")"; [[ -n "$kp" ]] || kp='{}'
+  eff="$(tl_store_served "$id" "" "" "$meth" 2>/dev/null)"; jq -e 'type == "object"' >/dev/null 2>&1 <<<"$eff" || eff='{}'
   allow="$(calx_allowtle "$pkg")"
   drift="$(calx_drift "$pkg")"; [[ -n "$drift" ]] || drift='{}'
   files="$(calx_pkg_files "$pkg")"; [[ -n "$files" ]] || files='[]'
@@ -153,10 +197,11 @@ calx_summary_write(){
   out="$(calx_summary_file "$id")"; t="$out.tmp.${BASHPID}"   # nome resolvido ANTES do redirect
   find "$d" -maxdepth 1 -name '*.json' -type f -exec cat {} + 2>/dev/null \
     | jq -sc --arg id "$id" --arg ver "$ver" --argjson eff "$eff" --argjson allow "$allow" --argjson drift "$drift" \
+        --arg m "$meth" --argjson kp "$kp" \
         --argjson files "$files" --argjson now "$EPOCHSECONDS" "$CALX_JQ"'
         map(select(.host) | select(($ver == "") or ((.checksum // "") == "") or (.checksum == $ver))
-            | {host, sols: ((.sols // []) | map(. + {expect: calx($eff; $allow; $drift)}))})
-        | calx_sum(.; $files) + {id: $id, version: $ver, at: $now, stale: false}' > "$t" 2>/dev/null \
+            | {host, sols: ((.sols // []) | map(. + {expect: calx($eff; $allow; $drift; $m; $kp)}))})
+        | calx_sum(.; $files) + {id: $id, version: $ver, at: $now, stale: false, method: $m}' > "$t" 2>/dev/null \
     && [[ -s "$t" ]] && mv -f "$t" "$out" || { rm -f "$t"; return 1; }
   calx_summary_upsert "$id"
 }

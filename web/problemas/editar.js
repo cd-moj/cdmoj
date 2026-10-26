@@ -12,7 +12,7 @@ import { T, uiLocale } from '/shared/i18n.js';
 import { STMT_LANGS, STMT_SHORT, stmtName } from '/shared/statement-langs.js';
 import { decorateSamples } from '/shared/statement-samples.js';
 import { makeTestRun, testsTable } from '/problemas/testrun.js';
-import { expectPill, expectWant, expectGot, summaryText, validatorText, pendingLabel } from '/problemas/readiness.js';
+import { expectPill, expectWant, expectGot, summaryText, validatorText, pendingLabel, tlMethodName } from '/problemas/readiness.js';
 import { makeIssues } from '/problemas/issues.js';
 
 const CONTEST = 'treino';
@@ -91,16 +91,27 @@ let solEditors = Object.fromEntries(SOL_CATS.map(([c]) => [c, []]));
 
 // ---- conf (configurações do problema) -----------------------------------------------------
 const confVal = (text, key) => { const e = key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); const m = (text || '').match(new RegExp('^\\s*' + e + '\\s*=\\s*(.*)$', 'm')); return m ? m[1].trim().replace(/^"(.*)"$/, '$1').replace(/^'(.*)'$/, '$1') : null; };
-function confUpsert(text, key, value) {
+// `top`: chave AUSENTE entra na 1ª linha, não na última — a regra do tl-checksum p/ as linhas que ficam FORA do
+// carimbo (TLMETHOD): o resto do conf não muda um byte. O servidor ainda normaliza o fim do conf ao gravar (um \n
+// final, lib/problems.sh nl1); conf de upload com outro final muda o carimbo uma vez, como qualquer edição.
+function confUpsert(text, key, value, top) {
   const lines = (text || '').split('\n'), e = key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), re = new RegExp('^\\s*' + e + '\\s*=');
   const idx = lines.findIndex(l => re.test(l));
   if (value === null || value === '') { if (idx >= 0) lines.splice(idx, 1); }
-  else { const v = /[\s+]/.test(value) ? `"${value}"` : value, line = key + '=' + v; if (idx >= 0) lines[idx] = line; else lines.push(line); }
+  else { const v = /[\s+]/.test(value) ? `"${value}"` : value, line = key + '=' + v; if (idx >= 0) lines[idx] = line; else if (top) lines.unshift(line); else lines.push(line); }
   return lines.join('\n').replace(/\n{3,}/g, '\n\n');
 }
 // FUNCTION_LANGS (docs/PACOTE.md, "Submissão de função"): as linguagens em que o aluno envia SÓ a função —
 // o editor do aluno abre VAZIO nelas. Declarada pelo autor; o template de função a preenche ao ser aplicado.
-const CF_TEXT = [['cf_memlimit', 'MEMLIMITMB'], ['cf_stack', 'STACKLIMITMB'], ['cf_calibrafactor', 'TLMOD[calibrafactor]'], ['cf_calibrationtl', 'CALIBRATIONTL'], ['cf_ulimit_u', 'ULIMITS[-u]'], ['cf_ulimit_f', 'ULIMITS[-f]'], ['cf_maxparallel', 'MAXPARALLELTESTS'], ['cf_cpuneeded', 'CPUNEEDED'], ['cf_fnlangs', 'FUNCTION_LANGS']];
+const CF_TEXT = [['cf_memlimit', 'MEMLIMITMB'], ['cf_stack', 'STACKLIMITMB'], ['cf_calibrafactor', 'TLMOD[calibrafactor]'], ['cf_calibrationtl', 'CALIBRATIONTL'], ['cf_ulimit_u', 'ULIMITS[-u]'], ['cf_ulimit_f', 'ULIMITS[-f]'], ['cf_maxparallel', 'MAXPARALLELTESTS'], ['cf_cpuneeded', 'CPUNEEDED'], ['cf_fnlangs', 'FUNCTION_LANGS'],
+  ['cf_kattis_a', 'KATTIS_AC_TO_TIME_LIMIT'], ['cf_kattis_b', 'KATTIS_TIME_LIMIT_TO_TLE'], ['cf_kattis_r', 'KATTIS_TIME_RESOLUTION']];
+// [id, chave, DEFAULT quando AUSENTE] — escolha entre valores, no molde do CF_YN: só grava o que difere do default
+// ou já estava no conf. TLMETHOD (docs/PACOTE.md "Métodos de TL"): moj (o padrão) | kattis; entra no TOPO do conf.
+const CF_SEL = [['cf_tlmethod', 'TLMETHOD', 'moj']];
+// os parâmetros do Kattis só aparecem com o método Kattis
+function applyTlMethod() {
+  if ($('cf_kattis_box')) $('cf_kattis_box').hidden = $('cf_tlmethod').value !== 'kattis';
+}
 // [id, chave, DEFAULT quando a chave está AUSENTE] — TRI-ESTADO (24/09/2026): chave ausente = o default
 // do juiz (ALLOWPARALLELTEST/TLERERUN ausentes = ligados; STOPWHEN/SAMENUMA ausentes = desligados). O
 // checkbox mostra o efetivo, e salvar só ESCREVE a chave quando o valor difere do default ou quando ela
@@ -121,6 +132,8 @@ function confToFields(text) {
   CF_TEXT.forEach(([id, k]) => { $(id).value = confVal(text, k) || ''; });
   CF_YN.forEach(([id, k, def]) => { $(id).checked = ynOf(text, k, def) === 'y'; });
   CF_FLAG.forEach(([id, k]) => { $(id).checked = (confVal(text, k) || '').toLowerCase() === 'y'; });
+  CF_SEL.forEach(([id, k, def]) => { const v = (confVal(text, k) || '').trim().toLowerCase(); $(id).value = v === 'kattis' ? 'kattis' : def; });
+  applyTlMethod();
   $('cf_nosample').checked = sampleOff(text); applySampleMode();
   limitsWarn();
 }
@@ -169,8 +182,12 @@ function syncConfFromFields() {
     c = confUpsert(c, k, (v === def && !present) ? null : v);   // igual ao default e ausente: fica ausente
   });
   CF_FLAG.forEach(([id, k]) => { c = confUpsert(c, k, $(id).checked ? 'y' : null); });
+  CF_SEL.forEach(([id, k, def]) => {
+    const v = $(id).value || def, present = confVal(c, k) !== null;
+    c = confUpsert(c, k, (v === def && !present) ? null : v, true);
+  });
   c = confUpsert(c, 'SAMPLE', $('cf_nosample').checked ? 'no' : null);
-  $('confRaw').value = c; applySampleMode();
+  $('confRaw').value = c; applySampleMode(); applyTlMethod();
 }
 const hiddenFile = (multiple) => { const i = el('input', { type: 'file' }); if (multiple) i.multiple = true; i.hidden = true; return i; };
 function langSelect(value) { const s = el('select', { class: 'small' }); LANG_OPTS.forEach(([id, l]) => s.append(el('option', { value: id }, l))); s.value = value || ''; return s; }
@@ -1121,6 +1138,11 @@ document.addEventListener('visibilitychange', () => {
   loadValidation().then(() => { if (RUNNING || calibRunning()) { if (!calibTimer) { calibStart = Date.now(); armPolling(4000); } } });
 });
 const tlLine = (tl) => Object.entries(tl || {}).filter(([k]) => k !== 'default').map(([k, v]) => `${k}: ${v}s`).join(' · ');
+// OS DOIS MÉTODOS DE TL (docs/PACOTE.md "Métodos de TL"): o do conf (`tl_method` do /problems/calib) vale; o outro
+// fica ao lado, p/ o autor comparar antes de trocar (a troca não recalibra: os juízes medem os dois).
+const curMethod = () => ((LASTCALIB && LASTCALIB.tl_method) === 'kattis' ? 'kattis' : 'moj');
+const altMethod = () => (curMethod() === 'kattis' ? 'moj' : 'kattis');
+const hostTl = (h, m) => ((m || curMethod()) === 'kattis' ? (h.tl_kattis || {}) : (h.tl || {}));
 // abre o report.html (rico) de uma solução, gerado na calibração daquele juiz, numa nova aba
 async function openCalibReport(host, name) {
   try {
@@ -1160,9 +1182,14 @@ function solsBlock(h) {
       tdet.style.display = open ? '' : 'none'; tg.textContent = lbl(open);
     } }, lbl(OPEN_SOLS.has(key)));
     const repName = (s.category || '') + '-' + (s.file || '');
-    const want = expectWant(s.category), got = expectGot(s.expect);
+    const want = expectWant(s.category, s.expect), got = expectGot(s.expect);
+    // o juízo pelo OUTRO método (expect_alt): o que aconteceria se o autor trocasse o TLMETHOD
+    const ap = expectPill(s.expect_alt);
+    const alt = ap ? el('span', { class: 'pill ' + ap.cls, style: 'opacity:.8', title: expectGot(s.expect_alt) || ap.title || '' },
+      tlMethodName(altMethod()) + ' ' + ap.label) : null;
     box.append(el('div', { class: 'solrow' },
       pill ? el('span', { class: 'pill ' + pill.cls, title: pill.title || '' }, pill.label) : el('span', { class: 'muted' }, '•'),
+      alt,
       el('b', {}, (s.category || '?') + '/' + (s.file || '?')),
       el('span', { class: 'muted' }, s.verdict || ''),
       tg,
@@ -1197,16 +1224,21 @@ function validatorBlock(h) {
 }
 // quadro-resumo: tempo-limite por linguagem em cada juiz; o "servido" (o que o aluno vê) em negrito
 function tlSummaryTable(hosts, served) {
-  const langs = [...new Set([...Object.keys(served || {}), ...hosts.flatMap(h => Object.keys(h.tl || {}))])];
+  const langs = [...new Set([...Object.keys(served || {}), ...hosts.flatMap(h => Object.keys(hostTl(h)))])];
   if (!langs.length) return null;
   langs.sort((a, b) => (a === 'default') - (b === 'default') || a.localeCompare(b));   // 'default' por último
   const cpuOf = {}; JUDGES.forEach(j => { cpuOf[j.host] = j.cpu; });
   const servedOf = (lang) => {
     if (served && served[lang] != null) return served[lang];
-    const vals = hosts.map(h => +((h.tl || {})[lang])).filter(Number.isFinite);
+    const vals = hosts.map(h => +(hostTl(h)[lang])).filter(Number.isFinite);
     return vals.length ? Math.max(...vals) : null;   // ainda não indexado: usa o máx entre juízes
   };
+  // o tempo-limite servido pelo OUTRO método (efetivo, com o override) — "se trocar"
+  const altEff = ((LASTCALIB && LASTCALIB.time_limits_by_method) || {})[altMethod()];
+  const altOf = (lang) => (altEff && altEff.effective && altEff.effective[lang] != null) ? altEff.effective[lang] : null;
   const thead = el('tr', {}, el('th', {}, T('linguagem', 'language', 'lenguaje')), el('th', { class: 'served' }, T('servido (aluno)', 'served (student)', 'servido (estudiante)')),
+    altEff ? el('th', { title: T('O tempo-limite se você trocar o método no conf (sem recalibrar).', 'The time limit if you switch the method in the conf (no recalibration).', 'El tiempo límite si cambias el método en el conf (sin recalibrar).') },
+      T('se ', 'if ', 'si ') + tlMethodName(altMethod())) : null,
     ...hosts.map(h => el('th', {}, h.host, cpuOf[h.host] ? el('div', { class: 'cpu' }, cpuOf[h.host]) : null)));
   // TLOVERRIDE no conf: a coluna "servido" deixa de ser a medição e passa a ser a decisão do
   // autor — então cada linha sobreposta leva o selo, com o calibrado no title.
@@ -1224,9 +1256,11 @@ function tlSummaryTable(hosts, served) {
                              + (cal.length ? tlSecs(Math.max(...cal)) : '—');
                    return s; })()
         : null),
-    ...hosts.map(h => el('td', {}, tlSecs((h.tl || {})[lang])))));
+    altEff ? el('td', { class: 'muted' }, tlSecs(altOf(lang))) : null,
+    ...hosts.map(h => el('td', {}, tlSecs(hostTl(h)[lang])))));
   return el('div', { class: 'tlsummary-wrap' },
-    el('div', { class: 'small muted', style: 'margin:.3rem 0 .2rem' }, T('Resumo por linguagem — em negrito o tempo-limite que o estudante vê no enunciado:', 'Summary per language — in bold the time limit the student sees in the statement:', 'Resumen por lenguaje — en negrita el tiempo límite que el estudiante ve en el enunciado:')),
+    el('div', { class: 'small muted', style: 'margin:.3rem 0 .2rem' }, T('Resumo por linguagem, pelo método ', 'Summary per language, by the ', 'Resumen por lenguaje, por el método ')
+      + tlMethodName(curMethod()) + T(' (o do conf) — em negrito o tempo-limite que o estudante vê no enunciado:', ' method (the one in the conf) — in bold the time limit the student sees in the statement:', ' (el del conf) — en negrita el tiempo límite que el estudiante ve en el enunciado:')),
     el('table', { class: 'tlsummary' }, el('thead', {}, thead), el('tbody', {}, ...body)));
 }
 // assinatura do que o painel mostra: só reconstrói quando MUDA — senão o polling (a cada 4s)
@@ -1251,8 +1285,11 @@ function valRenderSig() {
     run: RUNNING,
     live: CALIB_LIVE.map(c => `${c.host}|${c.state}|${minsSince(c.since)}`),
     checks: checks.map(c => `${c.name}:${c.ok}:${c.detail || ''}`),
-    hosts: hosts.map(h => `${h.host}|${h.at}|${h.stale}|${(h.log || '').length}|${(h.reports || []).length}|${tlLine(h.tl)}|${(h.sols || []).map(s => `${s.category}/${s.file}:${s.verdict}:${(s.tests || []).length}:${(s.expect || {}).why}`).join(',')}|${JSON.stringify(h.validator || null)}`),
+    hosts: hosts.map(h => `${h.host}|${h.at}|${h.stale}|${(h.log || '').length}|${(h.reports || []).length}|${tlLine(h.tl)}|${tlLine(h.tl_kattis)}|${(h.sols || []).map(s => `${s.category}/${s.file}:${s.verdict}:${(s.tests || []).length}:${(s.expect || {}).why}:${(s.expect_alt || {}).why}`).join(',')}|${JSON.stringify(h.validator || null)}`),
     summary: JSON.stringify((LASTCALIB && LASTCALIB.summary) || null),
+    summary_alt: JSON.stringify((LASTCALIB && LASTCALIB.summary_alt) || null),
+    method: (LASTCALIB && LASTCALIB.tl_method) || '',
+    bym: JSON.stringify((LASTCALIB && LASTCALIB.time_limits_by_method) || null),
     served: Object.entries(served).map(([k, v]) => `${k}=${v}`),
     ovr: Object.entries((LASTINFO && LASTINFO.tl_override) || {}).map(([k, v]) => `${k}=${v}`),
   });
@@ -1308,6 +1345,11 @@ function renderVal() {
       box.append(el('div', { class: 'solsum ' + (sm.bad ? 'bad' : ((sm.missing || []).length ? 'todo' : 'ok')) },
         el('b', {}, T('Soluções: ', 'Solutions: ', 'Soluciones: ')), smt));
     }
+    // o mesmo juízo pelo OUTRO método de TL: o que mudaria se o autor trocasse o TLMETHOD (sem recalibrar)
+    const sma = summaryText(calib && calib.summary_alt);
+    if (sma) box.append(el('div', { class: 'small muted', style: 'margin:.1rem 0 .3rem' },
+      T('Se trocar para o método ', 'If you switch to the ', 'Si cambias al método ') + tlMethodName(altMethod())
+        + T(': ', ' method: ', ': ') + sma));
     hosts.forEach(h => {
       const isOpen = OPEN_LOGS.has(h.host);
       const det = el('div', { style: 'margin-top:.3rem;display:' + (isOpen ? '' : 'none') });
@@ -1319,7 +1361,8 @@ function renderVal() {
         det.style.display = open ? '' : 'none'; toggle.textContent = open ? T('ocultar log', 'hide log', 'ocultar log') : T('ver log', 'view log', 'ver log');
       } }, isOpen ? T('ocultar log', 'hide log', 'ocultar log') : T('ver log', 'view log', 'ver log'));
       const head = el('div', { class: 'row', style: 'gap:.5rem;align-items:center;flex-wrap:wrap' },
-        el('b', {}, h.host), el('span', { class: 'small muted' }, tlLine(h.tl) || T('sem TL', 'no TL', 'sin TL')),
+        el('b', {}, h.host), el('span', { class: 'small' }, tlMethodName(curMethod()) + ': ' + (tlLine(hostTl(h)) || T('sem TL', 'no TL', 'sin TL'))),
+        el('span', { class: 'small muted' }, '· ' + tlMethodName(altMethod()) + ': ' + (tlLine(hostTl(h, altMethod())) || T('sem TL', 'no TL', 'sin TL'))),
         h.at ? el('span', { class: 'small muted' }, '· ' + fmtDate(h.at)) : null,
         el('span', { style: 'flex:1' }), toggle);
       // sols estruturado: solução a solução, teste a teste (cada linha já linka o seu report);
@@ -1653,6 +1696,10 @@ async function save(opts = {}) {
     SAVED_AT = Math.floor(Date.now() / 1000);   // versão NOVA do pacote: a calibração em voo ficou velha
     updateReady();
     setMsg(T('Salvo ✓', 'Saved ✓', 'Guardado ✓'), 'v-ok');   // SALVAR não mexe em público — publicar é ação explícita (botão na aba Publicação)
+    // o painel de validação/calibração RELÊ o servidor: trocar o TLMETHOD vale na hora (o servido, o juízo das
+    // soluções e o resumo mudam de método sem recalibrar) e uma edição que muda o carimbo mostra "precisa
+    // recalibrar" já — antes o painel seguia com o dado de antes do save até recarregar a página
+    if (ID) loadValidation().then(ensurePolling, () => {});
   } catch (e) {
     if (e instanceof ApiError && e.code === 'stale_rev') { setMsg(T('Não salvo: o problema mudou desde que você o abriu.', 'Not saved: the problem changed since you opened it.', 'No guardado: el problema cambió desde que lo abriste.'), 'error'); showConflict(e, () => save({ force: true })); }
     else setMsg((e instanceof ApiError ? e.message : T('Falha ao salvar', 'Failed to save', 'Error al guardar')) + (e.code ? ` (${e.code})` : ''), 'error');
@@ -1812,7 +1859,7 @@ function bindHandlers() {
   $('uploadTar').addEventListener('change', (e) => { uploadTar(e.target.files[0]); e.target.value = ''; });
   $('repo').onchange = async () => { REPO = $('repo').value; updateRepoHint(); renderPubState(); await loadShare(); };
   $('shareAdd').onclick = async () => { const u = $('shareLogin').value.trim(); if (u) { await share([u], []); $('shareLogin').value = ''; } };
-  [...CF_TEXT, ...CF_YN, ...CF_FLAG, ['cf_nosample']].forEach(([id]) => $(id).addEventListener('change', () => { syncConfFromFields(); updateReady(); }));
+  [...CF_TEXT, ...CF_YN, ...CF_FLAG, ...CF_SEL, ['cf_nosample']].forEach(([id]) => $(id).addEventListener('change', () => { syncConfFromFields(); updateReady(); }));
   ['cf_memlimit', 'cf_cpuneeded', 'cf_samenuma'].forEach((id) => $(id) && $(id).addEventListener('input', limitsWarn));
   $('confRaw').addEventListener('change', () => { confToFields($('confRaw').value); updateReady(); });
   $('newCollBtn').onclick = newColl;

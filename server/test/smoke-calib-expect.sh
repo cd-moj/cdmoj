@@ -84,6 +84,32 @@ ck "sumário: validador inválido (1 de 2)"        '[[ "$(jq -c "[.validator.sta
 ck "sumário: validador fica fora do total"       '[[ "$(jq -r .total <<<"$SUM")" == 2 ]]'
 
 # ---------------------------------------------------------------------------------------------------
+echo "== 1b. os DOIS métodos de TL (26/10/2026): o código do método avaliado e as margens do Kattis =="
+# km <linha-json> <método> [eff-json] -> "state/why" (kp = os padrões da spec: a=2, b=1.5)
+km(){ local eff="${3:-}"; [[ -n "$eff" ]] || eff='{"c":"1"}'   # (um "${3:-{…}}" fecharia no 1º "}")
+  jq -nr --argjson r "$1" --arg m "$2" --argjson eff "$eff" "$CALX_JQ"'
+     $r | calx($eff; false; {}; $m; {a: 2, b: 1.5}) | "\(.state)/\(.why)"' 2>&1; }
+R_SLOW='{"category":"slow","lang":"c","verdict":"x","method":"moj","etl":2.5,
+         "tests":[{"name":"t1","code":"TLE","time":2.5,"tl":0.3,"code_alt":"TLE","tl_alt":1}]}'
+ck "slow, avaliada pelo método da linha (moj): o código dela"         '[[ "$(km "$R_SLOW" moj)" == ok/tle ]]'
+ck "slow pelo Kattis via code_alt: 2,5 s ≥ 1,5 × 1 s = ok"           '[[ "$(km "$R_SLOW" kattis)" == ok/tle ]]'
+R_NOM='{"category":"slow","lang":"c","verdict":"x","method":"kattis","etl":3.2,
+        "tests":[{"name":"t1","code":"TLE","time":1.2,"tl":1,"code_alt":"TLE","tl_alt":0.3}]}'
+ck "Kattis: TLE mas só 1,2 × o TL = tle_no_margin (≈)"               '[[ "$(km "$R_NOM" kattis)" == note/tle_no_margin ]]'
+ck "…a mesma linha pelo MOJ (code_alt): só o TLE importa = ok"       '[[ "$(km "$R_NOM" moj)" == ok/tle ]]'
+R_UNM='{"category":"slow","lang":"c","verdict":"x","method":"kattis","etl":1.25,
+        "tests":[{"name":"t1","code":"TLE","time":1.25,"tl":1}]}'
+ck "Kattis: morta no teto 1,25 s < 1,5 × 1 s = tle_unmeasured (≈)"   '[[ "$(km "$R_UNM" kattis)" == note/tle_unmeasured ]]'
+ck "linha sem code_alt avaliada pelo OUTRO método = unmeasured"     '[[ "$(km "$R_UNM" moj)" == unmeasured/other_method ]]'
+R_G='{"category":"good","lang":"c","verdict":"Accepted","tests":[{"name":"t1","code":"AC","time":0.6,"tl":5}]}'
+ck "good pelo Kattis com folga: 2 × 0,6 ≤ 2 s = ok"                  '[[ "$(km "$R_G" kattis "{\"c\":\"2\"}")" == ok/all_ac ]]'
+ck "good pelo Kattis SEM folga (override 1 s): 2 × 0,6 > 1 = tl_no_margin" '[[ "$(km "$R_G" kattis "{\"c\":\"1\"}")" == note/tl_no_margin ]]'
+ck "…a mesma good pelo MOJ: sem margem = ok"                         '[[ "$(km "$R_G" moj "{\"c\":\"1\"}")" == ok/all_ac ]]'
+ck "a forma de 3 args (calx/3) segue = moj"                          '[[ "$(jq -nr --argjson r "$R_NOM" "$CALX_JQ"'"'"'$r | calx({"c":"1"}; false; {}) | "\(.state)/\(.why)"'"'"')" == ok/tle ]]'
+UNMS="$(jq -nc --argjson r "$R_UNM" "$CALX_JQ"'[{host:"h", sols:[$r + {expect: ($r | calx({"c":"1"}; false; {}; "moj"; {}))}]}]
+       | calx_sum(.; ["slow/x.c"])')"; BODY="$UNMS"
+ck "calx_sum: a unmeasured fica fora (vira solução sem resultado, não divergente)" '[[ "$(jq -r ".bad,.note,.total" <<<"$UNMS" | tr "\n" " ")" == "0 0 0 " ]]'
+
 echo "== 2. ponta a ponta: calib-report → sumário → /problems/calib e /problems/status =="
 NOW="$EPOCHSECONDS"; T="$FIX/treino"
 printf 'CONTEST_ID=treino\nCONTEST_END=%s\n' "$((NOW+86400))" > "$T/conf"

@@ -573,6 +573,28 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   avulsa no juiz com o contest **sentinela `_testrun`** (id de contest criável começa com
   `[a-z0-9]` — sentinela inatingível), desviado p/ `run/testrun/` no `ingest_result` — nunca
   history. Gate de tudo: `require_problem_edit`. Testes: `smoke-{tl-override,calib-sols,testrun}.sh`.
+- **OS DOIS MÉTODOS DE TL (26/10/2026; pedido do Ribas: o do Kattis first class ao lado do MOJ)** — formato em
+  `docs/PACOTE.md` §10 "Métodos de TL", motor em `mojtools/tl-methods.sh`. A calibração mede SEMPRE os dois (o mesmo
+  dado: o pior tempo AC das good por linguagem) e o conf escolhe (`TLMETHOD=moj|kattis` + `KATTIS_AC_TO_TIME_LIMIT`/
+  `KATTIS_TIME_LIMIT_TO_TLE`/`KATTIS_TIME_RESOLUTION`); Kattis POR LINGUAGEM, default = o menor; `TLOVERRIDE` vence os
+  dois. **Trocar o método não recalibra**: a linha `TLMETHOD` fica fora dos DOIS carimbos do tl-checksum, então (1) o
+  claim põe `tl_method` no job (`sched-lib.sh` `_pkg_tlmethod_v`, um `read` do conf — fora do `.cmeta` de propósito)
+  e o agente o repassa ao build-and-test; (2) o store guarda as duas metades por host (`hosts[h].tl`/`tl_kattis`, o
+  `/judge/tl-report` saneia os dois) e o método em `.method` (carimbado no tl-report e no `problem_commit`, p/ o
+  sumário do Painel); (3) TODO leitor do TL pergunta o método: `tl_store_served` (4º arg, senão o conf, no mesmo
+  arquivo do TLOVERRIDE, sem processo: `tl_conf_method_to`), `tl_store_served_for/_hosts` (campo), `calib.sh`,
+  `status.sh` (do sumário), `get.sh`/`tl.sh`/`ops/problemtl.sh`, o preflight (store `.method`) e o
+  `gen-problem-json.sh` (mojtools). Kattis sem a metade calibrada = `{}`, NUNCA o MOJ no lugar; virar kattis sem
+  nenhum juiz com a metade pede UMA calibração completa (`problem_commit` → `cal_request`). O juízo das soluções
+  (`lib/calib-expect.sh` `calx(…; $m; $kp)`) escolhe `code` × `code_alt` pela `method` da linha (o juiz julga
+  pass/slow/wrong pelos dois na calibração) e aplica as margens do Kattis (`tl_no_margin`, `tle_no_margin`,
+  `tle_unmeasured`); linha sem o juízo = `unmeasured` (fora do sumário). O `problem_commit` só marca o sumário velho
+  se a VERSÃO do pacote mudou — senão RECALCULA (`calx_summary_write`). O `/judge/calib-report` JUNTA por
+  categoria/arquivo na mesma versão. Testes: `smoke-tl-method.sh`, `smoke-calib-expect.sh` (1b), `smoke-sched-width.sh`,
+  `smoke-limits-tab.gjs.sh`, `smoke-sols-expect.gjs.sh`; mojtools `make test-calib test-kattis`.
+- **O `conf` e o `tl` do PACOTE nunca são `source`ados no servidor** (incidente de 26/10/2026): o `kattis/sidecar.sh`
+  (create/edit/upload) e o fallback do `gen-problem-json.sh` faziam — um `X=$(…)` no conf do autor executava código
+  na API. Hoje é tudo regex (mojtools `kt_conf_json`, `tl_conf_*` aqui); teste: mojtools `make test-no-source`.
 - **"PRONTO" = pacote × calibração × soluções × entradas × issues** (relato do Arthur Botelho,
   22/09/2026: "validado" seguia verde com solução de veredicto errado). "Validado" era só a conferência
   ESTÁTICA do `validate-problem.sh` — virou **Pacote** nas telas e na CLI. O juízo "cada solução fez o que
