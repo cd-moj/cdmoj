@@ -114,7 +114,13 @@ inv_stamp(){
 # derruba a mensagem inteira (400 do Telegram) e a DM some sem deixar rastro.
 inv_html_escape(){ printf '%s' "$1" | sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g'; }
 
-inv_link(){ printf '%s/contests/inscricao/?c=%s' "${MOJ_PUBLIC_BASE%/}" "$1"; }
+# o link do convite é o da inscrição; em contest SUPER SECRETO, o LINK PRIVADO com a chave (lib/registration.sh) — sem
+# ela o convidado que não está no grupo levaria 404, e quem o escolheu foi o capitão. Sem chave em vigor, o link sai sem
+# ela (e o convidado não entra: a Central avisa o contest secreto sem link).
+inv_link(){
+  local k=""; contest_is_secret "$1" && k="$(reg_link_key "$1")"
+  printf '%s/contests/inscricao/?c=%s%s' "${MOJ_PUBLIC_BASE%/}" "$1" "${k:+&k=$k}"
+}
 
 # inv_lang <c> -> pt|en|es (LOCALE do contest; o resto do MOJ segue a mesma precedência)
 inv_lang(){

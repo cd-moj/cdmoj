@@ -40,6 +40,37 @@ reg_lock_file(){ printf '%s/%s/var/registrations.lock' "$CONTESTSDIR" "$1"; }
 # reg_enabled <c> — 0 quando o contest tem roster (registro ligado)
 reg_enabled(){ [[ -s "$(reg_file "$1")" ]]; }
 
+# LINK PRIVADO DE INSCRIÇÃO (27/10/2026, pedido do Ribas): contest SUPER SECRETO (SECRET=1) não existe para quem está de
+# fora — as listagens não o mostram e a inscrição responde o MESMO 404 de contest inexistente. Para inscrever por um link
+# mandado num grupo privado, a organização gera uma CHAVE (Pessoas › Inscrições, `moj-contest inscricoes link`): o link
+# `/contests/inscricao/?c=<id>&k=<chave>` abre a inscrição; sem a chave, ou com outra, segue o 404. A chave mora em
+# secrets/ (como a do NutellaBoot): fora do conf, então duplicar/exportar/template nunca a levam. 32 hex (128 bits).
+# Gerar de novo troca a chave (o link velho morre na hora); revogar apaga. A DM de convite de time leva o link COM a
+# chave (lib/invite-notify.sh inv_link): o convidado que o capitão escolheu pode não estar no grupo.
+reg_link_file(){ printf '%s/%s/secrets/registration-link.key' "$CONTESTSDIR" "$1"; }
+# reg_link_key <c> — ecoa a chave em vigor; rc 1 sem chave. Arquivo vazio, truncado ou com lixo = SEM chave: nunca casa
+# com um `k` vazio.
+reg_link_key(){
+  local f k=""; f="$(reg_link_file "$1")"; [[ -s "$f" ]] || return 1
+  IFS= read -r k < "$f" || [[ -n "$k" ]] || return 1
+  [[ "$k" =~ ^[0-9a-f]{32}$ ]] || return 1
+  printf '%s' "$k"
+}
+# reg_link_ok <c> <k> — a chave do pedido abre a inscrição do contest super secreto?
+reg_link_ok(){ local want; want="$(reg_link_key "$1")" || return 1; [[ "${2:-}" == "$want" ]]; }
+# reg_link_rotate <c> — grava uma chave NOVA (atômica, 600, secrets/ 700) e a ecoa
+reg_link_rotate(){
+  local f d k t; f="$(reg_link_file "$1")"; d="${f%/*}"
+  k="$(od -An -tx1 -N16 /dev/urandom 2>/dev/null | tr -d ' \n')"
+  [[ "$k" =~ ^[0-9a-f]{32}$ ]] || return 1
+  ( umask 077; mkdir -p "$d" ) || return 1
+  t="$(umask 077; mktemp "$d/.registration-link.XXXXXX")" || return 1
+  if printf '%s\n' "$k" > "$t" && mv -f "$t" "$f"; then printf '%s' "$k"; else rm -f "$t"; return 1; fi
+}
+reg_link_revoke(){ rm -f "$(reg_link_file "$1")"; }
+# reg_link_url <c> <k> — o link que a organização manda: no SITE PRINCIPAL (o token do treino é por origem)
+reg_link_url(){ local b="${MOJ_PUBLIC_BASE:-https://moj.naquadah.com.br}"; printf '%s/contests/inscricao/?c=%s&k=%s' "${b%/}" "$1" "$2"; }
+
 # reg_source_of <c> — de onde vêm as contas (USERS_FROM); o próprio contest se não houver.
 reg_source_of(){
   if declare -F _users_source >/dev/null 2>&1; then _users_source "$1"; else printf '%s' "$1"; fi

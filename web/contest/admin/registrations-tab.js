@@ -251,12 +251,53 @@ export function makeRegistrationsTab(CONTEST) {
                 ' (' + t.invites_no_tg + ' without a linked Telegram — no reminder reaches them)',
                 ' (' + t.invites_no_tg + ' sin Telegram vinculado — ningún recordatorio les llega)')
             : '')
-        + T('. A pessoa se inscreve em ', '. People register at ', '. Las personas se inscriben en ')
-        + '/contests/inscricao/?c=' + CONTEST),
+        + ((DATA.private_link || {}).secret
+            ? T('. A pessoa se inscreve pelo link privado (abaixo).', '. People register through the private link (below).', '. Las personas se inscriben por el enlace privado (abajo).')
+            : T('. A pessoa se inscreve em ', '. People register at ', '. Las personas se inscriben en ') + '/contests/inscricao/?c=' + CONTEST)),
+      privateLinkBox(),
       windowBox(),
       el('h3', {}, T('👥 Times', '👥 Teams', '👥 Equipos')), teamsTable(),
       el('h3', {}, T('🧍 Individuais', '🧍 Individuals', '🧍 Individuales')), peopleTable(),
       addBox());
+  }
+
+  // LINK PRIVADO (contest SUPER SECRETO, 27/10/2026): o contest não aparece em lista nenhuma e a inscrição só abre pelo
+  // link com a chave (sem ela, o 404 de contest inexistente). O admin copia o link p/ o grupo, gera outro (o velho morre
+  // na hora) ou revoga. O .cjudge lê esta tela, mas a resposta não lhe traz o link: só se ele existe.
+  function privateLinkBox() {
+    const pl = DATA.private_link || {};
+    if (!pl.secret) return '';
+    const box = el('div', { class: 'section' },
+      el('h3', {}, T('🔒 Link privado de inscrição', '🔒 Private registration link', '🔒 Enlace privado de inscripción')),
+      el('p', { class: 'small muted' },
+        T('Este contest é super secreto: ele não aparece em nenhuma lista, e a inscrição só abre por este link. Mande o link no grupo privado. O convite de time também manda este link na DM do convidado.',
+          'This contest is super secret: it shows up in no list, and registration opens only through this link. Send the link to the private group. A team invite also sends this link in the invitee’s DM.',
+          'Esta competencia es súper secreta: no aparece en ninguna lista, y la inscripción solo abre por este enlace. Envía el enlace al grupo privado. La invitación de equipo también envía este enlace en el DM del invitado.')));
+    if (pl.active && pl.url) {
+      const inp = el('input', { value: pl.url, readonly: true, style: 'width:100%;font-family:monospace;font-size:.85rem' });
+      box.append(inp, el('div', { class: 'row', style: 'gap:.5rem;flex-wrap:wrap;margin-top:.45rem;align-items:center' },
+        el('button', { class: 'btn', onclick: async () => {
+          try { await navigator.clipboard.writeText(pl.url); say(T('Link copiado.', 'Link copied.', 'Enlace copiado.')); }
+          catch { inp.select(); say(T('Copie o link selecionado (Ctrl+C).', 'Copy the selected link (Ctrl+C).', 'Copia el enlace seleccionado (Ctrl+C).')); }
+        } }, T('📋 Copiar link', '📋 Copy link', '📋 Copiar enlace')),
+        el('button', { class: 'btn ghost', onclick: () => {
+          if (!confirm(T('Gerar um link novo? O link atual para de funcionar na hora.', 'Generate a new link? The current link stops working right away.', '¿Generar un enlace nuevo? El enlace actual deja de funcionar de inmediato.'))) return;
+          act({ action: 'link-rotate' }, T('Link novo gerado. O anterior não funciona mais.', 'New link generated. The previous one no longer works.', 'Enlace nuevo generado. El anterior ya no funciona.'));
+        } }, T('🔄 Gerar link novo', '🔄 Generate a new link', '🔄 Generar enlace nuevo')),
+        el('button', { class: 'btn ghost', onclick: () => {
+          if (!confirm(T('Revogar o link? Ninguém de fora consegue mais se inscrever.', 'Revoke the link? Nobody from outside can register anymore.', '¿Revocar el enlace? Nadie de afuera puede inscribirse más.'))) return;
+          act({ action: 'link-revoke' }, T('Link revogado.', 'Link revoked.', 'Enlace revocado.'));
+        } }, T('🚫 Revogar', '🚫 Revoke', '🚫 Revocar')),
+        pl.created_at ? el('span', { class: 'small muted' }, T('gerado ', 'generated ', 'generado ') + ago(pl.created_at)) : ''));
+    } else if (pl.active) {
+      box.append(el('p', { class: 'small' }, T('Link ativo. Só o admin do contest vê e copia o link.', 'Link active. Only the contest admin sees and copies the link.', 'Enlace activo. Solo el admin de la competencia ve y copia el enlace.')));
+    } else {
+      box.append(
+        el('div', { class: 'notice', style: 'margin:.3rem 0 .5rem' }, T('Sem link: ninguém de fora consegue se inscrever.', 'No link: nobody from outside can register.', 'Sin enlace: nadie de afuera puede inscribirse.')),
+        el('button', { class: 'btn', onclick: () => act({ action: 'link-rotate' }, T('Link gerado.', 'Link generated.', 'Enlace generado.')) },
+          T('🔗 Gerar link', '🔗 Generate link', '🔗 Generar enlace')));
+    }
+    return box;
   }
 
   function addBox() {

@@ -355,6 +355,13 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   ligado** (doutrina do `cohorts.json`: ausente = comportamento de sempre, custo zero). Vale só p/
   contest com `USERS_FROM` (quem se inscreve é a conta da FONTE, pela página `/contests/inscricao/`
   do site principal — o token é por ORIGEM e o subdomínio do contest não vê a sessão do treino).
+  **Contest SUPER SECRETO (`SECRET=1`, 27/10/2026)**: a rota do competidor só abre com a chave do **LINK PRIVADO**
+  (`k` na query ou no corpo; `reg_link_ok`, chave em `contests/<c>/secrets/registration-link.key`, 32 hex, 600) —
+  sem ela, o 404 de contest inexistente BYTE A BYTE (a mensagem antiga, "Contest não encontrado", denunciava o
+  secreto) e ANTES de todo 409/403 da rota. O admin gera/troca/revoga em `admin/registrations` (`link-rotate`/
+  `link-revoke`; `private_link` no GET, `url` só p/ o admin — o `.cjudge` vê só se existe); a chave nunca vai ao
+  audit; o convite (`inv_link`) leva a chave; a Central (`reg_private_link`) avisa secreto sem link;
+  `moj-contest inscricoes link`. Teste: seção "LINK PRIVADO" do `smoke-registration.sh`.
   Janela no conf (`REG_OPEN`/`REG_CLOSE`/`REG_LATE_MINUTES`/`REG_TEAM_MAX`/`REG_TEAMS`); atrasado
   cai em coorte `unranked`. **A âncora é a PROVA OFICIAL** (`reg_official_window`: 1ª rodada
   não-arquivada `kind=official` do `rounds.json`), nunca a rodada corrente — o AQUECIMENTO pode

@@ -14,6 +14,9 @@ import { contestOrigin } from '/shared/contest-host.js';
 
 const CONTEST = 'treino';
 const TARGET = new URLSearchParams(location.search).get('c') || '';
+// LINK PRIVADO (contest SUPER SECRETO): a chave `k` do link que a organização mandou vai em toda chamada — sem ela a API
+// responde o 404 de contest inexistente (server/api/v1/lib/registration.sh reg_link_ok)
+const KEY = new URLSearchParams(location.search).get('k') || '';
 let st = null, busy = false, tick = null, FLAGS = null;
 
 // seletor de bandeira: estados do Brasil primeiro (o público é BR), países depois; tudo
@@ -55,7 +58,7 @@ async function act(body, okText) {
   if (busy) return;
   busy = true;
   try {
-    st = await apiPost('/treino/contest-registration', { contest: TARGET, ...body }, { contest: CONTEST, auth: true });
+    st = await apiPost('/treino/contest-registration', { contest: TARGET, ...(KEY ? { k: KEY } : {}), ...body }, { contest: CONTEST, auth: true });
     render(); if (okText) ok(okText);
   } catch (e) { err(e.message || T('falha', 'failed', 'fallido')); }
   finally { busy = false; }
@@ -346,7 +349,7 @@ async function load(quiet) {
   }
   window.__MOJ_LOGIN = s.login;
   try {
-    st = await apiGet('/treino/contest-registration?contest=' + encodeURIComponent(TARGET), { contest: CONTEST, auth: true });
+    st = await apiGet('/treino/contest-registration?contest=' + encodeURIComponent(TARGET) + (KEY ? '&k=' + encodeURIComponent(KEY) : ''), { contest: CONTEST, auth: true });
     render();
   } catch (e) {
     if (quiet) return;

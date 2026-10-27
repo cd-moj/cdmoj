@@ -4,7 +4,8 @@
 # O competidor inscrito é materializado no store por-usuário (lib/registration.sh), então o
 # placar/impressão/balões já enxergam sem saber que existe roster.
 #
-# GET  -> {enabled, window, team_max, teams_allowed, teams:[…], individuals:[…], totals, converted?}
+# GET  -> {enabled, window, team_max, teams_allowed, teams:[…], individuals:[…], totals, converted?,
+#          private_link:{secret, active, created_at, url?}}   (url só p/ o admin; o .cjudge vê se existe)
 #         converted = {at, from, archived}: o contest virou de contas próprias (users-convert) e o roster
 #         foi arquivado em var/
 # POST {action}:
@@ -20,6 +21,9 @@
 #   materialize   — reescreve os overlays do store a partir do roster (conserto)
 #   invite-remind {team, login}   — o mojinho cutuca UM convite pendente por DM
 #   invite-remind-all             — idem p/ TODOS os convites pendentes do contest
+#   link-rotate                   — contest SUPER SECRETO: gera (ou troca) a chave do LINK PRIVADO de inscrição
+#                                   (o link velho morre na hora); 409 not_secret nos outros
+#   link-revoke                   — apaga a chave: ninguém de fora se inscreve mais
 #     (o aviso automático da véspera é da lib/invite-notify.sh, varrida no poll do bot)
 require_auth_contest "$(param contest)"
 contest="$(param contest)"
@@ -102,6 +106,17 @@ _emit(){   # [<json-extra p/ mesclar na resposta>]
                                 | select(($tgs[0] | index($l)) == null)] | length) } }')"
   rm -f "$invf"
   [[ -n "$out" ]] || fail 500 "Falha ao montar as inscrições" "reg_render_failed"
+  # LINK PRIVADO (contest SUPER SECRETO, lib/registration.sh): o admin recebe o link p/ copiar; o .cjudge, que também lê
+  # esta rota, só sabe se ele existe — o link é a porta da inscrição.
+  local sec=false act=false lk="" lurl="" lat=0
+  contest_is_secret "$contest" && sec=true
+  if lk="$(reg_link_key "$contest")"; then
+    act=true; lat="$(stat -c %Y "$(reg_link_file "$contest")" 2>/dev/null)"; [[ "$lat" =~ ^[0-9]+$ ]] || lat=0
+    is_admin && lurl="$(reg_link_url "$contest" "$lk")"
+  fi
+  out="$(jq -c --argjson s "$sec" --argjson a "$act" --arg u "$lurl" --argjson at "$lat" \
+           '. + {private_link:({secret:$s, active:$a, created_at:$at} + (if $u == "" then {} else {url:$u} end))}' <<<"$out")" \
+    || fail 500 "Falha ao montar as inscrições" "reg_render_failed"
   # contest CONVERTIDO em contas próprias (users-convert): o roster foi arquivado — a tela diz isso
   if [[ -s "$cdir/var/users-convert.json" ]]; then
     out="$(jq -c --slurpfile cv "$cdir/var/users-convert.json" \
@@ -296,6 +311,17 @@ case "$action" in
       reg_materialize_team "$contest" "$t" && n=$(( n + 1 ))
     done < <(reg_get "$contest" | jq -r '.teams | keys[]')
     audit_log_to "$contest" reg-materialize "n=$n" ;;
+  link-rotate)
+    # LINK PRIVADO (lib/registration.sh): só p/ contest SUPER SECRETO — nos outros a inscrição é pelo link público e a
+    # chave seria ignorada (gerar uma enganaria o admin). Gerar de novo mata o link anterior na hora. A chave NÃO vai ao
+    # audit (é a porta da inscrição); a resposta (o _emit) traz o link novo.
+    contest_is_secret "$contest" \
+      || fail 409 "O link privado é de contest super secreto; este recebe inscrição pelo link público" "not_secret"
+    reg_link_rotate "$contest" >/dev/null || fail 500 "Falha ao gerar o link" "link_failed"
+    audit_log_to "$contest" reg-link-rotate "" ;;
+  link-revoke)
+    reg_link_revoke "$contest"
+    audit_log_to "$contest" reg-link-revoke "" ;;
   *) fail 400 "Ação desconhecida" "action_invalid" ;;
 esac
 

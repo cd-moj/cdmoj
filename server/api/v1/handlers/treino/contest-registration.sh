@@ -1,4 +1,7 @@
-# GET/POST /treino/contest-registration?contest=<c>   (Bearer do TREINO)
+# GET/POST /treino/contest-registration?contest=<c>[&k=<chave>]   (Bearer do TREINO)
+#
+# Contest SUPER SECRETO (SECRET=1): só com a chave do LINK PRIVADO (`k` na query ou no corpo; a organização gera em
+# /contest/admin/registrations `link-rotate`). Sem ela, ou com outra: o MESMO 404 de contest inexistente.
 #
 # INSCRIÇÃO do próprio usuário num contest que usa as contas do Treino Livre
 # (USERS_FROM=treino): individual ou em TIME de até REG_TEAM_MAX contas EXISTENTES.
@@ -51,9 +54,14 @@ source "$_DIR/lib/registration.sh"
 source "$_DIR/lib/invite-notify.sh"
 
 cdir="$CONTESTSDIR/$contest"
-# contest SUPER SECRETO não existe para quem está de fora (nem p/ dizer "não pode")
-( SECRET=""; source "$cdir/conf" 2>/dev/null; [[ "$SECRET" == 1 ]] ) \
-  && fail 404 "Contest não encontrado" "contest_notfound"
+# contest SUPER SECRETO não existe para quem está de fora (nem p/ dizer "não pode"): a resposta é BYTE A BYTE a do contest
+# inexistente (o `fail` do require_contest — até 27/10/2026 a mensagem daqui era outra e DENUNCIAVA o contest secreto). Só o
+# LINK PRIVADO abre: a chave `k`, na query (GET) ou no corpo (POST) — lib/registration.sh reg_link_ok. Fica ANTES de todo
+# 409/403 desta rota: um secreto com chave errada não pode responder diferente de um inexistente.
+if contest_is_secret "$contest"; then
+  k="$(param k)"; [[ -n "$k" || -z "$body" ]] || k="$(jq -r '.k // empty' <<<"$body" 2>/dev/null)"
+  reg_link_ok "$contest" "$k" || fail 404 "Contest not found" "contest_notfound"
+fi
 # só faz sentido em contest que compartilha as contas do treino: é a conta do treino que
 # está se inscrevendo
 [[ "$(reg_source_of "$contest")" == treino ]] \

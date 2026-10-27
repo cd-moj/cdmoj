@@ -1,4 +1,4 @@
-<!-- i18n-source: MANUAL-ADMIN.md blob:b87068a22730e67281ffea5b3ebfa00ae3082219 -->
+<!-- i18n-source: MANUAL-ADMIN.md blob:a637a1aa0411e339daa9113849b239244385d5e3 -->
 # MOJ: Organizer manual (the contest .admin panel)
 
 > **Translation note.** This manual is a translation of the Portuguese original. The command-line tools (`moj`, `moj-contest`, `moj-comp`) print their messages in Portuguese, and the command examples below are identical to the original.
@@ -274,7 +274,7 @@ in a course list or a course exam, when the skeleton helps the student.
   on, you cannot publish the report, the archived round site stays closed, the qualification does not show and
   virtual participation does not open.
 - **Login gate by UA substring**: only browsers whose identification contains the substring can log in (locked contest machine). Privileged roles are exempt.
-- **🕵️ SUPER SECRET**: the contest disappears from home/archive/status, and even the scoreboard requires login. For contests that must not even be known to exist.
+- **🕵️ SUPER SECRET**: the contest disappears from home/archive/status, and even the scoreboard requires login. For contests that must not even be known to exist. Registration works only through the private link (§8½).
 
 **⚖️ Judging (languages, pool, manual verdict)**
 
@@ -921,6 +921,18 @@ The person selects **individual** or **create a team**: gives a name and invites
 logins. Each invited person must **accept**. While the window is open, it is possible to leave,
 rename and undo. Participation is exclusive: to accept an invitation cancels the individual
 registration.
+
+**Super secret contest:** it shows up in no list, and the registration page answers as if it did
+not exist. To receive registrations, use the **private link**: in People › Registrations, the card
+**🔒 Private registration link** has the button **🔗 Generate link**. Send the link only to the
+private group. The link has a key: a person with the link can register; a person without it cannot
+even find out that the contest exists. **🔄 Generate a new link** replaces the key, and the previous
+link stops working at once (use it if the link leaked). **🚫 Revoke** deletes the link: nobody from
+outside can register. The team invitation that the mojinho sends by DM already has the private
+link. Only the contest admin sees and copies the link; the chief judge sees only if it exists. The
+Central warns about a super secret contest with registration on and without a link. With the CLI:
+`moj-contest -c <cid> inscricoes link --novo` (without an option, it shows the link; `--revogar`
+deletes it).
 
 **The invitation sends notifications automatically.** At the moment when the captain invites, the
 **mojinho sends a DM** to the invited person, with the accept/decline link. On the **day before

@@ -431,6 +431,68 @@ sed -i '\|^CONTEST_TZ=Nao/Existe$|d' "$C/conf"
 call /contest/admin/registrations GET '' tok-adm 'contest=esq'
 ck "painel diz o fuso da prova" '[[ "$(J .tz)" == "America/Sao_Paulo" ]]'
 
+echo "== LINK PRIVADO: contest SUPER SECRETO só recebe inscrição com a chave do link (27/10/2026) =="
+# um contest À PARTE (o estado do esq depende das seções acima): secreto, contas do treino, inscrição ligada
+S="$FIX/sec"; mkdir -p "$S/var" "$S/users" "$S/enunciados"
+{ printf 'CONTEST_ID=sec\nCONTEST_MODULES=inscricoes\nCONTEST_NAME="Secreto"\nCONTEST_TYPE=icpc\nUSERS_FROM=treino\nSECRET=1\n'
+  printf 'CONTEST_START=%s\nCONTEST_END=%s\n' "$((NOW+3600))" "$((NOW+10800))"
+  printf 'PROBS=( cdmoj org#alfa Alfa A org#alfa )\n'; } > "$S/conf"
+fx_user "$S" sec.admin adm "Admin Secreto"; mkses tok-sadm sec sec.admin
+fx_user "$S" sec.cjudge cj "Chefe Secreto"; mkses tok-scj sec sec.cjudge
+fx_user "$T" priv s3nha "Fulano priv"; mkses tok-priv treino priv
+sadm(){ call /contest/admin/registrations "${2:-POST}" "${1:-}" tok-sadm 'contest=sec'; }
+key_of(){ J .private_link.url | sed -n 's/.*[?&]k=\([0-9a-f]*\).*/\1/p'; }
+sadm '{"action":"enable"}'
+ck "o admin liga a inscrição do secreto"     '[[ "$(J .enabled)" == true ]]'
+ck "o painel diz: secreto e sem link"        '[[ "$(J .private_link.secret)" == true && "$(J .private_link.active)" == false ]]'
+# o 404 do secreto é BYTE A BYTE o do contest inexistente: sem chave, chave errada, arquivo de chave vazio e no POST
+call /treino/contest-registration GET '' tok-priv 'contest=naoexiste'; R0="$OUT"
+call /treino/contest-registration GET '' tok-priv 'contest=sec'
+ck "secreto sem chave: a MESMA resposta do contest inexistente" '[[ "$OUT" == "$R0" && "$OUT" == *"Status: 404"* ]]'
+call /treino/contest-registration GET '' tok-priv 'contest=sec&k=0123456789abcdef0123456789abcdef'
+ck "chave errada: a mesma resposta"         '[[ "$OUT" == "$R0" ]]'
+mkdir -p "$S/secrets"; : > "$S/secrets/registration-link.key"
+call /treino/contest-registration GET '' tok-priv 'contest=sec&k='
+ck "arquivo de chave vazio + k vazio: a mesma resposta" '[[ "$OUT" == "$R0" ]]'
+reg '{"contest":"naoexiste","action":"register"}' tok-priv; P0="$OUT"
+reg '{"contest":"sec","action":"register"}' tok-priv
+ck "POST sem chave: a mesma resposta do inexistente" '[[ "$OUT" == "$P0" && "$OUT" == *"Status: 404"* ]]'
+# o admin gera o link
+sadm '{"action":"link-rotate"}'; K1="$(key_of)"
+ck "link-rotate: o link com uma chave de 32 hex" '[[ "${#K1}" == 32 && "$(J .private_link.active)" == true && "$(J .private_link.url)" == *"/contests/inscricao/?c=sec&k=$K1" ]]'
+ck "a chave mora em secrets/ (600), não no conf" '[[ "$(stat -c %a "$S/secrets/registration-link.key")" == 600 && "$(cat "$S/secrets/registration-link.key")" == "$K1" ]] && ! grep -qF "$K1" "$S/conf"'
+ck "a chave não aparece em mais nada do contest (audit incluso)" '! grep -rqF "$K1" --exclude-dir=secrets "$S"'
+call /treino/contest-registration GET '' tok-priv "contest=sec&k=$K1"
+ck "com a chave na query: o GET abre a inscrição" '[[ "$OUT" == *"Status: 200"* && "$(J .enabled)" == true && "$(J .contest)" == sec ]]'
+reg "{\"contest\":\"sec\",\"k\":\"$K1\",\"action\":\"register\"}" tok-priv
+ck "com a chave no corpo: o POST inscreve"  '[[ "$OUT" == *"Status: 200"* && "$(jq -r ".entries.priv.kind" "$S/registrations.json")" == individual ]]'
+call /contest/admin/registrations GET '' tok-scj 'contest=sec'
+ck "o .cjudge sabe que o link existe, mas não o recebe" '[[ "$(J .private_link.active)" == true && "$(J ".private_link | has(\"url\")")" == false ]]'
+# a DM do convite de time leva o link COM a chave (o convidado pode não estar no grupo)
+inv(){ ( export CONTESTSDIR="$FIX" RUNDIR="$RUN" MOJ_PUBLIC_BASE="https://moj.exemplo"
+         source "$ROOT/api/v1/lib/common.sh"; source "$ROOT/api/v1/lib/registration.sh"; source "$ROOT/api/v1/lib/invite-notify.sh"
+         inv_link "$1" ); }
+ck "convite do secreto: o link com a chave"  '[[ "$(inv sec)" == "https://moj.exemplo/contests/inscricao/?c=sec&k=$K1" ]]'
+ck "convite de contest comum: sem chave"     '[[ "$(inv esq)" == "https://moj.exemplo/contests/inscricao/?c=esq" ]]'
+call /contest/admin/preflight GET '' tok-sadm 'contest=sec'
+ck "Central: link ativo = ok"                '[[ "$(J "[.checks[] | select(.id == \"reg_private_link\")][0].level")" == ok ]]'
+# gerar de novo mata o link velho na hora
+sadm '{"action":"link-rotate"}'; K2="$(key_of)"
+call /treino/contest-registration GET '' tok-priv "contest=sec&k=$K1"
+ck "gerar de novo: a chave velha volta ao 404 do inexistente" '[[ "${#K2}" == 32 && "$K2" != "$K1" && "$OUT" == "$R0" ]]'
+call /treino/contest-registration GET '' tok-priv "contest=sec&k=$K2"
+ck "…e a nova abre"                          '[[ "$OUT" == *"Status: 200"* ]]'
+# revogar fecha a porta
+sadm '{"action":"link-revoke"}'
+ck "revogar: sem link e sem arquivo"         '[[ "$(J .private_link.active)" == false && ! -e "$S/secrets/registration-link.key" ]]'
+call /treino/contest-registration GET '' tok-priv "contest=sec&k=$K2"
+ck "revogado: a chave volta ao 404 do inexistente" '[[ "$OUT" == "$R0" ]]'
+call /contest/admin/preflight GET '' tok-sadm 'contest=sec'
+ck "Central: secreto sem link = warn, e a dica aponta o link privado" '[[ "$(J "[.checks[] | select(.id == \"reg_private_link\")][0].level")" == warn && "$(J "[.checks[] | select(.id == \"registration\")][0].detail")" != *"/contests/inscricao/?c=sec"* ]]'
+# contest comum não tem link privado (a chave seria ignorada)
+adm '{"action":"link-rotate"}'
+ck "link-rotate em contest comum: 409 not_secret" '[[ "$OUT" == *"Status: 409"* && "$(J .error.code)" == not_secret ]]'
+
 echo ""
 echo "RESULT: $pass passed, $fail failed"
 exit $(( fail>0 ? 1 : 0 ))

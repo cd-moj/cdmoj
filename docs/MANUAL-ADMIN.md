@@ -264,7 +264,7 @@ costume). Use em lista ou prova de disciplina, quando o esqueleto ajuda o aluno.
   ser publicado, o site da rodada arquivada fica fechado, a classificação não aparece e a participação virtual não
   abre.
 - **Gate de login por UA** — só navegadores cuja identificação contém a substring conseguem logar (máquina de prova travada). Papéis privilegiados são isentos.
-- **🕵️ SUPER SECRETO** — o contest some da home/arquivo/status e até o placar exige login. Para provas que não podem nem constar que existem.
+- **🕵️ SUPER SECRETO** — o contest some da home/arquivo/status e até o placar exige login. Para provas que não podem nem constar que existem. A inscrição funciona só pelo link privado (§8½).
 
 **⚖️ Julgamento (linguagens, pool, veredicto manual)**
 
@@ -865,6 +865,16 @@ inscreveu **não entra** (a API recusa o login, não é só a tela).
 Ela escolhe **individual** ou **criar um time**: dá um nome e convida até 2 logins do treino;
 cada convidado precisa **aceitar**. Enquanto a janela estiver aberta dá para sair, renomear e
 desfazer. Participação é exclusiva — aceitar convite desfaz a inscrição individual.
+
+**Contest super secreto:** ele não aparece em nenhuma lista, e a página de inscrição responde como se
+ele não existisse. Para receber inscrições, use o **link privado**: em Pessoas › Inscrições, o cartão
+**🔒 Link privado de inscrição** tem o botão **🔗 Gerar link**. Mande o link só ao grupo privado. O
+link leva uma chave: quem tem o link se inscreve; quem não tem nem descobre que o contest existe.
+**🔄 Gerar link novo** troca a chave, e o link anterior para de funcionar na hora (use se o link
+vazou). **🚫 Revogar** apaga o link: ninguém de fora se inscreve mais. O convite de time que o
+mojinho manda por DM já leva o link privado. Só o admin do contest vê e copia o link; o juiz-chefe
+vê só se ele existe. A Central avisa o contest super secreto com inscrição ligada e sem link. Pela
+CLI: `moj-contest -c <cid> inscricoes link --novo` (sem opção, mostra o link; `--revogar` apaga).
 
 **O convite avisa sozinho.** No instante em que o capitão convida, o **mojinho manda uma DM** ao
 convidado com o link de aceitar/recusar; e na **véspera do fechamento** (24 h antes) manda **um

@@ -1634,11 +1634,23 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "k",
+            "in": "query",
+            "required": false,
+            "description": "chave do LINK PRIVADO de inscrição — obrigatória em contest SUPER SECRETO (SECRET=1); sem ela, ou com outra, 404 contest_notfound igual ao de contest inexistente",
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
           "200": {
             "description": "{enabled,contest,contest_name,start_time,end_time,window:{state,opens_at,closes_at,late_until,official_start,official_round},round_kind,gate_active,team_max,teams_allowed,me,team,invites,totals}"
+          },
+          "404": {
+            "description": "contest_notfound — contest inexistente OU super secreto sem a chave k certa (resposta idêntica: não revela que o contest existe)"
           },
           "409": {
             "description": "not_shared (contest sem USERS_FROM)"
@@ -1676,6 +1688,10 @@
                   },
                   "team": {
                     "type": "string"
+                  },
+                  "k": {
+                    "type": "string",
+                    "description": "chave do LINK PRIVADO (contest super secreto); também aceita na query"
                   }
                 },
                 "required": [
@@ -1692,6 +1708,9 @@
           },
           "403": {
             "description": "registration_closed | registration_not_open"
+          },
+          "404": {
+            "description": "contest_notfound — contest inexistente OU super secreto sem a chave k certa"
           },
           "409": {
             "description": "registration_off | already_registered | in_team | team_full | name_taken"
@@ -6144,7 +6163,7 @@
         ],
         "responses": {
           "200": {
-            "description": "{enabled,remind,window:{…,official_start,official_round},round_kind,gate_active,team_max,teams_allowed,teams:[{…,invited,invited_meta:[{login,at,dm_at,warned_at,tg}]}],individuals,totals:{…,invites,invites_no_tg}}"
+            "description": "{enabled,remind,window:{…,official_start,official_round},round_kind,gate_active,team_max,teams_allowed,teams:[{…,invited,invited_meta:[{login,at,dm_at,warned_at,tg}]}],individuals,totals:{…,invites,invites_no_tg},private_link:{secret,active,created_at,url?}} — private_link: o LINK PRIVADO de inscrição de contest super secreto (url com a chave só p/ o admin; o .cjudge vê só se existe)"
           }
         }
       },
@@ -6152,7 +6171,7 @@
         "tags": [
           "contest-admin"
         ],
-        "summary": "enable | disable | window {open,close,late_minutes,team_max,teams,remind} (campo ausente não mexe; null APAGA a chave — close:null volta a herdar o início da prova) | add | rm | team-add | team-rm | team-meta {team,univ?,ai?,flag?} | individual-meta {login,univ?,ai?,flag?} | materialize | invite-remind {team,login} | invite-remind-all (o mojinho manda DM ao convidado com o link de aceitar/recusar; remind=false desliga o aviso automático da véspera). enable/window/add/team-add num contest SEM USERS_FROM (contas próprias) = 422 requires_shared_users",
+        "summary": "enable | disable | window {open,close,late_minutes,team_max,teams,remind} (campo ausente não mexe; null APAGA a chave — close:null volta a herdar o início da prova) | add | rm | team-add | team-rm | team-meta {team,univ?,ai?,flag?} | individual-meta {login,univ?,ai?,flag?} | materialize | invite-remind {team,login} | invite-remind-all (o mojinho manda DM ao convidado com o link de aceitar/recusar; remind=false desliga o aviso automático da véspera) | link-rotate (contest SUPER SECRETO: gera ou troca a chave do link privado de inscrição — o anterior para na hora; 409 not_secret nos outros) | link-revoke (apaga a chave: ninguém de fora se inscreve). enable/window/add/team-add num contest SEM USERS_FROM (contas próprias) = 422 requires_shared_users",
         "security": [
           {
             "bearerAuth": []
@@ -6187,7 +6206,7 @@
             "description": "no_invite (não há convite pendente desse time p/ esse login)"
           },
           "409": {
-            "description": "registration_closed (janela fechada: o convite não pode mais ser aceito) | no_telegram (o convidado não tem Telegram vinculado)"
+            "description": "registration_closed (janela fechada: o convite não pode mais ser aceito) | no_telegram (o convidado não tem Telegram vinculado) | not_secret (link-rotate em contest que não é super secreto)"
           }
         }
       }

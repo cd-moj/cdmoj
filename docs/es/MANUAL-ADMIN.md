@@ -1,4 +1,4 @@
-<!-- i18n-source: MANUAL-ADMIN.md blob:b87068a22730e67281ffea5b3ebfa00ae3082219 -->
+<!-- i18n-source: MANUAL-ADMIN.md blob:a637a1aa0411e339daa9113849b239244385d5e3 -->
 # MOJ: Manual del organizador (el panel .admin de la competencia)
 
 > **Nota de traducción.** Este manual es una traducción del original en portugués. Las herramientas de línea de comandos (`moj`, `moj-contest`, `moj-comp`) muestran sus mensajes en portugués, y los ejemplos de comandos son idénticos al original.
@@ -270,7 +270,7 @@ habituales). Úsalo en una lista o un examen de curso, cuando el esqueleto ayuda
   se puede publicar, el sitio de la ronda archivada queda cerrado, la clasificación no aparece y la participación
   virtual no se abre.
 - **Filtro de inicio de sesión por substring de UA**: solo los navegadores cuya identificación contiene la substring pueden iniciar sesión (máquina de competencia bloqueada). Los roles privilegiados están exentos.
-- **🕵️ SUPER SECRETO**: la competencia desaparece de la página de inicio/archivo/estado e incluso el marcador exige iniciar sesión. Para competencias de las que ni siquiera puede constar que existen.
+- **🕵️ SUPER SECRETO**: la competencia desaparece de la página de inicio/archivo/estado e incluso el marcador exige iniciar sesión. Para competencias de las que ni siquiera puede constar que existen. La inscripción funciona solo por el enlace privado (§8½).
 
 **⚖️ Evaluación (lenguajes, pool, veredicto manual)**
 
@@ -880,6 +880,18 @@ se inscribió **no entra** (la API rechaza el inicio de sesión; no es solo la p
 Elige **individual** o **crear un equipo**: le da un nombre e invita hasta 2 usuarios del entrenamiento;
 cada invitado tiene que **aceptar**. Mientras la ventana esté abierta se puede salir, renombrar y
 deshacer. La participación es exclusiva: aceptar una invitación deshace la inscripción individual.
+
+**Competencia súper secreta:** no aparece en ninguna lista, y la página de inscripción responde como
+si no existiera. Para recibir inscripciones, usa el **enlace privado**: en Personas › Inscripciones, la
+tarjeta **🔒 Enlace privado de inscripción** tiene el botón **🔗 Generar enlace**. Envía el enlace solo
+al grupo privado. El enlace lleva una clave: quien tiene el enlace se inscribe; quien no lo tiene ni
+siquiera descubre que la competencia existe. **🔄 Generar enlace nuevo** cambia la clave, y el enlace
+anterior deja de funcionar de inmediato (úsalo si el enlace se filtró). **🚫 Revocar** elimina el
+enlace: nadie de afuera se inscribe más. La invitación de equipo que el mojinho manda por DM ya lleva
+el enlace privado. Solo el admin de la competencia ve y copia el enlace; el juez principal solo ve si
+existe. La Central avisa de la competencia súper secreta con la inscripción activada y sin enlace. Por
+la CLI: `moj-contest -c <cid> inscricoes link --novo` (sin opción, muestra el enlace; `--revogar` lo
+elimina).
 
 **La invitación avisa sola.** En el instante en que el capitán invita, **el mojinho manda un DM** al
 invitado con el enlace para aceptar/rechazar; y en la **víspera del cierre** (24 h antes) manda **un

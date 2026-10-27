@@ -214,6 +214,15 @@ check "sem roster => item ausente"       '[[ "$(lvl registration)" == "(ausente)
 printf '{"version":1,"teams":{},"entries":{}}' > "$C/registrations.json"; run
 check "roster vazio => warn"             '[[ "$(lvl registration)" == warn ]]'
 check "diz onde as pessoas se inscrevem" '[[ "$(det registration)" == *"/contests/inscricao/"* ]]'
+# LINK PRIVADO (27/10/2026): só o contest SUPER SECRETO tem o item; sem a chave ninguém de fora se inscreve (warn) e a dica
+# aponta o link privado, nunca o público (que responde 404 ao secreto); com a chave, ok
+check "contest comum => sem item de link privado" '[[ "$(lvl reg_private_link)" == "(ausente)" ]]'
+printf 'SECRET=1\n' >> "$C/conf"; run
+check "super secreto sem link => warn, e a dica é o link privado" \
+  '[[ "$(lvl reg_private_link)" == warn && "$(det registration)" == *"link privado"* && "$(det registration)" != *"/contests/inscricao/"* ]]'
+mkdir -p "$C/secrets"; printf '%s\n' 0123456789abcdef0123456789abcdef > "$C/secrets/registration-link.key"; run
+check "super secreto com link => ok"     '[[ "$(lvl reg_private_link)" == ok ]]'
+rm -f "$C/secrets/registration-link.key"; sed -i '/^SECRET=1$/d' "$C/conf"; run
 check "contas próprias => avisa fonte"   '[[ "$(lvl reg_source)" == warn ]]'
 check "sem coortes de inscrição => warn" '[[ "$(lvl reg_cohorts)" == warn ]]'
 printf '{"version":1,"teams":{"time-x":{"name":"X","captain":"a","members":["a"],"invited":["b","c"]}},"entries":{"a":{"kind":"team","team":"time-x"}}}' \
