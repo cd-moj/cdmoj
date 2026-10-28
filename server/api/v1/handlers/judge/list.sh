@@ -1,8 +1,10 @@
-# GET /judge/list   (Bearer, admin)
+# GET /judge/list   (Bearer, admin DO TREINO)
 # Registro dos juízes: specs (CPU/mem/GPU) + inventário (nº de problemas) + estado +
 # último report de atualização por juiz. Para o admin "perceber" o que cada juiz tem.
+# AÇÃO DE PLATAFORMA (o parque é compartilhado por todo o treino, não por contest): require_treino_admin,
+# como o /admin/synctreino.
 require_method GET
-require_admin
+require_treino_admin
 source "$_DIR/../../judge-gw/sched-lib.sh"
 source "$_DIR/lib/tl-store.sh"
 

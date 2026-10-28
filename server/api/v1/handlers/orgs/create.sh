@@ -10,7 +10,12 @@ cc_can_create "$SESSION_LOGIN" || fail 403 "Sem permissão para criar org (igual
 body="$(read_body)"; jq -e . >/dev/null 2>&1 <<<"$body" || fail 400 "Invalid JSON body" "bad_json"
 name="$(jq -r '.name // empty' <<<"$body")"
 [[ "$name" =~ ^[a-z0-9][a-z0-9._-]{1,63}$ ]] || fail 400 "Nome de org inválido (use [a-z0-9._-])" "name_invalid"
-if org_exists "$name"; then org_can_manage "$name" "$SESSION_LOGIN" || fail 409 "Org já existe" "taken"; fi
+if org_exists "$name"; then
+  # Org IMPLÍCITA nunca é "gerida" por aqui — nem pelo SUPERADMIN, mesma regra de /orgs/members (o
+  # org_register inclui quem chama em members+admins).
+  org_is_implicit "$name" && fail 409 "Org implícita não tem gestão de membros" "implicit"
+  org_can_manage "$name" "$SESSION_LOGIN" || fail 409 "Org já existe" "taken"
+fi
 title="$(jq -r '.title // empty' <<<"$body")"
 # cada login que ENTRA precisa existir e poder criar problemas (422/404/403 — recusa atômica,
 # a org nem nasce); antes um select() mudo descartava inválido e gravava o resto sem conferir

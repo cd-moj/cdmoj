@@ -82,6 +82,14 @@ moj/
   token; papel e treino ficam de fora; o porteiro declina). A página de contest aberta no site principal pula p/ o
   subdomínio (`shared/contest-host.js` `subdomainRedirect`, no `contest-guard.js`), e o `moj-comp` fala com ele
   sozinho. No nginx, Host desconhecido (o IP cru) recebe 421 (`install-nginx.sh --close-unknown`).
+- **Autoria é atividade do treino** (28/10/2026): os segmentos `/problems/*` e
+  `/orgs/*` (acervo de problemas: source, pacote, soluções, calibração, edição, orgs que o possuem) só
+  valem numa sessão DO TREINO — `router.sh` corta com 403 `author_treino_only` quem estiver logado em
+  qualquer outro contest, mesmo um papel (`.admin` etc., que é isento do `team-host`). A identidade
+  desses gates é o LOGIN (`org_is_member`), e o mesmo nome em outro contest é outra conta. Dentro do
+  treino, a gestão de org/coleção (`org_can_manage`/`coll_can_manage`) é do dono OU do superadmin numa
+  sessão do treino (`is_platform_superadmin`), nunca `is_admin` cru: ver `docs/API.md` (bloco de controle
+  de acesso de `/problems/*`) para o detalhe.
 - **jq para todo JSON**; `contests/<c>/conf` é *sourced* — por isso a criação de contest
   escreve tudo com `printf %q`.
 

@@ -1,12 +1,13 @@
-# GET /orgs/get?name=<org>  (Bearer) -> detalhe de UMA org. Só membro/admin da org ou admin global;
-# senão 404 (não revela a existência de uma org alheia — provas em elaboração não vazam).
+# GET /orgs/get?name=<org>  (Bearer) -> detalhe de UMA org. Só membro/admin da org ou admin DO TREINO
+# (is_platform_admin — metadados, não concede gestão: ver org_can_manage); senão 404 (não revela a
+# existência de uma org alheia — provas em elaboração não vazam).
 require_method GET
 require_auth
 source "$_DIR/lib/orgs.sh"
 name="$(param name)"
 [[ -n "$name" ]] || fail 400 "Missing name" "name_missing"
 org_exists "$name" || fail 404 "Org não encontrada" "not_found"
-{ org_is_member "$name" "$SESSION_LOGIN" || { declare -F is_admin >/dev/null && is_admin; }; } \
+{ org_is_member "$name" "$SESSION_LOGIN" || { declare -F is_platform_admin >/dev/null && is_platform_admin; }; } \
   || fail 404 "Org não encontrada" "not_found"
 cm=false; org_can_manage "$name" "$SESSION_LOGIN" && cm=true
 ok_json '{name:$n, title:$t, members:$m, admins:$a, public_allowed:$pa, implicit:$im,

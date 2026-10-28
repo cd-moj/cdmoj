@@ -90,6 +90,29 @@ fi
 # login) e o auth/logout sempre passa. Depois do isolamento e da trava de sede: as duas mantêm a prioridade.
 case "${_seg[0]}/${_seg[1]:-}" in auth/login|auth/logout) ;; *) th_guard ;; esac
 
+# AUTORIA DE PROBLEMA É ATIVIDADE DO TREINO (28/10/2026). As rotas /problems/* (acervo: source, pacote,
+# soluções, calibração, edição) e /orgs/* (donos do acervo) só valem numa sessão DO TREINO: a identidade
+# dos gates de autoria é o LOGIN (org_is_member/require_problem_edit), e o mesmo nome em outro contest é
+# outra conta (o `<criador>.admin` de cada contest é LOCAL). Choke ÚNICO aqui (todo handler desses
+# segmentos já exige auth — nenhuma rota pública existe nos dois segmentos); a lib tem a trava gêmea
+# (is_platform_admin/is_platform_superadmin em org_can_manage/coll_can_manage). 403 uniforme p/ sessão
+# não-treino.
+# Barato de propósito (como o th_guard acima): só ESPIA o token (sem `load_session`, que já roda de
+# novo no handler via require_auth/require_problem_edit) — sem sessão válida aqui, cai mudo e o handler
+# responde o 401 de sempre; só paga `audit_log` (com teto) no caminho de RECUSA.
+case "${_seg[0]}" in
+  problems|orgs)
+    _attok=""; _bearer_token_to _attok
+    if [[ -n "$_attok" ]] && valid_id "$_attok" && [[ -f "$SESSIONDIR/$_attok" ]]; then
+      _atc=""; _atl=""; _sess_peek "$SESSIONDIR/$_attok" _atc _atl
+      if [[ -n "$_atc" && "$_atc" != treino ]]; then
+        author_treino_record "$_atc" "$_atl" "${_seg[0]}/${_seg[1]:-}"
+        fail 403 "Autoria de problema só na sessão do Treino Livre" "author_treino_only"
+      fi
+    fi
+    ;;
+esac
+
 handler="$HANDLERS$_safe.sh"
 [[ -f "$handler" ]] || fail 404 "No such route: $route" "route_notfound"
 source "$handler"

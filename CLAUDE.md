@@ -1497,6 +1497,25 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   - o detalhe vai p/ `var/admin-actions/`, o audit leva uma linha curta e há aviso aos super-admins (DM/grupo).
   Ação nova de vários alvos usa a lib. O `contest-remove` é do dono ou do super, com `confirm` = o id. Teste:
   `smoke-treino-admin-guard.sh`. Doc: `docs/ADMIN.md` §11.
+- **AUTORIA É ATIVIDADE DO TREINO (28/10/2026)** — as rotas de autoria (`/problems/*`, `/orgs/*`) e a gestão do acervo
+  seguem estas regras. Os gates de autoria identificam pelo LOGIN (`require_problem_edit`/`_view`,
+  `owners_visible_for`), e o mesmo nome em outro contest é outra conta: todo criador tem um `<criador>.admin` LOCAL,
+  isento do host-lock.
+  (1) O **`router.sh`** corta os segmentos **`problems` e `orgs`** com **403 `author_treino_only`** p/ sessão com
+  `SESSION_CONTEST != treino` (choke único; todo handler desses segmentos exige auth; 403 uniforme; recusa auditada
+  com teto de 5 min por login+rota, molde do team-host-block; vale também com a trava de host afrouxada —
+  `run/team-host-lock` observe|0).
+  (2) A GESTÃO (`org_can_manage`/`coll_can_manage`) é do dono OU do **`is_platform_superadmin`** (SUPERADMIN numa
+  sessão DO TREINO — o `superadmin_login` só confere o nome), e a flag `can_manage` de `orgs/list`/
+  `problems/collections` usa o MESMO predicado (a tela não oferece o que a API recusa). **`is_platform_admin`**
+  (treino + `.admin`) é só VISIBILIDADE (nome/roster de org em `orgs/get`/`orgs/members` GET e `/judge/list`) — nunca
+  concede gestão. **Org IMPLÍCITA nunca aceita "gestão" por `/orgs/create`**, nem do SUPERADMIN (a regra do
+  `/orgs/members`).
+  `/admin/synctreino` e `/judge/list` (ações de plataforma) usam `require_treino_superadmin`/`require_treino_admin`. O
+  `moj`/editor web logam no treino; `MOJ_CONTEST` apontando a CLI p/ outro contest ao autorar é follow-up da
+  `moj-cli`. Testes: `smoke-cross-contest-identity.sh` (sessão de outro contest, mesmo login com a trava afrouxada,
+  gestão no treino, a flag da UI × o portão, a trava de lib, controles com SUPERADMIN e com `.admin` comum, a org
+  implícita, o teto do audit) + a asserção de escopo do `synctreino` em `smoke-handlers.sh`.
 - **Painel do treino › Contests (2026-09-15)**: `SUPERADMINS` no conf do TREINO (logins; sem UI de
   propósito) ⇒ `superadmin_login`/`is_superadmin` (`lib/auth.sh`). **`cc_contest_visible_to <viewer>
   <owner>`** (`lib/contest-create.sh`) é a FONTE ÚNICA de "quem vê o contest de quem" — super-admin

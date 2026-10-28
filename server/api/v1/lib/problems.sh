@@ -479,8 +479,9 @@ coll_owner(){ [[ -f "$COLL_REGISTRY" ]] && jq -r --arg n "$1" '.[$n].owner // em
 coll_all(){ _coll_read | jq -c 'keys'; }
 # coll_valid_name <name> -> 0 se nome válido (texto livre: 1..80 chars, sem caractere de controle)
 coll_valid_name(){ local n="$1"; [[ -n "$n" ]] || return 1; [[ "$n" =~ [[:cntrl:]] ]] && return 1; (( ${#n} <= 80 )); }
-# coll_can_manage <name> <login> — dono da coleção OU admin global
-coll_can_manage(){ { declare -F is_admin >/dev/null && is_admin; } && return 0; [[ "$(coll_owner "$1")" == "$2" ]]; }
+# coll_can_manage <name> <login> — dono da coleção OU SUPERADMIN do treino (`is_platform_superadmin`; não `is_admin`/
+# `is_platform_admin`): a mesma régua do `org_can_manage`.
+coll_can_manage(){ { declare -F is_platform_superadmin >/dev/null && is_platform_superadmin; } && return 0; [[ "$(coll_owner "$1")" == "$2" ]]; }
 # coll_register <name> <owner> — cria (idempotente; preserva dono/at de quem já existe).
 # Os três abaixo são read-modify-write do MESMO arquivo -> flock (senão duas criações simultâneas
 # perdem uma; ver _idx_lock).

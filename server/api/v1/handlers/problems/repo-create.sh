@@ -10,7 +10,11 @@ cc_can_create "$SESSION_LOGIN" || fail 403 "Sem permissão para criar (mesma reg
 body="$(read_body)"; jq -e . >/dev/null 2>&1 <<<"$body" || fail 400 "Invalid JSON body" "bad_json"
 repo="$(jq -r '.repo // empty' <<<"$body")"
 [[ "$repo" =~ ^[a-z0-9][a-z0-9._-]{1,63}$ ]] || fail 400 "Nome de org inválido (use [a-z0-9._-])" "repo_invalid"
-if org_exists "$repo"; then org_can_manage "$repo" "$SESSION_LOGIN" || fail 409 "Org já existe" "repo_taken"; fi
+if org_exists "$repo"; then
+  # mesma regra de /orgs/create: org IMPLÍCITA nunca aceita "gestão" de ninguém além do dono (28/10/2026).
+  org_is_implicit "$repo" && fail 409 "Org implícita não tem gestão de membros" "implicit"
+  org_can_manage "$repo" "$SESSION_LOGIN" || fail 409 "Org já existe" "repo_taken"
+fi
 org_register "$repo" "$SESSION_LOGIN"
 coll_register "$repo" "$SESSION_LOGIN"   # coleção homônima (agrupamento default do id) fica válida
 audit_log "repo-create" "org=$repo owner=$SESSION_LOGIN"

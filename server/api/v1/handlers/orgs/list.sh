@@ -7,7 +7,9 @@ source "$_DIR/lib/orgs.sh"; source "$_DIR/lib/problems.sh"
 ensure_implicit_org "$SESSION_LOGIN"
 mine="$(org_list_for "$SESSION_LOGIN")"; [[ -n "$mine" ]] || mine='[]'
 reg="$(cat "$ORGS_REGISTRY" 2>/dev/null)"; [[ -n "$reg" ]] || reg='{}'
-gadm=false; is_admin && gadm=true
+# can_manage exibido = o MESMO predicado do portão (org_can_manage): admin da org OU SUPERADMIN do treino
+# (is_platform_superadmin). Com o atalho do `.admin` comum a tela oferecia os controles e a API dava 403.
+gadm=false; is_platform_superadmin && gadm=true
 emit_json 200 OK
 owners_merged | jq -c --argjson reg "$reg" --argjson mine "$mine" --arg me "$SESSION_LOGIN" --argjson gadm "$gadm" '
   ( [ .problems[] | select(.public or .owner==$me or ((.collaborators // [])|index($me)|type=="number")

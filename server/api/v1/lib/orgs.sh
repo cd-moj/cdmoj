@@ -21,9 +21,13 @@ org_is_admin(){ jq -e --arg u "$2" 'index($u)' >/dev/null 2>&1 <<<"$(org_admins 
 # org_public_allowed <org> -> 0 se a org PERMITE que seus problemas fiquem públicos.
 org_public_allowed(){ [[ -f "$ORGS_REGISTRY" ]] && jq -e --arg n "$1" '.[$n].public_allowed==true' >/dev/null 2>&1 < "$ORGS_REGISTRY"; }
 org_is_implicit(){ [[ -f "$ORGS_REGISTRY" ]] && jq -e --arg n "$1" '.[$n].implicit==true' >/dev/null 2>&1 < "$ORGS_REGISTRY"; }
-# org_can_manage <org> <login> — admin da org OU admin global do treino (.admin). Gestão de membros/trava.
+# org_can_manage <org> <login> — admin da org OU SUPERADMIN da plataforma. O atalho global é
+# `is_platform_superadmin` (super NUMA SESSÃO DO TREINO), NÃO `is_admin`/`is_platform_admin`: gerir uma org inclui o
+# gestor em members+admins (org_register), e isso é acesso ao acervo dela — fica com o dono e o super-admin.
+# `is_platform_admin` segue certo p/ checagem de VISIBILIDADE (ver orgs/get.sh, orgs/members.sh GET) — não concede
+# gestão/acesso.
 org_can_manage(){
-  { declare -F is_admin >/dev/null && is_admin; } && return 0
+  { declare -F is_platform_superadmin >/dev/null && is_platform_superadmin; } && return 0
   org_is_admin "$1" "$2"
 }
 # org_list_for <login> -> JSON array de nomes de org de que o login é membro/admin (inclui a implícita).

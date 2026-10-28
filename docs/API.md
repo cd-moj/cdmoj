@@ -178,6 +178,21 @@ Listagens leem o índice de donos `contests/treino/var/problem-owners.json` (ger
 > (as listagens pré-filtram em `owners_emit`), **inclusive p/ `.admin`** — provas em elaboração não podem
 > vazar. Não-autorizado recebe **404** (não revela a existência). Helpers centrais em `lib/problems.sh`;
 > `moj-cli`/curl batem na mesma API e não burlam.
+>
+> **AUTORIA É ATIVIDADE DO TREINO (28/10/2026).** TODA rota `/problems/*` e
+> `/orgs/*` exige uma sessão **DO TREINO** — o `router.sh` corta os dois segmentos com **403
+> `author_treino_only`** p/ sessão de qualquer outro contest (uniforme; trilha no audit com teto de 5 min
+> por login+rota). A identidade desses gates é o LOGIN (`org_is_member`), e o mesmo nome em outro contest
+> é outra conta (o `<criador>.admin` de cada contest é LOCAL). **Dentro do treino a gestão é do dono ou do
+> super-admin**: o atalho global de `org_can_manage`/`coll_can_manage` é **`is_platform_superadmin`** =
+> SUPERADMIN numa sessão DO TREINO (não `is_admin`/`is_platform_admin`) — um `.admin` COMUM do treino (fora
+> da lista `SUPERADMINS`) gere só as próprias orgs/coleções. A flag `can_manage` de `/orgs/list` e
+> `/problems/collections` usa o MESMO predicado do portão (a tela nunca oferece o que a API recusa).
+> `is_platform_admin` (treino + `.admin`) vale só p/ VISIBILIDADE (nome/roster de org, `/judge/list`) — nunca
+> concede gestão. O corte do router vale também com a trava de host afrouxada (`run/team-host-lock` =
+> observe|0). **Org IMPLÍCITA nunca aceita "gestão" por `/orgs/create`, nem do SUPERADMIN** (a regra do
+> `/orgs/members`). O `moj`/editor web logam no treino; `MOJ_CONTEST` apontando `moj`/`moj-contest` p/ outro
+> contest ao autorar problema é follow-up da moj-cli. Guarda: `smoke-cross-contest-identity.sh`.
 
 | Rota | Método | I/O |
 |---|---|---|
@@ -197,7 +212,7 @@ Listagens leem o índice de donos `contests/treino/var/problem-owners.json` (ger
 | `/problems/issues` | POST `{id, action, n?, title?, body?}` | `action` ∈ `open` (`title` 1..200, `body` opcional) · `comment` (`n`, `body` obrigatório) · `close` / `reopen` (`n`; `body`, se vier, entra como comentário). Corpo ≤ 20.000 caracteres, ≤ 200 comentários por issue, ≤ 500 issues por problema. Resposta `{id, open, issue}`. Erros: 400 `issue_invalid` (a mensagem diz o quê), 404 `issue_notfound`, 409 `issue_state` (fechar fechada / reabrir aberta), 422 `issue_limit`. Issue aberta = pendência `issues_open:<n>` no `/problems/status` (o problema não está pronto) |
 | `/problems/calib-report?id=<id>&host=<host>&name=<name>` | GET | o **`report.html` rico** (o do `build-and-test`) de UMA solução, como saiu da calibração NAQUELE juiz (`run/calib/<id>/r/<host>/<name>.html`). Os nomes válidos vêm de `hosts[].reports` do `/problems/calib`. Devolve **HTML**, não JSON. Acesso: `require_problem_edit` — dono/colaborador, sem atalho de `.admin` (é código de solução). CLI: `moj calib-report` |
 | `/problems/my-stats` | GET | **análise** dos problemas do login (dono+colaborador) agregada em TODA a plataforma (treino + turmas; cache precomputado). `{totals:{owned,with_activity,attempts,accepts,solvers},overall_verdicts:[{verdict,count}],overall_languages:[{lang,submissions,accepted}],most_popular:{id,title,attempts},problems:[{id,title,attempts,accepts,wrong,acceptance_rate,distinct_users,solvers,contests_count,verdicts,languages,first,last}]}`. Só os problemas do login; **sem logins, sem nomes de contests** (só `contests_count`) — não vaza prova privada |
-| `/problems/judges` | GET | o **parque de juízes** para a calibração DIRECIONADA do editor: `{judges:[{host,cpu,arch,langs,cage_root,last_seen,online}]}`, ordenado por online › cpu › host (`online` = heartbeat nos últimos 30 s). O editor agrupa por `cpu` para oferecer "1 por processador". Só exige login (é inventário de máquina, não conteúdo de problema). CLI: `moj calibrate --judges` |
+| `/problems/judges` | GET | o **parque de juízes** para a calibração DIRECIONADA do editor: `{judges:[{host,cpu,arch,langs,cage_root,last_seen,online}]}`, ordenado por online › cpu › host (`online` = heartbeat nos últimos 30 s). O editor agrupa por `cpu` para oferecer "1 por processador". É inventário de máquina, não conteúdo de problema — mas, por estar no segmento `/problems/*`, também exige **sessão do treino** (403 `author_treino_only` senão; ver nota de controle de acesso acima). CLI: `moj calibrate --judges` |
 | `/problems/validate` | POST `{id}` | **portão de qualidade, NÃO publicação**: valida (portão estático: HTML compila + seções `## Entrada`/`## Saída` + exemplos pareados) + gera o índice + pede **calibração** a um juiz (que roda as `good` e reporta o TL). **NÃO mexe no `public`** — problema privado continua privado (publicar é `/problems/set-public`, que checa a trava da ORG). Relatório: `/problems/validation`. Só membro da org. |
 | `/problems/publish` | POST `{id}` | **DEPRECADO** — alias de `/problems/validate` (o nome fazia parecer que validar publicava) |
 | `/problems/request-calibration` | POST `{id, hosts?:[...]}` | enfileira **calibração** (juiz roda `calibreitor.sh`, gera `tl.<host>`). **IDEMPOTENTE**: se já existe calibração pendente/em execução p/ o id, devolve o `reqid` existente com `status:"already_queued"` (nunca duplica job — lição do incidente 2026-07-15); direcionada (`hosts`) dedupa por host os comandos ainda não entregues (`hosts[].status`) |
@@ -401,7 +416,7 @@ servidor commita no repo git LOCAL de cada problema (`MOJ_PROBLEMS_DIR/<org>/<pr
 | `/admin/adduser` | POST | admin | `{contest,login,fullname,email?,password?}` (gera senha) |
 | `/admin/passwd` | POST | admin | `{contest,login,newpass}` |
 | `/admin/contest/extend` | POST | admin | `{contest,end_epoch}` |
-| `/admin/synctreino` | POST | admin | sincroniza treino |
+| `/admin/synctreino` | POST | **super-admin do treino** | sincroniza o acervo do treino inteiro (ação de PLATAFORMA — mesmo nível das `/ops` de escrita) |
 | `/admin/rejudge` | POST | admin | `{ids:[…]}` ou `{contest,problem}` |
 | `/ops/queue` | GET | admin do treino | tamanho da fila por contest |
 | `/ops/problemtl?problem=<p>` | GET | admin do treino | time limits do problema (pelo `tl_method` do conf; `time_limits_by_method` traz as duas metades; `time_limits` = o efetivo, com o `tl_override` e o `tl_mods` do conf, como no `/problems/tl`) |

@@ -3,7 +3,7 @@
   "info": {
     "title": "MOJ API",
     "version": "v1",
-    "description": "API REST do MOJ (Melhor Online Judge). Backend bash atrás de nginx+fcgiwrap. Auth via `Authorization: Bearer <token>`. Histórico e placar são TXT; o resto é JSON com envelope `{success:true,…}` ou `{success:false,error:{message,code}}`. Horários em EPOCH. Aviso de CLI desatualizada: resposta a uma CLI (UA `moj[-tool]/<build>`) leva `X-Moj-Cli-Status: current|outdated|dev|legacy` e `X-Moj-Cli-Latest: <build servida>`; CLI antiga sem marcador (curl/* + Bearer) recebe a dica \"rode moj update\" anexada à error.message."
+    "description": "API REST do MOJ (Melhor Online Judge). Backend bash atrás de nginx+fcgiwrap. Auth via `Authorization: Bearer <token>`. Histórico e placar são TXT; o resto é JSON com envelope `{success:true,…}` ou `{success:false,error:{message,code}}`. Horários em EPOCH. Aviso de CLI desatualizada: resposta a uma CLI (UA `moj[-tool]/<build>`) leva `X-Moj-Cli-Status: current|outdated|dev|legacy` e `X-Moj-Cli-Latest: <build servida>`; CLI antiga sem marcador (curl/* + Bearer) recebe a dica \"rode moj update\" anexada à error.message. AUTORIA É ATIVIDADE DO TREINO (28/10/2026): toda rota /problems/* e /orgs/* exige sessão DO TREINO — 403 `author_treino_only` para sessão de qualquer outro contest, mesmo um papel (`.admin` etc., isento do team-host); dentro do treino, gerir org/coleção ALHEIA (não a própria) exige ser SUPERADMIN numa sessão do treino (`is_platform_superadmin`), nunca só o sufixo `.admin`; a flag `can_manage` das listagens usa o mesmo predicado."
   },
   "servers": [
     {
@@ -3490,7 +3490,7 @@
         "tags": [
           "admin"
         ],
-        "summary": "Sincronizar treino",
+        "summary": "Sincroniza o acervo do treino inteiro (ação de PLATAFORMA — SUPER-ADMIN do treino)",
         "security": [
           {
             "bearerAuth": []
@@ -3499,6 +3499,9 @@
         "responses": {
           "200": {
             "description": "ok"
+          },
+          "403": {
+            "description": "sessão fora do treino (auth_contest) ou .admin comum, não super (superadmin_required)"
           }
         }
       }
@@ -7512,6 +7515,12 @@
                 }
               }
             }
+          },
+          "403": {
+            "description": "não é membro da org (ou sessão fora do treino: author_treino_only)"
+          },
+          "404": {
+            "description": "não encontrado (nunca distingue 'inexistente' de 'privado alheio')"
           }
         }
       }
@@ -7929,6 +7938,12 @@
                 }
               }
             }
+          },
+          "403": {
+            "description": "não é membro da org (ou sessão fora do treino: author_treino_only)"
+          },
+          "404": {
+            "description": "não encontrado (nunca distingue 'inexistente' de 'privado alheio')"
           }
         }
       }
@@ -8046,6 +8061,12 @@
                 }
               }
             }
+          },
+          "403": {
+            "description": "não é membro da org (ou sessão fora do treino: author_treino_only)"
+          },
+          "404": {
+            "description": "não encontrado (nunca distingue 'inexistente' de 'privado alheio')"
           }
         }
       }
@@ -8146,6 +8167,12 @@
                 }
               }
             }
+          },
+          "403": {
+            "description": "não é membro da org (ou sessão fora do treino: author_treino_only)"
+          },
+          "404": {
+            "description": "não encontrado (nunca distingue 'inexistente' de 'privado alheio')"
           }
         }
       }
@@ -8309,6 +8336,12 @@
           },
           "409": {
             "description": "stale_rev: o problema mudou depois do base_rev — {error:{code:\"stale_rev\",message,current_rev,changed_by,changed_at}}; nada gravado"
+          },
+          "403": {
+            "description": "não é membro da org (ou sessão fora do treino: author_treino_only)"
+          },
+          "404": {
+            "description": "não encontrado (nunca distingue 'inexistente' de 'privado alheio')"
           }
         },
         "description": "docs_files = round-trip das imagens de docs/ ([{name,content_b64}]); examples[].explanation vive em docs/notes/<sample>.md (legado sample-notes.json só leitura)."
@@ -8426,7 +8459,7 @@
             "description": "confirm_mismatch (confirm != id) ou id inválido"
           },
           "403": {
-            "description": "sem permissão de escrita"
+            "description": "sem permissão de escrita (ou sessão fora do treino: author_treino_only)"
           }
         }
       }
@@ -8472,6 +8505,12 @@
         "responses": {
           "200": {
             "description": "{id,public,reqid?, calibration:queued|up_to_date|\"\"} — up_to_date = TL vigente já é desta versão do pacote (nada enfileirado)"
+          },
+          "403": {
+            "description": "não é membro da org (ou sessão fora do treino: author_treino_only)"
+          },
+          "404": {
+            "description": "não encontrado (nunca distingue 'inexistente' de 'privado alheio')"
           }
         }
       }
@@ -8645,7 +8684,7 @@
             "description": "{id, from}"
           },
           "403": {
-            "description": "não é membro das orgs"
+            "description": "não é membro das orgs (ou sessão fora do treino: author_treino_only)"
           },
           "409": {
             "description": "público/em uso, ou nome colide no destino"
@@ -8708,7 +8747,7 @@
           "orgs"
         ],
         "summary": "Cria org (criador vira membro+admin; exige cc_can_create)",
-        "description": "Cada login de members/admins precisa EXISTIR no treino e PODER CRIAR PROBLEMAS (cc_can_create) — 422/404/403 senão, recusa atômica (a org nem nasce).",
+        "description": "Cada login de members/admins precisa EXISTIR no treino e PODER CRIAR PROBLEMAS (cc_can_create) — 422/404/403 senão, recusa atômica (a org nem nasce). Sessão fora do treino: 403 author_treino_only (ver descrição global da API). Org EXISTENTE: só o admin dela ou o SUPERADMIN numa sessão do treino (is_platform_superadmin, não is_admin cru) pode 'recriar' — e org IMPLÍCITA nunca aceita, nem do superadmin (409 implicit, mesma regra de /orgs/members).",
         "security": [
           {
             "bearerAuth": []
@@ -8755,7 +8794,10 @@
             "description": "org criada"
           },
           "403": {
-            "description": "sem permissão de criação"
+            "description": "sem permissão de criação (ou sessão fora do treino: author_treino_only)"
+          },
+          "409": {
+            "description": "org já existe (taken: não é admin dela/não é super) ou org IMPLÍCITA (implicit, nem o superadmin gere)"
           }
         }
       }
@@ -8792,7 +8834,7 @@
           "orgs"
         ],
         "summary": "Gerencia membros/admins (só admin da org)",
-        "description": "add/admins_add validam cada login (existe no treino + cc_can_create; 422 login_invalid / 404 user_notfound / 403 cannot_create, recusa atômica); remove/admins_remove não validam (lixo já gravado precisa poder sair).",
+        "description": "add/admins_add validam cada login (existe no treino + cc_can_create; 422 login_invalid / 404 user_notfound / 403 cannot_create, recusa atômica); remove/admins_remove não validam (lixo já gravado precisa poder sair). Gestão é dono da org OU superadmin numa sessão do treino (is_platform_superadmin; nunca is_admin cru); org IMPLÍCITA nunca tem gestão, nem do superadmin (409 implicit).",
         "security": [
           {
             "bearerAuth": []
@@ -8845,7 +8887,10 @@
             "description": "idem"
           },
           "403": {
-            "description": "não é admin da org"
+            "description": "não é admin da org/SUPERADMIN (ou sessão fora do treino: author_treino_only)"
+          },
+          "409": {
+            "description": "org implícita não tem gestão de membros"
           }
         }
       }

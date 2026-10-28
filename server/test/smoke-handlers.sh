@@ -241,9 +241,11 @@ check "extend 200" '[[ "$OUT" == *"Status: 200"* ]]'
 check "extend appended CONTEST_END" 'tail -1 "$TMPC/$CONTEST/conf" | grep -qx "CONTEST_END=1999999999"'
 rm -rf "$TMPC" "$SESS2"
 
-echo "== admin/synctreino (POST admin) =="
+echo "== admin/synctreino (ação de PLATAFORMA: só .admin do TREINO, 28/10/2026) =="
 call "/admin/synctreino" POST "" "$TOKEN"
-check "synctreino queued + spool" 'okstatus && [[ -n "$(ls "$SPOOL"/treino:*:synctreino:* 2>/dev/null)" ]]'
+check "synctreino: .admin de contest recusado" '[[ "$OUT" == *"Status: 403"* ]] && [[ -z "$(ls "$SPOOL"/treino:*:synctreino:* 2>/dev/null)" ]]'
+call "/admin/synctreino" POST "" "$TTOK"
+check "synctreino: .admin do treino enfileira + spool" 'okstatus && [[ -n "$(ls "$SPOOL"/treino:*:synctreino:* 2>/dev/null)" ]]'
 
 echo "== admin/rejudge (bot alias) =="
 call "/admin/rejudge" POST "" "$TOKEN" '{"contest":"'"$CONTEST"'","problem":"A"}'
