@@ -791,7 +791,11 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   rotação MENSAL pelo nome; separado do admin-audit, que é dominado por tl-report). O feed
   `GET /treino/admin/activity-log` (aba 📜 Atividade) unifica 6 fontes + `format=csv`.
   **Evento novo de leitura ⇒ instrumente com `activity_log`** (login/submit/verdict já são
-  deriváveis de access.log/history/results — não duplique).
+  deriváveis de access.log/history/results — não duplique). Leituras da AUTORIA (28/10/2026): `pkg-source`,
+  `pkg-diff`, `calib-report-view`, `testrun-report-view` (download/export já iam ao admin-audit); evento novo ganha
+  rótulo pt/en/es no `RACT` de `web/treino/admin/admin.js`. `audit_log`/`activity_log` de sessão de OUTRO contest
+  terminam em ` sess=<contest>` (4/5 colunas de sempre): o login sozinho não separa o `<criador>.admin` de cada
+  contest. Trilhas e retenção: `docs/ADMIN.md` §12.
 - **Escrita do competidor fora da submissão (backup, clarification) segue a JANELA do `/submit`**
   (`competitor_write_guard` em `lib/contest-gate.sh`, 2026-09-15): time/`.mon` só durante a prova
   (403 `contest_not_started`/`contest_ended`, fim efetivo da sessão), `.staff`/`.cstaff`/`.animeitor`
@@ -1512,10 +1516,35 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   concede gestão. **Org IMPLÍCITA nunca aceita "gestão" por `/orgs/create`**, nem do SUPERADMIN (a regra do
   `/orgs/members`).
   `/admin/synctreino` e `/judge/list` (ações de plataforma) usam `require_treino_superadmin`/`require_treino_admin`. O
-  `moj`/editor web logam no treino; `MOJ_CONTEST` apontando a CLI p/ outro contest ao autorar é follow-up da
-  `moj-cli`. Testes: `smoke-cross-contest-identity.sh` (sessão de outro contest, mesmo login com a trava afrouxada,
-  gestão no treino, a flag da UI × o portão, a trava de lib, controles com SUPERADMIN e com `.admin` comum, a org
-  implícita, o teto do audit) + a asserção de escopo do `synctreino` em `smoke-handlers.sh`.
+  `moj`/editor web logam no treino; o `moj` ignora o `MOJ_CONTEST` (é do `moj-contest`/`moj-comp`) e dá dica no 403
+  `author_treino_only` (moj-cli `test/author-treino.sh`). Testes: `smoke-cross-contest-identity.sh` (sessão de outro
+  contest, mesmo login com a trava afrouxada, gestão no treino, a flag da UI × o portão, a trava de lib, controles com
+  SUPERADMIN e com `.admin` comum, a org implícita, o teto do audit) + a asserção de escopo do `synctreino` em
+  `smoke-handlers.sh`.
+  **Regras irmãs (28/10/2026):**
+  - `contest-create/{create,duplicate,import}` usam a guarda única **`cc_spec_guard`** (lib/contest-create.sh): itera
+    como o `cc_create` (topo + TODAS as rodadas de `modules.rodadas`), confere `problem_id` E `bank_id` e falha FECHADA.
+  - No treino, criar/remover/trocar a SENHA de conta de PAPEL só pelo super (`treino_role_write_ok` em lib/auth.sh,
+    cumprida no `user_create` e no `account_merge` que grava `.password` — rc 77 — e checada antes nas rotas:
+    `/admin/passwd|adduser`, `/contest/admin/user-add|users-bulk|user-remove?contest=treino`); no treino o
+    `users-bulk` `on_existing:update` é 400 `treino_forbidden`. O `/admin/passwd` reabilita e derruba as sessões (como
+    o user-add) e, em contest compartilhado, recusa conta sem senha local própria (`shared_overlay`, vazia, conta de
+    TIME).
+  - `history-full` e `solvetry`: sessão do treino, privado só p/ o dono, perfil privado e dir órfão; índice ilegível =
+    503 p/ quem não é o dono. "É privado?" tem fonte ÚNICA `private_problem_ids` (lib/problems.sh: índice ∪ json só em
+    jsons-private) e "pode ver" o `OWNERS_VIS_DEF` (o predicado do owners_visible_for — nunca copiado).
+  - O feed da Atividade e o `/treino/admin/audit-log` passam pela MESMA regra, `lib/admin-feed.sh` (`feed_hidden_file`
+    + `FEED_VISIBLE_DEF`): some a linha com `org#prob` que o admin não vê em QUALQUER lugar (id=, from=/to=,
+    submissão, veredicto), org-*/repo-* de org alheia e o `delete` de problema; índice ilegível = some toda linha que
+    cita problema ou org, o resto segue (super vê tudo). `audit_log_to` também carimba `sess=` quando a sessão é de
+    outro contest.
+  - export/duplicate/templates resolvem o dono por `cc_contest_owner`, e o `templates` `from_contest` usa o
+    `cc_contest_visible_to` do export. O GET de `repo-collaborators` é só p/ membro (o MESMO 404 da inexistente). Org
+    nova com nome de LOGIN = 409 `name_is_login` (é a org pessoal dele); `org_register` nunca liga `public_allowed` em
+    org implícita. O 413 do `hooks/nutella` vem antes de olhar o contest; a home anônima deixa de fora dir órfão (sem
+    `account.json`).
+  Testes nos smokes de cada rota (contest-create, handlers, orgs, store-v2, contest-templates, nutella-hook,
+  open-training, cross-contest-identity).
 - **Painel do treino › Contests (2026-09-15)**: `SUPERADMINS` no conf do TREINO (logins; sem UI de
   propósito) ⇒ `superadmin_login`/`is_superadmin` (`lib/auth.sh`). **`cc_contest_visible_to <viewer>
   <owner>`** (`lib/contest-create.sh`) é a FONTE ÚNICA de "quem vê o contest de quem" — super-admin

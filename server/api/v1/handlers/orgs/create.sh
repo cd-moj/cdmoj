@@ -10,11 +10,17 @@ cc_can_create "$SESSION_LOGIN" || fail 403 "Sem permissão para criar org (igual
 body="$(read_body)"; jq -e . >/dev/null 2>&1 <<<"$body" || fail 400 "Invalid JSON body" "bad_json"
 name="$(jq -r '.name // empty' <<<"$body")"
 [[ "$name" =~ ^[a-z0-9][a-z0-9._-]{1,63}$ ]] || fail 400 "Nome de org inválido (use [a-z0-9._-])" "name_invalid"
+existed=0
 if org_exists "$name"; then
-  # Org IMPLÍCITA nunca é "gerida" por aqui — nem pelo SUPERADMIN, mesma regra de /orgs/members (o
-  # org_register inclui quem chama em members+admins).
+  # Org IMPLÍCITA nunca é "gerida" por aqui — nem pelo dono, nem pelo SUPERADMIN, mesma regra
+  # de /orgs/members (o org_register inclui quem chama em members+admins).
   org_is_implicit "$name" && fail 409 "Org implícita não tem gestão de membros" "implicit"
   org_can_manage "$name" "$SESSION_LOGIN" || fail 409 "Org já existe" "taken"
+  existed=1
+elif user_exists treino "$name"; then
+  # o nome de um LOGIN é o da org pessoal (implícita) dele, criada sob demanda pelo ensure_implicit_org,
+  # que aceita a org que já existe: o nome fica reservado p/ o dono.
+  fail 409 "Nome reservado: é o login de uma conta do treino" "name_is_login"
 fi
 title="$(jq -r '.title // empty' <<<"$body")"
 # cada login que ENTRA precisa existir e poder criar problemas (422/404/403 — recusa atômica,
@@ -29,7 +35,7 @@ pa="$(jq -r 'if .public_allowed==true then "true" else "false" end' <<<"$body")"
 
 org_register "$name" "$SESSION_LOGIN" "$members_csv" "$admins_csv" "$title" "$pa"
 coll_register "$name" "$SESSION_LOGIN"   # coleção homônima (agrupamento default do id) fica válida
-audit_log "org-create" "name=$name by=$SESSION_LOGIN public_allowed=$pa"
+audit_log "org-create" "name=$name by=$SESSION_LOGIN public_allowed=$pa existing=$existed members=$members_csv admins=$admins_csv"
 ok_json '{action:"org-create", name:$n, title:($t|if .=="" then $n else . end),
           members:$m, admins:$a, public_allowed:$pa, implicit:false, mine:true, can_manage:true}' \
   --arg n "$name" --arg t "$title" --argjson pa "$pa" \

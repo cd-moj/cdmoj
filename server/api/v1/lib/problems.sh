@@ -128,15 +128,32 @@ owners_visible(){ owners_visible_for "$SESSION_LOGIN"; }
 # LOCAL ao contest (boss.admin) e daria acesso por homonímia a quem tem esse nome no treino.
 # Login VAZIO = só públicos (sem sujeito não há dono, colaborador nem org) — o mesmo que
 # problems_denied_for nega, e o que um contest legado sem owner pode usar.
+# O PREDICADO em si (jq): público, dono, colaborador ou membro da org do repo. Fonte única — o owners_visible_for e o
+# filtro de privacidade dos feeds do admin (lib/admin-feed.sh) o compõem; nunca o copie.
+OWNERS_VIS_DEF='def owners_vis($me; $orgs): .public or ($me != "" and (.owner == $me
+       or ((.collaborators // []) | index($me) | type == "number")
+       or (((.repo // (.id | split("#")[0])) as $r | $orgs | index($r)) | type == "number")));'
 owners_visible_for(){
   local login="$1" m _orgs='[]'
   m="$(owners_merged)" || return 1
   [[ -n "$login" ]] && _orgs="$(orgs_json_for "$login")"
   jq -c --arg _me "$login" --argjson _orgs "$_orgs" \
-    '.problems |= map(select(.public or ($_me != "" and (.owner==$_me
-       or ((.collaborators // [])|index($_me)|type=="number")
-       or (((.repo // (.id|split("#")[0])) as $r | $_orgs|index($r))|type=="number")))))' \
+    "$OWNERS_VIS_DEF"' .problems |= map(select(owners_vis($_me; $_orgs)))' \
     <<<"$m" 2>/dev/null
+}
+# private_problem_ids — um id PRIVADO por linha: o que o índice diz não ser público (pega também o privado SEM json
+# servível, has_statement:false) ∪ o que só tem json em jsons-private/ (a regra do `_private` da home, p/ id fora
+# do índice). Nunca mais fraca que nenhuma das duas. rc 1 = índice ilegível (quem chama falha FECHADO). Fonte única
+# de "é privado?" p/ solvetry, history-full e os feeds do admin.
+# Argumento opcional: o JSON do owners_merged já lido (quem precisa dele também não relê o índice).
+private_problem_ids(){
+  local m="${1:-}" ids; [[ -n "$m" ]] || m="$(owners_merged)" || return 1
+  ids="$(jq -r '.problems[] | select(.public | not) | .id' <<<"$m" 2>/dev/null)" || return 1   # fora do pipe: o rc chega
+  { [[ -n "$ids" ]] && printf '%s\n' "$ids"
+    comm -23 <(find "$CONTESTSDIR/treino/var/jsons-private" -maxdepth 1 -name '*.json' -printf '%f\n' 2>/dev/null | sort) \
+             <(find "$CONTESTSDIR/treino/var/jsons" -maxdepth 1 -name '*.json' -printf '%f\n' 2>/dev/null | sort) \
+      | sed 's/\.json$//'
+  } | sort -u
 }
 # problems_denied_for <login> <ids-json-array> — ecoa (csv) os ids que o LOGIN não pode usar num
 # contest: privado E (não dono E não colaborador E não membro da org do repo). É o MESMO predicado

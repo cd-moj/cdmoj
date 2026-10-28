@@ -15,5 +15,6 @@ name="$(param name | tr -cd 'A-Za-z0-9._-')"; [[ -n "$name" ]] || fail 400 "Miss
 
 f="$CALIB_DIR/$id/r/$host/$name.html"
 [[ -f "$f" ]] || fail 404 "Report não encontrado" "not_found"
+activity_log calib-report-view "id=$id host=$host name=$name"   # o report traz entradas/saídas dos testes
 emit_html
 cat "$f"

@@ -70,4 +70,31 @@ ck "criador sem cc_can_create → 403"        'grep -q "create_forbidden" <<<"$B
 call /orgs/members POST bb "" '{"name":"velha","add":["alice"]}'
 ck "não-membro não gerencia (404 opaco)"    'grep -q "not_found" <<<"$BODY"'
 
+echo "== escopo de orgs (28/10/2026) =="
+AUD="$FIX/treino/var/admin-audit.log"
+# GET de repo-collaborators: só membro; os outros recebem o MESMO 404 da inexistente
+call /problems/repo-collaborators GET bb "repo=velha"
+ck "repo-collaborators GET de não-membro = 404 repo_missing (igual à inexistente)" '[[ "$OUT" == *"Status: 404"* ]] && grep -q "repo_missing" <<<"$BODY" && ! grep -q "alice" <<<"$BODY"'
+call /problems/repo-collaborators GET bb "repo=naoexiste"
+ck "…e a inexistente responde o mesmo código"  'grep -q "repo_missing" <<<"$BODY"'
+call /problems/repo-collaborators GET ali "repo=velha"
+ck "membro segue listando (200)"               '[[ "$OUT" == *"Status: 200"* ]] && grep -q "chefe.admin" <<<"$BODY"'
+# o nome de um LOGIN é o da org pessoal dele: fica reservado p/ o dono
+call /orgs/create POST ali "" '{"name":"bob"}'
+ck "/orgs/create com nome = login de outra conta → 409 name_is_login" 'grep -q "name_is_login" <<<"$BODY" && ! jq -e ".bob" "$ORGS" >/dev/null 2>&1'
+call /problems/repo-create POST ali "" '{"repo":"bob"}'
+ck "/problems/repo-create idem"               'grep -q "name_is_login" <<<"$BODY" && ! jq -e ".bob" "$ORGS" >/dev/null 2>&1'
+# o org_register nunca liga public_allowed numa org IMPLÍCITA (qualquer caminho que o chame)
+call /orgs/list GET ali ""   # garante a implícita "alice"
+( _DIR="$ROOT/api/v1"; source "$_DIR/lib/sources.sh" 2>/dev/null; source "$_DIR/lib/orgs.sh"
+  org_register alice alice "" "" "" true ) >/dev/null 2>&1
+ck "org_register(public_allowed=true) numa implícita não liga a trava" '[[ "$(jq -r ".alice.public_allowed" "$ORGS")" == false ]]'
+# T3: a linha do audit diz QUEM entrou/saiu
+call /orgs/members POST ali "" '{"name":"velha","remove":["chefe.admin"]}'
+ck "org-members no audit com o delta"         'grep -qP "\torg-members\tname=velha by=alice members:\+\[\] -\[chefe.admin\]" "$AUD"'
+call /problems/repo-collaborators POST ali "" '{"repo":"velha","add":["chefe.admin"]}'
+ck "repo-collaborators no audit com o delta"  'grep -qP "\trepo-collaborators\torg=velha by=alice \+\[chefe.admin\] -\[\]" "$AUD"'
+call /orgs/create POST ali "" '{"name":"velha","members":["chefe.admin"]}'
+ck "org-create numa org existente marca existing=1" 'grep -qP "\torg-create\tname=velha by=alice .*existing=1" "$AUD"'
+
 echo ""; echo "RESULT: $pass passed, $fail failed"; exit $(( fail>0?1:0 ))

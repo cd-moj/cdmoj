@@ -128,6 +128,16 @@ is_superadmin(){ superadmin_login "$SESSION_LOGIN"; }
 # sozinho só confere o NOME na lista, e numa sessão de contest o `.admin` é conta LOCAL que o criador batiza
 # como quiser (ver require_treino_superadmin) — a amarração ao treino é o que prova.
 is_platform_superadmin(){ is_platform_admin && is_superadmin; }
+# treino_role_write_ok <contest> <login> — pode a sessão criar/remover ou trocar a SENHA de <login> em <contest>?
+# Conta de PAPEL do TREINO (o super-admin incluso) só pelo super-admin numa sessão do treino, ou pela própria conta.
+# Fora de requisição autenticada (bin/, daemons, cadastro e recuperação pelo Telegram, que é o próprio dono) não se
+# aplica. Cumprida no CAMINHO DE ESCRITA (user_create e account_merge que grava `.password`, lib/users.sh) e checada
+# antes nas rotas, que dizem o 403.
+treino_role_write_ok(){
+  [[ "$1" == treino ]] && is_reserved_role_login "$2" && [[ -n "${SESSION_LOGIN:-}" && "$2" != "$SESSION_LOGIN" ]] \
+    || return 0
+  is_platform_superadmin
+}
 # .cjudge (juiz-chefe) HERDA os poderes de juiz; .admin também é juiz.
 is_judge(){ [[ "$SESSION_LOGIN" == *.judge || "$SESSION_LOGIN" == *.cjudge || "$SESSION_LOGIN" == *.admin ]]; }
 is_chief(){ [[ "$SESSION_LOGIN" == *.cjudge ]]; }

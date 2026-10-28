@@ -36,6 +36,7 @@ if [[ -n "$sha" ]]; then
     | {success:true, sha:($f[0] // ""), at:($f[1]|tonumber? // 0), author:($f[2] // ""),
        subject:($f[3] // ""), truncated:$tr, diff_b64:$d}')"
   [[ -n "$body" ]] || fail 500 "Falha ao montar o diff" "diff_fail"
+  activity_log pkg-diff "id=$id sha=${sha:0:12}"   # o diff expõe soluções/testes
   emit_json 200 OK; printf '%s' "$body"
   exit 0
 fi

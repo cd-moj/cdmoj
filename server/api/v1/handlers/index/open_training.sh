@@ -136,15 +136,19 @@ _jq_each(){
 _str='(if type == "string" then . else tojson end | sub("\n+$"; ""))'
 
 # --- contas dos candidatos (nome, editor, público, gerida): UM jq ------------------
-declare -A _seen=(); _acc=()
+# Login SEM account.json (dir ÓRFÃO de history — resíduo de conta renomeada/removida) não é usuário real:
+# mesma regra do sc_users/problem-stats — fica fora das duas listas da home. Conta que EXISTE com json ilegível
+# segue no default `pub:true` (o usuário existe; só o nome sai vazio). Lista em $W/orphans, consultada no jq.
+declare -A _seen=(); _acc=(); _orph=()
 while IFS=$'\t' read -r u _; do
   [[ -n "$u" && -z "${_seen[$u]:-}" ]] || continue; _seen[$u]=1
-  [[ -f "$UD/$u/account.json" ]] && _acc+=("$UD/$u/account.json")
+  if [[ -f "$UD/$u/account.json" ]]; then _acc+=("$UD/$u/account.json"); else _orph+=("$u"); fi
 done < "$W/recent"
 while IFS=$'\t' read -r _ u _; do
   [[ -n "$u" && -z "${_seen[$u]:-}" ]] || continue; _seen[$u]=1
-  [[ -f "$UD/$u/account.json" ]] && _acc+=("$UD/$u/account.json")
+  if [[ -f "$UD/$u/account.json" ]]; then _acc+=("$UD/$u/account.json"); else _orph+=("$u"); fi
 done < "$W/topc"
+(( ${#_orph[@]} )) && printf '%s\n' "${_orph[@]}" > "$W/orphans" || : > "$W/orphans"
 _jq_each "{k:(input_filename | split(\"/\") | .[-2]),
            name:((.fullname // \"\") | $_str), fe:((.favorite_editor // \"\") | $_str),
            pub:(.public != false), managed:((.managed // false) != false)}" "${_acc[@]}" > "$W/acc"
@@ -172,13 +176,14 @@ done >> "$W/titles"
 
 out="$(jq -nc --slurpfile acc "$W/acc" --slurpfile titles "$W/titles" \
   --rawfile recent "$W/recent" --rawfile week "$W/week" --rawfile prev "$W/prev" \
-  --rawfile topc "$W/topc" --rawfile erank "$W/erank" --rawfile minors "$W/minors" '
+  --rawfile topc "$W/topc" --rawfile erank "$W/erank" --rawfile minors "$W/minors" --rawfile orphans "$W/orphans" '
   def rows($s): $s | split("\n") | map(select(length > 0) | split("\t"));
   ($acc | map({(.k): .}) | add // {}) as $A
   | (reduce $titles[] as $t ({}; if .[$t.k] == null or .[$t.k] == "" then .[$t.k] = $t.t else . end)) as $T
   | (rows($minors) | map({(.[0]): true}) | add // {}) as $M
+  | (rows($orphans) | map({(.[0]): true}) | add // {}) as $O
   | def acct($u): ($A[$u] // {name:"", fe:"", pub:true});
-    def pub($u): acct($u).pub and ($M[$u] | not);
+    def pub($u): acct($u).pub and ($M[$u] | not) and ($O[$u] | not);
     def title($p): ($T[$p] // ($p | sub("#"; ".")));
     def url($p): "/treino/problema/?id=" + ($p | gsub("#"; "%23"));
     def probs($s): [ rows($s)[] | {problem_id:.[0], problem_title:title(.[0]), solved_count:(.[1] | tonumber), url:url(.[0])} ];

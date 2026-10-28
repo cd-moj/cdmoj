@@ -36,6 +36,29 @@ cc_contest_visible_to(){
   [[ "$viewer" == *.admin && -n "$owner" && "$owner" != *.admin ]] && return 0
   return 1
 }
+# cc_spec_guard <spec-json> <login> — barra problema que <login> não pode VER em todo lugar do spec por onde a criação
+# o puxaria: o topo (`.problems[]?`, a MESMA iteração do cc_create) e TODAS as rodadas de `.modules.rodadas` (objeto),
+# sem olhar o `on` (defesa em profundidade). Confere os DOIS ids de cada item: `problem_id` é o que entra no PROBS
+# (julgado, exemplos e TL vêm do pacote dele) e `bank_id` é de onde sai o enunciado — também de jsons-private/.
+# FAIL-CLOSED: spec que o jq não lê = 422; índice quebrado = 503; negado = 404 sem ids. Fonte única p/ create,
+# duplicate e import.
+cc_spec_guard(){
+  local pids denied
+  pids="$(jq -c '[ ( .problems[]?,
+                      ( .modules | objects | .rodadas | objects
+                        | .rounds | arrays | .[] | objects | .problems | .[]? ) )
+                   | objects | ((.bank_id // ""), (.problem_id // ""))
+                   | select(type == "string" or type == "number") | tostring | gsub("/"; "#") | select(. != "") ]
+                 | unique' <<<"$1" 2>/dev/null)" || fail 422 "Spec inválido" "spec_invalid"
+  [[ "$pids" == \[* ]] || fail 422 "Spec inválido" "spec_invalid"
+  [[ "$pids" != "[]" ]] || return 0
+  declare -F problems_denied_for >/dev/null || source "$_LIBDIR/problems.sh"
+  # rc 1 = índice quebrado (quem chama responde 503; uma lista vazia aqui significaria "nada negado")
+  denied="$(problems_denied_for "$2" "$pids")" \
+    || fail 503 "Índice de problemas indisponível — tente de novo em instantes" "index_unavailable"
+  # 404 SEM a lista de ids (a mesma resposta de problema inexistente)
+  [[ -z "$denied" ]] || fail 404 "Problema não encontrado ou sem acesso ($(wc -w <<<"$denied") id(s))" "problem_denied"
+}
 # cc_contest_owner <id> — dono: arquivo `owner` (o que os gates de problema usam) › created-by
 cc_contest_owner(){
   local o; o="$(head -1 "$CONTESTSDIR/$1/owner" 2>/dev/null)"

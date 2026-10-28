@@ -57,7 +57,8 @@ org_require_valid_logins(){
 
 # ---- escrita do registro (atômica) --------------------------------------------------------
 # org_register <org> <creator> [members-csv] [admins-csv] [title] [public_allowed:true|false]
-# O criador entra como membro E admin. public_allowed só LIGA (nunca desliga aqui). Idempotente.
+# O criador entra como membro E admin. public_allowed só LIGA (nunca desliga aqui) — e NUNCA numa org
+# IMPLÍCITA (privada por definição, a mesma regra do 409 implicit_private do org_set_public_allowed). Idempotente.
 org_register(){
   local n="$1" cr="$2" m="${3:-}" a="${4:-}" t="${5:-}" pa="${6:-false}" cur tmp
   cur="$(_orgs_read)"; mkdir -p "$(dirname "$ORGS_REGISTRY")" 2>/dev/null; tmp="$ORGS_REGISTRY.tmp.${BASHPID}"
@@ -72,7 +73,8 @@ org_register(){
           title:(if $t=="" then ($old.title // $n) else $t end),
           members:((($old.members // []) + [$cr] + ($m|split(",")|map(select(length>0)))) | unique),
           admins: ((($old.admins  // []) + [$cr] + ($a|split(",")|map(select(length>0)))) | unique),
-          public_allowed:(if $pa=="true" then true else ($old.public_allowed // false) end),
+          public_allowed:(if ($old.implicit // false) then false
+                          elif $pa=="true" then true else ($old.public_allowed // false) end),
           at:$now }) }' ) > "$tmp" 2>/dev/null && [[ -s "$tmp" ]] && mv -f "$tmp" "$ORGS_REGISTRY" || rm -f "$tmp"
 }
 # orgs_rename_login <old> <new> — cascata do RENAME DE CONTA nas orgs: troca o login em

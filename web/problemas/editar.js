@@ -9,6 +9,7 @@ import { createEditor } from '/shared/editor.js';
 import { makeLangPicker } from '/shared/contest-config/lang-picker.js';
 import { openHtmlReport } from '/shared/submission-links.js';
 import { T, uiLocale } from '/shared/i18n.js';
+import { orgCreateErr } from '/problemas/org-errors.js';
 import { STMT_LANGS, STMT_SHORT, stmtName } from '/shared/statement-langs.js';
 import { decorateSamples } from '/shared/statement-samples.js';
 import { makeTestRun, testsTable } from '/problemas/testrun.js';
@@ -1906,7 +1907,7 @@ async function newDir() {
     const j = await apiPost('/problems/repo-create', { repo: name.trim() }, { contest: CONTEST, auth: true });
     REPOS.push({ repo: j.repo, owner: j.owner, mine: true, collaborators: [], collections: j.collections || [], public_allowed: j.public_allowed === true });
     REPO = j.repo; fillRepoSelect(); renderPubState(); await loadShare(); setMsg(T('Org criada ✓', 'Org created ✓', 'Org creada ✓'), 'v-ok');
-  } catch (e) { setMsg(e.message, 'error'); }
+  } catch (e) { setMsg(orgCreateErr(e), 'error'); }
 }
 // mover um RASCUNHO p/ outra org (muda o id) — alvo entre as MINHAS orgs (REPOS). Público não move.
 async function moveProblem() {

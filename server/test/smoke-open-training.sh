@@ -43,6 +43,9 @@ ac eva  'leg#old'   $((NOW-40)); ac duda 'col#noidx' $((NOW-50)); ac ana 'col#em
 ac u08  'col#p2'    $((NOW-70)); ac u07  'col#p8'    $((NOW-80))
 ac u01 'col#p1' "$PREV" pw1; ac u02 'col#p1' "$((PREV+1))" pw2; ac u01 'col#p1' "$((PREV+2))" pw3; ac u03 'col#p2' "$((PREV+3))" pw4
 printf '%s:pw1:u01:vim\n%s:pw2:u02:vim\n%s:pw4:u03:vscode\n' "$PREV" "$PREV" "$PREV" > "$T/var/editor-log"
+# dir ÓRFÃO (history sem account.json — resíduo de conta renomeada/removida): resolveria o bastante p/ liderar o
+# top10 e abrir o recent; não é usuário real e fica fora da home
+mkdir -p "$T/users/zorfao"; bulk zorfao 9; ac zorfao 'col#p9' $((NOW-5))
 
 REALJQ="$(command -v jq)"
 # jq falso: conta as chamadas; com $SHIM/slow presente, o 1º jq da REGENERAÇÃO destacada (MOJ_OT_REGEN) dorme 3 s
@@ -61,6 +64,7 @@ ck "200 com as 5 listas" '[[ "$(J .success)" == true && "$(J "[.top_users,.recen
 ck "recent: os 5 mais novos, sem problema privado nem perfil privado/menor" '[[ "$(J "[.recent_solved[]|.user.username+\"@\"+.problem_id]|join(\",\")")" == "eva@leg#old,duda@col#noidx,ana@col#empty,u08@col#p2,u07@col#p8" ]]'
 ck "títulos: legado, id com ponto, vazio→id, quebra final comida" '[[ "$(J "[.recent_solved[].problem_title]|join(\"|\")")" == "Antigo|col.noidx|col.empty|Segundo|P8" ]]'
 ck "url com %23 e has_photo/nome da ana" '[[ "$(J ".recent_solved[]|select(.user.username==\"ana\")|[.url,.user.name,(.user.has_photo|tostring)]|join(\" \")")" == "/treino/problema/?id=col%23empty Ana Souza true" ]]'
+ck "dir ÓRFÃO (sem account.json) fora das duas listas" '[[ "$(J "[.top_users[].username, .recent_solved[].user.username]|index(\"zorfao\")")" == null ]]'
 ck "conta corrompida: nome vazio, perfil público" '[[ "$(J ".recent_solved[]|select(.user.username==\"duda\")|.user.name")" == "" ]]'
 TOP="$(J "[.top_users[].username]|sort|join(\",\")")"; DBG="$TOP"
 ck "top10: pula bia (privada) e caio (menor gerida), corta em 10" '[[ "$TOP" == "ana,duda,eva,u01,u02,u03,u04,u05,u06,u07" && "$(J ".top_users[0]|[.username,.favorite_editor,(.solved_count|tostring),(.has_photo|tostring)]|join(\" \")")" == "ana vim 10 true" ]]'

@@ -10,7 +10,10 @@
 # `adjusted`; senha/email com ':' = pulado (`colon`).
 # on_existing=update troca senha/nome/email de conta existente, MAS conta PRIVILEGIADA
 # existente (is_reserved_role_login) NUNCA é tocada (skipped: privileged — não resetar
-# admin/juízes em massa); CRIAR privilegiada nova é permitido (staff em lote, como o user-add).
+# admin/juízes em massa); CRIAR privilegiada nova é permitido nos contests (staff em lote, como o user-add) —
+# no TREINO não: conta de papel do treino só pelo super-admin (treino_role_write_ok). E no treino o on_existing=update
+# (reset em massa, com as senhas novas na resposta) é recusado — a regra do users-set-password; ação de vários alvos
+# no treino passa pelo painel (lib/admin-bulk.sh).
 # Grava um account.json por conta (users/<login>/).
 # Resposta: {created:[{login,password,fullname,email}], updated:[…],
 #            skipped:[{login,reason:login_invalid|colon|exists|privileged|duplicate|write_failed}],
@@ -29,6 +32,8 @@ n="$(jq '(.users // [])|length' <<<"$body")"; [[ "$n" =~ ^[0-9]+$ ]] || n=0
 (( n >= 1 )) || fail 422 "Informe users[]" "users_missing"
 (( n <= 5000 )) || fail 422 "Máximo de 5000 usuários por lote" "too_many"
 onex="$(jq -r '.on_existing // "skip"' <<<"$body")"; [[ "$onex" == update ]] || onex=skip
+[[ "$contest" == treino && "$onex" == update ]] \
+  && fail 400 "Reset de senha em massa não se aplica ao treino" "treino_forbidden"
 
 # logins existentes (uma leitura)
 declare -A EXIST
@@ -53,6 +58,8 @@ while IFS= read -r u; do
   { [[ -n "$login" ]] && valid_login "$login"; } || { skipj "${login:-?}" login_invalid; continue; }
   case "$pass$email" in *:*) skipj "$login" colon; continue;; esac
   [[ -n "${SEEN[$login]:-}" ]] && { skipj "$login" duplicate; continue; }
+  # conta de PAPEL do treino (criar ou resetar) só pelo super-admin (treino_role_write_ok, 28/10/2026)
+  treino_role_write_ok "$contest" "$login" || { skipj "$login" privileged; continue; }
   SEEN["$login"]=1
   [[ -z "$full" ]] && full="$login"
   teamj="$(team_fields_json "$u")"   # campos de time saneados (só os não-vazios; '{}' = nada)

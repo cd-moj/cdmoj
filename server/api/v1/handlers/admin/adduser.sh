@@ -2,6 +2,8 @@
 # body: {contest, login, fullname, email?, password?}
 # Cria a conta no store por-usuário (users/<login>/account.json via user_create).
 # Gera senha aleatória se não informada. Retorna a senha (em claro) p/ entrega.
+# No TREINO, conta de PAPEL (sufixo .admin/.judge/…, o SUPERADMIN incluso) só pelo super-admin numa sessão
+# do treino. Nos contests segue como sempre (o admin cria .judge/.staff/.cstaff do PRÓPRIO contest). Auditado.
 require_method POST
 body="$(read_body)"
 jq -e . >/dev/null 2>&1 <<<"$body" || fail 400 "Invalid JSON body" "bad_json"
@@ -22,6 +24,8 @@ valid_login "$login" || fail 400 "Invalid login" "login_invalid"
 [[ "$fullname" == *:* || "$fullname" == *$'\n'* ]] && fail 400 "Invalid fullname" "fullname_invalid"
 [[ "$email" == *:* || "$email" == *$'\n'* ]] && fail 400 "Invalid email" "email_invalid"
 
+treino_role_write_ok "$contest" "$login" \
+  || fail 403 "Conta de papel no treino: só o super-admin da plataforma" "superadmin_required"
 user_exists "$contest" "$login" && fail 409 "User already exists" "user_exists"
 
 [[ -n "$password" ]] || password="$(tr -dc 'a-z0-9' </dev/urandom 2>/dev/null | head -c 10)"
@@ -29,6 +33,7 @@ user_exists "$contest" "$login" && fail 409 "User already exists" "user_exists"
 
 user_create "$contest" "$login" "$fullname" "$password" "$email" \
   || fail 500 "Could not create user" "user_create_failed"
+audit_log_to "$contest" "adduser" "login=$login"
 
 ok_json '{action:"adduser", contest:$c, login:$l, password:$p}' \
   --arg c "$contest" --arg l "$login" --arg p "$password"

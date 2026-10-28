@@ -55,6 +55,22 @@ call /treino/contest-create/templates POST '{"op":"save","name":"rouba","from_co
 ck "não-dono from_contest 404" '[[ "$OUT" == *"Status: 404"* ]]'
 call /treino/contest-create/templates POST '{"op":"save","name":"boss-tpl","from_contest":"orig-c"}' adm
 ck "admin from_contest 200" '[[ "$(jq -r .saved <<<"$BODY")" == true ]]'
+# contest de OUTRO admin: a mesma regra do export/duplicate (cc_contest_visible_to)
+cp -r "$FIX/orig-c" "$FIX/adm-c"; echo other.admin > "$FIX/adm-c/owner"
+call /treino/contest-create/templates POST '{"op":"save","name":"de-outro-admin","from_contest":"adm-c","include_problems":true}' adm
+ck ".admin comum from_contest de OUTRO admin = 404" '[[ "$OUT" == *"Status: 404"* ]] && [[ "$(jq -r ".templates[\"de-outro-admin\"] // \"x\"" "$T/var/contest-templates/boss.admin.json" 2>/dev/null || echo x)" == x ]]'
+call /treino/contest-create/export GET '' adm 'id=adm-c'
+ck "…o MESMO 404 do export"                 '[[ "$OUT" == *"Status: 404"* ]]'
+rm -rf "$FIX/adm-c"
+# contest LEGADO só com created-by (sem o arquivo owner): o dono vem do cc_contest_owner (owner › created-by) nos três
+cp -r "$FIX/orig-c" "$FIX/leg-c"; rm -f "$FIX/leg-c/owner"
+call /treino/contest-create/templates POST '{"op":"save","name":"do-legado","from_contest":"leg-c"}' reg
+ck "contest legado (sem owner): o criador salva template" '[[ "$(jq -r .saved <<<"$BODY")" == true ]]'
+call /treino/contest-create/export GET '' reg 'id=leg-c'
+ck "…e exporta"                                     '[[ "$OUT" == *"Status: 200"* ]]'
+call /treino/contest-create/templates POST '{"op":"save","name":"rouba-legado","from_contest":"leg-c"}' eve
+ck "…e quem não é o criador segue com 404"          '[[ "$OUT" == *"Status: 404"* ]]'
+rm -rf "$FIX/leg-c"
 
 echo "== export (gate + conteúdo) =="
 call /treino/contest-create/export GET '' reg 'id=orig-c'

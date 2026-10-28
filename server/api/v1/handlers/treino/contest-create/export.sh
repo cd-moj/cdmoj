@@ -10,7 +10,7 @@ cc_can_create "$SESSION_LOGIN" || fail 403 "Sem permissão para criar contest" "
 id="$(param id)"
 { [[ -n "$id" ]] && valid_id "$id"; } || fail 400 "Informe o id" "id_missing"
 cdir="$CONTESTSDIR/$id"
-cowner="$(head -1 "$cdir/owner" 2>/dev/null)"
+cowner="$(cc_contest_owner "$id")"   # owner › created-by (contest legado só tem o created-by)
 { [[ -f "$cdir/created-by" && -f "$cdir/conf" ]] && cc_contest_visible_to "$SESSION_LOGIN" "$cowner"; } \
   || fail 404 "Contest não encontrado" "notfound"
 mode=auto; [[ "$(param full_statements)" == 1 ]] && mode=all

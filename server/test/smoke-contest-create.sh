@@ -111,6 +111,16 @@ call /treino/contest-create/create POST "{\"name\":\"Z\",\"mode\":\"icpc\",\"end
 ck "privado alheio no topo: 404 problem_denied" '[[ "$OUT" == *"Status: 404"* && "$(jq -r .error.code <<<"$BODY")" == problem_denied && "$BODY" != *"priv#other2"* ]]'
 call /treino/contest-create/create POST "{\"name\":\"Z\",\"mode\":\"icpc\",\"end\":$FUT,\"problems\":[{\"bank_id\":\"bankprob\",\"name\":\"B\"}],\"modules\":{\"rodadas\":{\"rounds\":[{\"slug\":\"r2\",\"start\":$((FUT+10)),\"end\":$((FUT+100)),\"problems\":[{\"bank_id\":\"priv#other2\"}]}]}}}" reg
 ck "privado alheio numa rodada do spec: 404" '[[ "$OUT" == *"Status: 404"* && "$(jq -r .error.code <<<"$BODY")" == problem_denied ]]'
+# cc_spec_guard: `"rodadas":true` (formato válido) e os dois ids de cada item (bank_id e problem_id)
+call /treino/contest-create/create POST "{\"name\":\"Z\",\"mode\":\"icpc\",\"end\":$FUT,\"modules\":{\"rodadas\":true},\"problems\":[{\"bank_id\":\"priv#other2\",\"name\":\"P\"}]}" reg
+ck "rodadas:true + privado no topo: 404" '[[ "$OUT" == *"Status: 404"* && "$(jq -r .error.code <<<"$BODY")" == problem_denied ]]'
+call /treino/contest-create/create POST "{\"name\":\"Z\",\"mode\":\"icpc\",\"end\":$FUT,\"problems\":[{\"bank_id\":\"bankprob\",\"problem_id\":\"priv/other2\",\"name\":\"P\"}]}" reg
+ck "bank_id público + problem_id privado: 404 (confere o id que vai ao PROBS)" '[[ "$OUT" == *"Status: 404"* && "$(jq -r .error.code <<<"$BODY")" == problem_denied ]]'
+call /treino/contest-create/create POST "{\"name\":\"Z\",\"mode\":\"icpc\",\"end\":$FUT,\"problems\":[{\"bank_id\":\"priv#other2\",\"problem_id\":\"bankprob\",\"name\":\"P\"}]}" reg
+ck "bank_id privado (de onde sai o enunciado) + problem_id público: 404" '[[ "$OUT" == *"Status: 404"* && "$(jq -r .error.code <<<"$BODY")" == problem_denied ]]'
+# rodadas com on:false: a guarda confere todas, sem olhar o `on`
+call /treino/contest-create/create POST "{\"name\":\"Z\",\"mode\":\"icpc\",\"end\":$FUT,\"allow_empty\":true,\"problems\":[],\"modules\":{\"rodadas\":{\"on\":false,\"rounds\":[{\"slug\":\"r2\",\"start\":$((FUT+10)),\"end\":$((FUT+100)),\"problems\":[{\"problem_id\":\"priv#other2\"}]}]}}}" reg
+ck "rodadas on:false com privado: 404 (o aplicador grava mesmo assim)" '[[ "$OUT" == *"Status: 404"* && "$(jq -r .error.code <<<"$BODY")" == problem_denied ]]'
 ck "e o contest NÃO nasceu"  '[[ ! -d "$FIX/z" && -z "$(ls -d "$FIX"/*/ 2>/dev/null | xargs -n1 basename 2>/dev/null | grep -x z)" ]]'
 # LETRA (PR #36): a automática é a 1ª LIVRE — pela POSIÇÃO, [{letter:B},{}] dava "B B"; letra repetida
 # (sem diferenciar caixa) no topo ou numa rodada do spec = 422, e nada nasce
@@ -192,6 +202,18 @@ TGZ="$(mktemp).tgz"; tar -czf "$TGZ" -C "$TD" .; B64="$(base64 -w0 "$TGZ")"; rm 
 call /treino/contest-create/import POST "{\"tar_b64\":\"$B64\"}" reg
 ck "import criou"           '[[ "$(jq -r .contest_id <<<"$BODY")" == "imp-contest" ]]'
 ck "import: enunciado do tar" '[[ -f "$FIX/imp-contest/enunciados/a#b.html" ]]'
+# a MESMA guarda do create/duplicate (cc_spec_guard)
+TD="$(mktemp -d)"
+printf '%s' "{\"id\":\"imp-priv\",\"name\":\"ImpPriv\",\"mode\":\"treino\",\"end\":$FUT,\"problems\":[{\"bank_id\":\"priv#other2\",\"name\":\"P\"}]}" > "$TD/contest.json"
+TGZ="$(mktemp).tgz"; tar -czf "$TGZ" -C "$TD" .; B64="$(base64 -w0 "$TGZ")"; rm -rf "$TD" "$TGZ"
+call /treino/contest-create/import POST "{\"tar_b64\":\"$B64\"}" reg
+ck "import com privado alheio: 404 problem_denied, sem listar o id" '[[ "$OUT" == *"Status: 404"* && "$(jq -r .error.code <<<"$BODY")" == problem_denied && "$BODY" != *"priv#other2"* ]]'
+ck "…e o contest NÃO nasceu" '[[ ! -d "$FIX/imp-priv" ]]'
+TD="$(mktemp -d)"
+printf '%s' "{\"id\":\"imp-priv2\",\"name\":\"ImpPriv2\",\"mode\":\"treino\",\"end\":$FUT,\"modules\":{\"rodadas\":true},\"problems\":[{\"bank_id\":\"bankprob\",\"problem_id\":\"priv/other2\",\"name\":\"P\"}]}" > "$TD/contest.json"
+TGZ="$(mktemp).tgz"; tar -czf "$TGZ" -C "$TD" .; B64="$(base64 -w0 "$TGZ")"; rm -rf "$TD" "$TGZ"
+call /treino/contest-create/import POST "{\"tar_b64\":\"$B64\"}" reg
+ck "import com rodadas:true + problem_id privado: 404, sem contest" '[[ "$OUT" == *"Status: 404"* && ! -d "$FIX/imp-priv2" ]]'
 
 echo "== moderação (admin lista/remove) =="
 call /treino/admin/contests GET '' adm

@@ -6,23 +6,9 @@ cc_can_create "$SESSION_LOGIN" || fail 403 "Sem permissão para criar contest" "
 body="$(read_body)"
 jq -e . >/dev/null 2>&1 <<<"$body" || fail 400 "JSON inválido" "bad_json"
 
-# guarda: problemas PRIVADOS só entram se o criador tem acesso (dono, colaborador ou MEMBRO da org)
-source "$_LIBDIR/problems.sh"
-# TODOS os ids do spec: os problemas de topo E os das rodadas planejadas (spec unificado
-# `modules.rodadas.rounds[].problems`) — a promoção aplica a lista da rodada sem passar por
-# aqui de novo, então um privado alheio numa rodada planejada seria servido na promoção.
-pids="$(jq -c '[ (.problems[]?, .modules.rodadas.rounds[]?.problems[]?)
-                 | (.bank_id // .problem_id // "") | gsub("/";"#") | select(.!="") ] | unique' <<<"$body")"
-if [[ "$pids" != "[]" ]]; then
-  # predicado único (problems_denied_for): público, dono, colaborador ou membro da org. Índice
-  # quebrado tem de virar 503 — a função devolve rc 1 (dentro de `$(… | jq)` a falha virava lista
-  # vazia => "nada negado", FAIL-OPEN: problema PRIVADO de terceiro entrava no contest).
-  denied="$(problems_denied_for "$SESSION_LOGIN" "$pids")" \
-    || fail 503 "Índice de problemas indisponível — tente de novo em instantes" "index_unavailable"
-  # 404 SEM a lista: a existência de um problema privado alheio não vaza (o banco só ofereceu o
-  # que pode entrar; um id digitado à mão recebe "não encontrado", como em admin/problems)
-  [[ -n "$denied" ]] && fail 404 "Problema não encontrado ou sem acesso ($(wc -w <<<"$denied") id(s))" "problem_denied"
-fi
+# guarda: problemas PRIVADOS só entram se o criador tem acesso (dono, colaborador ou MEMBRO da org) — topo E rodadas
+# planejadas (a promoção aplica a lista da rodada sem passar por aqui de novo). Fonte única: cc_spec_guard.
+cc_spec_guard "$body" "$SESSION_LOGIN"
 
 cc_create "$body" "$SESSION_LOGIN" "$SESSION_NAME"
 

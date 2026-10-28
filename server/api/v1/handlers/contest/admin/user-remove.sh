@@ -10,6 +10,9 @@ login="$(jq -r '.login // empty' <<<"$body")"
 [[ -n "$login" ]] || fail 400 "Informe o login" "missing"
 valid_id "$login" || fail 422 "login inválido" "login_invalid"
 [[ "$login" == "$SESSION_LOGIN" ]] && fail 409 "Você não pode remover a si mesmo" "self_remove"
+# conta de PAPEL do treino (o super incluso) só pelo super-admin — a regra do /admin/passwd (treino_role_write_ok)
+treino_role_write_ok "$contest" "$login" \
+  || fail 403 "Conta de papel do treino: só o super-admin da plataforma" "superadmin_required"
 # conta = diretório; remover = mover p/ .removed-users (submissões preservadas)
 # Contest COMPARTILHADO (USERS_FROM): mover o dir não basta — a pessoa voltaria na hora pela conta do
 # treino. Fica um TOMBSTONE local (senha `!…` autoritativa + desclassificado: não entra, não aparece).

@@ -457,7 +457,7 @@
         "tags": [
           "treino"
         ],
-        "summary": "Resolvidos/tentados de um usuário",
+        "summary": "Resolvidos/tentados de um usuário — sem ?user = o login de uma sessão DO TREINO (outro contest: 400 user_missing); problema PRIVADO sai da lista, menos p/ o próprio dono do history ; perfil privado = listas vazias p/ quem não é o dono nem admin do treino",
         "parameters": [
           {
             "name": "user",
@@ -470,6 +470,9 @@
         "responses": {
           "200": {
             "description": "{solved:[ids],attempted:[ids]}"
+          },
+          "503": {
+            "description": "index_unavailable: índice de problemas ilegível (só p/ quem não é o dono do history — falha fechada)"
           }
         }
       }
@@ -510,7 +513,7 @@
         "tags": [
           "treino"
         ],
-        "summary": "Histórico completo do usuário (TXT)",
+        "summary": "Histórico completo do usuário (TXT) — sem ?user = o login de uma sessão DO TREINO (outro contest: 400 user_missing); linha de problema PRIVADO sai p/ quem não é o dono do history",
         "parameters": [
           {
             "name": "user",
@@ -526,6 +529,9 @@
             "content": {
               "text/plain": {}
             }
+          },
+          "503": {
+            "description": "index_unavailable: índice de problemas ilegível (só p/ quem não é o dono do history — falha fechada)"
           }
         }
       }
@@ -734,7 +740,7 @@
         "tags": [
           "treino-admin"
         ],
-        "summary": "Feed COMPLETO de atividade do treino (login/submit/verdict/read/admin; calib opt-in) com filtros e format=csv (range inteiro p/ análise)",
+        "summary": "Feed COMPLETO de atividade do treino (login/submit/verdict/read/admin; calib opt-in) com filtros e format=csv (range inteiro p/ análise). Leituras da autoria (28/10/2026): pkg-source, pkg-diff, calib-report-view, testrun-report-view. Linha que cita problema privado que o admin não pode ver (org#prob em qualquer lugar: id=, from=/to=, submissão e veredicto), org de que não é membro, ou delete de problema sai do feed e do CSV (lib/admin-feed.sh; o SUPERADMIN vê tudo; índice ilegível = some toda linha que cita problema ou org).",
         "security": [
           {
             "bearerAuth": []
@@ -2557,7 +2563,7 @@
             "description": "image_unknown — a imagem não é sede deste contest"
           },
           "413": {
-            "description": "too_large — corpo > 64 KiB"
+            "description": "too_large — corpo > 64 KiB; conferido ANTES de olhar o contest (o mesmo 413 p/ contest inexistente); leitura limitada a 64 KiB"
           },
           "422": {
             "description": "mac_invalid"
@@ -3373,7 +3379,7 @@
         "tags": [
           "admin"
         ],
-        "summary": "Adicionar usuário",
+        "summary": "Adicionar usuário (auditado: adduser)",
         "security": [
           {
             "bearerAuth": []
@@ -3408,6 +3414,9 @@
         "responses": {
           "200": {
             "description": "{login,password}"
+          },
+          "403": {
+            "description": "superadmin_required: no treino, conta de PAPEL (.admin/.judge/…) só pelo super-admin numa sessão do treino"
           }
         }
       }
@@ -3417,7 +3426,7 @@
         "tags": [
           "admin"
         ],
-        "summary": "Trocar senha",
+        "summary": "Trocar senha (auditado: passwd)",
         "security": [
           {
             "bearerAuth": []
@@ -3445,7 +3454,13 @@
         },
         "responses": {
           "200": {
-            "description": "ok"
+            "description": "ok; reset reabilita (tira disabled) e derruba as sessões abertas da conta"
+          },
+          "403": {
+            "description": "superadmin_required: no treino, senha de conta de PAPEL (o super-admin incluso) só pelo super-admin numa sessão do treino"
+          },
+          "409": {
+            "description": "shared_users: contest com USERS_FROM e a conta entra pela senha da fonte (conta LOCAL segue); também overlay de participante (shared_overlay) e senha interna !… (lápide de removido, conta de TIME)"
           }
         }
       }
@@ -3916,7 +3931,10 @@
             "description": "id em uso/reservado"
           },
           "422": {
-            "description": "validação (no_problems = problems[] vazio sem allow_empty)"
+            "description": "validação (no_problems = problems[] vazio sem allow_empty); spec_invalid: o spec não se lê (a guarda de problemas falha FECHADA)"
+          },
+          "404": {
+            "description": "problem_denied: problema (problem_id OU bank_id, no topo ou numa rodada) que o login não pode ver — cc_spec_guard"
           }
         }
       }
@@ -3964,6 +3982,12 @@
           },
           "400": {
             "description": "tar inválido"
+          },
+          "404": {
+            "description": "problem_denied: problema que o login não pode ver (topo ou rodada), sem listar ids — a mesma guarda do create/duplicate"
+          },
+          "503": {
+            "description": "index_unavailable: índice de problemas indisponível"
           }
         }
       }
@@ -4179,7 +4203,7 @@
         "tags": [
           "contest-create"
         ],
-        "summary": "save|delete|rename template (save: template{} do formulário OU from_contest; spec relativizado + whitelist — nunca guarda usuários/senhas/id)",
+        "summary": "save|delete|rename template (save: template{} do formulário OU from_contest; spec relativizado + whitelist — nunca guarda usuários/senhas/id) from_contest segue a regra do export/duplicate (cc_contest_visible_to; senão 404).",
         "requestBody": {
           "required": true,
           "content": {
@@ -4264,7 +4288,7 @@
             "description": "attachment <id>-spec.json"
           },
           "404": {
-            "description": "contest inexistente, sem created-by, ou o login não é dono/admin"
+            "description": "contest inexistente, sem created-by, ou o login não é dono/admin; o dono do contest = arquivo owner, senão o created-by (cc_contest_owner)"
           }
         }
       }
@@ -4322,7 +4346,7 @@
             "description": "mesmo retorno do create"
           },
           "404": {
-            "description": "from inexistente/sem acesso (dono ou admin)"
+            "description": "from inexistente/sem acesso (dono ou admin); problem_denied: a mesma guarda do create (cc_spec_guard); o dono do from = owner › created-by"
           }
         }
       }
@@ -5258,6 +5282,9 @@
         "responses": {
           "200": {
             "description": "{user:{login,password,fullname,email}}"
+          },
+          "403": {
+            "description": "superadmin_required: contest=treino e conta de PAPEL (o super-admin incluso) — só o super-admin numa sessão do treino"
           }
         }
       }
@@ -5267,7 +5294,7 @@
         "tags": [
           "contest-admin"
         ],
-        "summary": "Carga de usuários em lote (skip|update; conta privilegiada existente nunca é resetada; fullname = nome do time; univ_short/univ_full/country/region opcionais gravam o .team — carga única de credenciais+time). Nome/escola com ':' = gravado com '∶' e listado em adjusted[]; skipped[].reason = login_invalid|colon (senha/email)|exists|privileged|duplicate|write_failed",
+        "summary": "Carga de usuários em lote (skip|update; conta privilegiada existente nunca é resetada; fullname = nome do time; univ_short/univ_full/country/region opcionais gravam o .team — carga única de credenciais+time). Nome/escola com ':' = gravado com '∶' e listado em adjusted[]; skipped[].reason = login_invalid|colon (senha/email)|exists|privileged|duplicate|write_failed (contest=treino: conta de papel, nova ou existente, sai como skipped privileged p/ quem não é o super-admin)",
         "parameters": [
           {
             "$ref": "#/components/parameters/contest"
@@ -5333,6 +5360,9 @@
         "responses": {
           "200": {
             "description": "{created[],updated[],skipped:[{login,reason}],counts}"
+          },
+          "400": {
+            "description": "treino_forbidden: on_existing=update (reset em massa) no treino"
           }
         }
       }
@@ -5372,6 +5402,9 @@
           },
           "409": {
             "description": "não pode remover a si mesmo"
+          },
+          "403": {
+            "description": "superadmin_required: contest=treino e conta de PAPEL — só o super-admin"
           }
         }
       }
@@ -7855,6 +7888,9 @@
         "responses": {
           "200": {
             "description": "{repo,owner}"
+          },
+          "409": {
+            "description": "implicit: org implícita; repo_taken: já existe e não é admin dela; name_is_login: org nova com o nome de um login do treino"
           }
         }
       }
@@ -8590,6 +8626,9 @@
         "responses": {
           "200": {
             "description": "{repo,collaborators}"
+          },
+          "404": {
+            "description": "repo_missing: org inexistente OU o login não é membro dela nem admin do treino (o MESMO 404)"
           }
         }
       },
@@ -8797,7 +8836,7 @@
             "description": "sem permissão de criação (ou sessão fora do treino: author_treino_only)"
           },
           "409": {
-            "description": "org já existe (taken: não é admin dela/não é super) ou org IMPLÍCITA (implicit, nem o superadmin gere)"
+            "description": "org já existe (taken: não é admin dela/não é super) ou org IMPLÍCITA (implicit, nem o superadmin gere); name_is_login: org nova com o nome de um login do treino (é o nome da org pessoal dele)"
           }
         }
       }

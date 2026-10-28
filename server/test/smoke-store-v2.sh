@@ -4,10 +4,16 @@
 set -u
 ROOT="$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)"
 ROUTER="$ROOT/api/v1/router.sh"
-FIX="$(mktemp -d)"; SESS="$(mktemp -d)"; RUN="$(mktemp -d)"
-trap 'rm -rf "$FIX" "$SESS" "$RUN"' EXIT
+FIX="$(mktemp -d)"; SESS="$(mktemp -d)"; RUN="$(mktemp -d)"; PROBS="$(mktemp -d)"
+trap 'rm -rf "$FIX" "$SESS" "$RUN" "$PROBS"' EXIT
+export MOJ_PROBLEMS_DIR="$PROBS"   # nunca o banco real (o índice de problemas abaixo é a fonte do "é privado?")
 T="$FIX/treino"
-mkdir -p "$T/users" "$RUN/secrets" "$RUN/telegram"
+mkdir -p "$T/users" "$T/var" "$RUN/secrets" "$RUN/telegram"
+# índice de problemas FRESCO (o solvetry/history-full de quem não é o dono perguntam "é privado?" a ele): col#p1
+# público, col#p2 PRIVADO de outro autor
+jq -cn --argjson t "$EPOCHSECONDS" '{generated_at:$t, problems:[
+  {id:"col#p1", title:"P1", owner:"x", collaborators:[], public:true},
+  {id:"col#p2", title:"P2", owner:"outro", collaborators:[], public:false}]}' > "$T/var/problem-owners.json"
 printf 'CONTEST_ID=treino\nCONTEST_NAME="Treino"\nCONTEST_TYPE=lista-publica\nUSER_STORE=v2\n' > "$T/conf"
 BOT="mojb_smoketoken"; printf '%s' "$BOT" > "$RUN/secrets/bot.token"
 
@@ -65,6 +71,48 @@ call "Bearer tok-joao" /treino/history-full GET "user=joao" ""
 ck "history-full 7 campos c/ login (verdict canônico)" '[[ "$(printf "%s" "$BODY" | head -1)" == "10:joao:col#p1:C:Accepted:10:s1" ]]'
 call "Bearer tok-joao" /treino/solvetry GET "" ""
 ck "solvetry solved=[col#p1]" '[[ "$(jq -rc ".solved" <<<"$BODY")" == "[\"col#p1\"]" ]]'
+# (1) o "usuário logado" só vale numa sessão DO TREINO; (2) privado sai p/ quem não é o dono
+mkdir -p "$T/var/jsons-private"; printf '{}' > "$T/var/jsons-private/col#p2.json"   # col#p2 vira PRIVADO
+call "Bearer tok-joao" /treino/solvetry GET "" ""
+ck "solvetry do PRÓPRIO dono mantém o privado (attempted=[col#p2])" '[[ "$(jq -rc ".attempted" <<<"$BODY")" == "[\"col#p2\"]" ]]'
+call "" /treino/solvetry GET "user=joao" ""
+ck "solvetry ?user= anônimo: o privado SAI, o público fica" '[[ "$(jq -rc ".attempted" <<<"$BODY")" == "[]" && "$(jq -rc ".solved" <<<"$BODY")" == "[\"col#p1\"]" ]]'
+# mesmo login com conta DE VERDADE no próprio contest (sessão viva: o load_session a aceita — o corte é a regra do treino)
+source "$(dirname "$(readlink -f "$0")")/fixture.sh"
+mkdir -p "$FIX/outro"; printf 'CONTEST_ID=outro\nCONTEST_END=9999999999\n' > "$FIX/outro/conf"; fx_user "$FIX/outro" joao h "Outro"
+printf 'CONTEST="outro"\nLOGIN="joao"\nUSERFULLNAME="Outro"\nLOGINAT=1\n' > "$SESS/tok-hom"
+call "Bearer tok-hom" /treino/solvetry GET "" ""
+ck "solvetry com sessão de OUTRO contest não vira o joao do treino (400 user_missing)" '[[ "$(jq -r .error.code <<<"$BODY")" == user_missing ]]'
+call "Bearer tok-hom" /treino/solvetry GET "user=joao" ""
+ck "…e com ?user=joao ela vê só o público" '[[ "$(jq -rc ".attempted" <<<"$BODY")" == "[]" ]]'
+# history-full: as MESMAS regras
+call "Bearer tok-joao" /treino/history-full GET "" ""
+ck "history-full do PRÓPRIO dono mantém a linha do privado" 'grep -q ":col#p2:" <<<"$BODY"'
+call "" /treino/history-full GET "user=joao" ""
+ck "history-full ?user= anônimo: a linha do privado SAI, a pública fica" '! grep -q ":col#p2:" <<<"$BODY" && grep -q ":col#p1:" <<<"$BODY"'
+call "Bearer tok-hom" /treino/history-full GET "" ""
+ck "history-full com sessão de OUTRO contest não vira o joao do treino (400)" '[[ "$(jq -r .error.code <<<"$BODY" 2>/dev/null)" == user_missing ]]'
+# perfil PRIVADO: o solvetry segue a regra do history-full (dono e admin do treino veem; o resto, vazio)
+jq '.public=false' "$T/users/joao/account.json" > "$T/x" && mv "$T/x" "$T/users/joao/account.json"
+call "" /treino/solvetry GET "user=joao" ""
+ck "solvetry de perfil privado p/ anônimo = listas vazias" '[[ "$(jq -rc "[.solved,.attempted]" <<<"$BODY")" == "[[],[]]" ]]'
+call "Bearer tok-joao" /treino/solvetry GET "" ""
+ck "…e o dono segue vendo os dele"                         '[[ "$(jq -rc ".solved" <<<"$BODY")" == "[\"col#p1\"]" ]]'
+jq 'del(.public)' "$T/users/joao/account.json" > "$T/x" && mv "$T/x" "$T/users/joao/account.json"
+# índice de problemas ILEGÍVEL (e sem gerador p/ refazer): quem não é o dono recebe 503 — nunca o history inteiro
+cp "$T/var/problem-owners.json" "$T/var/po.bak"; printf '{' > "$T/var/problem-owners.json"
+MOJTOOLS_DIR=/nonexistent call "" /treino/history-full GET "user=joao" ""
+ck "history-full: índice ilegível ⇒ 503, sem linha nenhuma" '[[ "$OUT" == *"Status: 503"* ]] && ! grep -q "col#p" <<<"$BODY"'
+MOJTOOLS_DIR=/nonexistent call "" /treino/solvetry GET "user=joao" ""
+ck "solvetry: idem 503"                                     '[[ "$OUT" == *"Status: 503"* ]]'
+mv "$T/var/po.bak" "$T/var/problem-owners.json"
+# dir ÓRFÃO (history sem account.json — resíduo de rename/remoção): o profile_is_public o daria como público
+mkdir -p "$T/users/orfao"; printf '10:col#p1:C:Accepted,100p:10:o1\n' > "$T/users/orfao/history"
+call "" /treino/solvetry GET "user=orfao" ""
+ck "solvetry de dir ÓRFÃO p/ anônimo = listas vazias" '[[ "$(jq -rc "[.solved,.attempted]" <<<"$BODY")" == "[[],[]]" ]]'
+call "" /treino/history-full GET "user=orfao" ""
+ck "history-full de dir ÓRFÃO p/ anônimo = vazio"      '[[ -z "$BODY" ]]'
+rm -f "$T/var/jsons-private/col#p2.json"
 
 echo "== link (conta logada vincula Telegram) =="
 call "Bearer tok-joao" /treino/telegram/link-start POST "" ""
@@ -119,9 +167,12 @@ ck "bulk cria 2 no store"        '[[ "$(jq -r .counts.created <<<"$BODY")" == 2 
 ck "account.json é a fonte"      '[[ "$(jq -r .password "$T/users/lote2/account.json")" == pw2 ]]'
 ck "accounts do lote criados" '[[ -f "$T/users/lote1/account.json" && "$(jq -r .password "$T/users/lote2/account.json")" == "pw2" ]]'
 ck "joao (existe) pulado"        '[[ "$(jq -r ".skipped[]|select(.login==\"joao\").reason" <<<"$BODY")" == exists ]]'
+# no TREINO o on_existing=update (reset em massa, com as senhas novas na resposta) é recusado (28/10/2026,
+# a regra do users-set-password); a mecânica do update segue coberta nos contests (smoke-contest-users-admin,
+# smoke-name-colon, smoke-contest-teams)
 call "Bearer tok-adm" /contest/admin/users-bulk POST "contest=treino" '{"on_existing":"update","users":[{"login":"lote1","password":"nova","fullname":"Lote Um V2"}]}'
-ck "bulk update no account.json"  '[[ "$(jq -r .password "$T/users/lote1/account.json")" == nova && "$(jq -r .fullname "$T/users/lote1/account.json")" == "Lote Um V2" ]]'
-ck "account do lote atualizado" '[[ "$(jq -r .password "$T/users/lote1/account.json")" == "nova" && "$(jq -r .fullname "$T/users/lote1/account.json")" == "Lote Um V2" ]]'
+ck "bulk update no TREINO = 400 treino_forbidden" '[[ "$(jq -r .error.code <<<"$BODY")" == treino_forbidden ]]'
+ck "…e a conta do lote NÃO mudou"               '[[ "$(jq -r .password "$T/users/lote1/account.json")" != nova && "$(jq -r .fullname "$T/users/lote1/account.json")" == "Lote Um" ]]'
 
 echo
 echo "RESULT: $pass passed, $fail failed"

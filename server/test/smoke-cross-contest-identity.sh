@@ -153,4 +153,53 @@ ck "a 1ª recusa já tinha deixado linha(s)"        '[[ "$N0" -ge 1 ]]'
 ck "a repetição dentro de 5 min NÃO soma outra"   '[[ "$N1" == "$N0" ]]'
 ck "a linha identifica login e contest de origem" 'grep -q $'"'"'ext.admin\tauthor-treino-block\tcontest=ext'"'"' "$AUDIT"'
 
+echo "== rastreabilidade: leitura de conteúdo de autoria deixa trilha; sessão de outro contest se identifica =="
+ACT="$(ls "$T"/var/activity-*.log 2>/dev/null | head -1)"
+ck "GET /problems/source do autor → activity_log pkg-source" '[[ -n "$ACT" ]] && grep -qP "\tprof\tpkg-source\tid=orgpriv#priv\t" "$ACT"'
+ck "…e a recusa (403) NÃO vira leitura"               '! grep -qP "\text.admin\tpkg-source\t" "$ACT"'
+lib_log(){ ( _DIR="$ROOT/api/v1"; source "$_DIR/lib/sources.sh" 2>/dev/null
+  SESSION_CONTEST="$1"; SESSION_LOGIN="$2"; audit_log "teste-sess" "x=1"; activity_log "teste-sess" "y=2" ) >/dev/null 2>&1; }
+lib_log ext ext.admin; lib_log treino prof
+ACT="$(ls "$T"/var/activity-*.log 2>/dev/null | head -1)"
+ck "audit_log de sessão de OUTRO contest ganha sess=<contest>" 'grep -qP "\text.admin\tteste-sess\tx=1 sess=ext$" "$AUDIT"'
+ck "activity_log idem"                                 'grep -qP "\text.admin\tteste-sess\ty=2 sess=ext\t" "$ACT"'
+ck "sessão do treino: formato de sempre (sem sess=)"   'grep -qP "\tprof\tteste-sess\tx=1$" "$AUDIT"'
+( _DIR="$ROOT/api/v1"; source "$_DIR/lib/sources.sh" 2>/dev/null
+  SESSION_CONTEST=ext; SESSION_LOGIN=ext.admin; audit_log_to treino "teste-to" "z=3" ) >/dev/null 2>&1
+ck "audit_log_to no log de OUTRO contest também ganha sess=" 'grep -qP "\text.admin\tteste-to\tz=3 sess=ext$" "$AUDIT"'
+
+echo "== feeds do painel: o .admin comum vê só o que pode abrir =="
+# linhas que citam o problema de outros jeitos: a submissão do membro da org (kind=submit, sem `id=`), o move
+# (from=/to=), o id com `:` no fim; e o delete, cujo id já saiu do índice
+printf '%s:orgpriv#priv:C:Accepted,100p:%s:s9\n' "$NOW" "$NOW" >> "$T/users/prof/history"
+printf '%s\tprof\tmove\tfrom=orgpriv#velho to=orgpriv#priv by=prof\n' "$NOW" >> "$AUDIT"
+printf '%s\tprof\tindex-org-lock\tid=orgpriv#priv: ocupado\n' "$NOW" >> "$AUDIT"
+printf '%s\tprof\tdelete\tid=sumiu#x by=prof\n' "$NOW" >> "$AUDIT"
+req /treino/admin/activity-log GET "limit=5000" teach
+ck ".admin comum: feed 200"                                   '[[ "$STATUS" == 200 ]]'
+ck "…sem linha do problema privado alheio (id=orgpriv#priv)"  '! grep -q "orgpriv#priv" <<<"$BODY"'
+ck "…sem linha de org de que ele não é membro (org-* orgpriv)" '[[ "$(jq "[.events[]|select((.action|test(\"^org-\")) and (.details|test(\"name=orgpriv( |$)\")))]|length" <<<"$BODY")" == 0 ]]'
+ck "…e o resto segue no feed (não filtra demais)"            'grep -q "teste-sess" <<<"$BODY"'
+req /treino/admin/activity-log GET "limit=5000&format=csv" teach
+ck "…o CSV filtra igual"                                      '! grep -q "orgpriv#priv" <<<"$BODY"'
+req /treino/admin/activity-log GET "limit=5000" boss
+ck "o SUPERADMIN vê a leitura do privado e a org"             'grep -q "pkg-source" <<<"$BODY" && grep -q "orgpriv#priv" <<<"$BODY" && grep -q "name=orgpriv" <<<"$BODY"'
+ck "…e a submissão, o move, o id com : e o delete"            '[[ "$(jq "[.events[]|select(.kind==\"submit\" and (.details|test(\"orgpriv#priv\")))]|length" <<<"$BODY")" -ge 1 ]] && grep -q "orgpriv#velho" <<<"$BODY" && grep -q "sumiu#x" <<<"$BODY"'
+req /treino/admin/activity-log GET "limit=5000" teach
+ck ".admin comum: nem a submissão, nem o move, nem o delete"   '! grep -q "orgpriv#" <<<"$BODY" && ! grep -q "sumiu#x" <<<"$BODY"'
+# o /treino/admin/audit-log segue a mesma regra
+req /treino/admin/audit-log GET "" teach
+ck "/treino/admin/audit-log (.admin comum): 200 e sem o privado/org/delete" '[[ "$STATUS" == 200 ]] && ! grep -q "orgpriv#" <<<"$BODY" && ! grep -q "sumiu#x" <<<"$BODY" && [[ "$(jq "[.entries[]|select((.action|test(\"^org-\")) and (.details|test(\"name=orgpriv( |$)\")))]|length" <<<"$BODY")" == 0 ]]'
+ck "…e o resto segue no audit"                                 'grep -q "teste-sess" <<<"$BODY"'
+req /treino/admin/audit-log GET "" boss
+ck "/treino/admin/audit-log (SUPERADMIN): vê tudo"            'grep -q "orgpriv#priv" <<<"$BODY" && grep -q "sumiu#x" <<<"$BODY"'
+# índice ilegível: o feed segue no ar — some toda linha que cita problema ou org, o resto fica
+hid_all(){ ( _DIR="$ROOT/api/v1"; source "$_DIR/lib/sources.sh" 2>/dev/null; source "$_DIR/lib/admin-feed.sh"
+  source "$_DIR/lib/problems.sh"; owners_merged(){ return 1; }
+  SESSION_CONTEST=treino; SESSION_LOGIN=teach.admin; f="$(mktemp)"; feed_hidden_file "$f"; cat "$f"; rm -f "$f" ) 2>/dev/null; }
+H="$(hid_all)"
+ck "índice ilegível ⇒ conjunto {all:true}"                      '[[ "$(jq -c . <<<"$H")" == "{\"all\":true}" ]]'
+FV="$( _DIR="$ROOT/api/v1"; source "$_DIR/lib/admin-feed.sh"; jq -c --argjson H "$H" "$FEED_VISIBLE_DEF"' [ ({action:"login",details:"x"}, {action:"upload",details:"id=a#b"}, {action:"org-create",details:"name=z"}) | feed_visible($H) ]' <<<null )"
+ck "…e nesse modo: login fica, linha com problema e org-* saem" '[[ "$FV" == "[true,false,false]" ]]'
+
 echo; echo "RESULT: $pass passed, $fail failed"; (( fail == 0 ))

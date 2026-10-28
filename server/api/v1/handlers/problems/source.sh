@@ -44,5 +44,6 @@ jq -cn --arg id "$id" --arg o "$owner" --slurpfile s "$srcf" --arg rev "$rev" --
   '{success:true, id:$id, owner:$o, editable:true} + $s[0] + {rev:$rev, rev_by:$rby, rev_at:$rat}' > "$outf" || fail 500 "Falha ao serializar o pacote" "read_fail"
 [[ -s "$outf" ]] || fail 500 "Falha ao serializar o pacote" "read_fail"
 
+activity_log pkg-source "id=$id"   # leitura do pacote deixa trilha
 emit_json 200 OK
 cat "$outf"

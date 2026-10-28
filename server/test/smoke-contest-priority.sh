@@ -47,7 +47,9 @@ ck "GET: lista-publica, não definida, destravada"   '[[ "$(jq -c "[.priority,.p
 regras '{"priority":"prova"}'
 ck "muda p/ prova"                                  '[[ "$STATUS" == 200 && "$(prio cp)" == prova ]] && jq -e ".changed|index(\"CONTEST_PRIORITY=prova\")" <<<"$BODY" >/dev/null'
 ck "auditado no contest: de/para/via e quem"        'grep -qP "\tcp\.admin\tpriority\tde=não-definida para=prova via=regras$" "$C/var/admin-audit.log"'
-ck "e na trilha central do treino"                  'grep -qP "\tcp\.admin\tcontest-priority\tcontest=cp de=não-definida para=prova via=regras$" "$T/var/admin-audit.log"'
+# a linha gravada por sessão de OUTRO contest que não o do log leva ` sess=<contest>` (audit_log_to, 28/10/2026): o
+# login sozinho não separa o `<criador>.admin` de cada contest
+ck "e na trilha central do treino (sess=cp)"        'grep -qP "\tcp\.admin\tcontest-priority\tcontest=cp de=não-definida para=prova via=regras sess=cp$" "$T/var/admin-audit.log"'
 n1="$(aud cp 'priority')"; regras '{"priority":"prova"}'
 ck "mesma prioridade: 200 e nada auditado"          '[[ "$STATUS" == 200 && "$(aud cp priority)" == "$n1" ]]'
 regras '{"priority":"super"}'
@@ -64,7 +66,7 @@ call /treino/admin/contest-priority POST '{"contest":"cp","priority":"super"}' t
 ck "aluno: 403"                                     '[[ "$STATUS" == 403 ]]'
 call /treino/admin/contest-priority POST '{"contest":"cp","priority":"super"}' t-boss.admin
 ck "super-admin dá Super"                           '[[ "$STATUS" == 200 && "$(prio cp)" == super && "$(jq -c "[.previous,.changed]" <<<"$BODY")" == "[\"lista-privada\",true]" ]]'
-ck "auditado (contest e treino), via=painel-treino" 'grep -qP "\tboss\.admin\tpriority\tde=lista-privada para=super via=painel-treino$" "$C/var/admin-audit.log" && grep -qP "\tboss\.admin\tcontest-priority\tcontest=cp de=lista-privada para=super via=painel-treino$" "$T/var/admin-audit.log"'
+ck "auditado (contest e treino), via=painel-treino" 'grep -qP "\tboss\.admin\tpriority\tde=lista-privada para=super via=painel-treino sess=treino$" "$C/var/admin-audit.log" && grep -qP "\tboss\.admin\tcontest-priority\tcontest=cp de=lista-privada para=super via=painel-treino$" "$T/var/admin-audit.log"'
 regras '' GET
 ck "Regras: GET diz travada"                        '[[ "$(jq -c "[.priority,.priority_locked]" <<<"$BODY")" == "[\"super\",true]" ]]'
 regras '{"priority":"prova"}'

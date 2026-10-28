@@ -27,10 +27,17 @@ if [[ "$REQUEST_METHOD" == POST ]]; then
   org_require_valid_logins "$add"
   org_require_valid_logins "$aadd"
   # remove = sai da org (membro e admin); admins_remove = rebaixa a membro. Criador é blindado.
-  newm="$(jq -cn --argjson c "$(org_members "$name")" --argjson a "$add" --argjson aa "$aadd" --argjson r "$rem" --arg cb "$cb" '((($c+$a+$aa)-$r)+[$cb])|unique')"
-  newa="$(jq -cn --argjson c "$(org_admins "$name")"  --argjson aa "$aadd" --argjson ar "$arem" --argjson r "$rem" --arg cb "$cb" '(((($c+$aa)-$ar)-$r)+[$cb])|unique')"
-  org_set_members "$name" "$newm"; org_set_admins "$name" "$newa"
-  audit_log "org-members" "name=$name by=$SESSION_LOGIN"
+  # o ANTES é lido UMA vez: monta o novo E o delta do audit (o delta é exatamente o que foi gravado)
+  oldm="$(org_members "$name")"; olda="$(org_admins "$name")"
+  newm="$(jq -cn --argjson c "$oldm" --argjson a "$add" --argjson aa "$aadd" --argjson r "$rem" --arg cb "$cb" '((($c+$a+$aa)-$r)+[$cb])|unique')"
+  newa="$(jq -cn --argjson c "$olda"  --argjson aa "$aadd" --argjson ar "$arem" --argjson r "$rem" --arg cb "$cb" '(((($c+$aa)-$ar)-$r)+[$cb])|unique')"
+  # o audit só registra o que foi GRAVADO (um delta de quem não entrou seria trilha falsa)
+  { org_set_members "$name" "$newm" && org_set_admins "$name" "$newa"; } || fail 500 "Falha ao gravar a org" "write_fail"
+  # o ANTES/DEPOIS vai junto: a linha diz QUEM entrou/saiu
+  audit_log "org-members" "name=$name by=$SESSION_LOGIN $(jq -rn --argjson om "$oldm" --argjson nm "$newm" \
+    --argjson oa "$olda" --argjson na "$newa" '
+    "members:+[" + (($nm - $om)|join(",")) + "] -[" + (($om - $nm)|join(",")) + "]"
+    + " admins:+[" + (($na - $oa)|join(",")) + "] -[" + (($oa - $na)|join(",")) + "]"')"
 fi
 cm=false; org_can_manage "$name" "$SESSION_LOGIN" && cm=true
 ok_json '{name:$n, members:$m, admins:$a, mine:($cb==$me), can_manage:$cm, implicit:$im}' \

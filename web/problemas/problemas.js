@@ -6,6 +6,7 @@ import { status, fileToBase64 } from '/shared/auth.js';
 import { el, renderAuthArea, fmtDate } from '/shared/ui.js';
 import { hBarChart } from '/lib/charts.js';
 import { T } from '/shared/i18n.js';
+import { orgCreateErr } from '/problemas/org-errors.js';
 import { decorateSamples } from '/shared/statement-samples.js';
 import { pendingLabel } from '/problemas/readiness.js';
 
@@ -490,7 +491,7 @@ async function createOrg(name, inp) {
   if (!name) return;
   if (!/^[a-z0-9][a-z0-9._-]{1,63}$/.test(name)) { alert(T('Nome de org inválido: minúsculas/números/._- (sem espaço), 2–64 caracteres.', 'Invalid org name: lowercase/digits/._- (no spaces), 2–64 characters.', 'Nombre de org inválido: minúsculas/números/._- (sin espacios), 2–64 caracteres.')); return; }
   try { await apiPost('/orgs/create', { name }, { contest: CONTEST, auth: true }); if (inp) inp.value = ''; loadTab('orgs'); }
-  catch (e) { alert(e.message); }
+  catch (e) { alert(orgCreateErr(e)); }
 }
 async function deleteOrg(o) {
   if (!confirm(`${T('Remover a org “', 'Remove the org “', 'Eliminar la org “')}${o.name}${T('”? Ela precisa estar VAZIA (sem problemas). Ação irreversível.', '”? It must be EMPTY (no problems). Irreversible action.', '”? Debe estar VACÍA (sin problemas). Acción irreversible.')}`)) return;

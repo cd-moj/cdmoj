@@ -16,5 +16,6 @@ require_problem_edit "$pid"
 
 f="$TESTRUN_DIR/r/$run.html"
 [[ -s "$f" ]] || fail 404 "Report não disponível (ainda julgando, ou o juiz não gerou)" "not_found"
+activity_log testrun-report-view "id=$pid run=$run"
 emit_html
 cat "$f"

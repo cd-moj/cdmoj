@@ -9,7 +9,10 @@ source "$_DIR/lib/orgs.sh"
 if [[ "$REQUEST_METHOD" == GET ]]; then repo="$(param repo)"
 else body="$(read_body)"; jq -e . >/dev/null 2>&1 <<<"$body" || fail 400 "Invalid JSON body" "bad_json"; repo="$(jq -r '.repo // empty' <<<"$body")"; fi
 [[ "$repo" =~ ^[A-Za-z0-9][A-Za-z0-9._-]{1,63}$ ]] || fail 400 "Org inválida" "repo_invalid"
-org_exists "$repo" || fail 404 "Org não existe" "repo_missing"
+# quem não é membro (nem admin DO TREINO, a regra de visibilidade do /orgs/members GET) recebe o MESMO 404 da
+# org inexistente
+{ org_exists "$repo" && { org_is_member "$repo" "$SESSION_LOGIN" || is_platform_admin; }; } \
+  || fail 404 "Org não existe" "repo_missing"
 owner="$(jq -r --arg n "$repo" '.[$n].created_by // ""' "$ORGS_REGISTRY" 2>/dev/null)"
 
 if [[ "$REQUEST_METHOD" == POST ]]; then
@@ -19,9 +22,11 @@ if [[ "$REQUEST_METHOD" == POST ]]; then
   rem="$(jq -c '(.remove // [])' <<<"$body")"
   # quem ENTRA precisa existir e poder criar problemas (422/404/403 atômico); remove não valida
   org_require_valid_logins "$add"
-  newm="$(jq -cn --argjson c "$(org_members "$repo")" --argjson a "$add" --argjson r "$rem" --arg o "$owner" '((($c+$a)-$r)+[$o])|unique')"
-  org_set_members "$repo" "$newm"
-  audit_log "repo-collaborators" "org=$repo by=$SESSION_LOGIN"
+  oldm="$(org_members "$repo")"   # lido UMA vez: o novo e o delta do audit saem do mesmo antes
+  newm="$(jq -cn --argjson c "$oldm" --argjson a "$add" --argjson r "$rem" --arg o "$owner" '((($c+$a)-$r)+[$o])|unique')"
+  org_set_members "$repo" "$newm" || fail 500 "Falha ao gravar a org" "write_fail"   # o audit só registra o gravado
+  audit_log "repo-collaborators" "org=$repo by=$SESSION_LOGIN $(jq -rn --argjson o "$oldm" --argjson n "$newm" \
+    '"+[" + (($n - $o)|join(",")) + "] -[" + (($o - $n)|join(",")) + "]"')"
 fi
 ok_json '{repo:$r, owner:$o, collaborators:$c}' \
   --arg r "$repo" --arg o "$owner" --argjson c "$(org_members "$repo")"

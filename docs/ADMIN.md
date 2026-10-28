@@ -401,10 +401,16 @@ O painel `/treino/admin/` tem dois papéis. A regra vale na API, não só na tel
     (as `/ops` de escrita);
   - age na Fila (reenfileirar, resolver como Judge Error), que vale para qualquer contest;
   - trava contas, desloga por IP e desloga mais de 20 contas de uma vez;
-  - muda a prioridade de contest e remove contest de outro dono.
+  - muda a prioridade de contest e remove contest de outro dono;
+  - gere org e coleção de OUTRO autor (membros, trava de público, apagar, renomear). O admin comum gere só as dele;
+  - cria, remove ou troca a senha de uma conta de papel do treino, por qualquer rota (`/admin/passwd`,
+    `/admin/adduser` e `/contest/admin/user-add`, `users-bulk` e `user-remove` com `contest=treino`). A regra fica
+    no caminho de escrita (`treino_role_write_ok`). O admin comum segue trocando a senha de conta comum e a própria.
 
 O `.admin` LOCAL de um contest (o que o assistente cria para quem monta o contest) não entra em nenhuma rota do
-painel nem das `/ops`, nem de leitura: até 16/10/2026 ele conseguia configurar e desligar juízes.
+painel nem das `/ops`, nem de leitura: até 16/10/2026 ele conseguia configurar e desligar juízes. Ele também não
+alcança o acervo de problemas: as rotas `/problems/*` e `/orgs/*` só respondem a uma sessão do treino (403
+`author_treino_only`, desde 28/10/2026).
 
 **Ação de vários alvos (deslogar, travar, por IP).** A tela pede ao servidor uma prévia: quantas contas, quantas
 sessões, os primeiros nomes e os pulados com o motivo. Para executar, digite o número de contas. A própria conta, as
@@ -414,3 +420,30 @@ contas de papel (`.admin`, `.judge`…) e o super-admin nunca entram. Depois de 
 - os super-admins recebem uma DM do mojinho (sem Telegram vinculado, o grupo dos admins).
 
 Para dar o papel de super-admin a mais alguém, acrescente o login em `SUPERADMINS` no conf do treino.
+
+## 12. Trilhas: quem fez e quem leu o quê
+
+Tudo fica em `contests/treino/var/` (o contest de prova tem o próprio `var/admin-audit.log`). Nada disto é apagado
+pelo `moj-housekeeping`: as trilhas ficam enquanto o diretório existir, e o backup do `contests/` as leva.
+
+| Arquivo | O que registra |
+|---|---|
+| `admin-audit.log` | ações de admin e de autoria (TSV `epoch login ação detalhes`). As mudanças de org dizem o delta: quem entrou e quem saiu (`org-members`, `repo-collaborators`); `org-create` numa org que já existia leva `existing=1`. Troca de senha e conta criada por admin entram (`passwd`, `adduser`). |
+| `activity-AAAA-MM.log` | LEITURAS, um arquivo por mês (TSV `epoch login evento detalhes ip`): problema aberto, log visto, código baixado e, da autoria, o pacote aberto no editor (`pkg-source`), o diff de um commit (`pkg-diff`), o report de calibração (`calib-report-view`) e o de test-run (`testrun-report-view`). |
+| `access.log` | logins (`epoch login ip ua`). |
+
+Duas marcas ajudam a separar a conta certa:
+
+- linha feita numa sessão de outro contest, que não o do arquivo, termina em `sess=<contest>`. O login sozinho não
+  basta: o `<criador>.admin` de cada contest é uma conta LOCAL dele;
+- a recusa de uma sessão de outro contest nas rotas de autoria vira `author-treino-block` (uma linha a cada 5 min
+  por login e rota).
+
+A aba 📜 Atividade do painel junta as três fontes e baixa o período em CSV. O admin comum não vê nela, nem no
+`admin-audit.log` que o painel mostra, estas linhas:
+- as que citam um problema privado que ele não pode abrir (a leitura, o upload, a submissão de um membro da org…);
+- as de org de que ele não é membro;
+- a remoção de um problema.
+
+O super-admin vê tudo. Se o índice de problemas não estiver legível, as linhas que citam problema ou org somem para o
+admin comum, e o resto do feed continua.

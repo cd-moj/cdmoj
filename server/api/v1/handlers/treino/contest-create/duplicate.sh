@@ -13,7 +13,7 @@ jq -e . >/dev/null 2>&1 <<<"$body" || fail 400 "JSON inválido" "bad_json"
 from="$(jq -r '.from // empty' <<<"$body")"
 { [[ -n "$from" ]] && valid_id "$from"; } || fail 400 "Informe from" "from_missing"
 cdir="$CONTESTSDIR/$from"
-cowner="$(head -1 "$cdir/owner" 2>/dev/null)"
+cowner="$(cc_contest_owner "$from")"   # owner › created-by (contest legado só tem o created-by)
 { [[ -f "$cdir/created-by" && -f "$cdir/conf" ]] && cc_contest_visible_to "$SESSION_LOGIN" "$cowner"; } \
   || fail 404 "Contest não encontrado" "notfound"
 
@@ -75,14 +75,7 @@ fi
 
 # quem duplica precisa poder VER cada problema (topo E rodadas planejadas): um .admin do treino
 # copiando um contest alheio herdaria os privados do dono — mesma guarda do create
-source "$_LIBDIR/problems.sh"
-pids="$(jq -c '[ (.problems[]?, .modules.rodadas.rounds[]?.problems[]?)
-                 | (.bank_id // .problem_id // "") | gsub("/";"#") | select(.!="") ] | unique' <<<"$spec")"
-if [[ "$pids" != "[]" ]]; then
-  denied="$(problems_denied_for "$SESSION_LOGIN" "$pids")" \
-    || fail 503 "Índice de problemas indisponível — tente de novo em instantes" "index_unavailable"
-  [[ -n "$denied" ]] && fail 404 "Problema não encontrado ou sem acesso ($(wc -w <<<"$denied") id(s))" "problem_denied"
-fi
+cc_spec_guard "$spec" "$SESSION_LOGIN"
 
 cc_create "$spec" "$SESSION_LOGIN" "$SESSION_NAME" "$srcdir"
 audit_log contest-create "duplicate from=$from id=$(jq -r '.contest_id' <<<"$CC_RESULT")"

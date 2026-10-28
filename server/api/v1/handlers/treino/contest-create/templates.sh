@@ -51,8 +51,9 @@ case "$op" in
     if [[ -n "$from" ]]; then
       valid_id "$from" || fail 422 "from_contest inválido" "from_invalid"
       cdir="$CONTESTSDIR/$from"
-      cowner="$(head -1 "$cdir/owner" 2>/dev/null)"
-      { [[ -f "$cdir/created-by" && -f "$cdir/conf" ]] && { is_admin || [[ -n "$cowner" && "$cowner" == "$SESSION_LOGIN" ]]; }; } \
+      cowner="$(cc_contest_owner "$from")"   # owner › created-by (contest legado só tem o created-by)
+      # a MESMA regra do export/duplicate (cc_contest_visible_to)
+      { [[ -f "$cdir/created-by" && -f "$cdir/conf" ]] && cc_contest_visible_to "$SESSION_LOGIN" "$cowner"; } \
         || fail 404 "Contest não encontrado" "notfound"
       src="$(cc_export_spec "$from" none)" || fail 500 "Falha ao ler o contest" "export_fail"
     else

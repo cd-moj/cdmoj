@@ -106,6 +106,16 @@ hook hk "$(ev alert.raised $M1 a0 usb.storage $((NOW-7200)))"
 ck "evento de 2 h atrás, bem assinado → 401 (frescor: o \`at\` está no corpo assinado)" '[[ "$OUT" == *"Status: 401"* && "$(LOGN)" == 0 ]]'
 hook hk "$(head -c 70000 /dev/zero | tr '\0' 'x')" "sha256=00"
 ck "corpo > 64 KiB → 413"             '[[ "$OUT" == *"Status: 413"* ]]'
+# o teto vem ANTES de olhar o contest: a mesma resposta p/ qualquer contest
+hook naoexiste "$(head -c 70000 /dev/zero | tr '\0' 'x')" "sha256=00"
+ck "corpo > 64 KiB p/ contest INEXISTENTE → o MESMO 413" '[[ "$OUT" == *"Status: 413"* ]]'
+# Content-Length mentiroso (pequeno) com corpo grande: a leitura é limitada e o teto vale igual
+OUT="$(PATH_INFO=/hooks/nutella REQUEST_METHOD=POST QUERY_STRING="contest=naoexiste" HTTP_X_NB_SIGNATURE="sha256=00" CONTENT_LENGTH=10 \
+  CONTESTSDIR="$FIX" SESSIONDIR="$SESS" bash "$ROUTER" < <(head -c 70000 /dev/zero | tr '\0' 'x') 2>&1)"
+R1="$OUT"
+OUT="$(PATH_INFO=/hooks/nutella REQUEST_METHOD=POST QUERY_STRING="contest=hk" HTTP_X_NB_SIGNATURE="sha256=00" CONTENT_LENGTH=10 \
+  CONTESTSDIR="$FIX" SESSIONDIR="$SESS" bash "$ROUTER" < <(head -c 70000 /dev/zero | tr '\0' 'x') 2>&1)"
+ck "Content-Length mentiroso: 413 igual p/ existente e inexistente" '[[ "$OUT" == *"Status: 413"* && "$R1" == *"Status: 413"* ]]'
 
 echo "== alerta bem assinado =="
 printf '%s\talice\t26tsca\t1001\t%s\n' "$M1" "$NOW" > "$C/var/nutella-macs.tsv"      # o elo publicado no login

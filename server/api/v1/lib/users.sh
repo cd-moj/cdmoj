@@ -62,6 +62,10 @@ account_field(){ jq -r "$3 // empty" "$(account_file "$1" "$2")" 2>/dev/null; }
 # account_merge <c> <login> <jq-filter> [jq-args...] — merge atômico no account.json.
 account_merge(){
   local c="$1" u="$2" filter="$3"; shift 3
+  # escrita de CREDENCIAL em conta de papel do treino: ver treino_role_write_ok (lib/auth.sh) — rc 77, nada gravado
+  if [[ "$filter" == *.password* ]] && declare -F treino_role_write_ok >/dev/null; then
+    treino_role_write_ok "$c" "$u" || return 77
+  fi
   local f; f="$(account_file "$c" "$u")"
   [[ -f "$f" ]] || return 1
   local tmp; tmp="$(mktemp "$f.XXXXXX")" || return 1
@@ -122,11 +126,13 @@ shared_overlay_ensure(){
 }
 
 # --- criação / senha ------------------------------------------------------
-# user_create <c> <login> <fullname> <password> [email] -> 0 ok | 2 já existe
-# NÃO valida sufixo de papel (isso é responsabilidade do handler/signup).
+# user_create <c> <login> <fullname> <password> [email] -> 0 ok | 2 já existe | 3 login inválido | 77 papel do treino
+# Sufixo de papel: o auto-cadastro o recusa no handler (signup); aqui só a regra do TREINO — conta de papel do treino,
+# numa requisição autenticada, só pelo super-admin ou pela própria conta (treino_role_write_ok, rc 77).
 user_create(){
   local c="$1" u="$2" name="$3" pw="$4" email="${5:-}"
   valid_login "$u" || return 3          # rede de segurança: login novo oculto/inválido (lib/common.sh valid_login)
+  { declare -F treino_role_write_ok >/dev/null && ! treino_role_write_ok "$c" "$u"; } && return 77   # conta de papel no treino
   local d; d="$(user_dir "$c" "$u")"
   [[ -f "$d/account.json" ]] && return 2
   mkdir -p "$d/submissions" "$d/mojlog" "$d/results" || return 1
