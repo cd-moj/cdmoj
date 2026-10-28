@@ -128,25 +128,27 @@ cc_settings_conf_lines(){
                (if ((.login_ua_substring // "") | tostring | length) > 0 then "maquinas" else empty end) ] | unique | join(",")' <<<"$spec" 2>/dev/null)"
   v="$(mod_normalize "$v")"; [[ -n "$v" ]] && printf 'CONTEST_MODULES=%q\n' "$v"
   # seções de módulo que viram VARIÁVEL de conf (o resto vira arquivo em cc_apply_modules_spec).
-  # Compat: `balloons_during_freeze` no topo (idioma do settings) também vale.
-  v="$(jq -r '(.modules.baloes.during_freeze // .balloons_during_freeze) == true' <<<"$spec" 2>/dev/null)"
+  # Compat: `balloons_during_freeze` no topo (idioma do settings) também vale. Seção de módulo com `on:false` não
+  # grava nada (a regra do `_sec`, 28/10/2026): `msec` lê a seção só de módulo que não está desligado.
+  local _msec='def msec($m; $k): (.modules[$m] // null) | if type == "object" and .on != false then .[$k] else null end;'
+  v="$(jq -r "$_msec"' (msec("baloes"; "during_freeze") // .balloons_during_freeze) == true' <<<"$spec" 2>/dev/null)"
   [[ "$v" == true ]] && printf 'BALLOONS_DURING_FREEZE=%q\n' 1
-  v="$(jq -r '.modules.maquinas.site_lock.enabled == true' <<<"$spec" 2>/dev/null)"
+  v="$(jq -r "$_msec"' msec("maquinas"; "site_lock").enabled == true' <<<"$spec" 2>/dev/null)"
   if [[ "$v" == true ]]; then
     printf 'SITE_LOCK=%q\n' 1
     v="$(jq -r '.modules.maquinas.site_lock.grace // empty' <<<"$spec" 2>/dev/null)"
     [[ "$v" =~ ^[0-9]+$ ]] && (( v <= 86400 )) && printf 'SITE_LOCK_GRACE=%q\n' "$v"
   fi
-  v="$(jq -r '.modules.maquinas.nutella_url // ""' <<<"$spec" 2>/dev/null)"; v="${v//[$'\n\r']/}"
+  v="$(jq -r "$_msec"' msec("maquinas"; "nutella_url") // ""' <<<"$spec" 2>/dev/null)"; v="${v//[$'\n\r']/}"
   [[ "$v" =~ ^https?://[A-Za-z0-9._:/-]+$ ]] && printf 'NUTELLABOOT_URL=%q\n' "$v"
   # janela de inscrição (mesmas chaves que admin/registrations grava)
   local k key
   for k in open:REG_OPEN close:REG_CLOSE late_minutes:REG_LATE_MINUTES team_max:REG_TEAM_MAX; do
-    key="${k#*:}"; v="$(jq -r ".modules.inscricoes.window.${k%%:*} // empty" <<<"$spec" 2>/dev/null)"
+    key="${k#*:}"; v="$(jq -r "$_msec"" msec(\"inscricoes\"; \"window\").${k%%:*} // empty" <<<"$spec" 2>/dev/null)"
     [[ "$v" =~ ^[0-9]+$ ]] && printf '%s=%q\n' "$key" "$v"
   done
-  v="$(jq -r '.modules.inscricoes.window.teams' <<<"$spec" 2>/dev/null)";       [[ "$v" == false ]] && printf 'REG_TEAMS=%q\n' n
-  v="$(jq -r '.modules.inscricoes.window.warmup_open' <<<"$spec" 2>/dev/null)"; [[ "$v" == true ]] && printf 'REG_WARMUP_OPEN=%q\n' y
+  v="$(jq -r "$_msec"' msec("inscricoes"; "window").teams' <<<"$spec" 2>/dev/null)";       [[ "$v" == false ]] && printf 'REG_TEAMS=%q\n' n
+  v="$(jq -r "$_msec"' msec("inscricoes"; "window").warmup_open' <<<"$spec" 2>/dev/null)"; [[ "$v" == true ]] && printf 'REG_WARMUP_OPEN=%q\n' y
   v="$(jq -r '.login_ua_substring // ""' <<<"$spec")"; v="${v//$'\n'/}"
   [[ -n "$v" ]] && printf 'LOGIN_UA_SUBSTRING=%q\n' "$v"
   v="$(jq -r '(.score_full_users // []) | map(select(type=="string" and test("^[A-Za-z0-9._@#+-]+$"))) | unique | join(" ")' <<<"$spec" 2>/dev/null)"
@@ -448,10 +450,12 @@ cc_create(){
   # configs visuais opcionais (mesmo formato que o placar lê; reeditáveis depois pelo admin do contest)
   # (spec UNIFICADO: a seção do módulo vence; `colors/regions/teams_meta` no topo = compat com
   # templates/exports antigos e com o spec sem módulos)
+  # Seção de módulo com `on:false` não grava (a regra do `_sec`, 28/10/2026); o `on` se testa com `!=`, nunca com `//`.
   local colors_j regions_j teams_j
-  colors_j="$(jq -c '.modules.baloes.colors // .colors // empty' <<<"$spec" 2>/dev/null)"
-  regions_j="$(jq -c '.modules.sedes.regions // .regions // empty' <<<"$spec" 2>/dev/null)"
-  teams_j="$(jq -c '.modules.sedes.teams_meta // .teams_meta // empty' <<<"$spec" 2>/dev/null)"
+  local _msec='def msec($m; $k): (.modules[$m] // null) | if type == "object" and .on != false then .[$k] else null end;'
+  colors_j="$(jq -c "$_msec"' msec("baloes"; "colors") // .colors // empty' <<<"$spec" 2>/dev/null)"
+  regions_j="$(jq -c "$_msec"' msec("sedes"; "regions") // .regions // empty' <<<"$spec" 2>/dev/null)"
+  teams_j="$(jq -c "$_msec"' msec("sedes"; "teams_meta") // .teams_meta // empty' <<<"$spec" 2>/dev/null)"
   [[ -n "$colors_j"  && "$colors_j"  != null ]] && printf '%s' "$colors_j"  > "$stg/balloons.json"
   if [[ -n "$regions_j" && "$regions_j" != null ]]; then
     cc_regions_ok "$regions_j" || { rm -rf "$stg"; cc_regions_fail; }
@@ -527,12 +531,17 @@ cc_apply_modules_spec(){
   # (senão nascia dado com o módulo desligado — aviso eterno do preflight).
   _sec(){ # <jq-path> <tipo> -> ecoa o valor compacto ou vazio; rc 1 se tipo errado
     local val mod; mod="$(cut -d. -f3 <<<"$1")"
-    [[ "$(jq -r --arg m "$mod" '.modules[$m].on // "" | tostring' <<<"$spec" 2>/dev/null)" == false ]] && return 0
+    # `on` testado com `==`, NUNCA com `//`: `false // ""` dá "" (o `//` trata false como ausente). Seção de módulo
+    # desligado não grava dado.
+    [[ "$(jq -r --arg m "$mod" 'if (.modules[$m] | type) == "object" and .modules[$m].on == false then "off" else "" end' \
+          <<<"$spec" 2>/dev/null)" == off ]] && return 0
     val="$(jq -c "$1 // empty" <<<"$spec" 2>/dev/null)"
     [[ -n "$val" ]] || return 0
     jq -e "type == \"$2\"" >/dev/null 2>&1 <<<"$val" || { CC_MOD_ERR="$1 deve ser $2"; return 1; }
     printf '%s' "$val"
-  }
+  }  # leitura DIRETA de uma seção (fora do _sec) segue a mesma regra: módulo `on:false` não tem seção
+  local _msec='def msec($m; $k): (.modules[$m] // null) | if type == "object" and .on != false then .[$k] else null end;'
+
   # regex tem de COMPILAR (regra quebrada é engolida por try/catch nos gates = regra muda) e
   # caber em 200 chars — a MESMA régua dos painéis (cohorts/time-overrides/ua-gate)
   _rx_all(){ # <jq-filter que lista as regex> <rótulo>
@@ -597,7 +606,7 @@ cc_apply_modules_spec(){
     jq -c '{caderno_version:((.caderno_version // "v1.0")|tostring), cover_note:((.cover_note // "")|tostring), errata:((.errata // "")|tostring), published:[]}' <<<"$v" > "$stg/docs/config.json"
   fi
   # inscricoes.enabled -> registrations.json vazio (existir = ligado, doutrina do cohorts.json)
-  v="$(jq -r '.modules.inscricoes.enabled == true' <<<"$spec" 2>/dev/null)"
+  v="$(jq -r "$_msec"' msec("inscricoes"; "enabled") == true' <<<"$spec" 2>/dev/null)"
   [[ "$v" == true ]] && printf '{"version":1,"teams":{},"entries":{}}\n' > "$stg/registrations.json"
   # telao.views -> webcast.json com CHAVES NOVAS (uma por view; a chave antiga nunca viaja)
   v="$(_sec '.modules.telao.views' array)" || return 1
@@ -605,7 +614,7 @@ cc_apply_modules_spec(){
     declare -F wc_newkey >/dev/null || source "$(dirname "${BASH_SOURCE[0]}")/webcast.sh"   # não está no prelúdio
     # só visão que vai EXISTIR: `public` ou uma coorte do MESMO spec com placar próprio (ranking)
     # ou privada — a mesma régua do webcast create (ch_views); chave p/ placar inexistente não nasce
-    local okviews; okviews="$(jq -r '["public"] + [ (.modules.coortes.cohorts // [])[]? | select(type=="object" and ((.public == false) or (.ranking == true))) | .id // empty ] | .[]' <<<"$spec" 2>/dev/null)"
+    local okviews; okviews="$(jq -r "$_msec"' ["public"] + [ (msec("coortes"; "cohorts") // [])[]? | select(type=="object" and ((.public == false) or (.ranking == true))) | .id // empty ] | .[]' <<<"$spec" 2>/dev/null)"
     local keys='[]' vw lb k
     while IFS=$'\t' read -r vw lb; do
       [[ -n "$vw" ]] || continue

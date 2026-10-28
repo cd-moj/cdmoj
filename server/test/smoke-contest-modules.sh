@@ -78,6 +78,22 @@ SPEC="$(jq -cn --argjson s "$((NOW+600))" --argjson e "$((NOW+4200))" '{id:"novo
 call /treino/contest-create/create POST "$SPEC" tadm ''
 ck "create: sucesso"                         '[[ "$(J .success)" == true ]]'
 ck "create: CONTEST_MODULES=maquinas,documentos (rodadas on:false fora)" '[[ "$(confmods "$FIX/novo1")" == "maquinas,documentos" ]]'
+# seção com `on:false` E dados: o módulo fica DESLIGADO e os DADOS também não são gravados (28/10/2026)
+SPEC5="$(jq -cn --argjson s "$((NOW+600))" --argjson e "$((NOW+4200))" '{id:"novooff", name:"Novo Off", mode:"icpc", start:$s, end:$e, allow_empty:true,
+  modules:{rodadas:{on:false, rounds:[{slug:"r1", start:$s, end:$e, problems:[]}]},
+           baloes:{on:false, colors:{A:"#f00"}, during_freeze:true},
+           maquinas:{on:false, nutella_url:"https://nb.exemplo", site_lock:{enabled:true}},
+           sedes:{on:false, regions:[{name:"X", regex:"^x"}]},
+           inscricoes:{on:false, enabled:true, window:{open:($s - 100), teams:false}}}}')"
+call /treino/contest-create/create POST "$SPEC5" tadm ''
+ck "create com on:false + dados: sucesso, nenhum módulo ligado" '[[ "$(J .success)" == true && "$(confmods "$FIX/novooff")" == "" ]]'
+ck "…e os dados dos módulos desligados NÃO foram gravados" '[[ ! -e "$FIX/novooff/rounds.json" && ! -e "$FIX/novooff/balloons.json" && ! -e "$FIX/novooff/regions.json" && ! -e "$FIX/novooff/registrations.json" ]]'
+ck "…nem as variáveis de conf deles"  '! grep -qE "^(BALLOONS_DURING_FREEZE|NUTELLABOOT_URL|SITE_LOCK|REG_OPEN|REG_TEAMS)=" "$FIX/novooff/conf"'
+# coorte de módulo DESLIGADO não existe p/ o telão: chave de webcast p/ placar que não vai existir não nasce
+SPEC6="$(jq -cn --argjson s "$((NOW+600))" --argjson e "$((NOW+4200))" '{id:"novooff2", name:"Novo Off 2", mode:"icpc", start:$s, end:$e, allow_empty:true,
+  modules:{coortes:{on:false, cohorts:[{id:"conv", ranking:true}]}, telao:{views:[{view:"conv", label:"Convidados"}]}}}')"
+call /treino/contest-create/create POST "$SPEC6" tadm ''
+ck "telão com view de coorte de módulo DESLIGADO = 422 (visão inexistente), contest não nasce" '[[ "$(J .error.code)" == modules_spec_invalid && "$(J .error.message)" == *conv* && ! -d "$FIX/novooff2" ]]'
 SPEC2="$(jq -cn --argjson s "$((NOW+600))" --argjson e "$((NOW+4200))" '{id:"novo2", name:"Novo 2", mode:"icpc", start:$s, end:$e, allow_empty:true,
   regions:[{name:"X", regex:"^x"}], colors:{A:"#f00"}}')"
 call /treino/contest-create/create POST "$SPEC2" tadm ''

@@ -1304,7 +1304,9 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   config/time-overrides/webcast/team-assets); GET nunca liga; desligar é sempre manual. Handler novo
   de módulo ⇒ `mod_enable` ao gravar + asserção no `smoke-contest-modules.sh` (seção mod_enable). Rota `admin/modules` GET/POST; `basic` e
   `settings` expõem `modules[]`. **Spec UNIFICADO** (`cc_apply_modules_spec`/`cc_modules_spec` em
-  `lib/contest-create.sh`): `spec.modules = {id: true | {on?, …seção…}}` — cada seção grava pelo
+  `lib/contest-create.sh`): `spec.modules = {id: true | {on?, …seção…}}` — seção com `on:false` não liga o módulo
+  NEM grava os dados/variáveis dela (`_sec` e o `msec` do conf; o `on` se testa com `!=`/`==`, nunca com `//`, porque
+  `false // ""` dá "") — cada seção grava pelo
   MESMO arquivo/conf que o painel edita (formato no cabeçalho da função); export devolve só módulos
   ligados, dados reeditáveis, NUNCA segredo (chave nutellaboot, chaves de webcast → o create gera
   chaves NOVAS a partir de `views`); template tira `rounds/active/time_overrides`; duplicate desloca
