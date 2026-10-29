@@ -70,4 +70,13 @@ OUT="$(PATH_INFO=/treino/admin/managed-create REQUEST_METHOD=POST HTTP_AUTHORIZA
 BODY="$(printf '%s' "$OUT" | awk 'f{print} /^\r?$/{f=1}')"
 ck "conta gerida de 'João … Ávila' = joao.avila" '[[ "$(J .created[0].login)" == joao.avila ]]'
 
+echo "== login de conta gerida × nome de org do treino =="
+# o derivado pula o nome de uma org (vira ana.souza2); o dado igual ao nome de uma org de outra conta = "login já existe"
+echo '{"ana.souza":{"members":["chefe.admin"],"admins":["chefe.admin"]}}' > "$TR/var/orgs.json"
+OUT="$(PATH_INFO=/treino/admin/managed-create REQUEST_METHOD=POST HTTP_AUTHORIZATION="Bearer tadm" SESSIONDIR="$SESS" \
+  bash "$ROUTER" <<<'{"users":[{"fullname":"Ana Souza","birthdate":"2014-01-01"},{"fullname":"Ana S","birthdate":"2014-01-01","login":"ana.souza"}]}' 2>&1)"
+BODY="$(printf '%s' "$OUT" | awk 'f{print} /^\r?$/{f=1}')"
+ck "derivado pula o nome da org (ana.souza2)"   '[[ "$(J .created[0].login)" == ana.souza2 && ! -d "$TR/users/ana.souza" ]]'
+ck "login dado = nome da org → login já existe" '[[ "$(J .skipped[0].login)" == ana.souza && "$(J .skipped[0].reason)" == "login já existe" ]]'
+
 echo ""; echo "RESULT: $pass passed, $fail failed"; exit $(( fail>0?1:0 ))

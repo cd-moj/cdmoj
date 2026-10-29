@@ -50,14 +50,17 @@ while IFS= read -r item; do
   if [[ -n "$login" ]]; then
     valid_login "$login" || { _skip "login inválido"; continue; }
     is_reserved_role_login "$login" && { _skip "login com sufixo de papel"; continue; }
-    { [[ -n "${TAKEN[$login]:-}" ]] || user_exists treino "$login"; } && { _skip "login já existe"; continue; }
+    { [[ -n "${TAKEN[$login]:-}" ]] || user_exists treino "$login" || login_blocked_by_org "$login" "$login"; } \
+      && { _skip "login já existe"; continue; }
   else
     base="$(_slug "$fullname")" login="$base" n=1
-    while [[ -n "${TAKEN[$login]:-}" ]] || user_exists treino "$login"; do
+    # nome de org do treino conta como ocupado (login_blocked_by_org sem <quem>: o derivado nunca herda o nome)
+    while [[ -n "${TAKEN[$login]:-}" ]] || user_exists treino "$login" || login_blocked_by_org "$login"; do
       (( n++ )); login="${base}${n}"
       (( n > 999 )) && break
     done
-    { [[ -n "${TAKEN[$login]:-}" ]] || user_exists treino "$login"; } && { _skip "não achei login livre"; continue; }
+    { [[ -n "${TAKEN[$login]:-}" ]] || user_exists treino "$login" || login_blocked_by_org "$login"; } \
+      && { _skip "não achei login livre"; continue; }
   fi
 
   pw="$(user_genpass)"

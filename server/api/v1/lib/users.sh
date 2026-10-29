@@ -126,13 +126,25 @@ shared_overlay_ensure(){
 }
 
 # --- criação / senha ------------------------------------------------------
-# user_create <c> <login> <fullname> <password> [email] -> 0 ok | 2 já existe | 3 login inválido | 77 papel do treino
+# user_create <c> <login> <fullname> <password> [email] -> 0 ok | 2 já existe (conta, ou org do treino com o nome) |
+#   3 login inválido | 77 papel do treino
 # Sufixo de papel: o auto-cadastro o recusa no handler (signup); aqui só a regra do TREINO — conta de papel do treino,
 # numa requisição autenticada, só pelo super-admin ou pela própria conta (treino_role_write_ok, rc 77).
+# login_blocked_by_org <login> [<quem>] — 0 se já existe uma org do treino com esse nome que não é de <quem> (admin
+# dela). O nome de um login é o da org pessoal dele (ensure_implicit_org, lib/orgs.sh, aceita a org que já existe),
+# então ele fica reservado: cadastro, troca de handle, promoção e criação de conta pelo admin respondem "em uso".
+# <quem> = o próprio login nas portas do admin e no user_create: a org pessoal de uma conta removida não impede
+# recriá-la; o cadastro (signup, tg_unique_login) não passa <quem> e nunca herda o nome; o rename passa o login atual.
+login_blocked_by_org(){
+  local reg="$CONTESTSDIR/treino/var/orgs.json"; [[ -s "$reg" ]] || return 1
+  jq -e --arg n "$1" --arg w "${2:-}" 'has($n) and ($w == "" or (((.[$n].admins // []) | index($w)) == null))' \
+    "$reg" >/dev/null 2>&1
+}
 user_create(){
   local c="$1" u="$2" name="$3" pw="$4" email="${5:-}"
   valid_login "$u" || return 3          # rede de segurança: login novo oculto/inválido (lib/common.sh valid_login)
   { declare -F treino_role_write_ok >/dev/null && ! treino_role_write_ok "$c" "$u"; } && return 77   # conta de papel no treino
+  [[ "$c" == treino ]] && login_blocked_by_org "$u" "$u" && return 2   # nome de org de outra conta = "já existe"
   local d; d="$(user_dir "$c" "$u")"
   [[ -f "$d/account.json" ]] && return 2
   mkdir -p "$d/submissions" "$d/mojlog" "$d/results" || return 1
@@ -435,7 +447,7 @@ metrics_solved_count(){
 }
 
 # --- rename = mv do diretório --------------------------------------------
-# user_rename <c> <old> <new> -> 0 ok | 1 sem origem | 2 destino existe
+# user_rename <c> <old> <new> -> 0 ok | 1 sem origem | 2 destino existe (conta, ou org do treino que não é de <old>) | 3 inválido
 # (O caller — handler de username — cuida do limite 2/ano, uname_changes, sessão e,
 #  no treino, dos índices Telegram. Aqui: mv + login no account.json.)
 user_rename(){
@@ -444,6 +456,7 @@ user_rename(){
   local od nd; od="$(user_dir "$c" "$old")"; nd="$(user_dir "$c" "$new")"
   [[ -d "$od" ]] || return 1
   [[ -e "$nd" ]] && return 2
+  [[ "$c" == treino ]] && login_blocked_by_org "$new" "$old" && return 2   # nome de org que não é dele = em uso
   mv "$od" "$nd" || return 1
   account_merge "$c" "$new" '.login=$l|.updated_at=$t' --arg l "$new" --argjson t "$EPOCHSECONDS"
   # o handle aparece em placar/home/estatísticas — os caches preguiçosos (gate .score-dirty)

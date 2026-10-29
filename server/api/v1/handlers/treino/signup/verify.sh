@@ -57,4 +57,5 @@ university="$(jq -r '.university // empty' <<<"$pj")"
 [[ -n "$university" ]] && account_merge treino "$login" '.university=$u|.updated_at=$t' --arg u "$university" --argjson t "$EPOCHSECONDS"
 tg_link treino "$tgid" "$login" "$uname" signup || { fail 409 "Telegram já vinculado" "tg_conflict"; }
 tg_nonce_done "$nonce" created "$login"
+SESSION_LOGIN="$login" audit_log "signup" "via=site"
 ok_json '{status:"created", login:$l, password:$p}' --arg l "$login" --arg p "$pw"

@@ -17,7 +17,9 @@ is_admin || fail 403 "Admin only" "admin_required"
 [[ "$end_epoch" =~ ^[0-9]+$ ]] || fail 400 "Invalid end_epoch" "end_invalid"
 
 conf="$CONTESTSDIR/$contest/conf"
+conf_value_to prev "$contest" CONTEST_END
 printf 'CONTEST_END=%s\n' "$end_epoch" >> "$conf"
+audit_log_to "$contest" contest-extend "de=${prev:-?} para=$end_epoch"
 
 ok_json '{action:"extend", contest:$c, end_epoch:$e}' \
   --arg c "$contest" --argjson e "$end_epoch"

@@ -23,13 +23,15 @@
 [[ "${REQUEST_METHOD:-GET}" == POST ]] || fail 405 "POST only" "method_not_allowed"
 _hk_deny(){ fail 401 "unauthorized" "unauthorized"; }
 # o TETO vem ANTES de olhar o contest: a resposta ao corpo grande é a mesma p/ qualquer contest. A leitura é
-# LIMITADA (head -c) — um Content-Length mentiroso não estica o arquivo.
+# LIMITADA (head -c) — um Content-Length mentiroso não estica o arquivo. Antes do 413 o resto do corpo é consumido
+# (até 4 MiB): o fcgiwrap entrega o corpo ao script, e o script que sai sem lê-lo vira 502 no nginx.
+_hk_big(){ head -c 4194304 >/dev/null 2>&1; fail 413 "payload too large" "too_large"; }
 _cl="${CONTENT_LENGTH:-0}"; [[ "$_cl" =~ ^[0-9]+$ ]] || _cl=0
-(( _cl <= 65536 )) || fail 413 "payload too large" "too_large"
+(( _cl <= 65536 )) || _hk_big
 bf="$(mktemp)"
 trap 'rm -f "$bf"' EXIT
 head -c 65537 > "$bf"
-[[ "$(stat -c %s "$bf" 2>/dev/null || echo 0)" -le 65536 ]] || fail 413 "payload too large" "too_large"
+[[ "$(stat -c %s "$bf" 2>/dev/null || echo 0)" -le 65536 ]] || _hk_big
 contest="$(param contest)"
 { [[ -n "$contest" ]] && valid_id "$contest" && [[ -d "$CONTESTSDIR/$contest" ]]; } || _hk_deny
 cdir="$CONTESTSDIR/$contest"

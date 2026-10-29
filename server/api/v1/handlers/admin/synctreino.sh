@@ -11,5 +11,6 @@ ID="$(printf '%s%s%s' "$SESSION_LOGIN" "$AGORA" "$RANDOM" | md5sum | cut -d' ' -
 mkdir -p "$SPOOLDIR"
 spoolname="treino:$AGORA:$ID:$SESSION_LOGIN:synctreino:"
 : > "$SPOOLDIR/$spoolname"
+audit_log "synctreino" "id=$ID"
 
 ok_json '{action:"synctreino", id:$id, status:"queued"}' --arg id "$ID"

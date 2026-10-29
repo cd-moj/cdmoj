@@ -11,5 +11,6 @@ run="$(param run)"; i="$(param i)"
 [[ "$i" =~ ^[0-9]{1,5}$ ]] || fail 400 "índice inválido" "i_invalid"
 f="$CONTESTSDIR/$contest/jplag/$run/out/match$i.html"
 [[ -f "$f" ]] || fail 404 "Comparação não encontrada" "match_notfound"
+audit_log_to "$contest" jplag-view "run=$run i=$i"   # quem abriu o lado a lado das soluções
 respond 200 OK "text/html; charset=utf-8"
 cat "$f"

@@ -38,6 +38,13 @@ run bia bia.admin --apply
 ck "login novo já existe = recusa"             '[[ $RC != 0 && "$OUT" == *"já existe"* && -d "$T/users/bia" ]]'
 run ninguem ninguem.admin --apply
 ck "conta inexistente = recusa"                '[[ $RC != 0 && "$OUT" == *"não existe"* ]]'
+# o nome de uma org do treino que não é da conta = em uso (login_blocked_by_org), no script e na cascata (user_rename)
+jq '. + {"bia.judge":{members:["eri"], admins:["eri"]}}' "$T/var/orgs.json" > "$T/var/orgs.json.n" && mv "$T/var/orgs.json.n" "$T/var/orgs.json"
+run bia bia.judge --apply
+ck "promover p/ o nome de uma org de outra conta = recusa"   '[[ $RC != 0 && "$OUT" == *"org do treino"* && -d "$T/users/bia" && ! -e "$T/users/bia.judge" ]]'
+OUT="$( _DIR="$ROOT/api/v1"; source "$_DIR/lib/sources.sh" >/dev/null 2>&1; user_rename treino bia bia.judge; echo "rc=$?" )"
+ck "user_rename p/ o nome de uma org de outra conta = rc 2"  '[[ "$OUT" == *"rc=2"* && -d "$T/users/bia" && ! -e "$T/users/bia.judge" ]]'
+jq 'del(.["bia.judge"])' "$T/var/orgs.json" > "$T/var/orgs.json.n" && mv "$T/var/orgs.json.n" "$T/var/orgs.json"
 run pend pend.admin --apply
 ck "submissão pendente = recusa"               '[[ $RC != 0 && "$OUT" == *"pendente"* && -d "$T/users/pend" ]]'
 

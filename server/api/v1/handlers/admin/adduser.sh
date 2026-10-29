@@ -26,7 +26,8 @@ valid_login "$login" || fail 400 "Invalid login" "login_invalid"
 
 treino_role_write_ok "$contest" "$login" \
   || fail 403 "Conta de papel no treino: só o super-admin da plataforma" "superadmin_required"
-user_exists "$contest" "$login" && fail 409 "User already exists" "user_exists"
+{ user_exists "$contest" "$login" || { [[ "$contest" == treino ]] && login_blocked_by_org "$login" "$login"; }; } \
+  && fail 409 "User already exists" "user_exists"
 
 [[ -n "$password" ]] || password="$(tr -dc 'a-z0-9' </dev/urandom 2>/dev/null | head -c 10)"
 [[ "$password" == *:* || "$password" == *$'\n'* ]] && fail 400 "Invalid password" "password_invalid"

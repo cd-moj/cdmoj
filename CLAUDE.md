@@ -791,7 +791,7 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   rotação MENSAL pelo nome; separado do admin-audit, que é dominado por tl-report). O feed
   `GET /treino/admin/activity-log` (aba 📜 Atividade) unifica 6 fontes + `format=csv`.
   **Evento novo de leitura ⇒ instrumente com `activity_log`** (login/submit/verdict já são
-  deriváveis de access.log/history/results — não duplique). Leituras da AUTORIA (28/10/2026): `pkg-source`,
+  deriváveis de access.log/history/results — não duplique). Leituras da AUTORIA (28/10/2026): `pkg-source`, `pkg-test`,
   `pkg-diff`, `calib-report-view`, `testrun-report-view` (download/export já iam ao admin-audit); evento novo ganha
   rótulo pt/en/es no `RACT` de `web/treino/admin/admin.js`. `audit_log`/`activity_log` de sessão de OUTRO contest
   terminam em ` sess=<contest>` (4/5 colunas de sempre): o login sozinho não separa o `<criador>.admin` de cada
@@ -1547,6 +1547,18 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
     `account.json`).
   Testes nos smokes de cada rota (contest-create, handlers, orgs, store-v2, contest-templates, nutella-hook,
   open-training, cross-contest-identity).
+  **Trilhas (28/10/2026):** contas do treino — `username-change`, `password-change` (com IP; as outras sessões DO
+  TREINO caem, a da requisição fica: `RCS_KEEP_TOKEN` no `remove_contest_sessions`), `password-recover` (caem TODAS:
+  `remove_account_sessions` — treino, contests com `USERS_FROM=treino` e time em que ela é o ator) e `signup`;
+  plataforma — `synctreino`; contest — `set-verdict` (quem pediu), `contest-extend`, `rejudge` pelo `/admin/rejudge` e
+  `jplag-view`; leitura de teste do pacote = `pkg-test`. **Login NOVO igual ao nome de uma org do treino que não é dele =
+  "em uso"** em toda porta (`login_blocked_by_org <login> [<quem>]`, lib/users.sh): signup e `tg_unique_login` (sem
+  `<quem>`: o cadastro nunca herda o nome), troca de handle, promoção e `user_rename` (`<quem>` = o login atual),
+  `user_create`, `adduser`/`user-add`/`users-bulk` e `managed-create` com login dado (`<quem>` = o próprio: a org
+  pessoal de uma conta removida não impede recriá-la) e o login derivado do `managed-create` (sem `<quem>`). Sufixo de
+  papel (`is_reserved_role_login`) é só de LOGIN: `/orgs/create` e `/problems/repo-create` o recusam em org nova (a
+  implícita de uma conta de papel segue nascendo pelo `ensure_implicit_org`). O `org-delete` sai dos feeds p/ quem não é
+  super. O webhook do nutella consome o excesso do corpo (até 4 MiB) antes do 413.
 - **Painel do treino › Contests (2026-09-15)**: `SUPERADMINS` no conf do TREINO (logins; sem UI de
   propósito) ⇒ `superadmin_login`/`is_superadmin` (`lib/auth.sh`). **`cc_contest_visible_to <viewer>
   <owner>`** (`lib/contest-create.sh`) é a FONTE ÚNICA de "quem vê o contest de quem" — super-admin

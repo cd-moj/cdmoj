@@ -29,6 +29,9 @@ case "$pass$email" in *:*) fail 422 "senha/email não podem conter ':'" "colon";
 # account.json é a fonte (auth/placar leem direto dele)
 teamj="$(team_fields_json "$body")"
 RESET=0
+# no treino, nome de org de outra conta conta como login em uso (a regra do user_create)
+[[ "$contest" == treino ]] && ! user_exists "$contest" "$login" && login_blocked_by_org "$login" "$login" \
+  && fail 409 "Login já em uso" "user_exists"
 if user_exists "$contest" "$login"; then
   # reset de senha = reabilitar (tira a marca `disabled`) E derrubar as sessões abertas: o token antigo de uma conta
   # com senha vazada seguia valendo (auditoria do painel, 03/10/2026)

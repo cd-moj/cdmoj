@@ -20,6 +20,9 @@ elif user_exists treino "$repo"; then
   # o nome de um LOGIN é o da org pessoal (implícita) dele, criada sob demanda: fica reservado p/ o dono —
   # mesma regra de /orgs/create
   fail 409 "Nome reservado: é o login de uma conta do treino" "name_is_login"
+elif is_reserved_role_login "$repo"; then
+  # sufixo de papel é só de LOGIN — mesma regra de /orgs/create
+  fail 400 "Nome de org inválido (sufixo de papel é só de login)" "repo_invalid"
 fi
 org_register "$repo" "$SESSION_LOGIN"
 coll_register "$repo" "$SESSION_LOGIN"   # coleção homônima (agrupamento default do id) fica válida

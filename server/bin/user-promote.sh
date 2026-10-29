@@ -37,6 +37,7 @@ _role(){ case "$1" in *.admin) echo admin;; *.cjudge) echo cjudge;; *.judge) ech
 [[ "$(_role "$NEW")" != "$(_role "$OLD")" ]] || { echo "RECUSADO: '$OLD' já tem o papel $(_role "$OLD")" >&2; exit 2; }
 user_exists treino "$OLD" || { echo "RECUSADO: a conta '$OLD' não existe no treino" >&2; exit 1; }
 user_exists treino "$NEW" && { echo "RECUSADO: '$NEW' já existe no treino" >&2; exit 1; }
+login_blocked_by_org "$NEW" "$OLD" && { echo "RECUSADO: '$NEW' é o nome de uma org do treino" >&2; exit 1; }
 if [[ -n "$MSG" ]]; then [[ -s "$MSG" ]] || { echo "RECUSADO: --message-file vazio ou inexistente: $MSG" >&2; exit 2; }; fi
 
 tg="$(tg_id_of_login treino "$OLD" 2>/dev/null)"

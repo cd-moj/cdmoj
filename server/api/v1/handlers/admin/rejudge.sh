@@ -19,18 +19,23 @@ mapfile -t IDS < <(jq -r '(.ids // []) | (if type=="array" then .[] else . end) 
 
 if (( ${#IDS[@]} > 0 )); then
   declare -a QUEUED
+  # a lista inteira é conferida antes do 1º pedido ir ao spool: ou entram todos (e a trilha os registra), ou nenhum
+  for subid in "${IDS[@]}"; do
+    [[ -z "$subid" ]] || valid_id "$subid" || fail 400 "Invalid submission id: $subid" "id_invalid"
+  done
   for subid in "${IDS[@]}"; do
     [[ -n "$subid" ]] || continue
-    valid_id "$subid" || fail 400 "Invalid submission id: $subid" "id_invalid"
     : > "$SPOOLDIR/$contest:$AGORA:$subid:$SESSION_LOGIN:rejulgar:$subid"
     QUEUED+=("$subid")
   done
+  audit_log_to "$contest" rejudge "ids=$(IFS=,; echo "${QUEUED[*]}" | head -c 300) count=${#QUEUED[@]} via=admin"
   ok_json '{action:"rejudge", queued:$q, count:($q|length)}' \
     --argjson q "$(printf '%s\n' "${QUEUED[@]}" | jq -R . | jq -cs 'map(select(length>0))')"
 elif [[ -n "$problem" ]]; then
   valid_id "$problem" || fail 400 "Invalid problem id" "problem_invalid"
   ID="$(printf '%s%s%s' "$contest" "$AGORA" "$RANDOM" | md5sum | cut -d' ' -f1)"
   : > "$SPOOLDIR/$contest:$AGORA:$ID:$SESSION_LOGIN:rejulgarproblema:$problem"
+  audit_log_to "$contest" rejudge-problem "prob=$problem via=admin"
   ok_json '{action:"rejudge", problem:$p, status:"queued"}' --arg p "$problem"
 else
   fail 400 "Missing ids or problem" "rejudge_target_missing"

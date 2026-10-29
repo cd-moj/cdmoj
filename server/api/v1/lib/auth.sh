@@ -262,7 +262,8 @@ remove_contest_sessions(){
   printf '%s' "${n:-0}"
 }
 # remove_contest_sessions_v <contest> [login…] -> uma linha por sessão removida:
-# token \t login \t mkey  (p/ quem precisa registrar o evento — logout-user, logout-mismatch)
+# token \t login \t mkey  (p/ quem precisa registrar o evento — logout-user, logout-mismatch).
+# `RCS_KEEP_TOKEN=<token>` no ambiente poupa essa sessão (troca da própria senha: as OUTRAS caem).
 #
 # COM login: PRÉ-FILTRO POR TEXTO — UM `grep` sobre o diretório inteiro acha os arquivos com a linha
 # `LOGIN=<login>` (a forma que o create_session grava, `%q`, e a crua), e só ESSES são lidos por
@@ -282,6 +283,7 @@ remove_contest_sessions_v(){
     CONTEST=""; LOGIN=""; MKEY=""; source "$f" 2>/dev/null
     [[ "$CONTEST" == "$c" ]] || continue
     if (( ${#want[@]} )); then [[ -n "$LOGIN" && -n "${W[$LOGIN]:-}" ]] || continue; fi
+    [[ -n "${RCS_KEEP_TOKEN:-}" && "${f##*/}" == "$RCS_KEEP_TOKEN" ]] && continue   # a sessão de quem pediu fica
     rm -f "$f" && printf '%s\t%s\t%s\n' "${f##*/}" "$LOGIN" "$MKEY"
   done < <(if (( ${#want[@]} )); then
              find "$SESSIONDIR" -maxdepth 1 -type f -print0 2>/dev/null | xargs -0 -r grep -lxZF "${pats[@]}" 2>/dev/null
@@ -289,6 +291,26 @@ remove_contest_sessions_v(){
              sess_files_of "$c"
            fi)
   return 0
+}
+
+# remove_account_sessions <fonte> <login> -> nº de sessões removidas: TODAS as da conta <login> de <fonte> — no
+# contest <fonte> e nos que herdam os usuários dela (USERS_FROM), em que ela é o LOGIN ou o ATOR (time por alias).
+# A população do rename_contest_sessions, com o pré-filtro por texto do remove_contest_sessions_v.
+# `RCS_KEEP_TOKEN=<token>` poupa a sessão de quem pediu.
+remove_account_sessions(){
+  local src="$1" w="$2" q n=0 f CONTEST LOGIN USERFULLNAME LOGINAT IP UA_B64 MKEY ACTOR
+  [[ -n "$src" && -n "$w" ]] || { printf '0'; return 0; }
+  printf -v q '%q' "$w"
+  while IFS= read -r -d '' f; do
+    [[ -f "$f" ]] || continue
+    CONTEST=""; LOGIN=""; ACTOR=""; source "$f" 2>/dev/null
+    [[ -n "$CONTEST" && ( "$LOGIN" == "$w" || "$ACTOR" == "$w" ) ]] || continue
+    [[ "$(_users_source "$CONTEST")" == "$src" ]] || continue
+    [[ -n "${RCS_KEEP_TOKEN:-}" && "${f##*/}" == "$RCS_KEEP_TOKEN" ]] && continue
+    rm -f "$f" && ((n++))
+  done < <(find "$SESSIONDIR" -maxdepth 1 -type f -print0 2>/dev/null \
+             | xargs -0 -r grep -lxZF -e "LOGIN=$q" -e "LOGIN=$w" -e "ACTOR=$q" -e "ACTOR=$w" 2>/dev/null)
+  printf '%s' "$n"
 }
 
 # rename_contest_sessions <contest> <old> <new> -> ecoa o nº de sessões reescritas.

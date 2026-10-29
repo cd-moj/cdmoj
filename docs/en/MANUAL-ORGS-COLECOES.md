@@ -1,4 +1,4 @@
-<!-- i18n-source: MANUAL-ORGS-COLECOES.md blob:9aac199c01a6f43778c4f0e5f7bc9771264c685b -->
+<!-- i18n-source: MANUAL-ORGS-COLECOES.md blob:0316723d17931b8e508b1b4a8bdf7ed9c13afcdc -->
 # Managing orgs and collections (manual for problem managers)
 
 > **Translation note.** This manual is a translation of the Portuguese original. The command-line tools (`moj`, `moj-contest`, `moj-comp`) print their messages in Portuguese, and the command examples below are identical to the original.
@@ -35,7 +35,7 @@ This org is always private. Your drafts stay there if you do not create another 
 
 ### Create an org
 
-An org usually represents a **course, class or competition** (for example, one for each semester of a course, or one for each olympiad). The name is **lowercase, with no spaces**, because it is the **prefix of the id** `<org>#<prob>` (`^[a-z0-9][a-z0-9._-]{1,63}$`). The *contest* id becomes a subdomain, not the org. To create an org, you need the **same permission** that you need to create a problem or a contest.
+An org usually represents a **course, class or competition** (for example, one for each semester of a course, or one for each olympiad). The name is **lowercase, with no spaces**, because it is the **prefix of the id** `<org>#<prob>` (`^[a-z0-9][a-z0-9._-]{1,63}$`), and it does not end in a role suffix (`.admin`, `.judge`, `.staff`…), which belongs only to logins. The *contest* id becomes a subdomain, not the org. To create an org, you need the **same permission** that you need to create a problem or a contest.
 
 | Web (Problem Management) | CLI |
 |---|---|

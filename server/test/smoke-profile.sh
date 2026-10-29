@@ -57,6 +57,10 @@ echo "== senha =="
 call /treino/profile/password POST '{"old_password":"secret","new_password":"novasenha"}'
 ck "senha trocada"    '[[ "$(jq -r .updated <<<"$BODY")" == "true" ]]'
 ck "account password" '[[ "$(jq -r .password "$T/users/alice/account.json")" == "novasenha" ]]'
+ck "as OUTRAS sessões da conta caem (o outro dispositivo), a desta requisição fica" '[[ ! -f "$SESS/tok-cli" && -f "$SESS/$TOK" ]]'
+ck "…só no treino: a do contest que usa as contas do treino e a do homônimo de outro contest ficam" '[[ -f "$SESS/tok-xcont" && -f "$SESS/tok-outro" ]]'
+ck "a troca vai à trilha, com o IP" 'grep -qP "\talice\tpassword-change\tip=" "$T/var/admin-audit.log"'
+mksess tok-cli treino alice "Alice Tester"   # o outro dispositivo loga de novo (com a senha nova)
 call /treino/profile/password POST '{"old_password":"ERRADA","new_password":"x"}'
 ck "senha velha errada -> 403" '[[ "$OUT" == *"Status: 403"* ]]'
 
@@ -72,9 +76,15 @@ for n in '.....' '..' '.x' '-rf' 'a..b'; do
   call /treino/profile/username POST "{\"new_username\":\"$n\"}"
   ck "[$n] recusado (400 uname_invalid) e nada mudou" '[[ "$(jq -r .error.code <<<"$BODY")" == uname_invalid && -d "$T/users/alice" && ( "$n" == ".." || ! -e "$T/users/$n" ) ]]'
 done
+# nome de uma org do treino que não é dela = "em uso" (o nome de um login é o da org pessoal dele)
+_O="$T/var/orgs.json"; [[ -s "$_O" ]] || echo '{}' > "$_O"
+jq '. + {"orgdeoutro":{"members":["bob"],"admins":["bob"],"created_by":"bob"}}' "$_O" > "$_O.t" && mv "$_O.t" "$_O"
+call /treino/profile/username POST '{"new_username":"orgdeoutro"}'
+ck "handle igual ao nome de uma org alheia = 409 uname_taken" '[[ "$(jq -r .error.code <<<"$BODY")" == uname_taken && -d "$T/users/alice" ]]'
 echo "== troca de username (rename = mv do diretório) =="
 call /treino/profile/username POST '{"new_username":"alice2"}'
 ck "username trocado"     '[[ "$(jq -r .new_username <<<"$BODY")" == "alice2" ]]'
+ck "a troca vai à trilha (de/para)" 'grep -qP "\talice\tusername-change\tde=alice para=alice2 " "$T/var/admin-audit.log"'
 ck "diretório renomeado"  '[[ -d "$T/users/alice2" && ! -e "$T/users/alice" ]]'
 ck "account login = alice2" '[[ "$(jq -r .login "$T/users/alice2/account.json")" == "alice2" ]]'
 ck "history preservado (2 linhas)" '[[ "$(wc -l < "$T/users/alice2/history")" == 2 ]]'

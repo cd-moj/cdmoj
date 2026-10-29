@@ -84,6 +84,11 @@ call /orgs/create POST ali "" '{"name":"bob"}'
 ck "/orgs/create com nome = login de outra conta → 409 name_is_login" 'grep -q "name_is_login" <<<"$BODY" && ! jq -e ".bob" "$ORGS" >/dev/null 2>&1'
 call /problems/repo-create POST ali "" '{"repo":"bob"}'
 ck "/problems/repo-create idem"               'grep -q "name_is_login" <<<"$BODY" && ! jq -e ".bob" "$ORGS" >/dev/null 2>&1'
+# sufixo de papel é só de login: org NOVA com ele é recusada nas duas rotas
+call /orgs/create POST ali "" '{"name":"novo.judge"}'
+ck "/orgs/create com sufixo de papel → 400 name_invalid" '[[ "$OUT" == *"Status: 400"* ]] && grep -q "name_invalid" <<<"$BODY" && ! jq -e ".[\"novo.judge\"]" "$ORGS" >/dev/null 2>&1'
+call /problems/repo-create POST ali "" '{"repo":"bob.admin"}'
+ck "/problems/repo-create com sufixo de papel → 400 repo_invalid" '[[ "$OUT" == *"Status: 400"* ]] && grep -q "repo_invalid" <<<"$BODY" && ! jq -e ".[\"bob.admin\"]" "$ORGS" >/dev/null 2>&1'
 # o org_register nunca liga public_allowed numa org IMPLÍCITA (qualquer caminho que o chame)
 call /orgs/list GET ali ""   # garante a implícita "alice"
 ( _DIR="$ROOT/api/v1"; source "$_DIR/lib/sources.sh" 2>/dev/null; source "$_DIR/lib/orgs.sh"

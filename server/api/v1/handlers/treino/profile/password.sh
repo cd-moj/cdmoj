@@ -13,4 +13,8 @@ verify_password treino "$login" "$old" || fail 403 "Senha atual incorreta" "bad_
 (( ${#new} >= 4 )) || fail 400 "Senha muito curta (mínimo 4 caracteres)" "pass_short"
 
 user_set_password treino "$login" "$new" || fail 500 "Falha ao salvar a senha" "save_fail"
+# as OUTRAS sessões da conta NO TREINO caem (a desta requisição fica; as de prova em contest que usa as contas do
+# treino seguem — a pessoa pode estar no meio dela); a troca vai à trilha, com o IP
+nout="$(RCS_KEEP_TOKEN="${SESSION_TOKEN:-}" remove_contest_sessions treino "$login")"
+audit_log "password-change" "ip=$(client_ip) sessoes_encerradas=${nout:-0}"
 ok_json '{updated:true}'

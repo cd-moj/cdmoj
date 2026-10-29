@@ -116,6 +116,14 @@ R1="$OUT"
 OUT="$(PATH_INFO=/hooks/nutella REQUEST_METHOD=POST QUERY_STRING="contest=hk" HTTP_X_NB_SIGNATURE="sha256=00" CONTENT_LENGTH=10 \
   CONTESTSDIR="$FIX" SESSIONDIR="$SESS" bash "$ROUTER" < <(head -c 70000 /dev/zero | tr '\0' 'x') 2>&1)"
 ck "Content-Length mentiroso: 413 igual p/ existente e inexistente" '[[ "$OUT" == *"Status: 413"* && "$R1" == *"Status: 413"* ]]'
+# o 413 consome o corpo (até 4 MiB): o fcgiwrap entrega o corpo ao script, e o script que sai sem lê-lo vira 502 no nginx.
+# Prova: quem escreve o corpo no pipe termina sem SIGPIPE (status 0, não 141).
+for c in hk naoexiste; do
+  head -c 300000 /dev/zero | tr '\0' 'x' | ( PATH_INFO=/hooks/nutella REQUEST_METHOD=POST QUERY_STRING="contest=$c" \
+      HTTP_X_NB_SIGNATURE="sha256=00" CONTENT_LENGTH=300000 CONTESTSDIR="$FIX" SESSIONDIR="$SESS" bash "$ROUTER" > "$FIX/drain.$c" 2>&1 )
+  printf '%s' "${PIPESTATUS[1]}" > "$FIX/drain.$c.st"
+done
+ck "corpo grande: 413 e o corpo lido até o fim, p/ contest existente e inexistente" '[[ "$(cat "$FIX/drain.hk.st")" == 0 && "$(cat "$FIX/drain.naoexiste.st")" == 0 ]] && grep -q "Status: 413" "$FIX/drain.hk" && grep -q "Status: 413" "$FIX/drain.naoexiste"'
 
 echo "== alerta bem assinado =="
 printf '%s\talice\t26tsca\t1001\t%s\n' "$M1" "$NOW" > "$C/var/nutella-macs.tsv"      # o elo publicado no login

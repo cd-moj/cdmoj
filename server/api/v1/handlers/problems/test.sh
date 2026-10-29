@@ -28,5 +28,6 @@ body="$(jq -nc --arg nm "$name" --rawfile i "$inp" --rawfile o "$outp" \
   '{success:true, name:$nm, input:$i, output:$o}')" || fail 500 "Falha ao ler o teste" "read_fail"
 [[ -n "$body" ]] || fail 500 "Falha ao ler o teste" "read_fail"
 
+activity_log pkg-test "id=$id name=$name"   # leitura de teste do pacote deixa trilha (como o pkg-source)
 emit_json 200 OK
 printf '%s\n' "$body"

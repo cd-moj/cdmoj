@@ -46,6 +46,7 @@ ck "account.json criado"        '[[ -f "$T/users/joao/account.json" ]]'
 ck "university persistida"      '[[ "$(jq -r .university "$T/users/joao/account.json")" == UnB ]]'
 ck "by-tgid/111 -> joao"        '[[ "$(jq -r .login "$T/var/telegram/by-tgid/111.json")" == joao ]]'
 ck "account.json de joao criado"   '[[ -f "$T/users/joao/account.json" ]]'
+ck "o cadastro vai à trilha (via=site)" 'grep -qP "\tjoao\tsignup\tvia=site$" "$T/var/admin-audit.log"'
 call "" /treino/signup/status GET "nonce=$NONCE" ""
 ck "status created, SEM senha"  '[[ "$(jq -r .status <<<"$BODY")" == created && "$(jq -r ".password" <<<"$BODY")" == null ]]'
 
@@ -54,12 +55,31 @@ call "Bearer $BOT" /treino/signup/verify POST "" "{\"nonce\":\"$NONCE\",\"telegr
 ck "nonce uso único -> inválido" '[[ "$(jq -r .error.code <<<"$BODY")" == nonce_invalid ]]'
 call "Bearer $BOT" /treino/signup/telegram POST "" '{"telegram_id":111,"telegram_username":"joaotg"}'
 ck "participar mesmo tg -> already_linked" '[[ "$(jq -r .status <<<"$BODY")" == already_linked && "$(jq -r .login <<<"$BODY")" == joao ]]'
+printf 'CONTEST=%q\nLOGIN=%q\nUSERFULLNAME=%q\nLOGINAT=1\n' treino joao "João S" > "$SESS/tok-joao-rec"   # sessão aberta (formato do create_session)
+# a conta também está num contest que usa as contas do treino (direto e como ATOR de um time); um contest de contas
+# próprias tem OUTRA conta com o mesmo nome
+mkdir -p "$FIX/shr2/users/joao" "$FIX/ind2/users/joao"
+printf 'CONTEST_ID=shr2\nUSERS_FROM=treino\n' > "$FIX/shr2/conf"; printf 'CONTEST_ID=ind2\n' > "$FIX/ind2/conf"
+printf 'CONTEST=%q\nLOGIN=%q\nUSERFULLNAME=%q\nLOGINAT=1\n' shr2 joao "João S" > "$SESS/tok-joao-shr"
+printf 'CONTEST=%q\nLOGIN=%q\nUSERFULLNAME=%q\nLOGINAT=1\nACTOR=%q\n' shr2 time-x "Time X" joao > "$SESS/tok-joao-actor"
+printf 'CONTEST=%q\nLOGIN=%q\nUSERFULLNAME=%q\nLOGINAT=1\n' ind2 joao "Outro" > "$SESS/tok-joao-ind"
 call "Bearer $BOT" /treino/recover-password POST "" '{"telegram_id":111}'
 ck "recover tg=111 ok+senha"    '[[ "$(jq -r .status <<<"$BODY")" == ok && "$(jq -r ".password|type" <<<"$BODY")" == string ]]'
+ck "recover encerra as sessões abertas da conta" '[[ ! -f "$SESS/tok-joao-rec" ]]'
+ck "…também nos contests que usam as contas do treino (direto e como ator)" '[[ ! -f "$SESS/tok-joao-shr" && ! -f "$SESS/tok-joao-actor" ]]'
+ck "…e a conta homônima de um contest de contas próprias fica" '[[ -f "$SESS/tok-joao-ind" ]]'
+ck "recover vai à trilha"       'grep -qP "\tjoao\tpassword-recover\tvia=telegram " "$T/var/admin-audit.log"'
 call "Bearer $BOT" /treino/recover-password POST "" '{"telegram_id":999}'
 ck "recover tg desconhecido -> not_linked" '[[ "$(jq -r .status <<<"$BODY")" == not_linked ]]'
 call "Bearer $BOT" /treino/signup/start POST "" '{"login":"joao","fullname":"x"}'
 ck "signup/start login em uso -> 409" '[[ "$(jq -r .error.code <<<"$BODY")" == login_taken ]]'
+# nome de uma org do treino = login em uso (o nome de um login é o da org pessoal dele)
+[[ -s "$T/var/orgs.json" ]] || echo '{}' > "$T/var/orgs.json"
+jq '. + {"orgx":{"members":["joao"],"admins":["joao"],"created_by":"joao"}}' "$T/var/orgs.json" > "$T/x" && mv "$T/x" "$T/var/orgs.json"
+call "" /treino/signup/start POST "" '{"login":"orgx","fullname":"x"}'
+ck "signup/start com o nome de uma org -> 409 login_taken" '[[ "$(jq -r .error.code <<<"$BODY")" == login_taken ]]'
+call "Bearer $BOT" /treino/signup/telegram POST "" '{"telegram_id":333,"telegram_username":"orgx"}'
+ck "cadastro pelo bot pula o nome da org (orgx_2) e vai à trilha (via=telegram)" '[[ "$(jq -r .login <<<"$BODY")" == orgx_2 ]] && grep -qP "\torgx_2\tsignup\tvia=telegram$" "$T/var/admin-audit.log"'
 call "" /treino/signup/start POST "" '{"login":"root.admin","fullname":"x"}'
 ck "signup bloqueia sufixo de papel" '[[ "$(jq -r .error.code <<<"$BODY")" == login_reserved ]]'
 

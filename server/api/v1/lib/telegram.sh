@@ -130,7 +130,8 @@ tg_derive_login(){
 # tg_unique_login <c> <login> -> login único (sufixa _2, _3… se já existir)
 tg_unique_login(){
   local c="$1" base="$2" cand="$2" i=2
-  while user_exists "$c" "$cand"; do cand="${base}_$i"; ((i++)); done
+  while user_exists "$c" "$cand" || { [[ "$c" == treino ]] && declare -F login_blocked_by_org >/dev/null \
+                                         && login_blocked_by_org "$cand"; }; do cand="${base}_$i"; ((i++)); done
   printf '%s' "$cand"
 }
 # tg_reserved_login <login> -> 0 se termina em sufixo de papel reservado (delega ao helper

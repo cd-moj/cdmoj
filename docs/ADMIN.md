@@ -428,9 +428,10 @@ pelo `moj-housekeeping`: as trilhas ficam enquanto o diretório existir, e o bac
 
 | Arquivo | O que registra |
 |---|---|
-| `admin-audit.log` | ações de admin e de autoria (TSV `epoch login ação detalhes`). As mudanças de org dizem o delta: quem entrou e quem saiu (`org-members`, `repo-collaborators`); `org-create` numa org que já existia leva `existing=1`. Troca de senha e conta criada por admin entram (`passwd`, `adduser`). |
-| `activity-AAAA-MM.log` | LEITURAS, um arquivo por mês (TSV `epoch login evento detalhes ip`): problema aberto, log visto, código baixado e, da autoria, o pacote aberto no editor (`pkg-source`), o diff de um commit (`pkg-diff`), o report de calibração (`calib-report-view`) e o de test-run (`testrun-report-view`). |
+| `admin-audit.log` | ações de admin e de autoria (TSV `epoch login ação detalhes`). As mudanças de org dizem o delta: quem entrou e quem saiu (`org-members`, `repo-collaborators`); `org-create` numa org que já existia leva `existing=1`. Troca de senha e conta criada por admin entram (`passwd`, `adduser`), e também as da própria conta: troca de handle (`username-change`), de senha (`password-change`, com o IP), recuperação pelo Telegram (`password-recover`) e cadastro (`signup`). O re-sync do acervo (`synctreino`) também. |
+| `activity-AAAA-MM.log` | LEITURAS, um arquivo por mês (TSV `epoch login evento detalhes ip`): problema aberto, log visto, código baixado e, da autoria, o pacote aberto no editor (`pkg-source`), um teste do pacote (`pkg-test`), o diff de um commit (`pkg-diff`), o report de calibração (`calib-report-view`) e o de test-run (`testrun-report-view`). |
 | `access.log` | logins (`epoch login ip ua`). |
+| `contests/<c>/var/admin-audit.log` | o audit de cada contest: além das ações do painel, o veredicto pedido à mão (`set-verdict`), a extensão do fim (`contest-extend`), o rejulgamento (`rejudge`, também pelo `/admin/rejudge`) e quem abriu o lado a lado do jplag (`jplag-view`). |
 
 Duas marcas ajudam a separar a conta certa:
 
@@ -443,7 +444,7 @@ A aba 📜 Atividade do painel junta as três fontes e baixa o período em CSV. 
 `admin-audit.log` que o painel mostra, estas linhas:
 - as que citam um problema privado que ele não pode abrir (a leitura, o upload, a submissão de um membro da org…);
 - as de org de que ele não é membro;
-- a remoção de um problema.
+- a remoção de um problema ou de uma org.
 
 O super-admin vê tudo. Se o índice de problemas não estiver legível, as linhas que citam problema ou org somem para o
 admin comum, e o resto do feed continua.

@@ -39,7 +39,7 @@ exec 9>"$T/var/profile.lock" || fail 500 "Não foi possível obter lock" "lock_f
 flock 9
 
 # já existe?
-user_exists treino "$new" && fail 409 "Esse nome de usuário já está em uso" "uname_taken"
+{ user_exists treino "$new" || login_blocked_by_org "$new" "$old"; } && fail 409 "Esse nome de usuário já está em uso" "uname_taken"
 
 # ===== rename = mv do diretório do usuário =====
 # limite por ano (uname_changes no account.json)
@@ -64,6 +64,7 @@ source "$_LIBDIR/rename-cascade.sh"
 nsess="$(treino_rename_cascade "$old" "$new")" || fail 500 "Falha ao renomear a conta" "save_fail"
 # registro da troca (conta p/ o limite anual — a promoção pelo admin não conta)
 account_merge treino "$new" '.uname_changes = ((.uname_changes // []) + [$t])' --argjson t "$EPOCHSECONDS"
+audit_log "username-change" "de=$old para=$new sessions=${nsess:-0}"
 
 flock -u 9
 used2=$(( used + 1 ))

@@ -33,7 +33,7 @@ sempre privada — é onde seus rascunhos ficam se você não criar outra org.
 ### Criar uma org
 
 Uma org costuma representar uma **disciplina, turma ou competição** (ex.: uma por semestre de
-uma matéria, uma para cada olimpíada). O nome é **minúsculo, sem espaços**: ele é o **prefixo do id** `<org>#<prob>` (`^[a-z0-9][a-z0-9._-]{1,63}$` — quem vira subdomínio é o id do *contest*, não a org). Criar org exige a **mesma permissão** de criar problema/contest.
+uma matéria, uma para cada olimpíada). O nome é **minúsculo, sem espaços**: ele é o **prefixo do id** `<org>#<prob>` (`^[a-z0-9][a-z0-9._-]{1,63}$` — quem vira subdomínio é o id do *contest*, não a org) e não termina num sufixo de papel (`.admin`, `.judge`, `.staff`…), que é só de login. Criar org exige a **mesma permissão** de criar problema/contest.
 
 | Web (Gestão de Problemas) | CLI |
 |---|---|

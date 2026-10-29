@@ -4,7 +4,7 @@
 #   - users/<login>/history            (1 SUBMISSÃO por linha, no sub_epoch)      -> kind=submit
 #   - users/<login>/results/<id>.json  (VEREDICTO do juiz, no finalized_at)       -> kind=verdict
 #   - var/activity-YYYY-MM.log         (LEITURAS: problem-view/log-view/source-download e, da
-#                                       autoria, pkg-source/pkg-diff/calib-report-view/
+#                                       autoria, pkg-source/pkg-test/pkg-diff/calib-report-view/
 #                                       testrun-report-view; epoch\tlogin\tev\tdet\tip) -> kind=read
 #   - var/admin-audit.log              (ações de admin/autoria)                   -> kind=admin
 #   - idem, ações de MÁQUINA (tl-report/calib-report) — EXCLUÍDAS por default     -> kind=calib

@@ -17,4 +17,8 @@ if [[ -z "$login" ]]; then
 fi
 pw="$(user_genpass)"
 user_set_password treino "$login" "$pw" || fail 500 "Falha ao trocar a senha" "passwd_fail"
+# senha nova = TODAS as sessões da conta caem (treino, contests que usam as contas do treino e time em que ela é o
+# ator); a recuperação vai à trilha
+nout="$(remove_account_sessions treino "$login")"
+SESSION_LOGIN="$login" audit_log "password-recover" "via=telegram sessoes_encerradas=${nout:-0}"
 ok_json '{status:"ok", login:$l, password:$p}' --arg l "$login" --arg p "$pw"

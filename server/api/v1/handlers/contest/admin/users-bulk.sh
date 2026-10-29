@@ -81,6 +81,8 @@ while IFS= read -r u; do
     (( fadj )) && adjj "$login" "$fraw" "$fin"
     credj "$login" "$pass" "$(account_field "$contest" "$login" '.fullname')" "$email" >> "$tmpd/updated.jsonl"
   else
+    # no treino, nome de org de outra conta conta como login em uso (a regra do user_create)
+    [[ "$contest" == treino ]] && login_blocked_by_org "$login" "$login" && { skipj "$login" exists; continue; }
     [[ -z "$pass" ]] && pass="$(cc_genpass)"
     # criação inline (mesmo shape do user_create em lib/users.sh, + .team quando veio)
     d="$(user_dir "$contest" "$login")"

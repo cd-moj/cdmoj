@@ -39,5 +39,6 @@ jq -cn --arg c "$contest" --arg j "$SESSION_LOGIN" --arg p "$problem" \
    '{action:"set-verdict", contest:$c, judge:$j, problem_id:$p,
      verdict:$v, username:$u, time:$ts, id:$id}' > "$tmp"
 mv -f "$tmp" "$_sd/$spoolname"
+audit_log_to "$contest" set-verdict "id=$ID user=$username prob=$problem verdict=$verdict"   # quem pediu (o daemon registra a aplicação)
 
 ok_json '{action:"set-verdict", id:$id, status:"queued"}' --arg id "$ID"

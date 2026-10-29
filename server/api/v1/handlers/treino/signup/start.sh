@@ -16,7 +16,7 @@ if [[ -n "$login" ]]; then
   [[ "$login" =~ ^[A-Za-z0-9._-]{2,32}$ ]] && valid_login "$login" \
     || fail 400 "Login inválido (2–32: letras, números, . _ -; não começa com . nem -; sem ..)" "login_invalid"
   tg_reserved_login "$login" && fail 400 "Sufixo reservado não permitido" "login_reserved"
-  user_exists treino "$login" && fail 409 "Esse login já está em uso" "login_taken"
+  { user_exists treino "$login" || login_blocked_by_org "$login"; } && fail 409 "Esse login já está em uso" "login_taken"
 fi
 
 nonce="$(tg_nonce_new signup "$(jq -cn --arg l "$login" --arg n "$fullname" --arg u "$university" \

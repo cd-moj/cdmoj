@@ -814,6 +814,7 @@ function makeActivityTab() {
     'source-download': T('baixou código', 'downloaded code', 'descargó el código'),
     'pkg-source': T('abriu o pacote no editor', 'opened the package in the editor', 'abrió el paquete en el editor'),
     'pkg-diff': T('viu o diff de um commit do pacote', 'viewed a package commit diff', 'vio el diff de un commit del paquete'),
+    'pkg-test': T('abriu um teste do pacote', 'opened a package test', 'abrió una prueba del paquete'),
     'calib-report-view': T('viu report de calibração', 'viewed calibration report', 'vio el reporte de calibración'),
     'testrun-report-view': T('viu report de test-run', 'viewed test-run report', 'vio el reporte de test-run'),
   };

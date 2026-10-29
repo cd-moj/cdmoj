@@ -4,7 +4,8 @@
 #   - linha que cita um problema (`org#prob`, em QUALQUER lugar: `id=`, `from=`/`to=`, o probid da submissão e do
 #     veredicto, `id=org#p:`…) que o viewer não pode ver sai;
 #   - ação org-*/repo-* de org de que ele não é membro sai (`name=`/`org=`/`repo=`);
-#   - o `delete` de problema sai p/ quem não é super (o id já saiu do índice: não há como conferir);
+#   - o `delete` de problema e o `org-delete` saem p/ quem não é super (o id/a org já saiu do registro: não há como
+#     conferir);
 #   - o SUPERADMIN (numa sessão do treino) vê tudo.
 # "Pode ver" = `owners_vis` (lib/problems.sh, o predicado de sempre); "é privado" = `private_problem_ids`. Índice
 # ilegível ⇒ `all`: some TODA linha que cita problema ou org — o resto do feed (logins, ações de conta) segue no ar.
@@ -21,7 +22,7 @@ FEED_VISIBLE_DEF='def feed_visible($H):
     | if ($H.all // false) then (($ids | length) == 0 and ($orgact | not))
       else (($ids | any(. as $i | $H.p[$i]) | not)
             and (($orgact | not) or ($orgs | any(. as $o | $H.o[$o]) | not))
-            and ((.action // "") != "delete"))
+            and ((.action // "") | IN("delete", "org-delete") | not))
       end
   end;'
 

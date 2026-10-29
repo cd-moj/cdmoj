@@ -80,6 +80,7 @@ ck "juiz: pares com login, SEM a_name/a_univ" '[[ "$(jq -r "[.results[].pairs[]|
 RUN="$(jq -r ".results[0].run" <<<"$BODY")"
 call /contest/admin/jplag-match GET '' judge "contest=jp&run=$RUN&i=0"
 ck "juiz abre o lado-a-lado" '[[ "$OUT" == *"Status: 200"* ]]'
+ck "…e a abertura vai ao audit do contest (jplag-view)" 'grep -qP "\tj1.judge\tjplag-view\trun=$RUN i=0$" "$C/var/admin-audit.log"'
 call /contest/admin/jplag-match GET '' usr "contest=jp&run=$RUN&i=0"
 ck "competidor não abre (403)" '[[ "$OUT" == *"Status: 403"* ]]'
 call /contest/admin/jplag-run POST '{}' judge 'contest=jp'

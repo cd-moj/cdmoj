@@ -1,4 +1,4 @@
-<!-- i18n-source: MANUAL-ORGS-COLECOES.md blob:9aac199c01a6f43778c4f0e5f7bc9771264c685b -->
+<!-- i18n-source: MANUAL-ORGS-COLECOES.md blob:0316723d17931b8e508b1b4a8bdf7ed9c13afcdc -->
 # Gestión de orgs y colecciones (manual del gestor de problemas)
 
 > **Nota de traducción.** Este manual es una traducción del original en portugués. Las herramientas de línea de comandos (`moj`, `moj-contest`, `moj-comp`) muestran sus mensajes en portugués, y los ejemplos de comandos son idénticos al original.
@@ -36,7 +36,7 @@ siempre privada. Ahí quedan tus borradores si no creas otra org.
 ### Crear una org
 
 Una org suele representar una **asignatura, grupo o competencia** (ej.: una por semestre de
-una materia, una para cada olimpiada). El nombre va **en minúsculas y sin espacios**: es el **prefijo del id** `<org>#<prob>` (`^[a-z0-9][a-z0-9._-]{1,63}$`; lo que se convierte en subdominio es el id de la *competencia*, no la org). Crear una org exige el **mismo permiso** que crear un problema o una competencia.
+una materia, una para cada olimpiada). El nombre va **en minúsculas y sin espacios**: es el **prefijo del id** `<org>#<prob>` (`^[a-z0-9][a-z0-9._-]{1,63}$`; lo que se convierte en subdominio es el id de la *competencia*, no la org) y no termina en un sufijo de rol (`.admin`, `.judge`, `.staff`…), que es solo de login. Crear una org exige el **mismo permiso** que crear un problema o una competencia.
 
 | Web (Gestión de Problemas) | CLI |
 |---|---|

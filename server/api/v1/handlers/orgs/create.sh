@@ -21,6 +21,9 @@ elif user_exists treino "$name"; then
   # o nome de um LOGIN é o da org pessoal (implícita) dele, criada sob demanda pelo ensure_implicit_org,
   # que aceita a org que já existe: o nome fica reservado p/ o dono.
   fail 409 "Nome reservado: é o login de uma conta do treino" "name_is_login"
+elif is_reserved_role_login "$name"; then
+  # sufixo de papel (.admin, .judge, …) é só de LOGIN: org com esse nome só nasce como a implícita da própria conta
+  fail 400 "Nome de org inválido (sufixo de papel é só de login)" "name_invalid"
 fi
 title="$(jq -r '.title // empty' <<<"$body")"
 # cada login que ENTRA precisa existir e poder criar problemas (422/404/403 — recusa atômica,

@@ -735,12 +735,47 @@
         }
       }
     },
+    "/treino/admin/audit-log": {
+      "get": {
+        "tags": [
+          "treino-admin"
+        ],
+        "summary": "admin-audit.log do treino (sem day: as últimas 1000 linhas), mais recente primeiro. A mesma regra de visibilidade do activity-log (lib/admin-feed.sh): linha de problema privado que o admin não pode ver, de org de que ele não é membro, e delete/org-delete saem; o SUPERADMIN vê tudo.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "day",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "YYYY-MM-DD"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{day, entries:[{time,admin,action,details}]}"
+          },
+          "400": {
+            "description": "day_invalid"
+          },
+          "403": {
+            "description": "admin_required (sessão do treino de um .admin)"
+          }
+        }
+      }
+    },
     "/treino/admin/activity-log": {
       "get": {
         "tags": [
           "treino-admin"
         ],
-        "summary": "Feed COMPLETO de atividade do treino (login/submit/verdict/read/admin; calib opt-in) com filtros e format=csv (range inteiro p/ análise). Leituras da autoria (28/10/2026): pkg-source, pkg-diff, calib-report-view, testrun-report-view. Linha que cita problema privado que o admin não pode ver (org#prob em qualquer lugar: id=, from=/to=, submissão e veredicto), org de que não é membro, ou delete de problema sai do feed e do CSV (lib/admin-feed.sh; o SUPERADMIN vê tudo; índice ilegível = some toda linha que cita problema ou org).",
+        "summary": "Feed COMPLETO de atividade do treino (login/submit/verdict/read/admin; calib opt-in) com filtros e format=csv (range inteiro p/ análise). Leituras da autoria (28/10/2026): pkg-source, pkg-test, pkg-diff, calib-report-view, testrun-report-view. Linha que cita problema privado que o admin não pode ver (org#prob em qualquer lugar: id=, from=/to=, submissão e veredicto), org de que não é membro, ou delete/org-delete sai do feed e do CSV (lib/admin-feed.sh; o SUPERADMIN vê tudo; índice ilegível = some toda linha que cita problema ou org).",
         "security": [
           {
             "bearerAuth": []
@@ -8786,7 +8821,7 @@
           "orgs"
         ],
         "summary": "Cria org (criador vira membro+admin; exige cc_can_create)",
-        "description": "Cada login de members/admins precisa EXISTIR no treino e PODER CRIAR PROBLEMAS (cc_can_create) — 422/404/403 senão, recusa atômica (a org nem nasce). Sessão fora do treino: 403 author_treino_only (ver descrição global da API). Org EXISTENTE: só o admin dela ou o SUPERADMIN numa sessão do treino (is_platform_superadmin, não is_admin cru) pode 'recriar' — e org IMPLÍCITA nunca aceita, nem do superadmin (409 implicit, mesma regra de /orgs/members).",
+        "description": "Cada login de members/admins precisa EXISTIR no treino e PODER CRIAR PROBLEMAS (cc_can_create) — 422/404/403 senão, recusa atômica (a org nem nasce). Sessão fora do treino: 403 author_treino_only (ver descrição global da API). Org EXISTENTE: só o admin dela ou o SUPERADMIN numa sessão do treino (is_platform_superadmin, não is_admin cru) pode 'recriar' — e org IMPLÍCITA nunca aceita, nem do superadmin (409 implicit, mesma regra de /orgs/members). Org NOVA com o nome de um login do treino: 409 name_is_login; com sufixo de papel (.admin, .judge, …: só de login): 400 name_invalid (no /problems/repo-create, repo_invalid).",
         "security": [
           {
             "bearerAuth": []
@@ -9466,6 +9501,27 @@
         "responses": {
           "200": {
             "description": "{success, action, host, config}"
+          }
+        }
+      }
+    },
+    "/judge/list": {
+      "get": {
+        "tags": [
+          "judge"
+        ],
+        "summary": "Registro dos juízes (specs, inventário, estado, último report de atualização) — admin DO TREINO (require_treino_admin; o parque é da plataforma).",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "lista dos juízes registrados"
+          },
+          "403": {
+            "description": "admin_required (sessão do treino de um .admin)"
           }
         }
       }
