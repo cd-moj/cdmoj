@@ -224,6 +224,28 @@ client_ip(){
   printf '%s' "$ip" | tr -cd '0-9a-fA-F.:'
 }
 
+# login_refused_log <contest> <login-digitado> <código> <http> — a TENTATIVA DE LOGIN RECUSADA (senha errada, login
+# fechado ou ainda não aberto, gate de navegador, inscrição, endereço errado…) vai a var/login-refused.log do
+# contest: epoch \t login \t ip \t ua_b64 \t código \t http. O login só entra se a conta EXISTE no contest (ou na
+# fonte USERS_FROM) — senão `?`: o que se digita no campo de login às vezes é a senha. Ao passar de LOGIN_REFUSED_MAX
+# (5 MiB) o arquivo GIRA para `.1` (uma geração guardada; o disco fica em 2× o teto) e a gravação segue no novo — um
+# laço de tentativas não enche o disco nem cala a trilha. Leitor (só o atual): /contest/admin/access-log (`refused`)
+# e, no treino, o /treino/admin/activity-log.
+login_refused_log(){
+  local c="$1" u="${2:-}" code="${3:-}" http="${4:-}" f sz who="?" src ua
+  valid_id "$c" && [[ -d "$CONTESTSDIR/$c/var" ]] || return 0
+  f="$CONTESTSDIR/$c/var/login-refused.log"
+  if [[ -f "$f" ]]; then sz="$(stat -c %s "$f" 2>/dev/null)"
+    (( ${sz:-0} < ${LOGIN_REFUSED_MAX:-5242880} )) || mv -f "$f" "$f.1" 2>/dev/null || true; fi
+  if [[ -n "$u" ]] && valid_id "$u"; then
+    if [[ -f "$CONTESTSDIR/$c/users/$u/account.json" ]]; then who="$u"
+    else src="$(_users_source "$c")"; [[ "$src" != "$c" && -f "$CONTESTSDIR/$src/users/$u/account.json" ]] && who="$u"; fi
+  fi
+  ua="$(printf '%s' "${HTTP_USER_AGENT:-}" | head -c 512 | base64 -w0 2>/dev/null)"
+  printf '%s\t%s\t%s\t%s\t%s\t%s\n' "$EPOCHSECONDS" "$who" "$(client_ip)" "$ua" "${code//[^A-Za-z0-9_]/}" "${http//[^0-9]/}" \
+    >> "$f" 2>/dev/null || true
+}
+
 # create_session <contest> <login> <name> [actor] -> ecoa o token (uuid)
 # <actor> só é gravado quando a sessão é de um TIME (o membro que autenticou) — ver
 # SESSION_ACTOR acima e o alias em handlers/auth/login.sh.

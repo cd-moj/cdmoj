@@ -86,6 +86,7 @@ feed_one(){
   _an_times "$c"
   if (( AN_END > 0 && now > AN_END + 86400 )); then
     rm -f "$ACTIVE/$c"; an_cfg_save "$c" "$(jq -c '.enabled = false' <<<"$(an_cfg "$c")")"
+    SESSION_LOGIN=auto-fim audit_log_to "$c" animeitor-feed "stop by=auto-fim motivo=24h_depois_do_fim"   # ação automática vai à trilha
     log "$c: 24 h depois do fim — alimentador desligado sozinho"; return 0
   fi
 

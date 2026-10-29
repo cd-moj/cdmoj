@@ -1,4 +1,4 @@
-<!-- i18n-source: MANUAL-ADMIN.md blob:a637a1aa0411e339daa9113849b239244385d5e3 -->
+<!-- i18n-source: MANUAL-ADMIN.md blob:b57d0da3579eca955bd2a183816e520ce3e11970 -->
 # MOJ: Manual del organizador (el panel .admin de la competencia)
 
 > **Nota de traducción.** Este manual es una traducción del original en portugués. Las herramientas de línea de comandos (`moj`, `moj-contest`, `moj-comp`) muestran sus mensajes en portugués, y los ejemplos de comandos son idénticos al original.
@@ -103,7 +103,7 @@ portugués.
 |---|---|
 | **Cuentas** | Crear/restablecer/deshabilitar/quitar cuentas (individualmente y en lote por .txt/.csv), cambiar la contraseña de todos y el atajo a las **Etiquetas de credenciales**. AQUÍ creas las cuentas de rol (sección 3). En una competencia con usuarios **compartidos con Entrenamiento libre**, la tarjeta **🔗 Cuentas compartidas** convierte todo en cuentas propias (sección 8¾). En el lote, **Procesar** muestra cómo se leyó cada línea (login, contraseña, nombre, email) y el resultado dice **por qué** quedó fuera cada línea. Una línea con `:` sin encabezado es siempre `login:contraseña:nombre:email` — `localhost:6767` solo se vuelve login + contraseña; un nombre con `:` o `,` va en el **CSV con encabezado**. Un `:` en el nombre del equipo (o de la escuela) se guarda como `∶` (se ve igual): el marcador usa `:` como separador. Vale en todo lugar que guarda un nombre (aquí, Equipos, la creación de la competencia y la inscripción de los alumnos). |
 | **Inscripciones** (módulo `inscricoes`) | El **roster** de la competencia (solo entra quien está inscrito) y la **ventana**: cuándo abre, cuándo cierra (predeterminado: el inicio de la competencia) y cuántos minutos de entrada tardía. Lista equipos e individuales, disuelve equipos, inscribe a mano, **recuerda por DM las invitaciones pendientes** (🔔) y exporta CSV. La sección 8½ lo explica. |
-| **Sesiones** | Quién tiene la sesión iniciada ahora, con la opción de cerrarla; **🚪 salir en masa y bloqueo de login** (cerrar el login, desconectar a todos, reabrir: es el final de una competencia en sala y el cambio de ronda); y el registro de accesos por día. Vale para cualquier competencia. |
+| **Sesiones** | Quién tiene la sesión iniciada ahora, con la opción de cerrarla; **🚪 salir en masa y bloqueo de login** (cerrar el login, desconectar a todos, reabrir: es el final de una competencia en sala y el cambio de ronda); y el registro de accesos por día, con los **intentos de login rechazados** (el motivo —contraseña incorrecta, login aún no abierto, navegador no autorizado…—, la IP y el navegador; una cuenta inexistente aparece como tal, sin el texto escrito). Vale para cualquier competencia. |
 
 ### 🎛️ Operación: el día de la competencia
 
@@ -799,8 +799,9 @@ panel avisa y muestra solo las sesiones y el registro de accesos.
   misma clave de máquina que el navegador; usar los dos en la misma máquina no cierra la sesión. Fuera de la
   máquina de competencia, el gate bloquea la CLI (403), a propósito.
 - Se actualiza solo cada 30 s. El envío graba el origen (IP, navegador y la sesión usada) en
-  `var/submit-origin.log`; los inicios de sesión, en `var/access.log`; los cierres de sesión, en
-  `var/session-events.log`. Los tres atraviesan las rondas y entran en el archivo.
+  `var/submit-origin.log`; los inicios de sesión, en `var/access.log`; los intentos rechazados, en
+  `var/login-refused.log`; los cierres de sesión, en `var/session-events.log`. Los cuatro atraviesan las
+  rondas y entran en el archivo.
 
 ## 8. Equipos invitados (cohortes de marcador: Evento › Cohortes, módulo `coortes`)
 

@@ -12,8 +12,9 @@
 
 offline_keydir(){ printf '%s/%s/secrets' "$CONTESTSDIR" "$1"; }
 
-# offline_ensure_keys <cid> — gera o par RSA-4096 na 1ª vez (flock anti-corrida); ecoa o
-# caminho da pública (vazio+rc1 se openssl falhar — o login degrada sem campos offline).
+# offline_ensure_keys <cid> — gera o par RSA-4096 na 1ª vez (flock anti-corrida; a geração vai ao audit do contest,
+# `offline-key`, com o login de quem a disparou); ecoa o caminho da pública (vazio+rc1 se openssl falhar — o login
+# degrada sem campos offline).
 offline_ensure_keys(){
   local d; d="$(offline_keydir "$1")"
   if [[ ! -s "$d/offline.pub" ]]; then
@@ -24,7 +25,8 @@ offline_ensure_keys(){
             -out "$d/offline.key.tmp" 2>/dev/null ) \
         && openssl pkey -in "$d/offline.key.tmp" -pubout -out "$d/offline.pub.tmp" 2>/dev/null \
         && mv -f "$d/offline.key.tmp" "$d/offline.key" \
-        && mv -f "$d/offline.pub.tmp" "$d/offline.pub"
+        && mv -f "$d/offline.pub.tmp" "$d/offline.pub" \
+        && audit_log_to "$1" offline-key "par gerado (1ª vez)"
         rm -f "$d/offline.key.tmp" "$d/offline.pub.tmp" 2>/dev/null
       fi
     ) 9>"$d/.offline.lock" 2>/dev/null

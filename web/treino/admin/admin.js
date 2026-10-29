@@ -809,6 +809,7 @@ function makeActivityTab() {
     admin: '🛠️ admin', calib: T('🖥 máquina', '🖥 machine', '🖥 máquina'),
   };
   const RACT = {
+    'login-refused': T('login recusado', 'login refused', 'login rechazado'),
     'problem-view': T('abriu problema', 'opened problem', 'abrió el problema'),
     'log-view': T('viu log', 'viewed log', 'vio el registro'),
     'source-download': T('baixou código', 'downloaded code', 'descargó el código'),

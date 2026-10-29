@@ -9,6 +9,9 @@ jq -e . >/dev/null 2>&1 <<<"$body" || fail 400 "Invalid JSON body" "bad_json"
 u="$(jq -r '.username // empty' <<<"$body")"
 p="$(jq -r '.password // empty' <<<"$body")"
 [[ -n "$u" && -n "$p" ]] || fail 400 "Missing credentials" "creds_missing"
+# daqui em diante, toda recusa (senha, conta expirada, gate, abertura do login, inscrição, endereço) vai ao
+# var/login-refused.log do contest — o admin vê a tentativa e o motivo (Pessoas › Sessões › Log de acessos)
+_fail_hook(){ login_refused_log "$contest" "$u" "$2" "$1"; }
 
 verify_password "$contest" "$u" "$p" || fail 401 "Wrong user or password" "bad_creds"
 
@@ -125,6 +128,7 @@ mkdir -p "$CONTESTSDIR/$contest/var"
 printf '%s\t%s\t%s\t%s%s\n' "$EPOCHSECONDS" "$u" "$(client_ip)" \
   "$(printf '%s' "${HTTP_USER_AGENT:-}" | base64 -w0)" "${actor:+$'\t'$actor}" \
   >> "$CONTESTSDIR/$contest/var/access.log" 2>/dev/null || true
+unset -f _fail_hook   # daqui em diante o login já entrou: um erro adiante não é tentativa recusada
 # NutellaBoot: o UA do agente novo do mlinux termina no MAC, então ESTE login diz em que máquina o
 # time está — vai p/ uma fila e um drenador destacado publica o `binding` no serviço (lib/
 # nutella-bind.sh; o login não espera rede). As duas guardas são builtin: login comum não paga nada.
@@ -138,7 +142,7 @@ fi
 if [[ "$contest" != treino ]]; then
   source "$_LIBDIR/contest-offline.sh"
   _opub=""; _obeacon=""
-  _opubf="$(offline_ensure_keys "$contest" 2>/dev/null)" && _opub="$(cat "$_opubf" 2>/dev/null)"
+  _opubf="$(SESSION_LOGIN="$u" offline_ensure_keys "$contest" 2>/dev/null)" && _opub="$(cat "$_opubf" 2>/dev/null)"
   [[ -n "$_opub" ]] && _obeacon="$(SESSION_LOGIN="$u" offline_beacon "$contest" "$u" 2>/dev/null)"
   if [[ -n "$_opub" && -n "$_obeacon" ]]; then
     ok_json '{token:$t, logged_in:true, username:$u, name:$n, contest:$c,

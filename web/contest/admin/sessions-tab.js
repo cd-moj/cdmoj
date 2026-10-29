@@ -15,6 +15,22 @@ import { REFRESH_MS, mk, makeLogoutUser } from './sessions-common.js';
 
 const enc = encodeURIComponent;
 
+// motivo da TENTATIVA RECUSADA (o `code` que o /auth/login devolveu; código novo cai no próprio código)
+export function refusedReason(code) {
+  const M = {
+    bad_creds: T('senha errada ou conta desabilitada', 'wrong password or disabled account', 'contraseña incorrecta o cuenta deshabilitada'),
+    account_expired: T('conta expirada', 'account expired', 'cuenta vencida'),
+    ua_gate: T('navegador/máquina não autorizado', 'browser/machine not allowed', 'navegador/máquina no autorizado'),
+    login_disabled: T('login fechado', 'login closed', 'login cerrado'),
+    login_not_open: T('login ainda não abriu', 'login not open yet', 'el login aún no abrió'),
+    not_registered: T('não inscrito', 'not registered', 'no inscrito'),
+    registration_not_open: T('inscrições ainda não abriram', 'registration not open yet', 'las inscripciones aún no abrieron'),
+    registration_closed: T('inscrições encerradas', 'registration closed', 'inscripciones cerradas'),
+    host_required: T('time fora do endereço do contest', 'team outside the contest address', 'equipo fuera de la dirección de la competencia'),
+  };
+  return M[code] || code || '?';
+}
+
 export function makeSessionsTab(CONTEST, opts = {}) {
   const G = { contest: CONTEST, auth: true };
   const has = typeof opts.has === 'function' ? opts.has : () => true;
@@ -106,22 +122,39 @@ export function makeSessionsTab(CONTEST, opts = {}) {
     const box = el('details', { class: 'fgroup' }, el('summary', {}, T('📝 Log de acessos', '📝 Access log', '📝 Log de accesos')));
     const dateInp = el('input', { type: 'date', value: todayStr() });
     const body = el('div', {});
-    let ACC = [];
+    let ACC = [], REF = [];
     const dl = el('button', { class: 'btn ghost', title: T('Baixar acessos do dia (CSV)', 'Download the day\'s accesses (CSV)', 'Descargar los accesos del día (CSV)'), onclick: () => {
       const rows = [['epoch', T('datahora', 'datetime', 'fechahora'), 'login', 'ip', 'user_agent'],
         ...ACC.map((x) => [x.time, new Date((x.time || 0) * 1000).toISOString(), x.login || '', x.ip || '', x.user_agent || ''])];
       downloadText('acessos-' + CONTEST + '-' + (dateInp.value || stamp()) + '.csv', toCsv(rows), 'text/csv');
     } }, '⬇ CSV');
+    const dlRef = el('button', { class: 'btn ghost', title: T('Baixar as tentativas recusadas do dia (CSV)', 'Download the day\'s refused attempts (CSV)', 'Descargar los intentos rechazados del día (CSV)'), onclick: () => {
+      const rows = [['epoch', T('datahora', 'datetime', 'fechahora'), 'login', T('motivo', 'reason', 'motivo'), T('codigo', 'code', 'codigo'), 'ip', 'user_agent'],
+        ...REF.map((x) => [x.time, new Date((x.time || 0) * 1000).toISOString(), x.login || '', refusedReason(x.code), x.code || '', x.ip || '', x.user_agent || ''])];
+      downloadText('recusados-' + CONTEST + '-' + (dateInp.value || stamp()) + '.csv', toCsv(rows), 'text/csv');
+    } }, T('⬇ CSV recusadas', '⬇ Refused CSV', '⬇ CSV rechazados'));
     async function loadAccess() {
       body.innerHTML = ''; let r;
       try { r = await apiGet('/contest/admin/access-log?contest=' + enc(CONTEST) + '&day=' + enc(dateInp.value), G); }
       catch { body.append(el('div', { class: 'error-box' }, T('Falha.', 'Failed.', 'Falló.'))); return; }
       const e2 = r.entries || []; ACC = e2;
       body.append(el('div', { class: 'small muted', style: 'margin:.3rem 0' }, e2.length + T(' acesso(s).', ' access(es).', ' acceso(s).')));
-      if (!e2.length) { body.append(el('div', { class: 'muted' }, T('Sem acessos.', 'No accesses.', 'Sin accesos.'))); return; }
-      const tb = el('tbody');
-      e2.forEach((x) => tb.append(el('tr', {}, el('td', { class: 'small' }, fmtDate(x.time)), el('td', {}, x.login || ''), el('td', { class: 'ip' }, x.ip || ''), el('td', { class: 'ua' }, x.user_agent || ''))));
-      body.append(el('div', { class: 'chart-wrap' }, el('table', { class: 'moj' }, el('thead', {}, el('tr', {}, el('th', {}, T('Data/Hora', 'Date/Time', 'Fecha/Hora')), el('th', {}, 'Login'), el('th', {}, 'IP'), el('th', {}, T('Navegador', 'Browser', 'Navegador')))), tb)));
+      if (!e2.length) body.append(el('div', { class: 'muted' }, T('Sem acessos.', 'No accesses.', 'Sin accesos.')));
+      else {
+        const tb = el('tbody');
+        e2.forEach((x) => tb.append(el('tr', {}, el('td', { class: 'small' }, fmtDate(x.time)), el('td', {}, x.login || ''), el('td', { class: 'ip' }, x.ip || ''), el('td', { class: 'ua' }, x.user_agent || ''))));
+        body.append(el('div', { class: 'chart-wrap' }, el('table', { class: 'moj' }, el('thead', {}, el('tr', {}, el('th', {}, T('Data/Hora', 'Date/Time', 'Fecha/Hora')), el('th', {}, 'Login'), el('th', {}, 'IP'), el('th', {}, T('Navegador', 'Browser', 'Navegador')))), tb)));
+      }
+      // tentativas RECUSADAS do mesmo dia (servidor antigo: o campo não vem e a seção não aparece)
+      if (!Array.isArray(r.refused)) return;
+      REF = r.refused;
+      body.append(el('h3', { style: 'margin:.8rem 0 .3rem' }, T('🚫 Tentativas recusadas', '🚫 Refused attempts', '🚫 Intentos rechazados'), ' ', el('span', { class: 'small muted' }, '(' + REF.length + ')'), ' ', REF.length ? dlRef : ''));
+      if (!REF.length) { body.append(el('div', { class: 'muted' }, T('Nenhuma tentativa recusada.', 'No refused attempts.', 'Ningún intento rechazado.'))); return; }
+      const tr = el('tbody');
+      REF.forEach((x) => tr.append(el('tr', {}, el('td', { class: 'small' }, fmtDate(x.time)),
+        el('td', {}, x.login || el('span', { class: 'muted' }, T('(conta inexistente)', '(no such account)', '(cuenta inexistente)'))),
+        el('td', {}, refusedReason(x.code)), el('td', { class: 'ip' }, x.ip || ''), el('td', { class: 'ua' }, x.user_agent || ''))));
+      body.append(el('div', { class: 'chart-wrap' }, el('table', { class: 'moj' }, el('thead', {}, el('tr', {}, el('th', {}, T('Data/Hora', 'Date/Time', 'Fecha/Hora')), el('th', {}, 'Login'), el('th', {}, T('Motivo', 'Reason', 'Motivo')), el('th', {}, 'IP'), el('th', {}, T('Navegador', 'Browser', 'Navegador')))), tr)));
     }
     dateInp.addEventListener('change', loadAccess);
     box.append(el('div', { class: 'row', style: 'margin-bottom:.4rem' }, el('span', { class: 'small muted' }, T('Dia:', 'Day:', 'Día:')), dateInp, el('button', { class: 'btn ghost', onclick: () => loadAccess() }, '↻'), dl), body);

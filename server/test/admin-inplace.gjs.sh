@@ -190,6 +190,36 @@ check "$(kv sessions list_kept2)" true "sessions: lista ficou quando só o login
 check "$(kv sessions list_rebuilt)" true "sessions: lista trocou com sessão nova"
 check "$(kv sessions skeleton_stable)" true "sessions: esqueleto idêntico após 4 loads"
 
+# --------------------------------------- Sessões › Log de acessos: tentativas RECUSADAS (sessions-tab) ---
+# o motivo sai traduzido (código novo = o próprio código), conta inexistente aparece como tal e o servidor
+# antigo (sem `refused`) não ganha seção
+run sessref sessions-tab.js '
+let AL={entries:[{time:100,login:"t1",ip:"1.1.1.1",user_agent:"ff"}],alerts:[],refused:[
+  {time:300,login:"t1",ip:"2.2.2.2",user_agent:"ff",code:"login_not_open",http:403},
+  {time:200,login:"",ip:"3.3.3.3",user_agent:"ff",code:"bad_creds",http:401},
+  {time:150,login:"t2",ip:"4.4.4.4",user_agent:"ff",code:"codigo_novo",http:403}]};
+async function apiGet(p){ if(p.includes("access-log")) return JSON.parse(JSON.stringify(AL)); if(p.includes("logout-all")) return {login_enabled:true,sessions:{}}; if(p.includes("/sessions")) return {sessions:[]}; return {}; }
+function find(n,f,out){ if(!n||n.nodeType!==1) return out; if(f(n)) out.push(n); (n.children||[]).forEach(c=>find(c,f,out)); return out; }
+FakeNode.prototype.addEventListener=function(ev,f){ (this._ev||(this._ev={}))[ev]=f; };   // o el() liga onclick por aqui
+(async()=>{ const tab=makeSessionsTab("c",{has:()=>false}); await tab.load();
+  const acc=[...tab.panel.children][2]; const rb=find(acc,n=>n.tagName==="button" && n.textContent==="↻",[])[0];
+  rb.onclick=()=>rb._ev.click(); await rb.onclick(); const t=acc.textContent;
+  print("header="+t.includes("🚫 Tentativas recusadas")); print("count="+t.includes("(3)"));
+  print("reason_pt="+t.includes("login ainda não abriu")); print("unknown_account="+t.includes("(conta inexistente)"));
+  print("fallback_code="+t.includes("codigo_novo")); print("csv_btn="+(find(acc,n=>n.tagName==="button" && n.textContent.includes("CSV recusadas"),[]).length===1));
+  print("map_en="+(()=>{ const o=T; T=(pt,en)=>en; const r=refusedReason("ua_gate"); T=o; return r; })());
+  delete AL.refused; await rb.onclick(); print("old_server_no_section="+!acc.textContent.includes("Tentativas recusadas"));
+})().catch(e=>print("ERRO "+e+"\n"+e.stack));' sessions-common.js > "$T/sessref.out"
+check "$(kv sessref header)" true "sessions/refused: seção das tentativas recusadas aparece"
+check "$(kv sessref count)" true "sessions/refused: com a contagem"
+check "$(kv sessref reason_pt)" true "sessions/refused: motivo traduzido (login_not_open)"
+check "$(kv sessref unknown_account)" true "sessions/refused: login vazio = conta inexistente"
+check "$(kv sessref fallback_code)" true "sessions/refused: código desconhecido aparece como veio"
+check "$(kv sessref csv_btn)" true "sessions/refused: botão de CSV das recusadas"
+check "$(kv sessref map_en)" "browser/machine not allowed" "sessions/refused: motivo em inglês"
+check "$(kv sessref old_server_no_section)" true "sessions/refused: servidor sem o campo, sem seção"
+check "$(grep -c "^ERRO" "$T/sessref.out")" 0 "sessions/refused: sem exceção"
+
 # ------------------------------------------------------------ Anomalias (anomalies-tab) ---------
 run anomalies anomalies-tab.js '
 let D={gate:{mode:"enforce",active:true,single_session:true},window:{start:1,end:2},computed_at:10,round:"r",counts:{sessions:2,teams_live:2,multi_session:1},

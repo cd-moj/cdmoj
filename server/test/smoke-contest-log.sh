@@ -92,4 +92,29 @@ ck "UA com 'MOJ Box' entra (o escape do %q não vai p/ a comparação)" '[[ "$(j
 call /auth/login POST '{"username":"alice","password":"a"}' '' 'contest=lc' 'Mozilla Firefox' 8.8.8.8
 ck "…e UA sem a substring continua barrado"                          '[[ "$OUT" == *"Status: 403"* ]]'
 
+echo "== TENTATIVA RECUSADA: vai ao var/login-refused.log e aparece no log de acessos (refused) =="
+RL="$C/var/login-refused.log"; rm -f "$RL"
+call /auth/login POST '{"username":"alice","password":"errada"}' '' 'contest=lc' 'Mozilla MOJBOX-7 X' 4.3.2.1
+ck "senha errada: 401 e uma linha (alice, bad_creds, 401, IP)" '[[ "$OUT" == *"Status: 401"* ]] && [[ "$(cut -f2,3,5,6 "$RL")" == "alice	4.3.2.1	bad_creds	401" ]]'
+call /auth/login POST '{"username":"senhaNoCampo99","password":"x"}' '' 'contest=lc' 'Mozilla MOJBOX-7 X' 4.3.2.1
+ck "conta inexistente: o texto digitado NÃO é gravado (login ?)" '[[ "$(tail -1 "$RL" | cut -f2,5)" == "?	bad_creds" ]] && ! grep -q senhaNoCampo99 "$RL"'
+call /auth/login POST '{"username":"alice","password":"a"}' '' 'contest=lc' 'Mozilla Firefox' 4.3.2.1
+ck "gate de navegador: motivo ua_gate, UA gravado" '[[ "$(tail -1 "$RL" | cut -f2,5,6)" == "alice	ua_gate	403" && "$(tail -1 "$RL" | cut -f4 | base64 -d)" == "Mozilla Firefox" ]]'
+printf 'LOGIN_ENABLED=n\n' >> "$C/conf"
+call /auth/login POST '{"username":"alice","password":"a"}' '' 'contest=lc' 'Mozilla MOJ Box/3' 4.3.2.1
+ck "login fechado: motivo login_disabled" '[[ "$(tail -1 "$RL" | cut -f2,5)" == "alice	login_disabled" ]]'
+sed -i '/^LOGIN_ENABLED=/d' "$C/conf"
+n="$(wc -l < "$RL")"
+call /auth/login POST '{"username":"alice"}' '' 'contest=lc' 'Mozilla MOJ Box/3' 4.3.2.1
+ck "pedido sem senha (400) não é tentativa: nada gravado" '[[ "$OUT" == *"Status: 400"* && "$(wc -l < "$RL")" == "$n" ]]'
+call /auth/login POST '{"username":"alice","password":"a"}' '' 'contest=lc' 'Mozilla MOJ Box/3' 4.3.2.1
+ck "login aceito não grava recusa"           '[[ "$(jq -r .logged_in <<<"$BODY")" == true && "$(wc -l < "$RL")" == "$n" ]]'
+call /contest/admin/access-log GET '' adm "contest=lc&day=$(date +%F)"
+ck "access-log: refused do dia, mais recente primeiro, com o motivo" '[[ "$(jq -c "[.refused[] | .code]" <<<"$BODY")" == "[\"login_disabled\",\"ua_gate\",\"bad_creds\",\"bad_creds\"]" ]]'
+ck "…conta inexistente sai com login vazio" '[[ "$(jq -r "[.refused[] | select(.login == \"\")] | length" <<<"$BODY")" == 1 ]]'
+n="$(wc -l < "$RL")"
+OUT="$(PATH_INFO=/auth/login REQUEST_METHOD=POST QUERY_STRING=contest=lc HTTP_USER_AGENT=x REMOTE_ADDR=4.3.2.1 LOGIN_REFUSED_MAX=10 \
+  CONTESTSDIR="$FIX" SESSIONDIR="$SESS" bash "$ROUTER" <<<'{"username":"alice","password":"errada"}' 2>&1)"
+ck "teto do arquivo: passou de LOGIN_REFUSED_MAX, GIRA p/ .1 e a tentativa nova vai ao arquivo novo" '[[ "$OUT" == *"Status: 401"* && "$(wc -l < "$RL.1")" == "$n" && "$(wc -l < "$RL")" == 1 && "$(cut -f2,5 "$RL")" == "alice	bad_creds" ]]'
+
 echo ""; echo "RESULT: $pass passed, $fail failed"; exit $(( fail>0?1:0 ))

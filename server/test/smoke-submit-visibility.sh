@@ -79,6 +79,7 @@ pkt(){ # <problem_id> -> pacote {v,wk,ct} cifrado com a pública do contest (o f
   jq -cn --arg w "$wk" --arg c "$ct" '{v:1, wk:$w, ct:$c} | tojson'
 }
 if [[ -s "$FIX/ct/secrets/offline.pub" ]]; then
+  ck "offline: a geração do par de chaves do contest vai à trilha" '[[ "$(grep -cP "\toffline-key\tpar gerado \(1ª vez\)$" "$FIX/ct/var/admin-audit.log")" == 1 ]]'
   OUT="$(PATH_INFO=/contest/offline-submit REQUEST_METHOD=POST QUERY_STRING=contest=ct HTTP_AUTHORIZATION="Bearer tok-time1" \
     bash "$ROUTER" <<<"{\"packets\":[$(pkt 'priv#x'),$(pkt 'pub#a')]}" 2>/dev/null)"; BODY="$(printf '%s' "$OUT" | awk 'f{print} /^\r?$/{f=1}')"
   ck "offline: privado fora da prova rejeitado com o motivo" '[[ "$(jq -r ".results[0].status + \" \" + .results[0].reason" <<<"$BODY")" == "rejected problema não pertence a este contest" ]]'

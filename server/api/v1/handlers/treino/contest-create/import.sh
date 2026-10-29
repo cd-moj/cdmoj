@@ -37,5 +37,6 @@ jq -e . >/dev/null 2>&1 <<<"$spec" || fail 422 "contest.json inválido" "spec_ba
 # a mesma guarda do create/duplicate (cc_spec_guard): problema que o login não pode ver não entra no contest
 cc_spec_guard "$spec" "$SESSION_LOGIN"
 cc_create "$spec" "$SESSION_LOGIN" "$SESSION_NAME" "$base/enunciados"
-audit_log contest-create "import id=$(jq -r '.contest_id' <<<"$CC_RESULT")"
+_cid="$(jq -r '.contest_id' <<<"$CC_RESULT")"
+audit_log contest-create "import id=$_cid $(cc_audit_summary "$_cid")"
 ok_json '$r' --argjson r "$CC_RESULT"

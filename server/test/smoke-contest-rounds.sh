@@ -148,8 +148,10 @@ sed -i '/^ROUND_KIND=/d' "$C/conf"; printf 'ROUND_KIND=warmup\n' >> "$C/conf"
 mkdir -p "$C/docs"; printf '%%PDF-enviado' > "$C/docs/info-sheet.pt.uploaded.pdf"; printf '%%PDF-gerado' > "$C/docs/info-sheet.pt.pdf"
 printf '%%PDF-caderno-do-aquecimento' > "$C/docs/contest.pt.uploaded.pdf"; printf 'PNG' > "$C/docs/header-logo.png"
 sed -i '/^CONTEST_PRIORITY=/d' "$C/conf"; printf 'CONTEST_PRIORITY=prova\n' >> "$C/conf"   # o automático é só de PROVA
+printf '%s\tt1\t9.9.9.9\tdWE=\tbad_creds\t401\n' "$NOW" >> "$C/var/login-refused.log"   # tentativa recusada da rodada
 AUTO_WARM_JUDGES=1 RD '{"action":"promote","to":"prova"}'
 ck "promoveu"                      '[[ "$(J .promoted)" == true ]]'
+ck "o log das tentativas recusadas vai ao arquivo da rodada e o vivo continua" '[[ "$(cut -f2,5 "$C/rounds/oficial/login-refused.log")" == "t1	bad_creds" && -f "$C/var/login-refused.log" ]]'
 # AQUECIMENTO dos juízes p/ a rodada que entrou (TCP 2026): destacado — a resposta não espera; o audit chega depois
 for _w in 1 2 3 4 5 6 7 8 9 10; do grep -q "warm-judges.*by=promote:" "$C/var/admin-audit.log" 2>/dev/null && break; sleep 0.5; done
 ck "promoção dispara o aquecimento (destacado, auditado by=promote:<login>)" 'grep -q "	promote:boss.admin	warm-judges	sent=0 by=promote:boss.admin" "$C/var/admin-audit.log"'

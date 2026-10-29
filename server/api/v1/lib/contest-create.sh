@@ -1144,6 +1144,18 @@ cc_probs_json(){
   ) | jq -cs '.'
 }
 
+# cc_audit_summary <id> -> "contas=N problemas=M rodadas=R modulos=a,b[ users_from=x]": o que a criação de fato
+# montou, lido do contest no disco — o audit de criar/duplicar/importar diz o tamanho do que nasceu.
+cc_audit_summary(){
+  local d="$CONTESTSDIR/$1" nu np nr mods uf
+  nu="$(find "$d/users" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | wc -l)"
+  np="$( PROBS=(); . "$d/conf" 2>/dev/null; printf '%s' "$(( ${#PROBS[@]} / 5 ))" )"   # o conf é nosso (printf %q)
+  nr="$(jq '(.rounds // []) | length' "$d/rounds.json" 2>/dev/null)"
+  mods="$(mod_raw "$1")"
+  uf="$(conf_value "$1" USERS_FROM)"
+  printf 'contas=%s problemas=%s rodadas=%s modulos=%s%s' "${nu//[^0-9]/}" "${np//[^0-9]/}" "${nr:-0}" "${mods:--}" "${uf:+ users_from=$uf}"
+}
+
 # --- templates nomeados de contest (por criador) -----------------------------
 # Um arquivo por login: contests/treino/var/contest-templates/<login>.json
 #   {templates:{"<nome>":{created_at,updated_at,spec:{...}}}}

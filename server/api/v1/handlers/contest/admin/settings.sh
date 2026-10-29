@@ -65,15 +65,19 @@ fi
 require_method POST
 body="$(read_body)"
 jq -e . >/dev/null 2>&1 <<<"$body" || fail 400 "JSON inválido" "bad_json"
-declare -a CH
+declare -a CH AUD
 has(){ jq -e "has(\"$1\")" >/dev/null 2>&1 <<<"$body"; }
 # só grava (e só AUDITA) o que MUDA: o formulário manda tudo a cada Salvar e a auditoria marcava toda chave como
 # mudada — não dava p/ saber o que alguém de fato trocou (auditoria do painel, 03/10/2026). conf_value devolve o
 # valor como o `source` o vê (sem o escape do %q); valor `$'…'` (não-ASCII) não compara e é regravado, como antes.
-setvar(){ [[ "$(conf_value "$contest" "$1")" == "$2" ]] && grep -q "^$1=" "$CONTESTSDIR/$contest/conf" 2>/dev/null && return 0
-  cc_set_conf_var "$contest" "$1" "$2"; CH+=("$1=$2"); }
+# O audit leva o valor ANTERIOR (`CHAVE=antes→depois`; `—` = não estava no conf); a resposta (`changed`) segue só o novo.
+setvar(){ local _old; _old="$(conf_value "$contest" "$1")"
+  [[ "$_old" == "$2" ]] && grep -q "^$1=" "$CONTESTSDIR/$contest/conf" 2>/dev/null && return 0
+  grep -q "^$1=" "$CONTESTSDIR/$contest/conf" 2>/dev/null || _old="—"
+  cc_set_conf_var "$contest" "$1" "$2"; CH+=("$1=$2"); AUD+=("$1=${_old}→$2"); }
 delvar(){ grep -q "^$1=" "$CONTESTSDIR/$contest/conf" 2>/dev/null || return 0
-  cc_del_conf_var "$contest" "$1"; CH+=("$1=padrao"); }
+  local _old; _old="$(conf_value "$contest" "$1")"
+  cc_del_conf_var "$contest" "$1"; CH+=("$1=padrao"); AUD+=("$1=${_old}→padrao"); }
 
 # o módulo `esqueletos` EXIGE o editor embutido (lib/esqueletos.sh): desligar o editor com ele ligado é
 # recusado ANTES de qualquer gravação (um 409 no meio deixaria o conf pela metade). A condição ESPELHA o
@@ -115,7 +119,7 @@ if has priority; then
   [[ "$_prio" == super && "$_pnow" != super ]] && \
     fail 403 "A prioridade Super é exclusiva do super-admin do treino (Painel do treino › Contests)" "priority_forbidden"
   cc_set_priority "$contest" "$_prio" regras || fail 500 "Falha ao gravar a prioridade" "priority_write"
-  (( CC_PRIO_CHANGED )) && CH+=("CONTEST_PRIORITY=$_prio")
+  (( CC_PRIO_CHANGED )) && { CH+=("CONTEST_PRIORITY=$_prio"); AUD+=("CONTEST_PRIORITY=${_pnow:-—}→$_prio"); }
 fi
 
 # fotografia do que invalida metrics/placar (freeze e penalidade) ANTES de gravar: se mudar,
@@ -294,7 +298,7 @@ if [[ "$(score_snap)" != "$SCORE_WAS" ]]; then
   score_kick_rebuild "$contest"
 fi
 
-audit_log_to "$contest" settings "$( ((${#CH[@]})) && { IFS=,; echo "${CH[*]}"; } || echo nada )"
+audit_log_to "$contest" settings "$( ((${#AUD[@]})) && { IFS=,; echo "${AUD[*]}"; } || echo nada )"
 ok_json '{saved:true, changed:$c, review_released:($rf + $ra), review_pending:$rl, balloons_released:$bf}' \
   --argjson rf "$RV_FREED" --argjson rl "$RV_LEFT" --argjson bf "$BLN_FREED" --argjson ra "$RV_AGREED" \
   --argjson c "$( ((${#CH[@]})) && printf '%s\n' "${CH[@]}" | jq -R . | jq -cs . || echo '[]')"

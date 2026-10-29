@@ -25,8 +25,11 @@
 #
 # Estado: run/site-lock/<ip> — TSV, UMA linha por contest que reivindicou o IP:
 #   ip \t contest \t until \t first \t last \t logins \t blocked \t last_block \t last_target
-# Escrita sob flock por IP (fd dinâmico). A leitura do router é builtin (zero fork) e só
-# acontece quando o arquivo do IP existe: para todo o resto do mundo custa um [[ -f ]].
+# Escrita sob flock por IP (fd dinâmico em SL_FD, aberto no PRÓPRIO shell — por `$(…)` o lock morreria com o
+# subshell). A leitura do router é builtin (zero fork) e só acontece quando o arquivo do IP existe: para todo o
+# resto do mundo custa um [[ -f ]]. Linha VENCIDA (until < agora) não prende ninguém — o porteiro também confere o
+# until antes de recusar — e sai na varredura (`sl_sweep`, o judged a cada SITE_LOCK_SWEEP_EVERY_S) depois de
+# SITE_LOCK_KEEP_EXPIRED_S (7 dias: o painel mostra a vencida no balanço da prova).
 
 sl_dir(){ printf '%s/site-lock' "${RUNDIR:-/home/ribas/moj/run}"; }
 sl_file(){ printf '%s/%s' "$(sl_dir)" "$1"; }
@@ -35,15 +38,18 @@ sl_enabled(){ local v; v="$(conf_value "$1" SITE_LOCK)"; [[ "$v" == 1 || "$v" ==
   declare -F mod_on >/dev/null || source "${_LIBDIR:-${BASH_SOURCE[0]%/*}}/modules.sh"; mod_on "$1" maquinas; }
 sl_grace(){ local g; g="$(conf_value "$1" SITE_LOCK_GRACE)"; [[ "$g" =~ ^[0-9]+$ ]] && printf '%s' "$g" || printf '3600'; }
 
-_sl_lock(){ local fd d; d="$(sl_dir)"; mkdir -p "$d/.blk" 2>/dev/null; chmod 700 "$d" 2>/dev/null
-  exec {fd}>"$d/.$1.lock" 2>/dev/null || { printf ''; return 1; }
-  flock "$fd" 2>/dev/null || { printf ''; return 1; }; printf '%s' "$fd"; }
-_sl_unlock(){ [[ -n "${1:-}" ]] && eval "exec ${1}>&-" 2>/dev/null; return 0; }
+# _sl_lock <ip> — tranca run/site-lock/.<ip>.lock com o fd em SL_FD (no shell de quem chama: nunca `$(_sl_lock …)`).
+# rc 1 = sem lock (quem chama segue sem ele, como sempre seguiu). Um lock por vez (SL_FD é um só).
+_sl_lock(){ local d; d="$(sl_dir)"; mkdir -p "$d/.blk" 2>/dev/null; chmod 700 "$d" 2>/dev/null; SL_FD=""
+  [[ -w "$d" ]] || return 1   # um redirect que falha num `exec` encerra o shell: confere antes
+  exec {SL_FD}>>"$d/.$1.lock" || { SL_FD=""; return 1; }
+  flock -w 10 "$SL_FD" 2>/dev/null || { _sl_unlock; return 1; }; return 0; }
+_sl_unlock(){ [[ "${SL_FD:-}" =~ ^[0-9]+$ ]] && exec {SL_FD}>&-; SL_FD=""; return 0; }
 
 # sl_claim <contest> <ip> <login> -> ecoa "new"|"renewed"|"" (sem reivindicação: contest sem
 # trava, acabado, IP vazio ou conta de papel). Audita a reivindicação NOVA.
 sl_claim(){
-  local c="$1" ip="$2" lg="${3:-}" end until now="$EPOCHSECONDS" fd f tmp found=0 line
+  local c="$1" ip="$2" lg="${3:-}" end until now="$EPOCHSECONDS" SL_FD f tmp found=0 line
   local ipf="${ip//[^0-9a-fA-F.:]/}"
   [[ -n "$ipf" && -n "$c" ]] || { printf ''; return 0; }
   is_reserved_role_login "$lg" && { printf ''; return 0; }
@@ -61,8 +67,8 @@ sl_claim(){
     (( end + $(sl_grace "$c") >= now )) || { printf ''; return 0; }   # prova acabada: nada a prender
     until=$(( end + $(sl_grace "$c") ))
   else until=$(( now + 86400 )); fi
-  fd="$(_sl_lock "$ipf")" || fd=""
-  f="$(sl_file "$ipf")"; tmp="$(mktemp "$(sl_dir)/.$ipf.XXXXXX" 2>/dev/null)" || { _sl_unlock "$fd"; printf ''; return 0; }
+  _sl_lock "$ipf" || true
+  f="$(sl_file "$ipf")"; tmp="$(mktemp "$(sl_dir)/.$ipf.XXXXXX" 2>/dev/null)" || { _sl_unlock; printf ''; return 0; }
   {
     if [[ -f "$f" ]]; then
       while IFS=$'\t' read -r _ip _c _u _first _last _n _b _lb _lt; do
@@ -77,7 +83,7 @@ sl_claim(){
     (( found )) || printf '%s\t%s\t%s\t%s\t%s\t1\t0\t0\t\n' "$ipf" "$c" "$until" "$now" "$now"
   } > "$tmp"
   mv -f "$tmp" "$f" 2>/dev/null || rm -f "$tmp"
-  _sl_unlock "$fd"
+  _sl_unlock
   if (( found )); then printf 'renewed'
   else
     audit_log_to "$c" site-lock-claim "ip=$ipf login=${lg:--} until=$until"
@@ -104,17 +110,17 @@ sl_check(){
 # por ip+alvo: o laço de curl de um aluno não inunda o admin-audit.log)
 sl_record_block(){
   local c="$1" ipf="${2//[^0-9a-fA-F.:]/}" tgt="${3:-}" route="${4:-}" lg="${5:-}" now="$EPOCHSECONDS"
-  local d fd f tmp stamp last=0
+  local d SL_FD f tmp stamp last=0
   d="$(sl_dir)"; f="$(sl_file "$ipf")"; [[ -f "$f" ]] || return 0
-  fd="$(_sl_lock "$ipf")" || fd=""
-  tmp="$(mktemp "$d/.$ipf.XXXXXX" 2>/dev/null)" || { _sl_unlock "$fd"; return 0; }
+  _sl_lock "$ipf" || true
+  tmp="$(mktemp "$d/.$ipf.XXXXXX" 2>/dev/null)" || { _sl_unlock; return 0; }
   while IFS=$'\t' read -r _ip _c _u _first _last _n _b _lb _lt; do
     [[ -n "$_c" ]] || continue
     if [[ "$_c" == "$c" ]]; then printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$_ip" "$_c" "$_u" "$_first" "$_last" "${_n:-0}" "$(( ${_b:-0} + 1 ))" "$now" "${tgt:--}"
     else printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$_ip" "$_c" "$_u" "$_first" "$_last" "${_n:-0}" "${_b:-0}" "${_lb:-0}" "${_lt:-}"; fi
   done < "$f" > "$tmp"
   mv -f "$tmp" "$f" 2>/dev/null || rm -f "$tmp"
-  _sl_unlock "$fd"
+  _sl_unlock
   stamp="$d/.blk/${ipf}_${tgt//[^A-Za-z0-9._@#+-]/_}"
   [[ -f "$stamp" ]] && last="$(<"$stamp")"; [[ "$last" =~ ^[0-9]+$ ]] || last=0
   if (( now - last >= 300 )); then
@@ -126,13 +132,13 @@ sl_record_block(){
 
 # sl_release <contest> <ip> — tira a reivindicação deste contest (as de outros ficam)
 sl_release(){
-  local c="$1" ipf="${2//[^0-9a-fA-F.:]/}" f fd tmp
+  local c="$1" ipf="${2//[^0-9a-fA-F.:]/}" f SL_FD tmp
   f="$(sl_file "$ipf")"; [[ -f "$f" ]] || return 0
-  fd="$(_sl_lock "$ipf")" || fd=""
-  tmp="$(mktemp "$(sl_dir)/.$ipf.XXXXXX" 2>/dev/null)" || { _sl_unlock "$fd"; return 0; }
+  _sl_lock "$ipf" || true
+  tmp="$(mktemp "$(sl_dir)/.$ipf.XXXXXX" 2>/dev/null)" || { _sl_unlock; return 0; }
   awk -F'\t' -v c="$c" '$2 != c' "$f" > "$tmp" 2>/dev/null
   if [[ -s "$tmp" ]]; then mv -f "$tmp" "$f"; else rm -f "$tmp" "$f"; fi
-  _sl_unlock "$fd"; return 0
+  _sl_unlock; return 0
 }
 
 # sl_release_contest <contest> — solta TODOS os IPs presos por este contest (o módulo `maquinas` foi desligado: a
@@ -146,11 +152,30 @@ sl_release_contest(){
   printf '%s' "$n"
 }
 
+# sl_sweep — tira de todo run/site-lock/<ip> as linhas vencidas há mais de SITE_LOCK_KEEP_EXPIRED_S (7 dias; sem until
+# numérico também), sob o lock do IP; o arquivo que fica vazio sai. A recém-vencida FICA: não prende ninguém (sl_check
+# e o porteiro a ignoram) e o painel Máquinas › Gate & trava a mostra, com os contadores do IP, no balanço depois da
+# prova. Ecoa quantos arquivos mexeu. Quem chama: o judged (shard 0).
+sl_sweep(){
+  local d f ip SL_FD tmp n=0 lim
+  lim=$(( EPOCHSECONDS - ${SITE_LOCK_KEEP_EXPIRED_S:-604800} ))
+  d="$(sl_dir)"; [[ -d "$d" ]] || { printf '0'; return 0; }
+  while IFS= read -r -d '' f; do
+    awk -F'\t' -v lim="$lim" 'NF && !($3 ~ /^[0-9]+$/ && $3 >= lim) { v = 1 } END { exit !v }' "$f" 2>/dev/null || continue
+    ip="${f##*/}"; _sl_lock "$ip" || true
+    tmp="$(mktemp "$d/.$ip.XXXXXX" 2>/dev/null)" || { _sl_unlock; continue; }
+    awk -F'\t' -v lim="$lim" '$3 ~ /^[0-9]+$/ && $3 >= lim' "$f" > "$tmp" 2>/dev/null
+    if [[ -s "$tmp" ]]; then mv -f "$tmp" "$f"; else rm -f "$tmp" "$f"; fi
+    _sl_unlock; n=$((n + 1))
+  done < <(find "$d" -maxdepth 1 -type f ! -name '.*' -print0 2>/dev/null)
+  printf '%s' "$n"
+}
+
 # sl_list <contest> -> JSON [{ip,until,first,last,logins,blocked,last_block,last_target,active}]
 sl_list(){
   local d; d="$(sl_dir)"
   [[ -d "$d" ]] || { printf '[]'; return 0; }
-  ( set +o noglob; shopt -s nullglob; cat "$d"/* 2>/dev/null ) \
+  ( set +o noglob; shopt -s nullglob; cat "$d"/* </dev/null 2>/dev/null ) \
     | awk -F'\t' -v c="$1" '$2 == c' \
     | jq -Rn --argjson now "$EPOCHSECONDS" '[ inputs | split("\t") | select(length >= 7)
         | {ip:.[0], until:(.[2]|tonumber? // 0), first:(.[3]|tonumber? // 0), last:(.[4]|tonumber? // 0),

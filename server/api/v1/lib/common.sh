@@ -109,8 +109,13 @@ _reason() {
 }
 
 # fail <http-status> <message> [error-code] — envelope de erro + encerra.
+# `_fail_hook <http> <código>`, se o handler o definir, roda UMA vez antes da resposta (o auth/login registra a
+# tentativa recusada). Função só existe na requisição que a definiu: o molde roda cada uma num subshell.
 fail() {
   local code="${1:-400}" msg="$2" ecode="${3:-$1}" x="${FAIL_EXTRA:-}"
+  if [[ -z "${_FAIL_HOOK_RAN:-}" ]] && declare -F _fail_hook >/dev/null; then
+    _FAIL_HOOK_RAN=1; _fail_hook "$code" "$ecode" 2>/dev/null || true
+  fi
   # CLI ANTIGA (sem marcador no UA, não lê cabeçalho): a dica "rode moj update" vai NA mensagem
   type cli_status_compute &>/dev/null && { cli_status_compute; msg="$msg${CLI_HINT:-}"; }
   # FAIL_EXTRA (objeto JSON, opcional): campos a mais DENTRO de `error` — o 409 stale_rev do editor

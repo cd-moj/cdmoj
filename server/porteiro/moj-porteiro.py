@@ -913,13 +913,32 @@ def handle_request(params):
     # isento, auditoria) é o bash. Um stat por requisição; o porteiro servia o placar/problemas de OUTRO contest a
     # uma máquina presa (auditoria do painel, 03/10/2026). O IP é o da conexão (client_ip: REMOTE_ADDR, nunca XFF).
     ip = "".join(ch for ch in params.get("REMOTE_ADDR", "") if ch in "0123456789abcdefABCDEF.:")
-    if ip and os.path.exists(os.path.join(RUNDIR, "site-lock", ip)):
+    if ip and site_lock_active(ip):
         raise Decline("IP preso pela trava de sede")
     # isolamento por subdomínio (router.sh:57-64): rota de contest é permitida; só o mismatch cai
     ch = params.get("CONTEST_HOST", "")
     if ch and valid_id(ch) and q.get("contest") and q["contest"] != ch:
         raise Decline("contest_mismatch é do bash")
     return route(contest, q, params)
+
+
+def site_lock_active(ip):
+    """O IP tem reivindicação VALENDO? A MESMA conta do sl_check (lib/site-lock.sh): linha com contest e `until`
+    numérico >= agora (TSV ip, contest, until, …). Vencida não prende ninguém — o bash a ignora e responde —, então
+    recusar por ela só mandava ao bash todo pedido daquele IP. Sem arquivo = livre; ilegível = preso (o bash decide)."""
+    try:
+        with open(os.path.join(RUNDIR, "site-lock", ip), errors="replace") as f:
+            lines = f.read().splitlines()
+    except FileNotFoundError:
+        return False
+    except OSError:
+        return True
+    now = int(time.time())
+    for ln in lines:
+        p = ln.split("\t")
+        if len(p) >= 3 and p[1] and p[2].isdigit() and int(p[2]) >= now:
+            return True
+    return False
 
 
 def _urldecode(s):

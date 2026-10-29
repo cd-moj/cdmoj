@@ -78,5 +78,6 @@ fi
 cc_spec_guard "$spec" "$SESSION_LOGIN"
 
 cc_create "$spec" "$SESSION_LOGIN" "$SESSION_NAME" "$srcdir"
-audit_log contest-create "duplicate from=$from id=$(jq -r '.contest_id' <<<"$CC_RESULT")"
+_cid="$(jq -r '.contest_id' <<<"$CC_RESULT")"
+audit_log contest-create "duplicate from=$from id=$_cid $(cc_audit_summary "$_cid")"
 ok_json '$r' --argjson r "$CC_RESULT"

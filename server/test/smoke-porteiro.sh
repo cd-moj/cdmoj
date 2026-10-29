@@ -115,11 +115,18 @@ d "traversal"                "$(req /contest/score "contest=../../etc")"
 d "scope=mine"               "$(req /contest/score "contest=fx&scope=mine" "Bearer tk-adm")"
 d "cache frio (basic sem cache)" "$(req /contest/basic contest=fx "Bearer tk-eq1")"
 # trava de sede: IP preso ⇒ o bash decide (403 site_locked / papel isento) — auditoria 03/10/2026
-mkdir -p "$RUNDIR/site-lock"; printf 'outro\t9999999999\n' > "$RUNDIR/site-lock/9.8.7.6"
+mkdir -p "$RUNDIR/site-lock"; printf '9.8.7.6\toutro\t9999999999\t1\t1\t1\t0\t0\t\n' > "$RUNDIR/site-lock/9.8.7.6"
 d "IP preso pela trava de sede" "$(RADDR=9.8.7.6 req /contest/rounds contest=fx "Bearer tk-eq1")"
 touch "$C/var/rounds-cache.pub.json" "$C/var/rounds-cache.priv.json"   # o conf mudou acima (SCORE_FULL_USERS)
 r="$(RADDR=9.8.7.7 req /contest/rounds contest=fx "Bearer tk-eq1")"
 [[ "$r" == *'"r":"pub"'* ]] && ok "IP livre segue servido" || bad "ip livre: ${r:0:80}"
+# reivindicação VENCIDA (o sl_check a ignora): o IP segue servido; vencida + valendo no mesmo arquivo = recusa
+printf '9.8.7.5\toutro\t1\t1\t1\t1\t0\t0\t\n' > "$RUNDIR/site-lock/9.8.7.5"
+r="$(RADDR=9.8.7.5 req /contest/rounds contest=fx "Bearer tk-eq1")"
+[[ "$r" == *'"r":"pub"'* ]] && ok "IP com trava vencida segue servido" || bad "trava vencida: ${r:0:80}"
+printf '9.8.7.5\tmais\t9999999999\t1\t1\t1\t0\t0\t\n' >> "$RUNDIR/site-lock/9.8.7.5"
+d "vencida + valendo no mesmo arquivo" "$(RADDR=9.8.7.5 req /contest/rounds contest=fx "Bearer tk-eq1")"
+rm -f "$RUNDIR/site-lock/9.8.7.5"
 # TIME SÓ PELO SUBDOMÍNIO DO CONTEST (lib/team-host.sh): fora dele o bash responde 403 host_required ⇒ declina
 d "time pelo site principal/IP (sem CONTEST_HOST)" "$(CH= req /contest/rounds contest=fx "Bearer tk-eq1")"
 r="$(CH= req /contest/rounds contest=fx "Bearer tk-adm")"

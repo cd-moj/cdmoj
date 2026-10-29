@@ -235,6 +235,7 @@ ck "instância única: com o lock tomado o 2º alimentador sai sem fazer nada" '
 sed -i "s/^CONTEST_START=.*/CONTEST_START=$(( NOW - 200000 ))/; s/^CONTEST_END=.*/CONTEST_END=$(( NOW - 100000 ))/" "$C/conf"
 FEED
 ck "24 h depois do fim: desliga sozinho (marcador some, enabled=false)" '[[ ! -e "$RUN/animeitor/active/ap" && "$(jq -r .enabled "$C/animeitor.json")" == false ]]'
+ck "…e o desligamento automático vai à trilha do contest" 'grep -qP "\tauto-fim\tanimeitor-feed\tstop by=auto-fim motivo=24h_depois_do_fim$" "$C/var/admin-audit.log"'
 sed -i "s/^CONTEST_START=.*/CONTEST_START=$START/; s/^CONTEST_END=.*/CONTEST_END=$END/" "$C/conf"
 python3 "$HERE/animeitor-mock.py" "$MOCKD" "$MOCKD/port2" & MOCKPID=$!
 for _ in $(seq 50); do [[ -s "$MOCKD/port2" ]] && break; sleep 0.1; done

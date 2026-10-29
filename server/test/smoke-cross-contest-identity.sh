@@ -185,6 +185,10 @@ ck "…sem linha de org de que ele não é membro (org-* orgpriv)" '[[ "$(jq "[.
 ck "…e o resto segue no feed (não filtra demais)"            'grep -q "teste-sess" <<<"$BODY"'
 req /treino/admin/activity-log GET "limit=5000&format=csv" teach
 ck "…o CSV filtra igual"                                      '! grep -q "orgpriv#priv" <<<"$BODY"'
+# a tentativa de login RECUSADA no treino entra no feed (kind=login, ação login-refused, motivo e navegador)
+printf '%s\tprof\t7.7.7.7\t%s\tbad_creds\t401\n' "$NOW" "$(printf 'Navegador X' | base64 -w0)" >> "$T/var/login-refused.log"
+req /treino/admin/activity-log GET "limit=5000&kinds=login" teach
+ck "login recusado no feed do treino (kind login, motivo + navegador, IP)" '[[ "$(jq -c "[.events[]|select(.action==\"login-refused\")|{who,kind,details,ip}]" <<<"$BODY")" == "[{\"who\":\"prof\",\"kind\":\"login\",\"details\":\"bad_creds · Navegador X\",\"ip\":\"7.7.7.7\"}]" ]]'
 req /treino/admin/activity-log GET "limit=5000" boss
 ck "o SUPERADMIN vê a leitura do privado e a org"             'grep -q "pkg-source" <<<"$BODY" && grep -q "orgpriv#priv" <<<"$BODY" && grep -q "name=orgpriv" <<<"$BODY"'
 ck "…e a submissão, o move, o id com : e o delete"            '[[ "$(jq "[.events[]|select(.kind==\"submit\" and (.details|test(\"orgpriv#priv\")))]|length" <<<"$BODY")" -ge 1 ]] && grep -q "orgpriv#velho" <<<"$BODY" && grep -q "sumiu#x" <<<"$BODY"'

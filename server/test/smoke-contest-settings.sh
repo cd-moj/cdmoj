@@ -46,7 +46,7 @@ ck "login_start 0 apaga a linha" '[[ "$(jq -r .saved <<<"$BODY")" == "true" ]] &
 call /contest/admin/settings GET '' adm 'contest=sc'
 ck "GET login_start=0 (sem abertura própria)" '[[ "$(jq -r .login_start <<<"$BODY")" == 0 ]]'
 call /contest/admin/settings POST '{"login_start":0}' adm 'contest=sc'
-ck "0 de novo: nada a apagar, nada no audit" '[[ "$(grep -c "LOGIN_START_TIME=padrao" "$C/var/admin-audit.log")" == 1 ]]'
+ck "0 de novo: nada a apagar, nada no audit" '[[ "$(grep -cE "LOGIN_START_TIME=$(( FUT-600 ))→padrao" "$C/var/admin-audit.log")" == 1 ]]'
 
 echo "== idioma do contest (LOCALE pt|en|es) =="
 call /contest/admin/settings POST '{"locale":"es"}' adm 'contest=sc'
@@ -136,8 +136,11 @@ call /contest/admin/settings POST '{"show_tl":true,"allow_backup":true}' adm 'co
 call /contest/admin/settings POST '{"show_tl":true,"allow_backup":true}' adm 'contest=sc'
 ck "salvar sem mudar nada: changed vazio e audita 'nada'" '[[ "$(jq -c .changed <<<"$BODY")" == "[]" ]] && tail -1 "$C/var/admin-audit.log" | grep -q "settings	nada"'
 call /contest/admin/settings POST '{"locale":"es"}' adm 'contest=sc'
+ck "o audit diz de onde veio e para onde foi (CHAVE=antes→depois)" 'tail -1 "$C/var/admin-audit.log" | grep -qE "	settings	(.*,)?LOCALE=[^,]*→es(,|$)"'
+ck "…e a resposta segue só com o valor novo" '[[ "$(jq -c .changed <<<"$BODY")" == *\"LOCALE=es\"* ]]'
 call /contest/admin/settings POST '{"locale":""}' adm 'contest=sc'
 ck "idioma vazio = automático (LOCALE sai do conf)" '! grep -q "^LOCALE=" "$C/conf"'
+ck "…e o audit leva o valor que saiu (LOCALE=es→padrao)" 'tail -1 "$C/var/admin-audit.log" | grep -qE "	settings	(.*,)?LOCALE=es→padrao(,|$)"'
 call /contest/admin/settings GET '' adm 'contest=sc'
 ck "GET: locale_set false sem LOCALE" '[[ "$(jq -r .locale_set <<<"$BODY")" == false ]]'
 call /contest/admin/settings POST '{"languages":["C","CPP","PY3","cc","md"]}' adm 'contest=sc'

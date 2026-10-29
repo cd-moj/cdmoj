@@ -107,6 +107,35 @@ printf '4.4.4.4\tsl\t%s\t1\t1\t1\t0\t0\t\n' "$((NOW-10))" > "$RUN/site-lock/4.4.
 call /treino/problems GET '' tradm 'q=x' 4.4.4.4
 call /auth/login POST '{"username":"alice","password":"a"}' none 'contest=treino' 4.4.4.4
 ck "reivindicação vencida não prende"     '[[ "$(J .logged_in)" == true ]]'
+echo "== o lock por IP vale de verdade (o fd é do shell de quem grava) =="
+( exec 7>>"$RUN/site-lock/.6.6.6.6.lock"; flock 7; sleep 2 ) &
+sleep 0.3; t0=$(date +%s%N)
+call /auth/login POST '{"username":"alice","password":"a"}' none 'contest=sl' 6.6.6.6
+dt=$(( ($(date +%s%N) - t0) / 1000000 )); wait
+ck "login espera o lock do IP preso por outro processo (${dt} ms)" '[[ "$(J .logged_in)" == true ]] && (( dt >= 1200 ))'
+ck "…e a reivindicação foi gravada"      'awk -F"\t" "\$2==\"sl\"" "$RUN/site-lock/6.6.6.6" | grep -q .'
+
+echo "== varredura: vencida há mais de 7 dias sai; a recém-vencida (balanço do painel) e a que vale ficam =="
+OLD=$((NOW-700000))
+printf '4.4.4.5\tsl\t%s\t1\t1\t1\t0\t0\t\n' "$OLD" > "$RUN/site-lock/4.4.4.5"
+printf '4.4.4.6\tsl\t%s\t1\t1\t1\t0\t0\t\n4.4.4.6\toutro\t%s\t1\t1\t1\t0\t0\t\n' "$OLD" "$((NOW+999))" > "$RUN/site-lock/4.4.4.6"
+printf '4.4.4.7\tsl\t%s\t1\t1\t1\t41\t1\tx\n' "$((NOW-10))" > "$RUN/site-lock/4.4.4.7"
+( cd "$ROOT/daemons" && CONTESTSDIR="$FIX" RUNDIR="$RUN" SPOOLDIR="$RUN/spool/submissions" SPOOLDONEDIR="$RUN/spool/done" \
+    JUDGE_BACKEND=queue INTAKE_MODE=queue bash judged.sh --site-lock-sweep >"$RUN/judged-sweep.out" 2>&1 )
+ck "arquivo só com linha vencida sai"    '[[ ! -f "$RUN/site-lock/4.4.4.5" ]]'
+ck "no misto, só a que vale fica"        '[[ "$(cut -f2 "$RUN/site-lock/4.4.4.6")" == outro ]]'
+ck "a reivindicação valendo (6.6.6.6) ficou" '[[ -f "$RUN/site-lock/6.6.6.6" ]]'
+ck "a recém-vencida fica (o painel mostra o balanço, com os contadores)" '[[ "$(cut -f7 "$RUN/site-lock/4.4.4.7")" == 41 ]]'
+call /contest/admin/site-lock GET '' adm 'contest=sl'
+ck "…e o painel a lista como vencida"   '[[ "$(J ".claims[] | select(.ip==\"4.4.4.7\") | .active")" == false ]]'
+ck "o judged registra a limpeza"         'grep -q "reivindicação vencida limpo" "$RUN/judged-sweep.out"'
+
+echo "== sl_list sem nenhum arquivo de IP não lê a entrada padrão =="
+EMPTYRUN="$(mktemp -d)"; mkdir -p "$EMPTYRUN/site-lock/.blk"
+r="$(printf 'x\tsl\t9999999999\t1\t1\t1\t0\t0\t\n' | ( RUNDIR="$EMPTYRUN"; _DIR="$ROOT/api/v1"; source "$_DIR/lib/sources.sh" >/dev/null 2>&1; source "$_DIR/lib/site-lock.sh"; sl_list sl ))"
+rm -rf "$EMPTYRUN"
+ck "diretório só com .blk: lista vazia (e não o que veio no stdin)" '[[ "$r" == "[]" ]]'
+
 echo "== prova acabada: não reivindica =="
 sed -i "s/^CONTEST_END=.*/CONTEST_END=$((NOW-90000))/" "$C/conf"
 call /auth/login POST '{"username":"alice","password":"a"}' none 'contest=sl' 3.3.3.3

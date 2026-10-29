@@ -26,5 +26,6 @@ if declare -F index_problem_bg >/dev/null; then
   done < <(jq -r '.problems[]? | (.bank_id // .problem_id // "") | gsub("/";"#") | select(.!="")' <<<"$body")
 fi
 
-audit_log contest-create "id=$(jq -r '.contest_id' <<<"$CC_RESULT") mode=$(jq -r '.mode//"?"' <<<"$body") name=$(jq -r '.name//"?"' <<<"$body")"
+_cid="$(jq -r '.contest_id' <<<"$CC_RESULT")"
+audit_log contest-create "id=$_cid mode=$(jq -r '.mode//"?"' <<<"$body") name=$(jq -r '.name//"?"' <<<"$body") $(cc_audit_summary "$_cid")"
 ok_json '$r' --argjson r "$CC_RESULT"

@@ -304,7 +304,7 @@
             "description": "host_required — conta de TIME de um contest (≠ treino) fora do subdomínio do contest (IP cru, site principal ou outro subdomínio); error.url = o endereço certo (https://<id>.<host>/contest/), error.contest. Também login_disabled, login_not_open, not_registered…"
           }
         },
-        "description": "Em contest (≠ treino), a resposta inclui server_utc, offline_pubkey_pem e beacon (kit da submissão offline do moj-comp). TIME SÓ PELO SUBDOMÍNIO (lib/team-host.sh): o time entra só pelo subdomínio do contest, e QUALQUER requisição com o token de um time fora dele responde 403 host_required (o logout sempre passa). Papel, treino e id que não vira rótulo de DNS ficam de fora. TEAM_HOST_LOCK (1 padrão | observe | 0) e o override run/team-host-lock (0 | observe)."
+        "description": "Em contest (≠ treino), a resposta inclui server_utc, offline_pubkey_pem e beacon (kit da submissão offline do moj-comp). Toda recusa depois das credenciais lidas vai a var/login-refused.log do contest (código, IP, navegador; login só se a conta existe) — ver /contest/admin/access-log. TIME SÓ PELO SUBDOMÍNIO (lib/team-host.sh): o time entra só pelo subdomínio do contest, e QUALQUER requisição com o token de um time fora dele responde 403 host_required (o logout sempre passa). Papel, treino e id que não vira rótulo de DNS ficam de fora. TEAM_HOST_LOCK (1 padrão | observe | 0) e o override run/team-host-lock (0 | observe)."
       }
     },
     "/auth/status": {
@@ -775,7 +775,7 @@
         "tags": [
           "treino-admin"
         ],
-        "summary": "Feed COMPLETO de atividade do treino (login/submit/verdict/read/admin; calib opt-in) com filtros e format=csv (range inteiro p/ análise). Leituras da autoria (28/10/2026): pkg-source, pkg-test, pkg-diff, calib-report-view, testrun-report-view. Linha que cita problema privado que o admin não pode ver (org#prob em qualquer lugar: id=, from=/to=, submissão e veredicto), org de que não é membro, ou delete/org-delete sai do feed e do CSV (lib/admin-feed.sh; o SUPERADMIN vê tudo; índice ilegível = some toda linha que cita problema ou org).",
+        "summary": "Feed COMPLETO de atividade do treino (login/submit/verdict/read/admin; calib opt-in) com filtros e format=csv (range inteiro p/ análise). Leituras da autoria (28/10/2026): pkg-source, pkg-test, pkg-diff, calib-report-view, testrun-report-view. Tentativa de login recusada = kind login, action login-refused (detalhe: código + navegador). Linha que cita problema privado que o admin não pode ver (org#prob em qualquer lugar: id=, from=/to=, submissão e veredicto), org de que não é membro, ou delete/org-delete sai do feed e do CSV (lib/admin-feed.sh; o SUPERADMIN vê tudo; índice ilegível = some toda linha que cita problema ou org).",
         "security": [
           {
             "bearerAuth": []
@@ -5533,7 +5533,7 @@
         "tags": [
           "contest-admin"
         ],
-        "summary": "Log de acessos do contest",
+        "summary": "Log de acessos do contest (logins + alertas) e as tentativas de login RECUSADAS do mesmo período: refused[] = {time, login (vazio = conta inexistente), ip, user_agent, code (o do /auth/login), http}",
         "parameters": [
           {
             "$ref": "#/components/parameters/contest"
@@ -5568,7 +5568,7 @@
         "tags": [
           "contest-admin"
         ],
-        "summary": "login_start 0 = apaga a abertura pr\u00f3pria do login (LOGIN_START_TIME sai do conf). priority = lista-publica|lista-privada|prova (super = 403 priority_forbidden; contest em super = 403 priority_locked — só o super-admin muda, em /treino/admin/contest-priority; outro = 422 priority_invalid), auditada no contest e na trilha do treino. show_editor:false com o módulo esqueletos ligado = 409 module_needs_editor, recusado antes de gravar qualquer campo. Atualiza configurações (auditado; locale = pt|en|es — idioma da interface, do papel impresso e do relatório; outro valor = 422 locale_invalid; tz = fuso IANA da prova, 422 tz_invalid se não existir no zoneinfo e null/vazio volta ao padrão da instalação; judges[] = pool de juízes — hostnames do registro, vazio remove: escalonador ESTRITO, pool offline segura a fila; penalty_minutes int default 20, penalty_verdicts array de wa/tle/mle/rte/ce — editar em prova recomputa o placar; show_log:true grava SHOWLOG=1 explícito — religa o log mesmo em modo icpc)",
+        "summary": "login_start 0 = apaga a abertura pr\u00f3pria do login (LOGIN_START_TIME sai do conf). priority = lista-publica|lista-privada|prova (super = 403 priority_forbidden; contest em super = 403 priority_locked — só o super-admin muda, em /treino/admin/contest-priority; outro = 422 priority_invalid), auditada no contest e na trilha do treino. show_editor:false com o módulo esqueletos ligado = 409 module_needs_editor, recusado antes de gravar qualquer campo. Atualiza configurações (auditado com o valor anterior: CHAVE=antes→depois; locale = pt|en|es — idioma da interface, do papel impresso e do relatório; outro valor = 422 locale_invalid; tz = fuso IANA da prova, 422 tz_invalid se não existir no zoneinfo e null/vazio volta ao padrão da instalação; judges[] = pool de juízes — hostnames do registro, vazio remove: escalonador ESTRITO, pool offline segura a fila; penalty_minutes int default 20, penalty_verdicts array de wa/tle/mle/rte/ce — editar em prova recomputa o placar; show_log:true grava SHOWLOG=1 explícito — religa o log mesmo em modo icpc)",
         "parameters": [
           {
             "$ref": "#/components/parameters/contest"

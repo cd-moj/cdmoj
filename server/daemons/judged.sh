@@ -61,6 +61,8 @@ source "$SERVER_DIR/api/v1/lib/users.sh"
 source "$SERVER_DIR/api/v1/lib/spool-shard.sh"
 # o que vai para revisão no veredicto manual — a MESMA regra da API/tela (rr_file_hold)
 source "$SERVER_DIR/api/v1/lib/review-rules.sh"
+# trava de sede: a varredura das reivindicações vencidas (sl_sweep) — a MESMA lib do router/login
+source "$SERVER_DIR/api/v1/lib/site-lock.sh"
 
 # ===== SHARDS do escritor (2026-08-30) =====================================================
 # JUDGED_SHARDS=K (>1) particiona o daemon em K workers por hash(login) — o teto serial de
@@ -828,6 +830,20 @@ prestart_warm_sweep() {
   done < <(grep -H -m1 '^CONTEST_START=' "$CONTESTSDIR"/*/conf 2>/dev/null)
 }
 
+# --- TRAVA DE SEDE: reivindicação vencida sai do run/site-lock (29/10/2026) ---------------------------------------
+# Vencida não prende ninguém (sl_check e o porteiro a ignoram); ela fica SITE_LOCK_KEEP_EXPIRED_S (7 dias) p/ o painel
+# mostrar o balanço da prova e depois sai. Shard 0, um `find` a cada SITE_LOCK_SWEEP_EVERY_S (o lock é o do IP).
+: "${SITE_LOCK_SWEEP_EVERY_S:=600}"
+_SL_SWEEP_LAST=0
+site_lock_sweep() {
+  [[ "${JUDGED_SHARD:-0}" == 0 && -d "$RUNDIR/site-lock" ]] || return 0
+  (( EPOCHSECONDS - _SL_SWEEP_LAST >= SITE_LOCK_SWEEP_EVERY_S )) || return 0
+  _SL_SWEEP_LAST="$EPOCHSECONDS"
+  local n; n="$(sl_sweep 2>/dev/null)"; n="${n//[^0-9]/}"
+  (( ${n:-0} > 0 )) && log "trava de sede: $n arquivo(s) com reivindicação vencida limpo(s)"
+  return 0
+}
+
 # _recon_pending <c> -> _RPN (nº de pendentes do contest), pela MESMA regra de cache do count_pending
 # (lib/users.sh: var/.pending-count vale enquanto var/.score-dirty não for mais novo), mas por builtins:
 # cache válido = um `read`; sem users/ = 0; só o cache sujo/ausente paga o count_pending (que o refaz).
@@ -978,6 +994,7 @@ watch_loop() {
       reconcile_stale_pending
       spool_done_gc
       prestart_warm_sweep
+      site_lock_sweep
       if (( ${JUDGED_SHARDS:-1} > 1 )) && [[ "${JUDGED_SHARD:-0}" == 0 ]]; then sweep_orphan_shards; fi
       if ! inw_wait; then
         log "watch: inotifywait terminou — re-subindo em 1s (o re-drain segurou a fila)"
@@ -992,6 +1009,7 @@ watch_loop() {
       reconcile_stale_pending
       spool_done_gc
       prestart_warm_sweep
+      site_lock_sweep
       if (( ${JUDGED_SHARDS:-1} > 1 )) && [[ "${JUDGED_SHARD:-0}" == 0 ]]; then sweep_orphan_shards; fi
       sleep 1
     done
@@ -1066,6 +1084,12 @@ main() {
       # do daemon o aquecimento vai destacado, aqui quem chamou espera o resultado)
       _WARM_LAST=-999999; _WARM_SYNC=1
       prestart_warm_sweep
+      exit 0
+      ;;
+    --site-lock-sweep)
+      # a varredura das reivindicações vencidas da trava de sede UMA vez e sai (operação/testes)
+      _SL_SWEEP_LAST=-999999
+      site_lock_sweep
       exit 0
       ;;
     --gc)

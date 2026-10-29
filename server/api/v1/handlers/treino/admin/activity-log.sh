@@ -1,6 +1,7 @@
 # GET /treino/admin/activity-log[?since=&until=&kinds=&action=&user=&limit=&format=csv]  (.admin)
-# Feed cronológico COMPLETO do treino livre, juntando SEIS fontes no instante exato:
+# Feed cronológico COMPLETO do treino livre, juntando SETE fontes no instante exato:
 #   - var/access.log                   (logins: epoch\tlogin\tip\tua_b64)         -> kind=login
+#   - var/login-refused.log            (tentativas RECUSADAS: motivo = o código)  -> kind=login, login-refused
 #   - users/<login>/history            (1 SUBMISSÃO por linha, no sub_epoch)      -> kind=submit
 #   - users/<login>/results/<id>.json  (VEREDICTO do juiz, no finalized_at)       -> kind=verdict
 #   - var/activity-YYYY-MM.log         (LEITURAS: problem-view/log-view/source-download e, da
@@ -63,6 +64,13 @@ results_ndjson() {
     select(length>0) | split("\t")
     | { time:(.[0]|tonumber? // 0), who:(.[1]//"?"), kind:"login", action:"login",
         details:((.[3]//"") | try @base64d catch ""), ip:(.[2]//"") }'
+
+  # LOGIN RECUSADO — login-refused.log (auth/login → login_refused_log; `?` = conta inexistente). O motivo é o
+  # código do /auth/login; vai como kind=login, ação login-refused
+  read_tail "$cdir/var/login-refused.log" | since_tsv | jq -R -c '
+    select(length>0) | split("\t")
+    | { time:(.[0]|tonumber? // 0), who:(.[1]//"?"), kind:"login", action:"login-refused",
+        details:("\(.[4]//"") · \((.[3]//"") | try @base64d catch "")"), ip:(.[2]//"") }'
 
   # SUBMISSÃO — store por-usuário (formato global de 7 campos; verdict pode ter ":")
   emit_history_sorted treino "$SRC_MAX" \

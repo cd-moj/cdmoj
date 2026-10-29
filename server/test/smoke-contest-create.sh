@@ -83,6 +83,7 @@ ck "store tem regular.admin" '[[ -f "$FIX/test-create/users/regular.admin/accoun
 ck "conf: tipo icpc, 3 probs" '[[ "$( . "$FIX/test-create/conf"; echo "$CONTEST_TYPE ${#PROBS[@]}" )" == "icpc 15" ]]'
 ck "enunciado do banco"     '[[ -f "$FIX/test-create/enunciados/bankprob.html" ]]'
 ck "enunciado custom (x#custom)" '[[ -f "$FIX/test-create/enunciados/x#custom.html" ]]'
+ck "o audit da criação diz o tamanho do que nasceu" 'grep -qP "\tregular\tcontest-create\tid=test-create mode=icpc name=Test Create contas=1 problemas=3 rodadas=\d+ modulos=" "$T/var/admin-audit.log"'
 
 echo "== validações =="
 # spec SEM `name` (montado à mão / pela API): o nome é o TÍTULO do banco, não o id (relato 2026-09-18)

@@ -1,4 +1,4 @@
-<!-- i18n-source: MANUAL-ADMIN.md blob:a637a1aa0411e339daa9113849b239244385d5e3 -->
+<!-- i18n-source: MANUAL-ADMIN.md blob:b57d0da3579eca955bd2a183816e520ce3e11970 -->
 # MOJ: Organizer manual (the contest .admin panel)
 
 > **Translation note.** This manual is a translation of the Portuguese original. The command-line tools (`moj`, `moj-contest`, `moj-comp`) print their messages in Portuguese, and the command examples below are identical to the original.
@@ -104,7 +104,7 @@ contest offers it). If the problem has no title in that language, MOJ uses the P
 |---|---|
 | **Accounts** | Create/reset/disable/remove accounts (one by one, or in bulk from a .txt/.csv file). Change the password of all accounts. The shortcut to the **Credential badges**. You create the role accounts HERE (section 3). In a contest with users **shared with Free Training**, the **🔗 Shared accounts** card converts all of them into own accounts (section 8¾). In a batch, **Process** shows how each line was read (login, password, name, email) and the result says **why** each line was left out. A line with `:` and no header is always `login:password:name:email` — `localhost:6767` on its own becomes a login + password; a name with `:` or `,` goes in the **CSV with a header**. A `:` in a team (or school) name is saved as `∶` (looks the same): the scoreboard uses `:` as a separator. This holds everywhere a name is saved (here, Teams, contest creation and the students' registration). |
 | **Registrations** (module `inscricoes`) | The contest **roster** (only registered persons get in) and the **window**: when it opens, when it closes (default: the contest start) and how many minutes of late entry. It lists teams and individuals. It can dissolve a team, register a person manually, **nudge a pending invitation by DM** (🔔) and export CSV. Section 8½ explains it. |
-| **Sessions** | Who is logged in now, with logout. **🚪 Mass logout and login lock**: close the login, log everybody out, reopen. This is the end of a room exam and the round change. It also has the access log per day. It applies to any contest. |
+| **Sessions** | Who is logged in now, with logout. **🚪 Mass logout and login lock**: close the login, log everybody out, reopen. This is the end of a room exam and the round change. It also has the access log per day, with the **refused login attempts** (the reason — wrong password, login not open yet, browser not allowed… —, the IP and the browser; an unknown account shows as such, without the typed text). It applies to any contest. |
 
 ### 🎛️ Operations: the contest day
 
@@ -835,9 +835,9 @@ a warning and shows only the sessions and the access log.
   if you use the two on the same machine, the session does not end. Outside the contest machine,
   the gate blocks the CLI (403), on purpose.
 - It refreshes automatically every 30 s. The submission records its origin (IP, browser and the
-  session used) in `var/submit-origin.log`; the logins go to `var/access.log`; the ended sessions
-  go to `var/session-events.log`. The three logs continue across the rounds and go into the
-  archive.
+  session used) in `var/submit-origin.log`; the logins go to `var/access.log`; the refused attempts
+  go to `var/login-refused.log`; the ended sessions go to `var/session-events.log`. The four logs
+  continue across the rounds and go into the archive.
 
 ## 8. Guest teams (scoreboard cohorts — Event › Cohorts, module `coortes`)
 

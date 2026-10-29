@@ -431,7 +431,8 @@ pelo `moj-housekeeping`: as trilhas ficam enquanto o diretório existir, e o bac
 | `admin-audit.log` | ações de admin e de autoria (TSV `epoch login ação detalhes`). As mudanças de org dizem o delta: quem entrou e quem saiu (`org-members`, `repo-collaborators`); `org-create` numa org que já existia leva `existing=1`. Troca de senha e conta criada por admin entram (`passwd`, `adduser`), e também as da própria conta: troca de handle (`username-change`), de senha (`password-change`, com o IP), recuperação pelo Telegram (`password-recover`) e cadastro (`signup`). O re-sync do acervo (`synctreino`) também. |
 | `activity-AAAA-MM.log` | LEITURAS, um arquivo por mês (TSV `epoch login evento detalhes ip`): problema aberto, log visto, código baixado e, da autoria, o pacote aberto no editor (`pkg-source`), um teste do pacote (`pkg-test`), o diff de um commit (`pkg-diff`), o report de calibração (`calib-report-view`) e o de test-run (`testrun-report-view`). |
 | `access.log` | logins (`epoch login ip ua`). |
-| `contests/<c>/var/admin-audit.log` | o audit de cada contest: além das ações do painel, o veredicto pedido à mão (`set-verdict`), a extensão do fim (`contest-extend`), o rejulgamento (`rejudge`, também pelo `/admin/rejudge`) e quem abriu o lado a lado do jplag (`jplag-view`). |
+| `login-refused.log` (treino e cada contest) | as tentativas de login RECUSADAS (`epoch login ip ua código http`): senha errada, conta expirada, gate de navegador, login fechado ou ainda não aberto, inscrição, endereço errado. O login só entra se a conta existe (senão `?`: o que se digita no campo de login às vezes é a senha); ao passar de 5 MiB (`LOGIN_REFUSED_MAX`) o arquivo gira para `login-refused.log.1` (uma geração guardada) e a gravação segue no novo. No contest aparecem em Pessoas › Sessões › Log de acessos; no treino, na aba 📜 Atividade (`login-refused`). |
+| `contests/<c>/var/admin-audit.log` | o audit de cada contest: além das ações do painel, o veredicto pedido à mão (`set-verdict`), a extensão do fim (`contest-extend`), o rejulgamento (`rejudge`, também pelo `/admin/rejudge`) e quem abriu o lado a lado do jplag (`jplag-view`). As configurações dizem o valor anterior (`settings CHAVE=antes→depois`). As ações AUTOMÁTICAS também entram, com o autor `auto-…`: o aquecimento antes do início (`auto-inicio`), o alimentador do telão que se desliga 24 h depois do fim (`auto-fim`) e a 1ª geração do par de chaves da submissão offline (`offline-key`, com o login que a disparou). |
 
 Duas marcas ajudam a separar a conta certa:
 
@@ -445,6 +446,9 @@ A aba 📜 Atividade do painel junta as três fontes e baixa o período em CSV. 
 - as que citam um problema privado que ele não pode abrir (a leitura, o upload, a submissão de um membro da org…);
 - as de org de que ele não é membro;
 - a remoção de um problema ou de uma org.
+
+A criação de contest (`contest-create`, também ao duplicar e importar) diz o que nasceu: `contas=N problemas=M
+rodadas=R modulos=…`.
 
 O super-admin vê tudo. Se o índice de problemas não estiver legível, as linhas que citam problema ou org somem para o
 admin comum, e o resto do feed continua.

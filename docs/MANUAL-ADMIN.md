@@ -98,7 +98,7 @@ não tem título nesse idioma, o MOJ usa o título em português.
 |---|---|
 | **Contas** | Criar/resetar/desabilitar/remover contas (individual e em lote por .txt/.csv), trocar a senha de todos e o atalho das **Etiquetas de credenciais**. É AQUI que você cria as contas de papel (seção 3). Em contest com usuários **compartilhados do Treino Livre**, o cartão **🔗 Contas compartilhadas** converte tudo em contas próprias (seção 8¾). No lote, **Processar** mostra como cada linha foi lida (login, senha, nome, email) e o resultado diz **por que** cada linha ficou de fora. Linha com `:` sem cabeçalho é sempre `login:senha:nome:email` — `localhost:6767` sozinho vira login + senha; nome com `:` ou `,` vai no **CSV com cabeçalho**. Um `:` no nome do time (ou da escola) é gravado como `∶` (parece igual): o placar usa `:` como separador. Vale em todo lugar que grava nome (aqui, Times, criação do contest e a inscrição dos alunos). |
 | **Inscrições** (módulo `inscricoes`) | O **roster** do contest (só inscrito entra) e a **janela**: quando abre, quando fecha (default: o início da prova) e quantos minutos de entrada atrasada. Lista times e individuais, dissolve time, inscreve à mão, **cutuca convite pendente por DM** (🔔) e exporta CSV. A seção 8½ explica. |
-| **Sessões** | Quem está logado agora, com deslogar; **🚪 sair em massa e trava de login** (fechar o login, derrubar todo mundo, reabrir — é o fim de uma prova de sala e a troca de rodada); e o log de acessos por dia. Vale para qualquer contest. |
+| **Sessões** | Quem está logado agora, com deslogar; **🚪 sair em massa e trava de login** (fechar o login, derrubar todo mundo, reabrir — é o fim de uma prova de sala e a troca de rodada); e o log de acessos por dia, com as **tentativas de login recusadas** (o motivo — senha errada, login ainda não aberto, navegador não autorizado… —, o IP e o navegador; conta inexistente aparece como tal, sem o texto digitado). Vale para qualquer contest. |
 
 ### 🎛️ Operação — o dia da prova
 
@@ -784,8 +784,8 @@ identificada o painel avisa e mostra só as sessões e o log de acessos.
   mesma chave de máquina do browser — usar as duas na mesma máquina não derruba a sessão. Fora da
   máquina de prova a CLI é barrada pelo gate (403), de propósito.
 - Atualiza sozinho a cada 30 s. A submissão grava a origem (IP, navegador e a sessão usada) em
-  `var/submit-origin.log`; os logins em `var/access.log`; as quedas de sessão em
-  `var/session-events.log` — os três atravessam as rodadas e entram no arquivo.
+  `var/submit-origin.log`; os logins em `var/access.log`; as tentativas recusadas em `var/login-refused.log`;
+  as quedas de sessão em `var/session-events.log` — os quatro atravessam as rodadas e entram no arquivo.
 
 ## 8. Times convidados (coortes de placar — Evento › Coortes, módulo `coortes`)
 
