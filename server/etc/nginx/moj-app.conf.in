@@ -177,6 +177,13 @@ location ~ ^/relatorio/([a-z0-9][a-z0-9._-]*)/(.*)$ {
 # com TXT NOVO: no evento de 29-30/08 o placar passou a células em segundos (`icpc s`) e o
 # score-icpc.js em cache mostrou "1/17029" como minutos (issue #22). Só aqui: /docs/ e
 # /relatorio/ têm location própria e a API já é dinâmica.
+# ROBÔS (30/10/2026): o web/ é o MESMO em todo host, então o /robots.txt sai por host — no subdomínio de contest
+# ($moj_contest_host não vazio) é o web/robots-contest.txt ("Disallow: /": prova efêmera, site repetido em cada
+# subdomínio; eram ~84% dos pedidos de robô); no site principal, o web/robots.txt (só a API fica de fora).
+location = /robots.txt {
+    if ($moj_contest_host != "") { rewrite ^ /robots-contest.txt last; }
+    add_header Cache-Control "public, max-age=3600";
+}
 location / { try_files $uri $uri/ =404; add_header Cache-Control "no-cache, must-revalidate"; }
 # IMAGENS que mudam pouco (TCP 2026, 03/10/2026): o no-cache acima vale p/ o JS/CSS/HTML (issue #22), mas fazia cada
 # imagem REVALIDAR a cada uso — numa rede com perda de pacote (as sedes do Chile) cada ida e volta custa, e o placar

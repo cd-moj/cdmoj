@@ -1004,6 +1004,11 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   `Cache-Control: no-cache, must-revalidate` — módulo ESM revalida por ETag a cada uso. Sem isso
   um deploy que muda o CONTRATO (TXT em segundos `icpc s`, 30/08) deixa JS velho no navegador do
   time lendo dado novo. Mudou o `.conf.in` ⇒ reinstalar/recarregar o nginx no deploy.
+- **`/robots.txt` POR HOST** (30/10/2026; robôs eram ~11% dos pedidos, 84% deles nos subdomínios de contest): o `web/`
+  é o mesmo em todo host, então a `location = /robots.txt` do `moj-app.conf.in` entrega `web/robots-contest.txt`
+  ("Disallow: /") quando `$moj_contest_host` não é vazio e `web/robots.txt` (só `/api/` fora) no site principal.
+  Robô que ignora o arquivo (o Bytespider costuma) só sai por regra de User-Agent no nginx. Teste: `smoke-robots.sh`
+  (sobe um nginx de teste quando há `nginx` no PATH).
 - **Nome de bandeira = `flagName()` de `web/shared/flags.js`** (issue #21): nunca remonte o mapa
   do `index.json` à mão (UF só com prefixo `br-`; `sc` solto É Seychelles) e `flagEl` sem `title`
   já mostra o nome. No placar a regra por regex do `teams-meta` (`country`) é **FALLBACK**: a bandeira do

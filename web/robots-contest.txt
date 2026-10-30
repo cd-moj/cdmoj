@@ -1,0 +1,4 @@
+# MOJ — robôs num SUBDOMÍNIO DE CONTEST (<id>.moj…): nada a ler. A prova é efêmera e cada subdomínio repete o mesmo
+# site do MOJ; o nginx entrega este arquivo como /robots.txt quando o host é de contest (moj-app.conf.in).
+User-agent: *
+Disallow: /

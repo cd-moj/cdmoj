@@ -1,0 +1,5 @@
+# MOJ — robôs no SITE PRINCIPAL: as páginas públicas (treino, problemas públicos, docs) podem ser lidas; a API não
+# (dado dinâmico, cada pedido custa um processo no servidor). Nos subdomínios de contest o nginx entrega o
+# robots-contest.txt no lugar deste (server/etc/nginx/moj-app.conf.in).
+User-agent: *
+Disallow: /api/
