@@ -22,7 +22,7 @@ else
   trap 'nginx -p "$T" -c "$T/nginx.conf" -s stop >/dev/null 2>&1; rm -rf "$T"' EXIT
   mkdir -p "$T/logs" "$T/run"
   # só o que o teste precisa do moj.conf: o map do host de contest e um server que inclui o snippet
-  sed "s#@WORKROOT@#${ROOT%/cdmoj}#g; s#@ROUTER@#/nao/usado#g; /include \/etc\/nginx\/moj-/d" "$TPL" > "$T/app.conf"
+  sed "s#@WORKROOT@#${ROOT%/cdmoj}#g; s#@ROUTER@#/nao/usado#g; /include[[:space:]]\+\/etc\/nginx\/moj-/d" "$TPL" > "$T/app.conf"
   cat > "$T/nginx.conf" <<EOF
 worker_processes 1; pid $T/run/nginx.pid; error_log $T/logs/error.log;
 events { worker_connections 16; }

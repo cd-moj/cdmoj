@@ -12,7 +12,7 @@
 set -u
 ROOT="$(cd "$(dirname "$(readlink -f "$0")")/../.." && pwd)"     # .../cdmoj
 E="$ROOT/server/etc/nginx"; TPL="$E/moj-app.conf.in"
-pass=0; fail=0; ck(){ if eval "$2"; then echo "  ok: $1"; ((pass++)); else echo "  FAIL: $1 :: S=${S:-} ${B:0:80}"; ((fail++)); fi; }
+pass=0; fail=0; ck(){ if eval "$2"; then echo "  ok: $1"; ((pass++)); else echo "  FAIL: $1 :: S=${S:-} ${B:-}"; ((fail++)); fi; }
 blk(){ sed -n '/^# >>> MÍDIA DE TIME/,/^# <<< MÍDIA DE TIME/p' "$1"; }
 
 echo "== templates =="
@@ -37,7 +37,7 @@ printf '\x89PNG\r\n\x1a\nvelho'        > "$T/wr/contests/prova-x/users/.removed-
 printf '\x89PNG\r\n\x1a\nt9'           > "$T/wr/contests/outra/users/t9/logo.png"
 printf 'SEGREDO\n'                     > "$T/wr/segredo/logo.png"
 # o snippet REAL: includes de /etc/nginx fora (não existem aqui); cada fastcgi_pass ecoa a rota e a location
-sed "s#@WORKROOT@#$T/wr#g; s#@ROUTER@#/nao/usado#g; /include \/etc\/nginx\/moj-/d" "$TPL" \
+sed "s#@WORKROOT@#$T/wr#g; s#@ROUTER@#/nao/usado#g; /include[[:space:]]\+\/etc\/nginx\/moj-/d" "$TPL" \
   | awk '/^location @moj_media \{/{m=1} /^\}/{m=0}
          /fastcgi_pass/{ sub(/fastcgi_pass.*/, (m ? "return 200 \"bash-media $uri?$args\\n\";" : "return 200 \"bash-geral $uri?$args\\n\";")) }
          {print}' > "$T/app.conf"
