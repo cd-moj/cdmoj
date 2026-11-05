@@ -15,6 +15,14 @@
 # ⚠ O mapa de assets entra por `--slurpfile`, que o jq parseia UMA vez; passá-lo como string e
 # reconstruir dentro do filtro seria O(n²) — refeito a cada conta.
 # Agregação sem ARG_MAX. Precedência no front: isto > teams-meta (regex) > vazio.
+# CACHE (05/11/2026, véspera da LATAM): a montagem custava 168 ms com 625 contas (363 ms com 2.331) e toda carga do
+# placar a pede — numa rajada de F5 (fim do freeze, revelação) eram dezenas de bash só nisto. Agora o `find` de sempre
+# vira a ASSINATURA (login, arquivo, mtime e tamanho de cada account.json/foto/brasão) junto com as regras de coorte e a
+# visão de quem pede (regra 1 do resp_cache: a variante vai no nome E na assinatura); assinatura igual = o JSON guardado
+# em var/teams-cache/. Não dá p/ usar o .score-dirty (muda a cada veredicto) nem o mtime do dir da conta (o metrics.json
+# é gravado por tmp+mv). Conta nova, apagada ou renomeada e asset trocado/removido mudam a listagem. O próprio handler e
+# a lib de coortes entram por `-nt` (regra 2: um deploy invalida). Montagem sob lock: na rajada um monta, os outros
+# esperam e leem.
 contest="$(param contest)"
 [[ -n "$contest" ]] || fail 400 "Missing contest" "contest_missing"
 require_contest "$contest"
@@ -42,12 +50,18 @@ cdir="$CONTESTSDIR/$contest"
 TD="$(mktemp -d 2>/dev/null)" || TD="${TMPDIR:-/tmp}/cteams.${BASHPID}"; mkdir -p "$TD"
 trap 'rm -rf "$TD"' EXIT
 
-# 1 find p/ tudo: as contas e os assets. `%h` = dir do usuário, `%f` = nome do arquivo, `%T@` = mtime (o logo_v).
-# foto é webp desde 2026-08 (photo.png = acervo antigo, ainda válido — lib/team-photo.sh)
+# 1 find p/ tudo: as contas e os assets. `%h` = dir do usuário, `%f` = nome do arquivo, `%T@` = mtime (o logo_v),
+# `%s` = tamanho (só p/ a assinatura do cache). foto é webp desde 2026-08 (photo.png = acervo antigo — lib/team-photo.sh)
 find "$cdir/users" -mindepth 2 -maxdepth 2 -type f -size +0c \
      \( -name account.json -o -name photo.webp -o -name photo.png -o -name logo.png \) \
-     -printf '%h\t%f\t%T@\n' 2>/dev/null \
-  | awk -F'\t' -v amap="$TD/assets.json" -v alst="$TD/accts.lst" '
+     -printf '%h\t%f\t%T@\t%s\n' 2>/dev/null > "$TD/list"
+_tsig="$( { printf '%s\n%s\n' "$CH_JSON" "$CH_WANT"; cat "$TD/list"; } | md5sum)"; _tsig="${_tsig%% *}"
+_tvk="${CH_WANT// /_}"; _tcf="$cdir/var/teams-cache/v${_tvk:-all}"
+_tsrc="$_DIR/handlers/contest/teams.sh"; _tlib="$_LIBDIR/cohorts.sh"
+_teams_fresh(){ [[ -s "$_tcf.json" && -s "$_tcf.sig" && ! "$_tsrc" -nt "$_tcf.json" && ! "$_tlib" -nt "$_tcf.json" ]] \
+                  && [[ "$(<"$_tcf.sig")" == "$_tsig" ]]; }
+_teams_build(){
+awk -F'\t' -v amap="$TD/assets.json" -v alst="$TD/accts.lst" '
       function esc(s){ gsub(/\\/,"\\\\",s); gsub(/"/,"\\\"",s); return s }
       { n=split($1,p,"/"); l=p[n]
         if (l ~ /^\./) next                                  # .removed-users e afins
@@ -62,7 +76,7 @@ find "$cdir/users" -mindepth 2 -maxdepth 2 -type f -size +0c \
                     (l in hp ? "true":"false"), (l in hl ? "true":"false"),
                     ((l in lv) && lv[l] ~ /^[0-9]+$/ ? ",\"lv\":" lv[l] : "") > amap
              sep="," }
-           printf "}\n" > amap }'
+           printf "}\n" > amap }' "$TD/list"
 [[ -s "$TD/assets.json" ]] || printf '{}\n' > "$TD/assets.json"
 : > "$TD/accts.lst.ok"; [[ -s "$TD/accts.lst" ]] && sort "$TD/accts.lst" > "$TD/accts.lst.ok"
 
@@ -104,6 +118,19 @@ teams="$( { [[ -s "$TD/accts.lst.ok" ]] && xargs -a "$TD/accts.lst.ok" -d'\n' -r
   # como mapa, não se importa — mas um diff que fecha vale mais que um "não deve importar").
   } | jq -cs 'add // {} | to_entries | sort_by(.key) | from_entries')"
 [[ -n "$teams" ]] || teams='{}'
+# guarda: o JSON ANTES da assinatura (quem lê a assinatura nova já acha o JSON novo); falha de escrita = só não guarda
+printf '%s' "$teams" > "$_tcf.json.${BASHPID}" 2>/dev/null && mv -f "$_tcf.json.${BASHPID}" "$_tcf.json" 2>/dev/null \
+  && printf '%s' "$_tsig" > "$_tcf.sig.${BASHPID}" 2>/dev/null && mv -f "$_tcf.sig.${BASHPID}" "$_tcf.sig" 2>/dev/null
+rm -f "$_tcf.json.${BASHPID}" "$_tcf.sig.${BASHPID}" 2>/dev/null
+}
+teams=""
+if _teams_fresh; then teams="$(<"$_tcf.json")"
+else
+  # o lock por grupo `{ } 9>`: se o arquivo não abre, o grupo é pulado (nunca `exec`, cuja falha de redirect mata o shell)
+  mkdir -p "${_tcf%/*}" 2>/dev/null
+  { flock -w 10 9; if _teams_fresh; then teams="$(<"$_tcf.json")"; else _teams_build; fi; } 9>"$_tcf.lock"
+  [[ -n "$teams" ]] || _teams_build                # var/ sem escrita: monta sem guardar
+fi
 
 # mapa de TODOS os times/participantes: passa de 128KiB (teto do --argjson) num contest
 # grande — vai por --slurpfile (ver ok_json_slurp em lib/common.sh).

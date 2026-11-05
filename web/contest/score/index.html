@@ -60,6 +60,8 @@
       </div>
       <!-- coorte + bandeira + universidade + sede + busca + contador: montada pelo score.js -->
       <div class="fbar hidden" id="scoreFilters"></div>
+      <!-- a atualização falhou (429/502 numa rajada, rede): o placar ANTERIOR fica na tela e o score.js tenta de novo sozinho -->
+      <div class="small muted hidden" id="scoreStale" role="status">⚠ <span data-en="Could not refresh the scoreboard — showing the last version; retrying automatically." data-es="No se pudo actualizar el marcador — se muestra la última versión; se reintenta automáticamente.">Não foi possível atualizar o placar — mostrando a última versão; tentando de novo sozinho.</span></div>
       <div id="scoreContainer"><span class="muted" data-en="Loading…" data-es="Cargando…">carregando…</span></div>
     </div>
   </main>

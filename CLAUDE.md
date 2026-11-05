@@ -509,6 +509,14 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   pós-freeze saía IGUAL nas duas visões e só os ACs ganhavam "?" (TCP 2026: a plateia sabia quem NÃO tinha
   acertado). Leitores do TXT casam o PREFIXO `tentativas/-` (report-gen, `cellWait`, `cellTitle`,
   `sc_board_rows`); o `c-frz` faz o celular mostrar "?" em vez de ✗. Teste: `smoke-score-reveal.sh`.
+- **O POLL DO PLACAR E DA FILA DO JUIZ SOBREVIVE A ERRO** (05/11/2026, véspera da LATAM): um 429 (quebra-circuito do
+  contest), 502 ou falha de rede trocava a tabela por "Falha ao carregar" e o poll PARAVA — a aba ficava sem placar até o
+  F5, e o F5 em massa é a própria rajada. Hoje o `score.js` mantém o placar anterior, mostra o aviso `#scoreStale` e tenta
+  de novo com espera crescente (10–20, 20–40, teto 30–60 s); o 1º sucesso volta ao ritmo normal; `pollGen` mata a cadeia
+  velha (início da prova × troca de coorte rodavam duas); o disparo do INÍCIO sai com dispersão de até 1,5 s; e a peça do
+  boot que falhou (`teams`, `regions`, `balloons`…) é pedida de novo no próximo poll bem-sucedido (`BOOT_RETRY`). Contest
+  secreto com 401/403 = convite ao login, sem reagendar. O `judge.js` (`review/list`) idem, parando só em 401/403. Poll
+  NOVO segue a mesma regra: erro reagenda, nunca para. Testes: `smoke-score-poll.gjs.sh`, `smoke-judge-poll.gjs.sh`.
 - **PLACAR ANÔNIMO É CORTADO NA API** (`SCORE_ANON=1`, 03/10/2026, decisão do Ribas; era só a TELA — o TXT com nomes ia
   a todos): fora da ORGANIZAÇÃO (o conjunto da estatística: admin, chefe, juiz, `.mon`, `.animeitor`) o `/contest/score`
   responde o agregado `var/placar-anon.json` (`X-MOJ-Anon: 1`; `gen_anon` no `build.sh`, do placar PÚBLICO; antes do
@@ -609,6 +617,15 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   smokes de nginx NO SERVIDOR: lá os `include /etc/nginx/moj-*` casam arquivos reais). Testes:
   `smoke-team-media-nginx.sh` (nginx de teste com o snippet e o bloco REAIS; `fastcgi_pass` vira um eco da rota),
   `smoke-contest-teams.sh` (`logo_v`), `smoke-score-flag-title.gjs.sh` (a URL), `smoke-animeitor.sh` (a miniatura).
+  **O `/contest/teams` É CACHEADO POR ASSINATURA** (05/11/2026, véspera da LATAM: 168 ms com 625 contas, 363 ms com
+  2.331, e toda carga do placar o pede): o `find` de sempre (login, arquivo, mtime e TAMANHO de cada
+  `account.json`/foto/brasão) + o `CH_JSON` + o `CH_WANT` viram um md5; igual ao `var/teams-cache/v<visão>.sig` = serve o
+  `.json` guardado. NÃO serve o `.score-dirty` (muda a cada veredicto) nem o mtime do dir da conta (o `metrics.json` é
+  gravado por tmp+mv). Regras do resp_cache: a VISÃO vai no nome e na assinatura; o próprio handler e a `lib/cohorts.sh`
+  entram por `-nt` (deploy invalida). Montagem sob `{ flock; } 9>lock` (NUNCA `exec {fd}>` — falha de redirect num
+  `exec` mata o shell, e o `2>/dev/null` dele vale p/ o resto da requisição). Medido: 168 → 107 ms (625), 363 → 179 ms
+  (2.331); o que sobra é o custo fixo da rota + os 4 jq da `lib/cohorts.sh` (~33 ms, antes de qualquer cache). Teste:
+  seção "cache por assinatura" do `smoke-contest-teams.sh` (envenena o JSON guardado p/ provar que serve do cache).
 - **Calibração/TL — 3 mecanismos de autoria (2026-08-19)**: (1) o `/problems/calib` devolve
   **`sols`** estruturado por host (`[{file,lang,category,verdict,tests:[{name,code,time,tl}]}]`,
   do `.calib-sols.json` do calibreitor via `/judge/calib-report` — que PRESERVA sols/reports

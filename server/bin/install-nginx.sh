@@ -159,11 +159,11 @@ fi
 
 # Quebra-circuito do contest: o snippet o inclui por GLOB, então AUSENTE = desligado (estado de
 # emergência, decidido à mão com `rm` + reload). Só criamos se não existe — recriar por cima
-# preservaria a decisão do operador até aqui, e um install novo REARMA o padrão (56).
+# preservaria a decisão do operador até aqui, e um install novo REARMA o padrão (40; ver o moj-app.conf.in).
 BREAKER=/etc/nginx/moj-breaker-contest.conf
 if [ ! -f "$BREAKER" ]; then
-  printf '# teto de requisições em voo dos subdomínios de CONTEST (zona no conf.d/moj.conf).\n# rm deste arquivo + reload = quebra-circuito DESLIGADO (o include é por glob).\nlimit_conn moj_contest 56;\n' > "$BREAKER"
-  chmod 644 "$BREAKER"; echo ">> criei $BREAKER (teto 56)"
+  printf '# teto de requisições em voo dos subdomínios de CONTEST (zona no conf.d/moj.conf).\n# rm deste arquivo + reload = quebra-circuito DESLIGADO (o include é por glob).\nlimit_conn moj_contest 40;\n' > "$BREAKER"
+  chmod 644 "$BREAKER"; echo ">> criei $BREAKER (teto 40)"
 fi
 
 # Microcache por-token da API: mesma doutrina do breaker (glob-include; rm = desligada até o

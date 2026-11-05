@@ -133,9 +133,17 @@ function fmtLeft(s) { s = Math.max(0, s | 0); const m = Math.floor(s / 60), x = 
 function startTick(left) { clearInterval(tickT); let n = left; const e = () => document.getElementById('rvCountdown'); tickT = setInterval(() => { n--; const el2 = e(); if (!el2) { clearInterval(tickT); return; } el2.textContent = fmtLeft(n); if (n <= 0) { clearInterval(tickT); loadReview(); } }, 1000); }
 async function act(path, id, action) { try { await rvAct(path, { id, action }); loadReview(); } catch (e) { alert(e.message || T('falha', 'failed', 'fallido')); } }
 
+// um erro (429/502 numa rajada, rede) NÃO para mais o poll (05/11/2026): a fila que já está na tela fica e a próxima
+// tentativa sai em 10–20 s. Só 401/403 (sessão encerrada, sem permissão) param — repetir não resolveria.
 async function loadReview() {
   try { rv = await apiGet('/contest/review/list?contest=' + enc(CONTEST), G); }
-  catch (e) { document.getElementById('judgeContainer').innerHTML = '<div class="error-box">' + T('Falha ao carregar a fila.', 'Failed to load the queue.', 'No se pudo cargar la cola.') + '</div>'; return; }
+  catch (e) {
+    const stop = e && (e.status === 401 || e.status === 403);
+    if (stop || !rv) document.getElementById('judgeContainer').innerHTML = '<div class="error-box">' + T('Falha ao carregar a fila.', 'Failed to load the queue.', 'No se pudo cargar la cola.') + (stop ? '' : ' ' + T('Tentando de novo…', 'Retrying…', 'Reintentando…')) + '</div>';
+    clearTimeout(pollT);
+    if (!stop) pollT = setTimeout(loadReview, 10000 + Math.random() * 10000);
+    return;
+  }
   OPTIONS = rv.options || []; IS_CHIEF = !!rv.is_chief;
   renderReview();
   // enquanto o juiz tem uma avaliação ativa, NÃO recarrega (o contador local roda; ações

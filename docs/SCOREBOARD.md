@@ -216,6 +216,11 @@ remontava a barra a cada ciclo e fechava o dropdown aberto — hoje a barra nova
 num contêiner avulso e comparada (innerHTML) com a da tela; igual ⇒ só re-sincroniza os
 values, mudou com o usuário interagindo ⇒ adia p/ o próximo ciclo (`renderFilters`,
 `filtersSig` em `score.js`).
+**O poll sobrevive a erro** (05/11/2026): um 429/502/falha de rede mantém o placar anterior na tela, mostra o aviso
+`#scoreStale` e tenta de novo com espera crescente (10–20, 20–40, teto 30–60 s); antes o placar virava "Falha ao
+carregar" e o poll parava até o F5. O disparo do início da prova sai com dispersão de até 1,5 s, e a peça do boot que
+falhou (`/contest/teams`, regiões, balões…) é pedida de novo no próximo poll bem-sucedido. Teste:
+`smoke-score-poll.gjs.sh`.
 
 ### Balão × visibilidade (a célula "resolveu")
 

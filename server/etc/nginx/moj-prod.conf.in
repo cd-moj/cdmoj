@@ -49,7 +49,7 @@ map $moj_contest_host $moj_shed_file { "" "/etc/nginx/moj-shed-treino"; default 
 # mais que o pool). Motivo medido no teste de 1.000 req/s de 27/08: acima do teto (~430 req/s)
 # a fila do socket cresce além de capacidade×timeout e o goodput colapsa a ~zero (502 em massa),
 # enquanto o host principal — capado a 16 — seguiu com p50 de 0,12 s sob 3,5× de sobrecarga.
-# O TETO NÃO MORA AQUI: mora em /etc/nginx/moj-breaker-contest.conf (limit_conn moj_contest 56),
+# O TETO NÃO MORA AQUI: mora em /etc/nginx/moj-breaker-contest.conf (limit_conn moj_contest 40),
 # incluído POR GLOB no snippet — arquivo ausente = SEM limite, sem erro de config. Desligar:
 #   rm /etc/nginx/moj-breaker-contest.conf && systemctl reload nginx
 # Religar: recriar o arquivo (o install-nginx.sh o recria se ausente) + reload.

@@ -50,6 +50,15 @@ let frozenView = false;     // ESTE espectador recebeu o placar congelado (X-MOJ
                             // gateia o 📷: foto só aparece com o placar aberto (R4, 2026-08-30)
 let lastOrder = []; // usernames na ordem anterior (p/ animação)
 let refreshTimer = null;
+// ROBUSTEZ DO POLL (05/11/2026, véspera da LATAM): um erro (429 do quebra-circuito numa rajada, 502, rede) NÃO para mais
+// o poll nem apaga o placar — antes o catch trocava a tabela por "Falha ao carregar" e voltava sem reagendar: a aba
+// ficava sem placar até o F5, e o F5 em massa é a própria rajada. Agora o placar anterior fica, o aviso #scoreStale
+// aparece e o poll tenta de novo com espera crescente (10–20 s, 20–40 s, teto 30–60 s); o 1º sucesso volta ao ritmo
+// normal. `pollGen` mata a cadeia velha quando outra começa (início da prova, troca de coorte) — eram duas em paralelo.
+let pollGen = 0, pollFails = 0, everRendered = false;
+// peças do boot que FALHARAM (mesma rajada): sem elas o placar fica sem brasão/bandeira/sede/balão até o F5. Cada poll
+// bem-sucedido as pede de novo (uma vez por poll) até virem. nome -> caminho
+const BOOT_RETRY = {};
 
 
 function navHref(url) {
@@ -95,7 +104,8 @@ function startCountdown() {
       setTimeout(tick, 1000);
       return;
     }
-    if (wasBefore) { wasBefore = false; pre.classList.add('hidden'); pollScore(); }
+    // no início todo placar aberto pediria o /contest/score no MESMO segundo: espalha em até 1,5 s (o contest.js faz igual)
+    if (wasBefore) { wasBefore = false; pre.classList.add('hidden'); setTimeout(pollScore, Math.random() * 1500); }
     const left = (basic.end_time || 0) - now;
     if (left > 0) { eln.textContent = T('Termina em: ', 'Ends in: ', 'Termina en: ') + fmtLeft(left); setTimeout(tick, 1000); }
     else eln.textContent = T('Competição encerrada', 'Contest ended', 'Competencia terminada');
@@ -394,11 +404,13 @@ function setFrozenNotice(on) {
 
 async function pollScore() {
   clearTimeout(refreshTimer);
+  const gen = ++pollGen;
   let txt = '';
   try {
     const r = await apiGetTextMeta('/contest/score?contest=' + encodeURIComponent(CONTEST)
       + (cohortView ? '&view=' + encodeURIComponent(cohortView) : ''),
       { contest: CONTEST, auth: isAuth });
+    if (gen !== pollGen) return;            // outra cadeia começou enquanto esta esperava: esta morre aqui
     txt = r.text;
     frozenView = r.headers.get('X-MOJ-Frozen') === '1';
     setFrozenNotice(frozenView);
@@ -409,20 +421,28 @@ async function pollScore() {
       let agg = null; try { agg = JSON.parse(txt); } catch { agg = null; }
       if (agg) renderAnon(agg);
       else document.getElementById('scoreContainer').innerHTML = `<span class="muted">${T('Placar ainda não gerado.', 'Scoreboard not generated yet.', 'El marcador aún no se ha generado.')}</span>`;
+      pollOk();
       refreshTimer = setTimeout(pollScore, 30000 + Math.random() * 30000);
       return;
     }
   }
-  catch {
+  catch (e) {
+    if (gen !== pollGen) return;
     const box = document.getElementById('scoreContainer');
-    if (basic && basic.secret && !isAuth) {
+    if (basic && basic.secret && (!isAuth || (e && (e.status === 401 || e.status === 403)))) {
       // contest SUPER SECRETO: o placar exige sessão do contest — convite ao login, sem erro cru
       box.innerHTML = `<div class="section" style="text-align:center"><h2>🔒 ${T('Contest privado', 'Private contest', 'Competencia privada')}</h2>
         <p class="muted">${T('Entre no contest para ver o placar.', 'Log in to the contest to view the scoreboard.', 'Inicia sesión en la competencia para ver el marcador.')}</p>
         <p><a class="btn" href="/contest/?c=${encodeURIComponent(CONTEST)}">${T('Entrar →', 'Log in →', 'Iniciar sesión →')}</a></p></div>`;
       return;
     }
-    box.innerHTML = `<span class="error-box">${T('Falha ao carregar o placar.', 'Failed to load scoreboard.', 'Error al cargar el marcador.')}</span>`; return;
+    // o placar anterior FICA (sem ele, o erro); o poll segue com espera crescente
+    if (!everRendered) box.innerHTML = `<span class="error-box">${T('Falha ao carregar o placar — tentando de novo.', 'Failed to load scoreboard — retrying.', 'Error al cargar el marcador — reintentando.')}</span>`;
+    else { const st = document.getElementById('scoreStale'); if (st) st.classList.remove('hidden'); }
+    pollFails++;
+    const base = Math.min(30000, 10000 * 2 ** (pollFails - 1));
+    refreshTimer = setTimeout(pollScore, base + Math.random() * base);
+    return;
   }
 
   const lines = txt.replace(/\r/g, '').split('\n');
@@ -442,16 +462,44 @@ async function pollScore() {
     // treino / heuristic / outro / qualquer outro -> genérico
     parsed = parseGeneric(dataLines, mode || 'outro');
   }
+  await retryBoot();
+  if (gen !== pollGen) return;
   if (parsed) {
     if (!parsed.balloons) parsed.balloons = BALLOONS;
     applyTeamsDir(parsed); applyTeamsMeta(parsed);
     await fetchGenPlace();
+    if (gen !== pollGen) return;
     // a mesma classificação nos dois placares (nada a informar) ⇒ não mostra a 2ª posição
     if (genPlace && parsed.teams.every(t => t.place == null || genPlace[t.username] === t.place)) genPlace = null;
     renderFilters(); reRender();
   }
 
+  pollOk();
   refreshTimer = setTimeout(pollScore, 30000 + Math.random() * 30000); // 30–60s
+}
+// o poll deu certo: zera a espera crescente e tira o aviso de placar desatualizado
+function pollOk() {
+  pollFails = 0; everRendered = true;
+  const st = document.getElementById('scoreStale'); if (st) st.classList.add('hidden');
+}
+// pede de novo as peças do boot que falharam (ver BOOT_RETRY); quem chega é aplicado antes do render deste poll
+async function retryBoot() {
+  const names = Object.keys(BOOT_RETRY);
+  if (!names.length) return;
+  await Promise.all(names.map(async (n) => {
+    let r;
+    try { r = await apiGet(BOOT_RETRY[n], { contest: CONTEST, auth: isAuth }); } catch { return; }
+    delete BOOT_RETRY[n];
+    applyBootPiece(n, r);
+  }));
+}
+function applyBootPiece(n, r) {
+  if (n === 'navbuttons') { const b = Array.isArray(r) ? r : ((r && r.buttons) || []); if (b.length) renderNav(b); }
+  else if (n === 'balloons') BALLOONS = r ? (r.balloons || r) : {};
+  else if (n === 'regions') regions = r ? (Array.isArray(r) ? r : (r.regions || [])) : [];
+  else if (n === 'teams-meta') teamsMeta = r ? (r.rules || (Array.isArray(r) ? r : [])) : [];
+  else if (n === 'teams') teamsDir = (r && r.teams) || {};
+  else if (n === 'classification') classified = classifiedMap(r);
 }
 
 // ---- boot --------------------------------------------------------------------
@@ -485,14 +533,13 @@ async function boot() {
   document.getElementById('publicNotice').classList.toggle('hidden', isAuth);
 
   // nav + balões + regiões + times (auth quando possível; tolerante a falha)
+  // a peça que FALHA (rajada: 429/502) vai p/ o BOOT_RETRY e o próximo poll bem-sucedido a pede de novo
+  const piece = (n) => { const path = '/contest/' + n + '?contest=' + encodeURIComponent(CONTEST);
+    return apiGet(path, { contest: CONTEST, auth: isAuth }).catch(() => { BOOT_RETRY[n] = path; return null; }); };
   const [nav, bc, rg, tm, td, mani, cls] = await Promise.all([
-    apiGet('/contest/navbuttons?contest=' + encodeURIComponent(CONTEST), { contest: CONTEST, auth: isAuth }).catch(() => null),
-    apiGet('/contest/balloons?contest=' + encodeURIComponent(CONTEST), { contest: CONTEST, auth: isAuth }).catch(() => null),
-    apiGet('/contest/regions?contest=' + encodeURIComponent(CONTEST), { contest: CONTEST, auth: isAuth }).catch(() => null),
-    apiGet('/contest/teams-meta?contest=' + encodeURIComponent(CONTEST), { contest: CONTEST, auth: isAuth }).catch(() => null),
-    apiGet('/contest/teams?contest=' + encodeURIComponent(CONTEST), { contest: CONTEST, auth: isAuth }).catch(() => null),
+    piece('navbuttons'), piece('balloons'), piece('regions'), piece('teams-meta'), piece('teams'),
     flagManifest().catch(() => ({ countries: [], br_states: [] })),
-    apiGet('/contest/classification?contest=' + encodeURIComponent(CONTEST), { contest: CONTEST, auth: isAuth }).catch(() => null),
+    piece('classification'),
   ]);
   if (nav) { const buttons = Array.isArray(nav) ? nav : (nav.buttons || []); if (buttons.length) renderNav(buttons); }
   BALLOONS = bc ? (bc.balloons || bc) : {};

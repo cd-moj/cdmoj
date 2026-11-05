@@ -181,4 +181,35 @@ ck "anônimo não vê a coorte privada" '[[ "$(jq -r "[.teams|keys[]|select(star
 # sem conta), então dá p/ fechar — mas é mudança de COMPORTAMENTO, não de desempenho.
 ck "só-asset entra mesmo com coorte" '[[ "$(jq -r ".teams|has(\"compart\")" <<<"$BODY")" == true ]]'
 
+echo "== cache por assinatura (05/11/2026: a montagem custava 168 ms com 625 contas) =="
+# a ASSINATURA é a listagem do find (login, arquivo, mtime, tamanho) + regras de coorte + visão; igual = o JSON guardado.
+# Prova de que serve do cache: ENVENENAR o JSON guardado (mantendo a assinatura) e ver o veneno voltar.
+CC="$TB/var/teams-cache"
+poison(){ local f; for f in "$CC"/*.json; do printf '{"veneno":{}}' > "$f"; done; }
+fresh(){ call /contest/teams GET "${1:-}" 'contest=tb'; [[ "$(jq -c .teams <<<"$BODY")" != '{"veneno":{}}' ]]; }
+call /contest/teams GET '' 'contest=tb'; B1="$(jq -c .teams <<<"$BODY")"
+ck "a montagem fica guardada (JSON + assinatura) por visão" '[[ "$(ls "$CC"/*.json 2>/dev/null | wc -l)" -ge 1 && "$(ls "$CC"/*.sig 2>/dev/null | wc -l)" -ge 1 ]]'
+poison; call /contest/teams GET '' 'contest=tb'
+ck "nada mudou: o JSON guardado, sem montar"            '[[ "$(jq -c .teams <<<"$BODY")" == "{\"veneno\":{}}" ]]'
+poison; jq -c '.team.univ_short="UNB2"' "$TB/users/tb01/account.json" > "$TB/u" && mv "$TB/u" "$TB/users/tb01/account.json"
+ck "account.json mudou: refaz"                         'fresh && [[ "$(jq -r .teams.tb01.univ_short <<<"$BODY")" == UNB2 ]]'
+poison; printf 'PNG' > "$TB/users/tb02/logo.png"
+ck "brasão novo: refaz (com logo_v)"                   'fresh && [[ "$(jq -r .teams.tb02.has_logo <<<"$BODY")" == true && "$(jq -r .teams.tb02.logo_v <<<"$BODY")" =~ ^[0-9]+$ ]]'
+poison; rm -f "$TB/users/tb02/logo.png"
+ck "brasão APAGADO: refaz"                             'fresh && [[ "$(jq -r .teams.tb02.has_logo <<<"$BODY")" == false ]]'
+poison; mv "$TB/users/tb01" "$TB/users/.removed-users/tb01"
+ck "conta removida: refaz e some"                      'fresh && [[ "$(jq -r ".teams|has(\"tb01\")" <<<"$BODY")" == false ]]'
+mv "$TB/users/.removed-users/tb01" "$TB/users/tb01"
+poison; jq -c '.cohorts[0].regex="^tb0[1-2]$"' "$TB/cohorts.json" > "$TB/u" && mv "$TB/u" "$TB/cohorts.json"
+ck "regra de coorte mudou: refaz"                      'fresh && [[ "$(jq -r "[.teams|keys[]|select(startswith(\"tb\"))]|join(\",\")" <<<"$BODY")" == "tb01,tb02" ]]'
+poison; for f in "$CC"/*.json; do touch -d 2000-01-01 "$f"; done
+ck "handler mais novo que o cache (deploy): refaz"     'fresh'
+# VARIANTE: quem vê todas as coortes (juiz) e o anônimo nunca leem o mesmo arquivo
+printf 'CONTEST=%q\nLOGIN=%q\nUSERFULLNAME=%q\nLOGINAT=%q\n' tb tb.judge J "$NOW" > "$SESS/t-tbj"
+call /contest/teams GET t-tbj 'contest=tb'
+ck "juiz vê a coorte privada (tb04)"                   '[[ "$(jq -r ".teams|has(\"tb04\")" <<<"$BODY")" == true ]]'
+call /contest/teams GET '' 'contest=tb'
+ck "…e o anônimo, logo depois, segue sem ela"          '[[ "$(jq -r ".teams|has(\"tb04\")" <<<"$BODY")" == false ]]'
+ck "uma visão = um arquivo"                            '[[ "$(ls "$CC"/*.json | wc -l)" -ge 2 ]]'
+
 echo ""; echo "RESULT: $pass passed, $fail failed"; exit $(( fail>0?1:0 ))

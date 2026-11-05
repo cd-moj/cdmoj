@@ -95,12 +95,16 @@ fastcgi_read_timeout 300s;
 # três exceções nunca olham o arquivo.
 #
 # QUEBRA-CIRCUITO do CONTEST (2026-08-28): o include por GLOB abaixo carrega
-# /etc/nginx/moj-breaker-contest.conf (`limit_conn moj_contest 56;`) quando ele EXISTE — ausente,
-# o glob casa nada e o contest fica sem limite (era o comportamento até hoje). 56 de 64: o
-# excedente leva 429 rápido em vez de estacionar 25 s na fila do socket até o colapso (medido
-# 27/08); os polls da web só tentam de novo no tick seguinte. Vale TAMBÉM para /submit, de
-# propósito: com 56 em voo a fila profunda é pior que o 429 (o aluno reenviaria contra um
-# servidor já afogado). DESLIGAR: rm do arquivo + reload (receita no moj-prod.conf.in).
+# /etc/nginx/moj-breaker-contest.conf (`limit_conn moj_contest 40;`) quando ele EXISTE — ausente,
+# o glob casa nada e o contest fica sem limite (era o comportamento até hoje). O excedente leva 429
+# rápido em vez de estacionar 25 s na fila do socket até o colapso (medido 27/08); os polls da web
+# tentam de novo sozinhos (o placar e a fila do juiz também, desde 05/11/2026). Vale TAMBÉM para
+# /submit, de propósito: a fila profunda é pior que o 429 (o aluno reenviaria contra um servidor já
+# afogado). O NÚMERO: nasceu 56 (28/08), caiu p/ 32 na crise da Maratona (29/08, router.sh a 25
+# núcleos nos polls de summary/history) e subiu p/ 40 em 05/11/2026 — summary no porteiro e mídia de
+# time servida do disco: o contest (40) + o site (16) = 56 do pool de 64, e sobram ~8 p/ as exceções
+# sem limite (heartbeat dos juízes, /ops, /problems) e CPU p/ o judged. Mexer: editar o arquivo +
+# reload (é config do host, decisão do operador). DESLIGAR: rm do arquivo + reload.
 # MICROCACHE POR-TOKEN (include por glob, mesmo padrão do breaker): entrada por Authorization,
 # GET+200, TTL 2s — F5 repetido vira hit sem forkar bash; webcast excluído por map (tempo exato).
 # As três exceções abaixo NÃO têm o include: judge/ops/problems nunca são cacheados.
