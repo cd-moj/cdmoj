@@ -288,6 +288,14 @@ run
 check "modo obi (pontua por teste) => checagem ausente" '[[ "$(lvl stop_first)" == "(ausente)" ]]'
 sed -i 's/^CONTEST_TYPE=.*/CONTEST_TYPE=icpc/' "$C/conf"; rm -f "$FIX/treino/var/jsons/col#p0.json"
 
+echo "== relógio do TL (TLCLOCK=cpu, 05/11/2026): informativo =="
+run
+check "sem problema de CPU => checagem ausente" '[[ "$(lvl tl_clock)" == "(ausente)" ]]'
+printf '{"id":"col#p0","title":"P0","public":true,"tl_clock":"cpu"}' > "$FIX/treino/var/jsons/col#p0.json"
+run
+check "problema de CPU => ok com a letra, nos três idiomas" '[[ "$(lvl tl_clock)" == ok && "$(det tl_clock)" == *" A — "* && "$(printf "%s" "$BODY" | jq -r "first(.checks[]|select(.id==\"tl_clock\")|.detail_es)")" == *"reloj de pared"* ]]'
+rm -f "$FIX/treino/var/jsons/col#p0.json"
+
 echo "== daemon de julgamento (auditoria 03/10/2026: spool vazio + daemon morto saía verde) =="
 JUDGED_PGREP_PAT='nao-existe-processo-assim-xyz' JUDGED_ALIVE_FILE="$FIX/sem-heartbeat" run
 check "daemon morto (sem processo, sem heartbeat) => fail" '[[ "$(lvl daemon)" == fail ]]'

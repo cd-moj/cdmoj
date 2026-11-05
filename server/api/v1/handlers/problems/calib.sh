@@ -58,6 +58,8 @@ drift="$(calx_drift "$pkg")"; [[ -n "$drift" ]] || drift='{}'   # TLMOD[<lang>|d
 # `expect`, `summary` —; o outro sai ao lado (`time_limits_by_method`, `expect_alt`, `summary_alt`) p/ o autor
 # comparar antes de trocar (a troca não recalibra: os juízes medem os dois).
 meth=moj; tl_conf_method_to meth "$pkg"
+# RELÓGIO do TL (05/11/2026): com TLCLOCK=cpu os tempos das soluções (e o W) são de CPU — a tela o diz
+clk=wall; wtl=""; tl_conf_clock_to clk wtl "$pkg"
 kp="$(tl_conf_kattis "$pkg")"; [[ -n "$kp" ]] || kp='{}'
 
 # CORPO ANTES DO CABEÇALHO (pode ser grande: log + sols por host — sai p/ arquivo).
@@ -70,7 +72,7 @@ jq -cn --argjson store "$store" --slurpfile lg "$LOGF" --argjson gl "$goodlangs"
    --arg pkgver "$pkgver" --argjson clive "$calibrating" --argjson ov "$(tl_conf_overrides "$pkg")" \
    --argjson mods "$(tl_conf_mods "$pkg")" --argjson cfc "$(tl_conf_cf "$pkg")" \
    --argjson pfiles "$pfiles" --argjson allowtle "$allowtle" --argjson drift "$drift" \
-   --arg meth "$meth" --argjson kp "$kp" "$CALX_JQ$_TL_EFF_DEF$TLSIM_JQ"'
+   --arg meth "$meth" --argjson kp "$kp" --arg clk "$clk" --arg wtl "$wtl" "$CALX_JQ$_TL_EFF_DEF$TLSIM_JQ"'
   def npy: if .=="py3" or .=="py2" then "py" else . end;
   # o MÁXIMO entre os juízes de uma metade da tabela (tl = MOJ, tl_kattis = Kattis)
   def calmax($h; $f): [ $h[]?[$f] // {} | to_entries[] ] | group_by(.key | npy)
@@ -102,6 +104,7 @@ jq -cn --argjson store "$store" --slurpfile lg "$LOGF" --argjson gl "$goodlangs"
       being_calibrated:(($clive|length) > 0), calibrating:$clive,
       good_langs:$gl, tl_override:$ov, tl_mods:$mods,
       tl_method:$meth, kattis:$kp,
+      tl_clock:$clk, wall_tl:(if $wtl == "" then null else ($wtl | tonumber) end),
       time_limits:$eff, time_limits_calibrated:$cal,
       time_limits_by_method:{moj:{calibrated:$calm, effective:$effm}, kattis:{calibrated:$calk, effective:$effk}},
       missing_langs:[ $gl[] | select(. as $g | ($served|index($g)|not)) ],     # sem TL em NENHUM host

@@ -7,6 +7,7 @@ import { skeletonFor, isSkeleton, docOnLangChange } from '/shared/editor-skeleto
 import { DEFAULT_SUBMIT_LANGUAGES, langById, extCanon } from '/shared/languages.js';
 import { openHtmlReport } from '/shared/submission-links.js';
 import { T } from '/shared/i18n.js';
+import { tlClockBadge } from '/shared/tl-clock.js';
 import { makeSubmitFlow, attachSubmitButton, lastSubKey } from '/shared/submit-ux.js';
 import { pickStmtLang, makeStmtLangChips, setChipsActive, rememberStmtLang, stmtHtmlLang } from '/shared/statement-langs.js';
 import { decorateSamples, downloadSamplesZip, downloadableSamples } from '/shared/statement-samples.js';
@@ -128,6 +129,7 @@ async function loadProblem() {
     .sort((a, b) => (a[0] === 'default' ? -1 : b[0] === 'default' ? 1 : a[0].localeCompare(b[0])));
   if (tEntries.length) {
     ptl.append(el('span', { class: 'tl-label' }, T('⏱ Tempo limite', '⏱ Time limit', '⏱ Tiempo límite')));
+    const clk = tlClockBadge(p); if (clk) ptl.append(clk);   // TL de CPU (TLCLOCK=cpu no pacote)
     tEntries.forEach(([k, v]) => {
       const label = k === 'default' ? T('padrão', 'default', 'predeterminado') : (langById(k).label || k);
       ptl.append(el('span', { class: 'tl-chip' }, el('b', {}, label), el('span', { class: 'tl-time' }, fmtTime(v))));

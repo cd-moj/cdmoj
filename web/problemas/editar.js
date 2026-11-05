@@ -105,13 +105,17 @@ function confUpsert(text, key, value, top) {
 // FUNCTION_LANGS (docs/PACOTE.md, "Submissão de função"): as linguagens em que o aluno envia SÓ a função —
 // o editor do aluno abre VAZIO nelas. Declarada pelo autor; o template de função a preenche ao ser aplicado.
 const CF_TEXT = [['cf_memlimit', 'MEMLIMITMB'], ['cf_stack', 'STACKLIMITMB'], ['cf_calibrafactor', 'TLMOD[calibrafactor]'], ['cf_calibrationtl', 'CALIBRATIONTL'], ['cf_ulimit_u', 'ULIMITS[-u]'], ['cf_ulimit_f', 'ULIMITS[-f]'], ['cf_maxparallel', 'MAXPARALLELTESTS'], ['cf_cpuneeded', 'CPUNEEDED'], ['cf_fnlangs', 'FUNCTION_LANGS'],
-  ['cf_kattis_a', 'KATTIS_AC_TO_TIME_LIMIT'], ['cf_kattis_b', 'KATTIS_TIME_LIMIT_TO_TLE'], ['cf_kattis_r', 'KATTIS_TIME_RESOLUTION']];
-// [id, chave, DEFAULT quando AUSENTE] — escolha entre valores, no molde do CF_YN: só grava o que difere do default
-// ou já estava no conf. TLMETHOD (docs/PACOTE.md "Métodos de TL"): moj (o padrão) | kattis; entra no TOPO do conf.
-const CF_SEL = [['cf_tlmethod', 'TLMETHOD', 'moj']];
-// os parâmetros do Kattis só aparecem com o método Kattis
+  ['cf_kattis_a', 'KATTIS_AC_TO_TIME_LIMIT'], ['cf_kattis_b', 'KATTIS_TIME_LIMIT_TO_TLE'], ['cf_kattis_r', 'KATTIS_TIME_RESOLUTION'],
+  ['cf_walltl', 'WALLTL']];
+// [id, chave, DEFAULT quando AUSENTE, valores aceitos, no TOPO?] — escolha entre valores, no molde do CF_YN: só grava o
+// que difere do default ou já estava no conf; valor fora da lista mostra o default (é o que o juiz faz).
+// TLMETHOD (docs/PACOTE.md "Métodos de TL"): moj (o padrão) | kattis; entra no TOPO do conf (fora do tl-checksum).
+// TLCLOCK ("Relógio do TL", 05/11/2026): wall (o padrão) | cpu; DENTRO do carimbo (mudar recalibra), no fim do conf.
+const CF_SEL = [['cf_tlmethod', 'TLMETHOD', 'moj', ['moj', 'kattis'], true], ['cf_tlclock', 'TLCLOCK', 'wall', ['wall', 'cpu'], false]];
+// os parâmetros do Kattis só aparecem com o método Kattis; o teto mínimo de parede, só com o relógio de CPU
 function applyTlMethod() {
   if ($('cf_kattis_box')) $('cf_kattis_box').hidden = $('cf_tlmethod').value !== 'kattis';
+  if ($('cf_walltl_box') && $('cf_tlclock')) $('cf_walltl_box').hidden = $('cf_tlclock').value !== 'cpu';
 }
 // [id, chave, DEFAULT quando a chave está AUSENTE] — TRI-ESTADO (24/09/2026): chave ausente = o default
 // do juiz (ALLOWPARALLELTEST/TLERERUN ausentes = ligados; STOPWHEN/SAMENUMA ausentes = desligados). O
@@ -133,7 +137,7 @@ function confToFields(text) {
   CF_TEXT.forEach(([id, k]) => { $(id).value = confVal(text, k) || ''; });
   CF_YN.forEach(([id, k, def]) => { $(id).checked = ynOf(text, k, def) === 'y'; });
   CF_FLAG.forEach(([id, k]) => { $(id).checked = (confVal(text, k) || '').toLowerCase() === 'y'; });
-  CF_SEL.forEach(([id, k, def]) => { const v = (confVal(text, k) || '').trim().toLowerCase(); $(id).value = v === 'kattis' ? 'kattis' : def; });
+  CF_SEL.forEach(([id, k, def, vals]) => { const v = (confVal(text, k) || '').trim().toLowerCase(); $(id).value = vals.includes(v) ? v : def; });
   applyTlMethod();
   $('cf_nosample').checked = sampleOff(text); applySampleMode();
   limitsWarn();
@@ -173,6 +177,13 @@ function limitsWarn() {
         `CPUNEEDED=${k} con SAMENUMA: el nodo NUMA más grande de un juez tiene ${cap.max_node_cpus} CPUs — los envíos darían Judge Error.`)]);
     }
   }
+  // relógio de CPU num problema paralelo: o user+sys SOMA as threads (o validate-problem reprova o pacote)
+  const kk = parseInt((($('cf_cpuneeded') || {}).value || '').trim(), 10);
+  if (kk > 1 && $('cf_tlclock') && $('cf_tlclock').value === 'cpu') {
+    cpu.push(['no', T(`TLCLOCK=cpu com CPUNEEDED=${kk}: no problema paralelo o tempo de CPU soma as threads — use o relógio de parede. O pacote é reprovado assim.`,
+      `TLCLOCK=cpu with CPUNEEDED=${kk}: in a parallel problem CPU time adds up the threads — use the wall clock. The package fails validation like this.`,
+      `TLCLOCK=cpu con CPUNEEDED=${kk}: en un problema paralelo el tiempo de CPU suma los hilos — usa el reloj de pared. El paquete no pasa la validación así.`)]);
+  }
   put('cf_mem_warn', mem); put('cf_cpu_warn', cpu);
 }
 function syncConfFromFields() {
@@ -183,9 +194,9 @@ function syncConfFromFields() {
     c = confUpsert(c, k, (v === def && !present) ? null : v);   // igual ao default e ausente: fica ausente
   });
   CF_FLAG.forEach(([id, k]) => { c = confUpsert(c, k, $(id).checked ? 'y' : null); });
-  CF_SEL.forEach(([id, k, def]) => {
+  CF_SEL.forEach(([id, k, def, , top]) => {
     const v = $(id).value || def, present = confVal(c, k) !== null;
-    c = confUpsert(c, k, (v === def && !present) ? null : v, true);
+    c = confUpsert(c, k, (v === def && !present) ? null : v, top);
   });
   c = confUpsert(c, 'SAMPLE', $('cf_nosample').checked ? 'no' : null);
   $('confRaw').value = c; applySampleMode(); applyTlMethod();
@@ -1277,7 +1288,13 @@ function tlSummaryTable(hosts, served) {
     ...hosts.map(h => el('td', {}, tlSecs(hostTl(h)[lang])))));
   return el('div', { class: 'tlsummary-wrap' },
     el('div', { class: 'small muted', style: 'margin:.3rem 0 .2rem' }, T('Resumo por linguagem, pelo método ', 'Summary per language, by the ', 'Resumen por lenguaje, por el método ')
-      + tlMethodName(curMethod()) + T(' (o do conf) — em negrito o tempo-limite que o estudante vê no enunciado:', ' method (the one in the conf) — in bold the time limit the student sees in the statement:', ' (el del conf) — en negrita el tiempo límite que el estudiante ve en el enunciado:')),
+      + tlMethodName(curMethod()) + T(' (o do conf) — em negrito o tempo-limite que o estudante vê no enunciado:', ' method (the one in the conf) — in bold the time limit the student sees in the statement:', ' (el del conf) — en negrita el tiempo límite que el estudiante ve en el enunciado:')
+      // relógio do TL (TLCLOCK=cpu): os tempos medidos e o TL são de CPU (user+sys) — o painel diz isso de cara
+      + ((LASTCALIB && LASTCALIB.tl_clock) === 'cpu'
+        ? T(' Relógio de CPU (TLCLOCK=cpu): os tempos e o tempo-limite são de CPU (user+sys); a parede é só um teto maior.',
+            ' CPU clock (TLCLOCK=cpu): the times and the time limit are CPU time (user+sys); the wall clock is only a larger ceiling.',
+            ' Reloj de CPU (TLCLOCK=cpu): los tiempos y el tiempo límite son de CPU (user+sys); el reloj de pared es solo un techo mayor.')
+        : '')),
     el('table', { class: 'tlsummary' }, el('thead', {}, thead), el('tbody', {}, ...body)));
 }
 // assinatura do que o painel mostra: só reconstrói quando MUDA — senão o polling (a cada 4s)
@@ -1374,6 +1391,7 @@ function valRenderSig() {
     summary: JSON.stringify((LASTCALIB && LASTCALIB.summary) || null),
     summary_alt: JSON.stringify((LASTCALIB && LASTCALIB.summary_alt) || null),
     method: (LASTCALIB && LASTCALIB.tl_method) || '',
+    clock: (LASTCALIB && LASTCALIB.tl_clock) || '',
     bym: JSON.stringify((LASTCALIB && LASTCALIB.time_limits_by_method) || null),
     sim: JSON.stringify(LASTCALIB ? [LASTCALIB.tl_sim_state || null, LASTCALIB.tl_sim || null, LASTCALIB.tl_suggest || null] : null),
     classes: JSON.stringify((LASTCALIB && LASTCALIB.classes) || null),
@@ -2002,7 +2020,7 @@ function bindHandlers() {
   $('repo').onchange = async () => { REPO = $('repo').value; updateRepoHint(); renderPubState(); await loadShare(); };
   $('shareAdd').onclick = async () => { const u = $('shareLogin').value.trim(); if (u) { await share([u], []); $('shareLogin').value = ''; } };
   [...CF_TEXT, ...CF_YN, ...CF_FLAG, ...CF_SEL, ['cf_nosample']].forEach(([id]) => $(id).addEventListener('change', () => { syncConfFromFields(); updateReady(); }));
-  ['cf_memlimit', 'cf_cpuneeded', 'cf_samenuma'].forEach((id) => $(id) && $(id).addEventListener('input', limitsWarn));
+  ['cf_memlimit', 'cf_cpuneeded', 'cf_samenuma', 'cf_tlclock'].forEach((id) => $(id) && $(id).addEventListener('input', limitsWarn));
   $('confRaw').addEventListener('change', () => { confToFields($('confRaw').value); updateReady(); });
   $('newCollBtn').onclick = newColl;
   $('pcolls').addEventListener('change', () => { renderCollChips(); renderCollManage(); });

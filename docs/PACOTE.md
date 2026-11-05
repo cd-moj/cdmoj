@@ -430,6 +430,8 @@ Todas as chaves que o `build-and-test.sh` entende:
 |---|---|---|---|
 | `TLMOD[calibrafactor]` | `1.35` | multiplicador aplicado ao tempo da solução `good` para virar o tempo-limite, no método MOJ. Subir dá folga ao aluno | 453 |
 | `TLMETHOD` | `moj` | o **método do tempo-limite** (seção 10, "Métodos de TL"): `moj` = `calibrafactor` × pior tempo + 0,02 s; `kattis` = o método da spec do Kattis (2025-09). Os dois são por linguagem. A calibração mede os dois sempre: trocar **não pede recalibração** (a linha fica fora dos dois carimbos do tl-checksum). Na web: aba Limites; na CLI: `moj edit` → 8 → 11, e os `KATTIS_*` em → 12 | 0 |
+| `TLCLOCK` | `wall` | o **relógio do tempo-limite** (seção 10, "Relógio do TL"): `wall` = tempo de parede, como sempre; `cpu` = tempo de CPU (user+sys), com a parede só como teto maior, que pega quem fica bloqueado ou dorme. Para problema estilo ICPC; **não** para problema paralelo (`CPUNEEDED` > 1 reprova o pacote). **Mudar recalibra**. Na web: aba Limites; na CLI: `moj edit` → 8 → 13 | 0 |
+| `WALLTL` | — | só com `TLCLOCK=cpu`: o **mínimo** do teto de parede, em segundos (de 1 a 60). O teto é o maior entre 3 × o tempo-limite, o teto de CPU + 1 s e isto. **Mudar recalibra**. Na CLI: `moj edit` → 8 → 14 | 0 |
 | `KATTIS_AC_TO_TIME_LIMIT` | `2.0` | método Kattis: o tempo-limite é pelo menos este × o pior tempo das `good` (de 1 a 100; o `ac_to_time_limit` da spec) | 0 |
 | `KATTIS_TIME_LIMIT_TO_TLE` | `1.5` | método Kattis: a solução `slow` tem de passar deste × o tempo-limite em algum teste (de 1 a 100; o `time_limit_to_tle` da spec) | 0 |
 | `KATTIS_TIME_RESOLUTION` | `1.0` | método Kattis: o tempo-limite é múltiplo disto, arredondado para cima (mais de 0 e até 10 s; o `time_resolution` da spec) | 0 |
@@ -924,6 +926,41 @@ e não reprova a configuração. A simulação também sugere a melhor configura
 A aba Limites do editor mostra as tabelas e as sugestões, e o botão **aplicar** preenche os campos. O `moj calib`
 mostra o mesmo. Salvar grava o `conf`: um fator novo ou parâmetros do Kattis novos recalibram.
 
+### Relógio do TL: parede ou CPU
+
+O tempo-limite é cobrado no **relógio de parede** (`TLCLOCK=wall`, o padrão): o tempo real que o teste levou. É o
+que serve aos problemas paralelos (OpenMP/MPI), em que o programa usa várias CPUs ao mesmo tempo, e é como todo
+problema do acervo foi calibrado.
+
+Em problema estilo ICPC dá para cobrar pelo **tempo de CPU** (`TLCLOCK=cpu`): o `user + sys` do programa. A
+parede vira só um **teto maior**, que pega o programa bloqueado esperando algo, ou o que dorme (`sleep`) para
+gastar tempo sem gastar CPU:
+
+| | Parede (`wall`, o padrão) | CPU (`cpu`) |
+|---|---|---|
+| O que se compara com o tempo-limite | o tempo de parede do teste | o tempo de CPU (user+sys) |
+| Quando é TLE | parede − TL > tolerância | CPU − TL > tolerância, **ou** o teste chegou ao teto de parede |
+| Teto de parede de cada teste | TL + 2,2 s | o maior entre 3 × TL, o teto de CPU + 1 s e o `WALLTL` |
+| Teto de CPU | — | TL + 2,2 s, arredondado para cima (`ulimit -t` na jaula) |
+| A calibração mede | parede | CPU |
+| De onde vem o CPU | — | o `cpu.stat` do cgroup do teste (exato: conta todo processo, até filho que o programa não esperou); em juiz sem esse cgroup, o `user + sys` da jaula, sem os filhos não esperados |
+
+Exemplo, com tempo-limite de 1 s: um programa que gasta 0,8 s de CPU mas leva 2,5 s de parede (esperando I/O,
+máquina disputada) é aceito no relógio de CPU e dá TLE no de parede. Um programa que dorme 10 s dá TLE nos dois: no
+de CPU, quando chega ao teto de parede de 5 s (o teto de CPU é de 4 s: 1 + 2,2, arredondado para cima).
+
+- **Trocar o relógio recalibra**, e mudar o `WALLTL` também: as duas linhas ficam dentro do `tl_checksum`, porque
+  o tempo medido muda de natureza. É o contrário do `TLMETHOD`.
+- **Não serve a problema paralelo.** O tempo de CPU soma as threads, e o speedup viraria custo: `TLCLOCK=cpu` com
+  `CPUNEEDED` > 1 reprova o pacote.
+- **Em problema interativo** o tempo de CPU é o da jaula inteira, árbitro e jogador, como a parede. O jogador que
+  trava esperando o árbitro (sem `flush`) não gasta CPU e leva TLE no teto de parede.
+- **JVM e .NET** gastam CPU em threads próprias (coletor de lixo, JIT). A calibração por linguagem absorve isso,
+  porque mede do mesmo jeito.
+- **O aluno vê**: o tempo-limite aparece com o selo "tempo de CPU" no treino e no contest, com a explicação do
+  teto de parede. A folha de TL da prova marca o problema com † e explica numa nota, nos três idiomas.
+- No report do julgamento, os tempos são de CPU, e cada teste mostra também a parede.
+
 ### Soluções: cada uma faz o que a categoria pede?
 
 A calibração devolve, por juiz e por solução, o código de **cada teste** (`AC`, `WA`, `TLE`, `MLE`,
@@ -965,7 +1002,7 @@ diferentes: *"o tempo-limite medido ainda vale?"* e *"o juiz ainda tem o pacote 
 | | `tl_checksum` (estreito) | `pkg_version` (largo) |
 |---|---|---|
 | Como se calcula | `tl-checksum.sh <pkg>` | `tl-checksum.sh --all-sols <pkg>` |
-| Cobre | `conf` (menos as linhas `SAMPLE`, `FUNCTION_LANGS` e `TLMETHOD`), `tests/input/*`, `tests/output/*` (não-vazios), `tests/score`, `sols/good/*`, `scripts/*` (conteúdo **e** bit de execução) **menos `scripts/validator.cpp`** | tudo o que o estreito cobre **+ `sols/pass`, `sols/slow`, `sols/wrong`, `sols/upcoming` + `scripts/validator.cpp`** |
+| Cobre | `conf` (menos as linhas `SAMPLE`, `FUNCTION_LANGS` e `TLMETHOD`; o `TLCLOCK` e o `WALLTL` **entram**), `tests/input/*`, `tests/output/*` (não-vazios), `tests/score`, `sols/good/*`, `scripts/*` (conteúdo **e** bit de execução) **menos `scripts/validator.cpp`** | tudo o que o estreito cobre **+ `sols/pass`, `sols/slow`, `sols/wrong`, `sols/upcoming` + `scripts/validator.cpp`** |
 | Para que serve | amarra o **TL** ao pacote: é o `checksum` de `run/tl/<id>.json`, o do índice de donos e o que o `/contest/problems` compara | é a **chave do cache do juiz** e a identidade de uma calibração: `/judge/package-meta` o devolve como `checksum` e o agente re-baixa quando muda |
 
 Nenhum dos dois cobre `docs/enunciado.*`, `tags`, `author` nem o `.moj-meta.json`

@@ -17,6 +17,7 @@ import { openHtmlReport } from '/shared/submission-links.js';
 import { balloonColorHex, balloonSVG, balloonEdge, balloonTint } from '/contest/score/score-colors.js';
 import { pickStmtLang, makeStmtLangChips, setChipsActive, rememberStmtLang, stmtHtmlLang } from '/shared/statement-langs.js';
 import { decorateSamples, downloadSamplesZip, SAMPLES_TAB_SCRIPT } from '/shared/statement-samples.js';
+import { tlClockBadge } from '/shared/tl-clock.js';
 import { serverNow } from '/shared/server-clock.js';   // contagem pelo relógio do SERVIDOR (shared/server-clock.js)
 
 const qs = new URLSearchParams(location.search);
@@ -748,6 +749,7 @@ function toggleDetail(p, item, toggle, submitWrap) {
     if (chips.length) {
       const tlBlock = el('div', { class: 'tl-block' },
         el('span', { class: 'tl-label' }, '⏱ ' + T('Tempo limite', 'Time limit', 'Límite de tiempo')));
+      const clk = tlClockBadge(p); if (clk) tlBlock.append(clk);   // TL de CPU (TLCLOCK=cpu no pacote)
       chips.forEach((c) => tlBlock.append(el('span', { class: 'tl-chip' },
         el('b', {}, c.label), el('span', { class: 'tl-time' }, fmtTime(c.time)))));
       detail.append(tlBlock);

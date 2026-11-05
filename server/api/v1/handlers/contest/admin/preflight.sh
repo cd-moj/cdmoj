@@ -348,6 +348,24 @@ if [[ "${CONTEST_TYPE:-icpc}" == icpc ]]; then
   fi
 fi
 
+# --- RELÓGIO DO TL (05/11/2026; TLCLOCK=cpu no pacote, docs/PACOTE.md "Relógio do TL") --------------------------
+# Informativo (ok): quais problemas cobram o TL pelo tempo de CPU, com a parede como teto maior — a folha de TL da
+# prova os marca com †. Escolha do AUTOR do problema, nunca aviso. Do json servível (tl_clock), sem abrir pacote.
+tc_cpu=""; tc_n=0
+for ((i=0; i+4<${#PROBS[@]}; i+=5)); do
+  pid="${PROBS[i+4]}"; bj="$(cs_bank_json "$pid" 2>/dev/null)" || continue
+  tc_n=$((tc_n + 1))
+  [[ "$(jq -r '.tl_clock // "wall"' "$bj" 2>/dev/null)" == cpu ]] && tc_cpu+=" ${PROBS[i+3]}"
+done
+if [[ -n "$tc_cpu" ]]; then
+  add3 tl_clock ok "Tempo-limite por tempo de CPU" \
+    "em:$tc_cpu — o TL é de CPU (user+sys) e a parede é só um teto maior (3 × o limite, no mínimo o limite + 3,2 s); os demais problemas seguem na parede. A folha de TL marca esses com †." \
+    "Time limit by CPU time" \
+    "in:$tc_cpu — the time limit is CPU time (user+sys) and the wall clock is only a larger ceiling (3 × the limit, at least the limit + 3.2 s); the other problems stay on the wall clock. The time-limit sheet marks these with †." \
+    "Tiempo límite por tiempo de CPU" \
+    "en:$tc_cpu — el tiempo límite es de CPU (user+sys) y el reloj de pared es solo un techo mayor (3 × el límite, como mínimo el límite + 3,2 s); los demás problemas siguen con el reloj de pared. La hoja de tiempos límite los marca con †."
+fi
+
 # --- NOME DOS PROBLEMAS × idioma da prova (03/10/2026) -------------------------------
 # TCP 2026 (LOCALE=es): os nomes nasceram com o título PT do banco e a sanfona mostrava "Problema en
 # portugués" sobre o enunciado em espanhol. Hoje o nome padrão segue o idioma da prova (cc_prob_title); isto

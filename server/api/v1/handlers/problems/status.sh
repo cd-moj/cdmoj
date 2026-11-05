@@ -188,6 +188,7 @@ out="$(jq -c --slurpfile TL "$tlmap" --slurpfile VAL "$valmap" --slurpfile CX "$
           time_limits:tl_eff($ttl; (.tl_override // {}); (.tl_mods // {})),
           time_limits_calibrated:$ttl,
           tl_method:$tlm,
+          tl_clock:(if .tl_clock == "cpu" then "cpu" else "wall" end),   # relógio do TL (índice de donos)
           tl_override:(.tl_override // {}),
           tl_mods:(.tl_mods // {}),
           updated_at:($t.at // null),

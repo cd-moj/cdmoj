@@ -171,6 +171,14 @@ ck "langs não-lista = 400"               '[[ "$(code)" == "400 Bad Request" ]]'
 echo "== /contest/problems e /contest/statement por idioma =="
 call /contest/problems GET time01 "contest=sl"
 ck "lista: oferecidos [pt,en,es], default en, A tem [pt,en] (es sem arquivo)" '[[ "$(jq -c ".statement_langs, .default_statement_lang, .problems[0].statement_langs" <<<"$BODY" | paste -sd" ")" == "[\"pt\",\"en\",\"es\"] \"en\" [\"pt\",\"en\"]" ]]'
+# relógio do TL (TLCLOCK=cpu no pacote, 05/11/2026): vem do json servível, sem abrir o pacote
+ck "/contest/problems: tl_clock wall (o padrão) e wall_tl null" '[[ "$(jq -c ".problems[0].tl_clock, .problems[0].wall_tl" <<<"$BODY" | paste -sd" ")" == "\"wall\" null" ]]'
+cp "$J" "$RUN/json.bak"; jq -c '. + {tl_clock:"cpu", wall_tl:8}' "$RUN/json.bak" > "$J"
+# (no servidor a troca do relógio recalibra, e o TL novo em run/tl invalida o cache da rota; aqui, à mão)
+rm -f "$C"/var/problems-cache.*
+call /contest/problems GET time01 "contest=sl"
+ck "/contest/problems: tl_clock cpu e wall_tl 8 do json servível" '[[ "$(jq -c ".problems[0].tl_clock, .problems[0].wall_tl" <<<"$BODY" | paste -sd" ")" == "\"cpu\" 8" ]]'
+cat "$RUN/json.bak" > "$J"; rm -f "$C"/var/problems-cache.*
 call /contest/statement GET time01 "contest=sl&problem=A&lang=en"
 ck "lang=en: 200 com o texto EN e X-MOJ-Statement-Lang en" '[[ "$(code)" == "200 OK" ]] && grep -q "Read N and print N" <<<"$BODY" && [[ "$(hdr X-MOJ-Statement-Lang)" == en ]]'
 call /contest/statement GET time01 "contest=sl&problem=A"

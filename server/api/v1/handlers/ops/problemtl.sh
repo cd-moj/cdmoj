@@ -13,6 +13,7 @@ valid_id "$problem" || fail 400 "Invalid problem" "problem_invalid"
 pdir="$(pkg_path "$problem")"
 cur="$(pkg_tl_checksum "$pdir")"
 meth=moj; tl_conf_method_to meth "$pdir"   # o método do TL do conf (26/10/2026): a metade que vale
+clk=wall; wtl=""; tl_conf_clock_to clk wtl "$pdir"   # o relógio do TL (TLCLOCK, 05/11/2026)
 tlf=tl; [[ "$meth" == kattis ]] && tlf=tl_kattis
 tlcal="$(tl_store_served_for "$problem" "$cur" "$tlf")"
 ov="$(tl_conf_overrides "$pdir")"   # time_limits = efetivo (TLOVERRIDE do conf vence)
@@ -21,9 +22,10 @@ body="$(jq -cn --arg p "$problem" --arg cks "$cur" \
    --argjson tl "$(tl_override_apply "$tlcal" "$ov" "$mods")" \
    --argjson tlcal "$tlcal" --argjson ov "$ov" --argjson mods "$mods" --arg meth "$meth" \
    --argjson bm "$(tl_by_method_json "$problem" "$cur" "$ov" "$mods")" \
-   --argjson store "$(tl_store_get "$problem")" '
+   --argjson store "$(tl_store_get "$problem")" --arg clk "$clk" --arg wtl "$wtl" '
    {success:true, problem:$p, checksum:$cks, time_limits:$tl,
     time_limits_calibrated:$tlcal, tl_override:$ov, tl_mods:$mods, tl_method:$meth, time_limits_by_method:$bm,
+    tl_clock:$clk, wall_tl:(if $wtl == "" then null else ($wtl | tonumber) end),
     calibrated_checksum:($store.checksum // ""),
     hosts:($store.hosts // {}), updated_at:($store.updated_at // null),
     stale:(($store.checksum // "") != $cks and ($store.checksum // "") != "")}')"

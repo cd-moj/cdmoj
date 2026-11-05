@@ -1,4 +1,4 @@
-<!-- i18n-source: PACOTE.md blob:164af7f7ec105abe461ab3e9558fd9c4eb1eed4c -->
+<!-- i18n-source: PACOTE.md blob:0de209847076bb2539cbfb5d2e9310688a9f7b01 -->
 # MOJ: el paquete de problema (formato canónico)
 
 > **Nota de traducción.** Este manual es una traducción del original en portugués. Las herramientas de línea de comandos (`moj`, `moj-contest`, `moj-comp`) muestran sus mensajes en portugués, y los ejemplos de comandos son idénticos al original.
@@ -439,6 +439,8 @@ Todas las claves que entiende `build-and-test.sh`:
 |---|---|---|---|
 | `TLMOD[calibrafactor]` | `1.35` | multiplicador aplicado al tiempo de la solución `good` para obtener el tiempo límite, en el método MOJ. Subirlo le da holgura al estudiante | 453 |
 | `TLMETHOD` | `moj` | el **método del tiempo límite** (sección 10, "Métodos de TL"): `moj` = `calibrafactor` × peor tiempo + 0,02 s; `kattis` = el método de la spec de Kattis (2025-09). Los dos son por lenguaje. La calibración mide los dos siempre: cambiarlo **no pide recalibración** (la línea queda fuera de los dos sellos del tl-checksum). En la web: pestaña Límites; en la CLI: `moj edit` → 8 → 11, y las `KATTIS_*` en → 12 | 0 |
+| `TLCLOCK` | `wall` | el **reloj del tiempo límite** (sección 10, "Reloj del TL"): `wall` = tiempo de reloj de pared, como siempre; `cpu` = tiempo de CPU (user+sys), con el reloj de pared solo como techo mayor, que atrapa a quien queda bloqueado o duerme. Para problemas estilo ICPC; **no** para problemas paralelos (`CPUNEEDED` > 1 reprueba el paquete). **Cambiarlo recalibra**. En la web: pestaña Límites; en la CLI: `moj edit` → 8 → 13 | 0 |
+| `WALLTL` | — | solo con `TLCLOCK=cpu`: el **mínimo** del techo de reloj de pared, en segundos (de 1 a 60). El techo es el mayor entre 3 × el tiempo límite, el techo de CPU + 1 s y esto. **Cambiarlo recalibra**. En la CLI: `moj edit` → 8 → 14 | 0 |
 | `KATTIS_AC_TO_TIME_LIMIT` | `2.0` | método Kattis: el tiempo límite es al menos esto × el peor tiempo de las `good` (de 1 a 100; el `ac_to_time_limit` de la spec) | 0 |
 | `KATTIS_TIME_LIMIT_TO_TLE` | `1.5` | método Kattis: la solución `slow` tiene que superar esto × el tiempo límite en alguna prueba (de 1 a 100; el `time_limit_to_tle` de la spec) | 0 |
 | `KATTIS_TIME_RESOLUTION` | `1.0` | método Kattis: el tiempo límite es múltiplo de esto, redondeado hacia arriba (más de 0 y hasta 10 s; el `time_resolution` de la spec) | 0 |
@@ -937,6 +939,43 @@ de cada método:
 La pestaña Límites del editor muestra las tablas y las sugerencias, y el botón **aplicar** completa los campos.
 `moj calib` muestra lo mismo. Guardar graba el `conf`: un factor nuevo o parámetros de Kattis nuevos recalibran.
 
+### Reloj del TL: pared o CPU
+
+El tiempo límite se cobra en el **reloj de pared** (`TLCLOCK=wall`, por defecto): el tiempo real que tardó la
+prueba. Es lo que sirve a los problemas paralelos (OpenMP/MPI), en los que el programa usa varias CPUs a la vez, y es
+como se calibró todo problema del acervo.
+
+En un problema estilo ICPC se puede cobrar por **tiempo de CPU** (`TLCLOCK=cpu`): el `user + sys` del programa. El
+reloj de pared pasa a ser solo un **techo mayor**, que atrapa al programa bloqueado esperando algo, o al que duerme
+(`sleep`) para gastar tiempo sin gastar CPU:
+
+| | Pared (`wall`, por defecto) | CPU (`cpu`) |
+|---|---|---|
+| Qué se compara con el tiempo límite | el tiempo de reloj de pared de la prueba | el tiempo de CPU (user+sys) |
+| Cuándo es TLE | pared − TL > tolerancia | CPU − TL > tolerancia, **o** la prueba llegó al techo de reloj de pared |
+| Techo de reloj de pared de cada prueba | TL + 2,2 s | el mayor entre 3 × TL, el techo de CPU + 1 s y el `WALLTL` |
+| Techo de CPU | — | TL + 2,2 s, redondeado hacia arriba (`ulimit -t` en la jaula) |
+| La calibración mide | reloj de pared | CPU |
+| De dónde viene el CPU | — | el `cpu.stat` del cgroup de la prueba (exacto: cuenta todo proceso, incluso un hijo que el programa no esperó); en un juez sin ese cgroup, el `user + sys` de la jaula, sin los hijos no esperados |
+
+Ejemplo, con tiempo límite de 1 s: un programa que gasta 0,8 s de CPU pero tarda 2,5 s de reloj de pared (esperando
+I/O, máquina disputada) es aceptado con el reloj de CPU y da TLE con el de pared. Un programa que duerme 10 s da TLE
+en los dos: en el de CPU, cuando llega al techo de reloj de pared de 5 s (el techo de CPU es de 4 s: 1 + 2,2, redondeado hacia arriba).
+
+- **Cambiar el reloj recalibra**, y cambiar el `WALLTL` también: las dos líneas quedan dentro del `tl_checksum`,
+  porque el tiempo medido cambia de naturaleza. Es lo contrario del `TLMETHOD`.
+- **No sirve a problemas paralelos.** El tiempo de CPU suma los hilos, y el speedup se volvería costo:
+  `TLCLOCK=cpu` con `CPUNEEDED` > 1 reprueba el paquete.
+- **En un problema interactivo** el tiempo de CPU es el de la jaula entera, árbitro y jugador, como el reloj de
+  pared. El jugador que se traba esperando al árbitro (sin `flush`) no gasta CPU y da TLE en el techo de reloj de
+  pared.
+- **La JVM y .NET** gastan CPU en hilos propios (recolector de basura, JIT). La calibración por lenguaje lo
+  absorbe, porque mide de la misma forma.
+- **El estudiante lo ve**: el tiempo límite aparece con el sello "tiempo de CPU" en el entrenamiento y en la
+  competencia, con la explicación del techo de reloj de pared. La hoja de tiempos límite de la competencia marca el
+  problema con † y lo explica en una nota, en los tres idiomas.
+- En el reporte de la evaluación, los tiempos son de CPU, y cada prueba muestra también el reloj de pared.
+
 ### Soluciones: ¿cada una hace lo que pide su categoría?
 
 La calibración devuelve, por juez y por solución, el código de **cada prueba** (`AC`, `WA`, `TLE`, `MLE`,
@@ -979,7 +1018,7 @@ diferentes: *"¿el tiempo límite medido todavía vale?"* y *"¿el juez todavía
 | | `tl_checksum` (estrecho) | `pkg_version` (amplio) |
 |---|---|---|
 | Cómo se calcula | `tl-checksum.sh <pkg>` | `tl-checksum.sh --all-sols <pkg>` |
-| Cubre | `conf` (menos las líneas `SAMPLE`, `FUNCTION_LANGS` y `TLMETHOD`), `tests/input/*`, `tests/output/*` (no vacíos), `tests/score`, `sols/good/*`, `scripts/*` (contenido **y** bit de ejecución) **menos `scripts/validator.cpp`** | todo lo que cubre el estrecho **+ `sols/pass`, `sols/slow`, `sols/wrong`, `sols/upcoming` + `scripts/validator.cpp`** |
+| Cubre | `conf` (menos las líneas `SAMPLE`, `FUNCTION_LANGS` y `TLMETHOD`; el `TLCLOCK` y el `WALLTL` **entran**), `tests/input/*`, `tests/output/*` (no vacíos), `tests/score`, `sols/good/*`, `scripts/*` (contenido **y** bit de ejecución) **menos `scripts/validator.cpp`** | todo lo que cubre el estrecho **+ `sols/pass`, `sols/slow`, `sols/wrong`, `sols/upcoming` + `scripts/validator.cpp`** |
 | Para qué sirve | ata el **TL** al paquete: es el `checksum` de `run/tl/<id>.json`, el del índice de dueños y el que compara `/contest/problems` | es la **clave de la caché del juez** y la identidad de una calibración: `/judge/package-meta` lo devuelve como `checksum` y el agente vuelve a descargar cuando cambia |
 
 Ninguno de los dos cubre `docs/enunciado.*`, `tags`, `author` ni el `.moj-meta.json`

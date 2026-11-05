@@ -52,6 +52,7 @@ calibrating="$(calibrating_set 2>/dev/null)"; [[ -n "$calibrating" ]] || calibra
 # o calibrado cru fica em time_limits_calibrated e o override declarado em tl_override.
 # MÉTODO DO TL (26/10/2026): a metade da tabela que o TLMETHOD do conf escolhe; as duas em time_limits_by_method.
 meth=moj; tl_conf_method_to meth "$pdir"
+clk=wall; wtl=""; tl_conf_clock_to clk wtl "$pdir"   # relógio do TL (TLCLOCK, 05/11/2026)
 tlf=tl; [[ "$meth" == kattis ]] && tlf=tl_kattis
 tlcal="$(tl_store_served_for "$id" "$cur" "$tlf")"
 ov="$(tl_conf_overrides "$pdir")"
@@ -60,7 +61,7 @@ body="$(jq -cn --arg p "$id" --arg cks "$cur" \
    --argjson tl "$(tl_override_apply "$tlcal" "$ov" "$mods")" \
    --argjson tlcal "$tlcal" --argjson ov "$ov" --argjson mods "$mods" \
    --arg meth "$meth" --argjson bm "$(tl_by_method_json "$id" "$cur" "$ov" "$mods")" --argjson kp "$(tl_conf_kattis "$pdir")" \
-   --argjson store "$store" --argjson calibrating "$calibrating" \
+   --argjson store "$store" --argjson calibrating "$calibrating" --arg clk "$clk" --arg wtl "$wtl" \
    --arg reason "$reason" --argjson changes "$changes" --argjson chfiles "$chfiles" '
    ($store.checksum // "") as $cal
    | (($store.hosts // {}) | length > 0) as $calibrated
@@ -68,6 +69,7 @@ body="$(jq -cn --arg p "$id" --arg cks "$cur" \
    | {success:true, problem:$p, checksum:$cks, time_limits:$tl,
       time_limits_calibrated:$tlcal, tl_override:$ov, tl_mods:$mods,
       tl_method:$meth, kattis:$kp, time_limits_by_method:$bm,
+      tl_clock:$clk, wall_tl:(if $wtl == "" then null else ($wtl | tonumber) end),
       calibrated_checksum:$cal, hosts:($store.hosts // {}),
       updated_at:($store.updated_at // null), calibrated_at:($store.updated_at // null),
       calibrated:$calibrated,

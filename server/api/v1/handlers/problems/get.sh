@@ -32,6 +32,8 @@ vf="$RUNDIR/validation/$id.json"; val='null'; [[ -f "$vf" ]] && val="$(cat "$vf"
 # `time_limits_by_method` p/ o autor comparar.
 cks="$(tl_index_checksums "$id" 2>/dev/null | cut -f2)"
 meth=moj; tl_conf_method_to meth "$(pkg_path "$id")"
+# RELÓGIO do TL (05/11/2026): TLCLOCK=cpu cobra o TL pelo tempo de CPU; WALLTL = o mínimo do teto de parede
+clk=wall; wtl=""; tl_conf_clock_to clk wtl "$(pkg_path "$id")"
 tlf=tl; [[ "$meth" == kattis ]] && tlf=tl_kattis
 tlcal="$(tl_store_served_for "$id" "$cks" "$tlf" 2>/dev/null)"; [[ -n "$tlcal" ]] || tlcal='{}'
 ov="$(tl_conf_overrides "$(pkg_path "$id")" 2>/dev/null)"; [[ -n "$ov" ]] || ov='{}'
@@ -48,17 +50,20 @@ jf="$CONTESTSDIR/treino/var/jsons/$id.json"
 emit_json 200 OK
 if [[ -f "$jf" ]]; then
   jq -c --argjson base "$base" --argjson val "$val" --argjson tl "$tleff" \
-        --argjson tlc "$tlcal" --argjson ov "$ov" --argjson mods "$mods" --arg meth "$meth" --argjson bm "$tlbm" --argjson kp "$kp" '
+        --argjson tlc "$tlcal" --argjson ov "$ov" --argjson mods "$mods" --arg meth "$meth" --argjson bm "$tlbm" --argjson kp "$kp" --arg clk "$clk" --arg wtl "$wtl" '
     {success:true} + $base
     + { validation:$val,
         statement_html_b64:(.statement_html_b64 // null),
         time_limits:$tl, time_limits_calibrated:$tlc, tl_override:$ov, tl_mods:$mods,
         tl_method:$meth, kattis:$kp, time_limits_by_method:$bm,
+        tl_clock:$clk, wall_tl:(if $wtl == "" then null else ($wtl | tonumber) end),
         tags:(.tags // []) }' "$jf" 2>/dev/null
 else
   jq -cn --argjson base "$base" --argjson val "$val" --argjson tl "$tleff" \
          --argjson tlc "$tlcal" --argjson ov "$ov" --argjson mods "$mods" --arg meth "$meth" --argjson bm "$tlbm" --argjson kp "$kp" \
+         --arg clk "$clk" --arg wtl "$wtl" \
     '{success:true} + $base + {validation:$val, time_limits:$tl,
                                time_limits_calibrated:$tlc, tl_override:$ov, tl_mods:$mods,
-                               tl_method:$meth, kattis:$kp, time_limits_by_method:$bm}'
+                               tl_method:$meth, kattis:$kp, time_limits_by_method:$bm,
+                               tl_clock:$clk, wall_tl:(if $wtl == "" then null else ($wtl | tonumber) end)}'
 fi

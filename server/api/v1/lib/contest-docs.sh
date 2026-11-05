@@ -131,6 +131,10 @@ _doc_t(){
     pt:tl_same) printf 'Os limites de tempo não dependem da linguagem de programação.';;
     en:tl_same) printf 'Time limits do not depend on the programming language.';;
     es:tl_same) printf 'Los límites de tiempo no dependen del lenguaje de programación.';;
+    # RELÓGIO do TL (TLCLOCK=cpu no pacote, 05/11/2026): o problema marcado tem TL de CPU e um teto de parede maior
+    pt:tl_cpu) printf 'Limite em tempo de CPU (user+sys). O programa também é interrompido, com TLE, se o tempo de relógio passar de 3 vezes o limite (no mínimo o limite + 3,2 s): quem fica parado esperando ou dormindo não escapa.';;
+    en:tl_cpu) printf 'Limit in CPU time (user+sys). The program is also stopped, with TLE, if the wall-clock time exceeds 3 times the limit (at least the limit + 3.2 s): waiting or sleeping does not get around it.';;
+    es:tl_cpu) printf 'Límite en tiempo de CPU (user+sys). El programa también se detiene, con TLE, si el tiempo de reloj supera 3 veces el límite (como mínimo el límite + 3,2 s): quedarse esperando o dormido no lo evita.';;
     pt:tl_per_lang) printf 'O limite de tempo depende da linguagem: uma coluna por linguagem.';;
     en:tl_per_lang) printf 'The time limit depends on the language: one column per language.';;
     es:tl_per_lang) printf 'El límite de tiempo depende del lenguaje: una columna por lenguaje.';;
@@ -409,7 +413,7 @@ _doc_langs_table(){
 # doc_tl_rows (só as linguagens permitidas no problema), mas com o mapa POR LINGUAGEM inteiro:
 # é o que deixa a tabela decidir entre "um número" e "uma coluna por linguagem".
 _doc_tl_matrix(){
-  local c="$1" probs n i letter name pid tl allow out='[]'
+  local c="$1" probs n i letter name pid tl allow out='[]' clk bf
   probs="$(_doc_probs_l "$c" "${2:-pt}")"
   n="$(jq -r 'length' <<<"$probs" 2>/dev/null)"; [[ "$n" =~ ^[0-9]+$ ]] || n=0
   for ((i=0; i<n; i++)); do
@@ -419,8 +423,10 @@ _doc_tl_matrix(){
     tl="$(tl_store_served "$pid" "$(_doc_pool "$c" "$pid")" 2>/dev/null)"; [[ -n "$tl" ]] || tl='{}'
     allow="[]"; declare -F effective_problem_langs >/dev/null && allow="$(effective_problem_langs "$c" "$pid" 2>/dev/null)"
     [[ -n "$allow" ]] || allow='[]'
-    out="$(jq -c --arg L "$letter" --arg N "$name" --argjson allow "$allow" --argjson tl "$tl" '
-      . + [{letter:$L, name:$N,
+    # o relógio do TL vem do json servível do banco (gen-problem-json: tl_clock), nunca do pacote
+    clk=wall; bf="$(cs_bank_json "$pid" 2>/dev/null)" && [[ "$(jq -r '.tl_clock // "wall"' "$bf" 2>/dev/null)" == cpu ]] && clk=cpu
+    out="$(jq -c --arg L "$letter" --arg N "$name" --argjson allow "$allow" --argjson tl "$tl" --arg clk "$clk" '
+      . + [{letter:$L, name:$N, cpu:($clk == "cpu"),
             tl: ($tl | to_entries | map(select(.key != "default"))
                  | map(.key as $k | select(($allow|length) == 0 or (($allow|index($k)) != null)))
                  | map({key, value:(.value|tonumber|(.*1000|round)/1000)}) | from_entries)}]' <<<"$out" 2>/dev/null)" || out='[]'
@@ -453,7 +459,7 @@ _doc_tl_table(){
   done
   jq -r --arg th "$_DOC_TH_RULE" --arg td "$_DOC_TD" --arg tdl "$_DOC_TD_LAST" \
      --arg h_prob "$(_doc_t "$l" problem)" --arg h_name "$(_doc_t "$l" name)" --arg h_tl "$(_doc_t "$l" tl)" \
-     --arg n_same "$(_doc_t "$l" tl_same)" --arg n_lang "$(_doc_t "$l" tl_per_lang)" \
+     --arg n_same "$(_doc_t "$l" tl_same)" --arg n_lang "$(_doc_t "$l" tl_per_lang)" --arg n_cpu "$(_doc_t "$l" tl_cpu)" \
      --arg order "$langs" --argjson names "$names" '
     def cell(v): if v == null then "—" else (v|tostring) end;
     (map(.tl | [.[]] | unique | length) | any(. > 1)) as $per_lang
@@ -466,12 +472,14 @@ _doc_tl_table(){
          else "<th class=\"c\" \($th)>\($h_tl)*</th>" end)
       + "</tr></thead><tbody>"
       + ([to_entries[] | (if .key == $n - 1 then $tdl else $td end) as $st | .value
-          | "<tr><td class=\"c\" \($st)>\(.letter|@html)</td><td \($st)>\(.name|@html)</td>"
+          | (if .cpu then " †" else "" end) as $dag
+          | "<tr><td class=\"c\" \($st)>\(.letter|@html)</td><td \($st)>\(.name|@html)\($dag)</td>"
             + (if $per_lang then ([. as $r | $cols[] | "<td class=\"c\" \($st)>\(cell($r.tl[.]))</td>"] | join(""))
                else "<td class=\"c\" \($st)>\(cell(.tl | [.[]] | first))</td>" end)
             + "</tr>"] | join(""))
       + "</tbody></table>"
-      + (if $n > 0 then "<p class=\"foot\">* \(if $per_lang then $n_lang else $n_same end)</p>" else "" end)' <<<"${m:-[]}" 2>/dev/null
+      + (if $n > 0 then "<p class=\"foot\">* \(if $per_lang then $n_lang else $n_same end)</p>" else "" end)
+      + (if any(.[]; .cpu) then "<p class=\"foot\">† \($n_cpu|@html)</p>" else "" end)' <<<"${m:-[]}" 2>/dev/null
 }
 
 # ---------- HTML de cada documento ----------------------------------------------------

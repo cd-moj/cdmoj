@@ -90,6 +90,28 @@ ck('voltar a moj com a linha presente grava moj explícito, no lugar dela', conf
 load('TLMETHOD=boca');
 ck('valor desconhecido aparece como moj (o juiz faz o mesmo)', $('cf_tlmethod').value === 'moj');
 
+// ---- RELÓGIO DO TL (05/11/2026, docs/PACOTE.md "Relógio do TL"): TLCLOCK wall (padrão) | cpu + WALLTL; DENTRO do
+// tl-checksum, então entra no FIM do conf (só o TLMETHOD vai ao topo)
+load('CALIBRATIONTL=5');
+ck('sem TLCLOCK: parede, e o teto mínimo escondido', $('cf_tlclock').value === 'wall' && $('cf_walltl_box').hidden === true);
+out = save();
+ck('salvar sem mexer não grava TLCLOCK nem WALLTL', !has(out, 'TLCLOCK') && !has(out, 'WALLTL'));
+$('cf_tlclock').value = 'cpu'; out = save();
+ck('cpu entra no FIM do conf', out === 'CALIBRATIONTL=5\nTLCLOCK=cpu');
+ck('…e o teto mínimo de parede aparece', $('cf_walltl_box').hidden === false);
+$('cf_walltl').value = '8'; out = save();
+ck('WALLTL gravado', confVal(out, 'WALLTL') === '8');
+load('TLCLOCK="CPU"\nWALLTL=10');
+ck('lê cpu com aspas e maiúscula, e o WALLTL', $('cf_tlclock').value === 'cpu' && $('cf_walltl').value === '10');
+load('TLCLOCK=parede');
+ck('valor desconhecido aparece como parede (o juiz faz o mesmo)', $('cf_tlclock').value === 'wall');
+load('TLCLOCK=cpu\nCPUNEEDED=4');
+ck('cpu com CPUNEEDED=4: aviso vermelho mesmo sem judge_capacity', $('cf_cpu_warn').kids.length === 1 && $('cf_cpu_warn').kids[0].cls === 'pill no' && $('cf_cpu_warn').kids[0].text.includes('soma as threads'));
+load('TLCLOCK=wall\nCPUNEEDED=4');
+ck('parede com CPUNEEDED=4: sem aviso', $('cf_cpu_warn').kids.length === 0);
+load('CALIBRATIONTL=5'); $('cf_tlmethod').value = 'kattis'; $('cf_tlclock').value = 'cpu'; out = save();
+ck('os dois juntos: TLMETHOD no topo, TLCLOCK no fim', out.split('\n')[0] === 'TLMETHOD=kattis' && out.split('\n').pop() === 'TLCLOCK=cpu');
+
 // ---- AVISO da aba Limites contra os juízes de hoje (judge_capacity; incidente de 30/09/2026: MEMLIMITMB=262144)
 const kids = (id) => $(id).kids.map((k) => k.cls + '|' + k.text);
 load('MEMLIMITMB=262144');

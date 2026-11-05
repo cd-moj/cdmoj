@@ -636,6 +636,21 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   se a VERSÃO do pacote mudou — senão RECALCULA (`calx_summary_write`). O `/judge/calib-report` JUNTA por
   categoria/arquivo na mesma versão. Testes: `smoke-tl-method.sh`, `smoke-calib-expect.sh` (1b), `smoke-sched-width.sh`,
   `smoke-limits-tab.gjs.sh`, `smoke-sols-expect.gjs.sh`; mojtools `make test-calib test-kattis`.
+- **RELÓGIO DO TL (05/11/2026; pedido do Roberto/Ribas: TL de CPU p/ problema ICPC, a parede como teto maior)** — formato
+  em `docs/PACOTE.md` §10 "Relógio do TL", motor no mojtools (`build-and-test.sh`, `test-tl-clock.sh`). `TLCLOCK=wall|cpu`
+  (padrão `wall`: nada muda) e `WALLTL=<s>` (mínimo do teto de parede) no conf. É o CONTRÁRIO do `TLMETHOD`: as duas
+  linhas ficam DENTRO do `tl_checksum` (o W medido muda de natureza ⇒ trocar recalibra), então NADA vai no job — o juiz
+  lê o conf do próprio cache — e o servidor só EXIBE: `tl_conf_clock_to <var> <var-walltl> <pkg>` (`lib/tl-store.sh`,
+  nameref, sem source, última linha vence; `WALLTL` só em forma de número JSON — vai por `--argjson`) em
+  `problems/{get,tl,calib}` e `ops/problemtl`; `tl_clock` do índice de donos (`gen-problem-owners.sh`) no
+  `problems/status`; `tl_clock`/`wall_tl` do json servível (`gen-problem-json.sh`) no `/treino/problem` e no
+  `/contest/problems` (no MESMO jq do `has_samples` — rota de contest não abre pacote). Aluno: selo "tempo de CPU" com a
+  explicação do teto (`web/shared/tl-clock.js`, fonte única do treino e do contest; a frase é a mesma do `tl_cpu` do
+  `_doc_t`); folha de TL da prova: † no problema + nota (`_doc_tl_matrix` lê o `tl_clock` do json do banco). Editor:
+  `cf_tlclock`/`cf_walltl` na aba Limites (`CF_SEL` agora leva `[id, chave, default, valores, topo?]` — só o TLMETHOD
+  vai ao topo) e aviso de `cpu` + `CPUNEEDED>1` (o `validate-problem.sh` reprova, `conf_tlclock_sane`). Painel: pílula
+  "CPU"; Central: item informativo `tl_clock` (ok, nunca aviso — é escolha do autor). Testes: `smoke-tl-clock.sh`,
+  `smoke-limits-tab.gjs.sh`, `smoke-preflight.sh`, `smoke-statement-langs.sh` (o `/contest/problems`).
 - **LOCKS do store de TL e da calibração (26/10/2026)**: todo ler-e-regravar de `run/tl/<id>.json` passa por
   `_tl_locked <id>` (`lib/tl-store.sh`: `run/tl/<id>.lock`, `flock -w 10`, rc 75 ⇒ o tl-report responde 500) — dois
   juízes reportando juntos perdiam a entrada de um (o último `mv` vencia); o sumário das soluções por `_calx_locked`

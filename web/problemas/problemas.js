@@ -88,6 +88,13 @@ const tlCell = (p) => {
                'Time limit by the Kattis method (TLMETHOD=kattis in the conf): the smallest multiple of the resolution that is at least the multiplier × the worst time of the good solutions.',
                'Tiempo límite por el método Kattis (TLMETHOD=kattis en el conf): el menor múltiplo de la resolución que es al menos el multiplicador × el peor tiempo de las soluciones buenas.') }, 'K'));
   }
+  // relógio do TL (docs/PACOTE.md "Relógio do TL"): só o de CPU se anuncia — a parede é a de sempre
+  if (p.tl_clock === 'cpu') {
+    box.append(el('span', { class: 'pill', style: 'margin-left:.35rem',
+      title: T('Tempo-limite em tempo de CPU (TLCLOCK=cpu no conf): user+sys; a parede é só um teto maior, que para quem fica bloqueado ou dormindo.',
+               'Time limit in CPU time (TLCLOCK=cpu in the conf): user+sys; the wall clock is only a larger ceiling that stops whoever is blocked or sleeping.',
+               'Tiempo límite en tiempo de CPU (TLCLOCK=cpu en el conf): user+sys; el reloj de pared es solo un techo mayor que detiene a quien queda bloqueado o dormido.') }, 'CPU'));
+  }
   const mods = fmtMods(p.tl_mods);
   if (mods) box.append(el('span', { class: 'pill', style: 'margin-left:.35rem', title: MODS_TITLE() + mods }, '± TLMOD'));
   if (p.tl_override && Object.keys(p.tl_override).length) {

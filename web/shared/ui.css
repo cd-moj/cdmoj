@@ -212,6 +212,9 @@ table.moj tbody tr.sub-new td:first-child { box-shadow:inset 3px 0 0 var(--blue)
   border-radius:999px; padding:.18rem .65rem; font-size:.82rem; }
 .tl-chip b { color:var(--blue-dark); font-weight:700; }
 .tl-chip .tl-time { font-variant-numeric:tabular-nums; color:var(--muted); font-family:var(--mono); }
+/* relógio do TL = CPU (shared/tl-clock.js): o selo ao lado do "⏱ Tempo limite"; a explicação vai no title */
+.tl-clock { font-size:.74rem; font-weight:700; color:var(--blue-dark); border:1px dashed var(--blue-dark);
+  border-radius:4px; padding:.05rem .4rem; cursor:help; }
 
 /* statement (enunciado integrado) */
 .statement-content { line-height:1.7; font-size:1.04rem; }

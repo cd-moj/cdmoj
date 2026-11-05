@@ -407,6 +407,26 @@ tl_conf_method_to(){
   [[ "$_tlm_out" == kattis ]] || _tlm_out=moj
   return 0
 }
+# ===== RELÓGIO DO TL (05/11/2026; mojtools build-and-test, cdmoj/docs/PACOTE.md "Relógio do TL") ===============
+# TLCLOCK=wall (o padrão) | cpu no conf: no cpu o TL é cobrado pelo tempo de CPU (user+sys) e a parede é só um teto
+# maior, max(3 × TL, ⌈TL + 2,2 s⌉ + 1, WALLTL). Diferente do TLMETHOD, a chave está no tl_checksum (trocar recalibra), então
+# nada vai no job — o servidor só EXIBE. Sem source e sem processo (nameref), a última linha vence.
+# tl_conf_clock_to <var-relógio> <var-walltl> <pkgdir> — "wall"|"cpu" e o WALLTL (número ou "")
+tl_conf_clock_to(){
+  local -n _tlc_out="$1" _tlw_out="$2"; local conf="$3/conf" _tlc_c="" _tlc_l
+  _tlc_out=wall; _tlw_out=""
+  [[ -n "$3" && -f "$conf" ]] || return 0
+  _tlc_c="$(<"$conf")" 2>/dev/null || return 0
+  [[ "$_tlc_c" == *TLCLOCK* || "$_tlc_c" == *WALLTL* ]] || return 0
+  while IFS= read -r _tlc_l; do
+    [[ "$_tlc_l" =~ ^[[:space:]]*TLCLOCK=[\"\']?([A-Za-z]*) ]] && _tlc_out="${BASH_REMATCH[1]}"
+    [[ "$_tlc_l" =~ ^[[:space:]]*WALLTL=[\"\']?([0-9]+(\.[0-9]+)?)([\"\'[:space:]#]|$) ]] && _tlw_out="${BASH_REMATCH[1]}"
+  done <<<"$_tlc_c"
+  [[ "$_tlc_out" == cpu ]] || _tlc_out=wall
+  # forma de número JSON (vai por --argjson): sem zero à esquerda
+  [[ "$_tlw_out" =~ ^(0|[1-9][0-9]*)(\.[0-9]+)?$ ]] || _tlw_out=""
+  return 0
+}
 # tl_conf_kattis <pkgdir> -> {"a":2,"b":1.5,"r":1}: os parâmetros do Kattis do conf (KATTIS_AC_TO_TIME_LIMIT,
 # KATTIS_TIME_LIMIT_TO_TLE, KATTIS_TIME_RESOLUTION), com a MESMA faixa e os mesmos padrões do tl-methods.sh
 tl_conf_kattis(){
