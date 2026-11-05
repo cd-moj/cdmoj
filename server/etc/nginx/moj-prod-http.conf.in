@@ -40,20 +40,26 @@ limit_conn_zone $moj_contest_conn zone=moj_porteiro:1m;
 # >>> MÍDIA DE TIME (bloco IGUAL no moj-prod-http.conf.in; o smoke-team-media-nginx.sh o lê daqui e compara os dois)
 # 05/11/2026: no placar de 500+ times o brasão era rebaixado a cada minuto (max-age=60, sem validador) e cada pedido era
 # um bash no balde do contest, o MESMO do /submit. As peças moram no snippet (moj-app.conf.in, "MÍDIA DE TIME"):
-#   · BRASÃO, FOTO e MÚSICA saem do disco pelo nginx. $moj_team_dir é o dir do time RELATIVO a @WORKROOT@/contests SÓ quando os
-#     dois argumentos passam na lista de caracteres ($arg_* chega CRU: sem %, sem /, sem ponto ou hífen no começo) e o
-#     host é o site principal ou o subdomínio DO MESMO contest (o contest_mismatch do router.sh). Senão os caminhos
-#     viram um arquivo que não existe e o pedido cai no bash, que segue sendo a autoridade (400/403/404, foto padrão);
+#   · BRASÃO, FOTO, MÚSICA e o PADRÃO saem do disco pelo nginx. $moj_media_c é o contest SÓ quando o argumento passa na
+#     lista de caracteres ($arg_* chega CRU: sem %, sem /, sem ponto ou hífen no começo, sem `..` — o valid_id) e o host
+#     é o site principal ou o subdomínio DELE (o contest_mismatch do router.sh); $moj_team_dir junta o user com a mesma
+#     lista. Fora disso os caminhos viram um arquivo que não existe e o pedido cai no bash, a autoridade (400/403/404);
 #   · a foto segue a ordem do tp_file (photo.webp, depois o photo.png legado); com `thumb` não vazio (a regra do bash),
-#     só a photo.thumb.webp — sem ela o bash a gera. Time sem foto = bash (a foto PADRÃO, X-MOJ-Photo: placeholder);
-#     a música é o music.mp3 (com Range/206, que o bash nunca teve); sem ela = bash (a PADRÃO, X-MOJ-Music);
-#   · com `v` na URL (logo_v do /contest/teams, mtime da galeria do telão) a resposta é imutável; sem ele, o cache de
-#     sempre do bash (brasão 10 min, miniatura 1 dia, foto e música 1 min — o telão externo busca as duas sem `v`) +
-#     ETag/304;
-#   · zona PRÓPRIA p/ o bash de mídia (o padrão e o que caiu no bash): não disputa o balde do contest.
-map "$arg_contest|$moj_contest_host|$arg_user" $moj_team_dir {
+#     só a photo.thumb.webp — sem ela o bash a gera. A música é o music.mp3 (com Range/206, que o bash nunca teve);
+#   · o PADRÃO (a rota /contest/placeholder e o time sem foto/música) segue o tp_placeholder/tm_placeholder: o do
+#     contest, senão o de fábrica do checkout (cdmoj/server/etc/team-placeholder.*, o mesmo commit da imagem), com o
+#     X-MOJ-Photo/X-MOJ-Music de sempre e 1 min; só com o contest EXISTENTE (o conf, a regra do require_contest);
+#     `kind` com % ou `|` = o bash decide (o nginx não decodifica);
+#   · com `v` na URL (logo_v do /contest/teams, mtime da galeria do telão) o asset do time é imutável; sem ele, o cache
+#     de sempre do bash (brasão 10 min, miniatura 1 dia, foto e música 1 min — o telão externo busca sem `v`) + ETag;
+#   · zona PRÓPRIA p/ o bash de mídia (o que caiu no bash): não disputa o balde do contest.
+map "$arg_contest|$moj_contest_host" $moj_media_c {
     default "";
-    "~^(?<mtc>[A-Za-z0-9][A-Za-z0-9._-]*)\|(?:\k<mtc>)?\|(?<mtu>[A-Za-z0-9][A-Za-z0-9._-]*)$" "/$mtc/users/$mtu";
+    "~^(?<mmc>(?![^|]*\.\.)[A-Za-z0-9][A-Za-z0-9._-]*)\|(?:\k<mmc>)?$" "$mmc";
+}
+map "$moj_media_c|$arg_user" $moj_team_dir {
+    default "";
+    "~^(?<mtc>[^|]+)\|(?<mtu>(?!.*\.\.)[A-Za-z0-9][A-Za-z0-9._-]*)$" "/$mtc/users/$mtu";
 }
 map $moj_team_dir $moj_logo_file { "" "/.sem-midia"; default "$moj_team_dir/logo.png"; }
 map "$moj_team_dir|$arg_thumb" $moj_photo_file {
@@ -67,12 +73,54 @@ map "$moj_team_dir|$arg_thumb" $moj_photo_alt {
 }
 map $moj_team_dir $moj_music_file { "" "/.sem-midia"; default "$moj_team_dir/music.mp3"; }
 map $arg_v $moj_logo_cc { "" "public, max-age=600"; default "public, max-age=31536000, immutable"; }
-map $arg_v $moj_music_cc { "" "public, max-age=60"; default "public, max-age=31536000, immutable"; }
 map "$arg_v|$arg_thumb" $moj_photo_cc {
     default "public, max-age=60";
     "~^[^|]" "public, max-age=31536000, immutable";
     "~^\|."  "public, max-age=86400";
 }
+map $arg_v $moj_music_cc { "" "public, max-age=60"; default "public, max-age=31536000, immutable"; }
+# O PADRÃO: qual (foto | miniatura | música | bash) e de qual contest. team-photo/team-music exigem o user (o bash dá
+# 400 sem ele); a rota /contest/placeholder só o contest. O conf tem de existir (senão o bash dá o 404 de sempre).
+map "$uri|$arg_kind|$arg_thumb" $moj_ph_kind {
+    default "bash";
+    "~^[^|]*\|[^|]*\|[^|]*\|"                    "bash";
+    "~^/api/v1/contest/team-music\|"              "music";
+    "~^/api/v1/contest/team-photo\|[^|]*\|$"      "photo";
+    "~^/api/v1/contest/team-photo\|[^|]*\|."      "thumb";
+    "~^/api/v1/contest/placeholder\|music\|"      "music";
+    "~^/api/v1/contest/placeholder\|[^|%]*\|$"    "photo";
+    "~^/api/v1/contest/placeholder\|[^|%]*\|."    "thumb";
+}
+map "$uri|$moj_team_dir|$moj_media_c" $moj_ph_conf {
+    default "/.sem-midia";
+    "~^/api/v1/contest/team-(?:photo|music)\|/[^|]+\|(?<mpc>[^|]+)$" "@WORKROOT@/contests/$mpc/conf";
+    "~^/api/v1/contest/placeholder\|[^|]*\|(?<mpq>[^|]+)$"           "@WORKROOT@/contests/$mpq/conf";
+}
+# a foto do time EXISTE (só chega aqui sem a miniatura): o bash a gera dela — nunca o padrão no lugar da foto do time
+map "$uri|$moj_team_dir" $moj_ph_has_webp {
+    default "/.sem-midia";
+    "~^/api/v1/contest/team-photo\|(?<mhw>/.+)$" "@WORKROOT@/contests$mhw/photo.webp";
+}
+map "$uri|$moj_team_dir" $moj_ph_has_png {
+    default "/.sem-midia";
+    "~^/api/v1/contest/team-photo\|(?<mhp>/.+)$" "@WORKROOT@/contests$mhp/photo.png";
+}
+map $moj_ph_kind $moj_ph1 {
+    default "/.sem-midia";
+    photo "/contests/$moj_media_c/placeholder.webp";
+    thumb "/contests/$moj_media_c/placeholder.thumb.webp";
+    music "/contests/$moj_media_c/placeholder.mp3";
+}
+map $moj_ph_kind $moj_ph2 {
+    default "/.sem-midia";
+    photo "/cdmoj/server/etc/team-placeholder.webp";
+    thumb "/contests/$moj_media_c/placeholder.webp";
+    music "/cdmoj/server/etc/team-placeholder.mp3";
+}
+map $moj_ph_kind $moj_ph3 { default "/.sem-midia"; thumb "/cdmoj/server/etc/team-placeholder.thumb.webp"; }
+map $moj_ph_kind $moj_ph4 { default "/.sem-midia"; thumb "/cdmoj/server/etc/team-placeholder.webp"; }
+map $moj_ph_kind $moj_ph_photo_hdr { default ""; photo "placeholder"; thumb "placeholder"; }
+map $moj_ph_kind $moj_ph_music_hdr { default ""; music "placeholder"; }
 map $host $moj_media_conn { default "media"; }
 limit_conn_zone $moj_media_conn zone=moj_media:1m;
 # <<< MÍDIA DE TIME

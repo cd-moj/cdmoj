@@ -4568,7 +4568,7 @@
         "tags": [
           "contest"
         ],
-        "summary": "Foto do time — PÚBLICA, inclusive em contest secreto (webp; png no acervo antigo; thumb=1 = miniatura de 320px). TIME SEM FOTO devolve a FOTO PADRÃO do contest (200 + header X-MOJ-Photo: placeholder), não 404 — quem precisa saber quem mandou foto usa has_photo das listagens. O nginx serve a foto e a miniatura direto do disco (ETag/304); a padrão, a miniatura que falta (o handler a gera), argumento fora da lista de caracteres e o subdomínio de outro contest caem no handler bash. Cache-Control: com v = public, max-age=31536000, immutable; sem v = miniatura 86400 s, foto 60 s; a padrão sempre 60 s",
+        "summary": "Foto do time — PÚBLICA, inclusive em contest secreto (webp; png no acervo antigo; thumb=1 = miniatura de 320px). TIME SEM FOTO devolve a FOTO PADRÃO do contest (200 + header X-MOJ-Photo: placeholder), não 404 — quem precisa saber quem mandou foto usa has_photo das listagens. O nginx serve a foto, a miniatura e a PADRÃO direto do disco (ETag/304); a miniatura que falta de quem tem foto (o handler a gera), contest sem conf, argumento fora da lista de caracteres e o subdomínio de outro contest caem no handler bash. Cache-Control: com v = public, max-age=31536000, immutable; sem v = miniatura 86400 s, foto 60 s; a padrão sempre 60 s",
         "parameters": [
           {
             "$ref": "#/components/parameters/contest"
@@ -4612,7 +4612,7 @@
         "tags": [
           "contest"
         ],
-        "summary": "Música do time — PÚBLICA, inclusive em contest secreto (mp3 — a faixa que o telão toca quando ele resolve). TIME SEM MÚSICA devolve a MÚSICA PADRÃO do contest (200 + header X-MOJ-Music: placeholder), não 404 — quem precisa saber quem mandou a sua usa has_music das listagens. O nginx serve a música do time direto do disco (ETag/304, Range/206); a padrão, argumento fora da lista de caracteres e o subdomínio de outro contest caem no handler bash (sem Range). Cache-Control: com v = public, max-age=31536000, immutable; sem v e a padrão = 60 s",
+        "summary": "Música do time — PÚBLICA, inclusive em contest secreto (mp3 — a faixa que o telão toca quando ele resolve). TIME SEM MÚSICA devolve a MÚSICA PADRÃO do contest (200 + header X-MOJ-Music: placeholder), não 404 — quem precisa saber quem mandou a sua usa has_music das listagens. O nginx serve a música do time e a PADRÃO direto do disco (ETag/304, Range/206); contest sem conf, argumento fora da lista de caracteres e o subdomínio de outro contest caem no handler bash (sem Range). Cache-Control: com v = public, max-age=31536000, immutable; sem v e a padrão = 60 s",
         "parameters": [
           {
             "$ref": "#/components/parameters/contest"
@@ -4860,7 +4860,7 @@
         "tags": [
           "contest"
         ],
-        "summary": "PADRÃO do contest — o que a API responde no lugar do asset de quem não mandou o seu: kind=photo (default) = a foto padrão, kind=music = a música padrão. Escolhido pelo .animeitor; sem escolha, o de fábrica do repo ⚠ em contest SUPER SECRETO o <img>/<audio> cru não serve (tag de mídia não manda Authorization): o cliente tem de BUSCAR com Bearer — o front usa web/shared/media-auth.js, que converte em blob:",
+        "summary": "PADRÃO do contest — o que a API responde no lugar do asset de quem não mandou o seu: kind=photo (default) = a foto padrão, kind=music = a música padrão. Escolhido pelo .animeitor; sem escolha, o de fábrica do repo. PÚBLICO, inclusive em contest secreto. O nginx o serve direto do disco (o do contest › o de fábrica; X-MOJ-Photo/X-MOJ-Music: placeholder; Cache-Control: public, max-age=60; ETag/304); contest sem conf, kind codificado e argumento fora da lista de caracteres caem no handler bash",
         "parameters": [
           {
             "$ref": "#/components/parameters/contest"
@@ -4883,11 +4883,6 @@
               "type": "string"
             },
             "description": "1 = miniatura 320px (só p/ kind=photo)"
-          }
-        ],
-        "security": [
-          {
-            "bearerAuth": []
           }
         ],
         "responses": {

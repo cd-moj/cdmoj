@@ -576,17 +576,24 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   `/contest/teams` vira `t.photoUrl` e o link só renderiza com o placar **ABERTO**
   (`opts.showPhotos = !frozenView`, pelo cabeçalho `X-MOJ-Frozen`) — no freeze a foto
   denunciaria presença. Galeria do telão e o painel **Pessoas › Times** seguem como antes.
-  **BRASÃO, FOTO E MÚSICA SAEM DO DISCO PELO NGINX** (05/11/2026; relato do Ribas: no placar de 500+ times o `max-age=60`
-  sem validador e o re-render de cada poll rebaixavam ~500 brasões por minuto por aba, um bash cada no balde do contest —
-  o do `/submit`; 121 × 429 só de brasão num dia; a foto e a música vieram no mesmo dia, a pedido dele): `location =
-  /api/v1/contest/team-{logo,photo,music}` do `moj-app.conf.in` (seção "MÍDIA DE TIME") fazem `try_files … @moj_media`. O
-  `map` `$moj_team_dir` (bloco "MÍDIA DE TIME" IGUAL nos dois `moj-prod*.conf.in`) só monta o dir do time com argumento
-  em `[A-Za-z0-9._-]` sem ponto/hífen no começo (`$arg_*` chega CRU) e host vazio ou IGUAL ao contest (o
-  `contest_mismatch`, por retro-referência na chave `contest|host|user`); o resto cai no bash, que segue sendo a
+  **BRASÃO, FOTO, MÚSICA E O PADRÃO SAEM DO DISCO PELO NGINX** (05/11/2026; relato do Ribas: no placar de 500+ times o
+  `max-age=60` sem validador e o re-render de cada poll rebaixavam ~500 brasões por minuto por aba, um bash cada no balde
+  do contest — o do `/submit`; 121 × 429 só de brasão num dia; foto, música e o padrão vieram no mesmo dia, a pedido
+  dele): `location = /api/v1/contest/{team-logo,team-photo,team-music,placeholder}` do `moj-app.conf.in` (seção "MÍDIA DE TIME") fazem `try_files … @moj_media`. O
+  `map` `$moj_media_c` (bloco "MÍDIA DE TIME" IGUAL nos dois `moj-prod*.conf.in`) só aceita o contest em `[A-Za-z0-9._-]`
+  sem ponto/hífen no começo e sem `..` (`$arg_*` chega CRU; o `valid_id`) e com host vazio ou IGUAL a ele (o
+  `contest_mismatch`, por retro-referência na chave `contest|host`); o `$moj_team_dir` junta o user com a mesma lista; o
+  resto cai no bash, que segue sendo a
   AUTORIDADE — a doutrina do porteiro: o nginx serve só o caso feliz. FOTO: `photo.webp` › `photo.png` (a ordem do
   `tp_file`); `thumb` não vazio (a regra do bash) = só a `photo.thumb.webp`; sem foto = bash (a PADRÃO, `X-MOJ-Photo`).
-  MÚSICA: o `music.mp3` (gravação atômica, sem derivado), com `Range`/206 que o bash nunca teve; sem ela = bash (a PADRÃO,
-  `X-MOJ-Music`).
+  MÚSICA: o `music.mp3` (gravação atômica, sem derivado), com `Range`/206 que o bash nunca teve. O PADRÃO (a rota
+  `/contest/placeholder` e o time sem foto/música, que é o que o telão externo pede na revelação) sai do `@moj_padrao`:
+  o do contest › o de fábrica do CHECKOUT (`cdmoj/server/etc/team-placeholder.*` — o bash lê o da imagem; mesmo commit),
+  na ordem do `tp_placeholder`/`tm_placeholder`, com `X-MOJ-Photo`/`X-MOJ-Music: placeholder` e `public, max-age=60` (com
+  `v` também: o padrão troca). Só com o contest EXISTENTE (`-f conf`, a regra do `require_contest`); `kind` com `%` ou
+  `|` = bash (o nginx não decodifica); e miniatura pedida de quem TEM foto (`photo.webp`/`.png` no disco) = bash, que a
+  gera — nunca o padrão no lugar da foto do time. Entrar no `@moj_padrao` é por `try_files` (um `error_page` ali faria o
+  418 dele virar error_page recursivo, que o nginx não segue).
   ⚠ **INVARIANTE da miniatura: existe ⇒ é da foto ATUAL** — o nginx não faz o `-nt` do `tp_thumb`. Quem grava a garante:
   `tp_store` apaga a velha e troca a foto sob o flock dela (`.thumb.lock`; se a nova não sai, falta miniatura e o bash a
   gera), `tp_remove` apaga a miniatura primeiro, `photos-to-webp.sh` idem. Escritor NOVO de `photo.*` passa pelo
@@ -596,7 +603,7 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   1 dia, foto e música 1 min — o telão externo busca as duas sem `v`) + ETag; os handlers bash respondem o mesmo
   cabeçalho. ⚠ A TRAVA DE SEDE
   não se repete no nginx (`run/site-lock` é 700 de propósito): um IP preso baixa brasão/foto de outro contest pelo site
-  principal — é mídia pública; o padrão e o resto seguem barrados. O padrão (`/contest/placeholder`) e o que cai no bash vão à
+  principal — é mídia pública; o resto segue barrado. O que cai no bash vai à
   **`@moj_media`**: zona PRÓPRIA `moj_media` de 16 em voo (com site 16 + contest 32 = o pool de 64), sem o breaker do
   contest, com o microcache e o freio do treino. Mudou um desses templates ⇒ reinstalar o nginx no deploy (e rodar os
   smokes de nginx NO SERVIDOR: lá os `include /etc/nginx/moj-*` casam arquivos reais). Testes:

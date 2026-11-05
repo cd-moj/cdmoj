@@ -129,12 +129,13 @@ trata vazio como ausente — então **um** server block serve os dois. O isolame
 API (o nginx só transporta o id).
 
 **Mídia de time no nginx (05/11/2026).** O brasão (`/api/v1/contest/team-logo`), a foto (`/api/v1/contest/team-photo`,
-com a miniatura) e a música (`/api/v1/contest/team-music`) saem do DISCO pelo próprio nginx
-(`contests/<c>/users/<l>/{logo.png,photo.webp,photo.png,photo.thumb.webp,music.mp3}`, com ETag e imutáveis quando a URL
-leva `v`). O nginx serve só o caso feliz, conferido por um `map` no
+com a miniatura), a música (`/api/v1/contest/team-music`) e o padrão (`/api/v1/contest/placeholder`, e o de quem não
+mandou foto ou música) saem do DISCO pelo próprio nginx (`contests/<c>/users/<l>/{logo.png,photo.webp,photo.png,
+photo.thumb.webp,music.mp3}`, `contests/<c>/placeholder.*` e o de fábrica em `cdmoj/server/etc/team-placeholder.*`), com
+ETag; o asset do time é imutável quando a URL leva `v`. O nginx serve só o caso feliz, conferido por um `map` no
 `conf.d/moj.conf`: os argumentos passam na lista de caracteres e o host é o site principal ou o subdomínio do mesmo
-contest. Todo o resto cai no bash, numa zona de limite própria (`moj_media`, 16 em voo): a foto padrão, a miniatura que
-falta, a música padrão e o `/contest/placeholder`, fora do balde do contest. Por isso o `www-data` precisa ler
+contest; o padrão exige também o `conf` do contest. Todo o resto cai no bash, numa zona de limite própria (`moj_media`,
+16 em voo), fora do balde do contest: a miniatura que falta, contest inexistente, argumento estranho. Por isso o `www-data` precisa ler
 `contests/` (o grupo do dono já dá isso: diretórios 770, arquivos 660). Mudou o `moj-app.conf.in` ou o
 `moj-prod*.conf.in`? Reinstale o nginx (a mesma linha do `install-nginx.sh`; rode antes com `--dry-run`).
 Conferir: `curl -sI 'https://moj.<host>/api/v1/contest/team-logo?contest=<c>&user=<l>&v=1'` → `200`, `image/png`,

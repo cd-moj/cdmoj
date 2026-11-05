@@ -34,7 +34,7 @@ http {
   map \$moj_contest_host \$moj_shed_file { "" "$T/shed"; default "/nonexistent"; }
   map \$arg_id \$moj_legacy_probid { default ""; }
   limit_conn_zone \$moj_site_conn zone=moj_site:1m;
-$(sed -n '/^# >>> MÍDIA DE TIME/,/^# <<< MÍDIA DE TIME/p' "$ROOT/server/etc/nginx/moj-prod.conf.in")
+$(sed -n '/^# >>> MÍDIA DE TIME/,/^# <<< MÍDIA DE TIME/p' "$ROOT/server/etc/nginx/moj-prod.conf.in" | sed "s#@WORKROOT@#${ROOT%/cdmoj}#g")
   server { listen 127.0.0.1:$PORT; server_name moj.test ~^[a-z0-9][a-z0-9._-]*\.moj\.test\$; include $T/app.conf; }
 }
 EOF
