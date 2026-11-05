@@ -24,13 +24,15 @@ const FIELDS = ['fullname', 'country', 'region', 'univ_short', 'univ_full'];
 export function makeTeamsTab(CONTEST) {
   const G = { contest: CONTEST, auth: true };
   const panel = el('div', { class: 'section' });
-  let ROWS = [];      // [{login, fullname, vals:{...FIELDS}, orig:{...}, has_logo, has_photo, els:{}}]
+  let ROWS = [];      // [{login, fullname, vals:{...FIELDS}, orig:{...}, has_logo, logo_v, has_photo, els:{}}]
   let REGIONS = [];   // nomes de regiões p/ o datalist
   let FLAGS = null;   // manifesto de bandeiras (code -> nome)
 
   // ⚠ o cache-buster é ESTÁVEL (um por carga, renovado só na linha que trocou de asset). Com
   // `Date.now()` a cada render, o browser rebaixava toda imagem — e, em contest secreto, seria
   // uma busca autenticada por linha, porque a URL é a chave do memo do media-auth.
+  // O BRASÃO usa o `logo_v` do /contest/teams (mtime; o nginx o serve imutável do disco) — o STAMP fica p/ a foto
+  // (um link, não baixa sozinho) e p/ servidor antigo sem o campo; depois de um envio vale o `r.stamp` da linha.
   let STAMP = 0;
   const assetUrl = (kind, login, v) =>
     `/api/v1/contest/team-${kind}?contest=${enc(CONTEST)}&user=${enc(login)}&v=${v || STAMP}`;
@@ -76,7 +78,7 @@ export function makeTeamsTab(CONTEST) {
       logoBox.innerHTML = '';
       if (r.has_logo) logoBox.append(setMediaSrc(
         el('img', { style: 'height:18px;vertical-align:middle;border-radius:2px', loading: 'lazy' }),
-        assetUrl('logo', r.login, r.stamp), { lazy: true }));
+        assetUrl('logo', r.login, r.stamp || r.logo_v), { lazy: true }));
     };
     syncLogo();
     const logoInp = el('input', { type: 'file', accept: 'image/*', style: 'display:none' });
@@ -162,7 +164,7 @@ export function makeTeamsTab(CONTEST) {
         const vals = { fullname: u.fullname || '', country: t.flag || '', region: t.region || '',
                        univ_short: t.univ_short || '', univ_full: t.univ_full || '' };
         return { login: u.login, vals, orig: { ...vals },
-                 has_logo: !!t.has_logo, has_photo: !!t.has_photo, els: {} };
+                 has_logo: !!t.has_logo, logo_v: t.logo_v, has_photo: !!t.has_photo, els: {} };
       });
 
     // datalists compartilhados (leves — um só p/ a tabela inteira)

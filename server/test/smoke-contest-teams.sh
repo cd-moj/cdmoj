@@ -83,6 +83,17 @@ call /contest/team-logo GET '' 'contest=tm&user=alfa'
 ck "sem brasão -> 404"         '[[ "$OUT" == *"Status: 404"* ]]'
 call /contest/teams GET '' 'contest=tm'
 ck "has_photo/has_logo refletem" '[[ "$(jq -r .teams.alfa.has_photo <<<"$BODY")" == "true" && "$(jq -r .teams.beta.has_logo <<<"$BODY")" == "true" ]]'
+# logo_v (05/11/2026) = mtime do logo.png em ms: o placar o põe na URL e o nginx serve o brasão com cache imutável
+ck "logo_v = mtime do brasão em ms (date -r)" '[[ "$(jq -r .teams.beta.logo_v <<<"$BODY")" == "$(date -r "$C/users/beta/logo.png" +%s%3N)" ]]'
+ck "sem brasão, sem logo_v"    '[[ "$(jq -r ".teams.alfa | has(\"logo_v\")" <<<"$BODY")" == false ]]'
+mkdir -p "$C/users/so-asset"; cp "$C/users/beta/logo.png" "$C/users/so-asset/logo.png"; touch -d @1790000000.5 "$C/users/so-asset/logo.png"
+call /contest/teams GET '' 'contest=tm'
+ck "dir só com asset (USERS_FROM) também leva logo_v" '[[ "$(jq -c .teams[\"so-asset\"] <<<"$BODY")" == "{\"has_photo\":false,\"has_logo\":true,\"logo_v\":1790000000500}" ]]'
+rm -rf "$C/users/so-asset"
+call /contest/team-logo GET '' 'contest=tm&user=beta'
+ck "team-logo (bash) sem v: o MESMO cache do nginx (10 min)" '[[ "$OUT" == *"Status: 200"* && "$OUT" == *"Cache-Control: public, max-age=600"* ]]'
+call /contest/team-logo GET '' 'contest=tm&user=beta&v=123'
+ck "team-logo (bash) com v: imutável" '[[ "$OUT" == *"Cache-Control: public, max-age=31536000, immutable"* ]]'
 call /contest/admin/team-assets POST t-adm 'contest=tm' '{"action":"delete","kind":"photo","login":"alfa"}'
 ck "delete remove"             '[[ ! -e "$C/users/alfa/photo.webp" && ! -e "$C/users/alfa/photo.png" ]]'
 

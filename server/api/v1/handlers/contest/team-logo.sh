@@ -1,5 +1,5 @@
-# GET /contest/team-logo?contest=<id>&user=<login>   -> PNG do brasão do time (máx 128)
-# Gate = o do PLACAR (público; contest SECRETO exige sessão do contest). 404 sem brasão.
+# GET /contest/team-logo?contest=<id>&user=<login>[&v=<logo_v>]   -> PNG do brasão do time (máx 128)
+# Público, inclusive em contest SECRETO (ver abaixo). 404 sem brasão.
 contest="$(param contest)"
 [[ -n "$contest" ]] || fail 400 "Missing contest" "contest_missing"
 require_contest "$contest"
@@ -14,5 +14,9 @@ quser="$(param user)"
 valid_id "$quser" || fail 400 "Invalid user" "user_invalid"
 f="$(user_dir "$contest" "$quser")/logo.png"
 [[ -f "$f" ]] || fail 404 "Sem brasão" "no_logo"
-printf 'Status: 200 OK\r\nContent-Type: image/png\r\nCache-Control: max-age=60\r\n\r\n'
+# O nginx serve o brasão do DISCO antes de chegar aqui (moj-app.conf.in "MÍDIA DE TIME"); este handler responde o que
+# cai nele (argumento estranho, host de outro contest, ausente) e o caminho sem nginx. Mesmo cache dos dois lados: com
+# `v` (o logo_v do /contest/teams, o mtime) a URL é imutável; sem ele, 10 min.
+cc="public, max-age=600"; [[ -n "$(param v)" ]] && cc="public, max-age=31536000, immutable"
+printf 'Status: 200 OK\r\nContent-Type: image/png\r\nCache-Control: %s\r\n\r\n' "$cc"
 cat "$f"

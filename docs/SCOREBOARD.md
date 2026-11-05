@@ -379,8 +379,9 @@ Em 28/09/2026, sobre os dados de produção (LATAM, mdp-teste e esquenta): **zer
   `.team{univ_short,univ_full,flag,region}` do account.json (aba 👥 Times do admin) +
   `has_logo`/`has_photo`. O **nome do time é o `fullname`** (campo único; a coluna `team name`
   do TXT sai de `.team.name // .fullname` — `.team.name` é só legado da migração). O placar mescla **explícito primeiro**: bandeira/univ que faltarem no
-  TXT, a **sede** (`t._region`, filtro por nome), o **brasão** (`/contest/team-logo`, vence o
-  logo por regra) e o **📷** (R4, 2026-08-30 — revoga o "não mostra quem tem foto" de
+  TXT, a **sede** (`t._region`, filtro por nome), o **brasão** (`/contest/team-logo&v=<logo_v>`, vence o
+  logo por regra; o `logo_v` é o mtime do brasão e o nginx serve a URL IMUTÁVEL direto do disco — o re-render de
+  cada poll não rebaixa mais nada, 05/11/2026) e o **📷** (R4, 2026-08-30 — revoga o "não mostra quem tem foto" de
   2026-08-24): `has_photo` vira `t.photoUrl` (`/contest/team-photo`, rota pública) e o link só
   RENDERIZA com o placar **aberto** (`opts.showPhotos = !frozenView`, decidido pelo cabeçalho
   `X-MOJ-Frozen` do servidor) — durante o freeze a foto denunciaria presença/atividade. A

@@ -32,7 +32,10 @@ export function applyTeamsDir(p, teamsDir, CONTEST) {
     if (d.region) t._region = d.region;
     t._school = t._school || t.univShort || '';
     if (d.has_logo && !t.schoolLogo) {
-      t.schoolLogo = '/api/v1/contest/team-logo?contest=' + encodeURIComponent(CONTEST) + '&user=' + encodeURIComponent(t.username || '');
+      // logo_v = mtime do brasão: com ele a URL muda quando o brasão muda, e o nginx a serve IMUTÁVEL do disco — o
+      // re-render do placar a cada poll deixa de rebaixar centenas de brasões. Servidor antigo (sem o campo) = sem v.
+      t.schoolLogo = '/api/v1/contest/team-logo?contest=' + encodeURIComponent(CONTEST) + '&user=' + encodeURIComponent(t.username || '')
+        + (d.logo_v != null ? '&v=' + encodeURIComponent(d.logo_v) : '');
     }
     if (d.has_photo) {
       t.photoUrl = '/api/v1/contest/team-photo?contest=' + encodeURIComponent(CONTEST) + '&user=' + encodeURIComponent(t.username || '');

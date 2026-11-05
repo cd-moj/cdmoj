@@ -4558,7 +4558,7 @@
         ],
         "responses": {
           "200": {
-            "description": "{teams:{<login>:{univ_short?,univ_full?,flag?,region?,has_logo,has_photo}}} — o NOME vem do TXT do placar (fullname); precedência: isto > teams-meta > vazio"
+            "description": "{teams:{<login>:{univ_short?,univ_full?,flag?,region?,has_logo,has_photo,logo_v?}}} — o NOME vem do TXT do placar (fullname); precedência: isto > teams-meta > vazio. logo_v (só com brasão) = mtime do logo.png em ms: vai na URL do /contest/team-logo como &v= e torna a resposta imutável"
           }
         }
       }
@@ -4639,7 +4639,7 @@
         "tags": [
           "contest"
         ],
-        "summary": "Brasão do time (PNG, máx 128; célula do time no placar — vence o logo do teams-meta; secreto exige sessão) ⚠ em contest SUPER SECRETO o <img>/<audio> cru não serve (tag de mídia não manda Authorization): o cliente tem de BUSCAR com Bearer — o front usa web/shared/media-auth.js, que converte em blob:",
+        "summary": "Brasão do time (PNG, máx 128; célula do time no placar — vence o logo do teams-meta). PÚBLICO, inclusive em contest SECRETO (a mídia de time vai ao telão externo, sem sessão). O nginx serve o arquivo direto do disco (ETag/Last-Modified, 304); o que não passa na lista de caracteres, vem de outro subdomínio de contest ou não tem brasão cai no handler bash (400/403/404 de sempre). Cache-Control: com v = public, max-age=31536000, immutable; sem v = public, max-age=600",
         "parameters": [
           {
             "$ref": "#/components/parameters/contest"
@@ -4651,11 +4651,15 @@
             "schema": {
               "type": "string"
             }
-          }
-        ],
-        "security": [
+          },
           {
-            "bearerAuth": []
+            "name": "v",
+            "in": "query",
+            "required": false,
+            "description": "logo_v do /contest/teams (mtime do brasão em ms). Só muda a URL e o cache: a resposta é a mesma",
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {

@@ -3,7 +3,9 @@
 # do account.json `.team` + se há brasão (logo.png) e foto (photo.webp, ou photo.png no
 # acervo antigo) no dir do usuário.
 # O NOME do time NÃO vai aqui — é o `fullname`, que o TXT do placar já carrega.
-#   -> {teams:{<login>:{univ_short?,univ_full?,flag?,region?,has_logo,has_photo}}}
+#   -> {teams:{<login>:{univ_short?,univ_full?,flag?,region?,has_logo,has_photo,logo_v?}}}
+# `logo_v` (05/11/2026) = o mtime do logo.png em MILISSEGUNDOS, só com brasão: o placar o põe na URL (`&v=`) e o nginx
+# serve o brasão do disco com cache IMUTÁVEL (moj-app.conf.in "MÍDIA DE TIME") — trocar o brasão muda a URL.
 # Só entram logins com ALGO a dizer (campo de time, foto ou brasão) — payload enxuto.
 # UMA VARREDURA, não um jq por conta (regra da casa — ver o CLAUDE.md, "listagem de MUITOS
 # usuários"). Era um `jq` POR LOGIN: 137 contas = 0,67 s, ~5 ms cada — a 2000 times daria ~10 s,
@@ -40,11 +42,11 @@ cdir="$CONTESTSDIR/$contest"
 TD="$(mktemp -d 2>/dev/null)" || TD="${TMPDIR:-/tmp}/cteams.${BASHPID}"; mkdir -p "$TD"
 trap 'rm -rf "$TD"' EXIT
 
-# 1 find p/ tudo: as contas e os assets. `%h` = dir do usuário, `%f` = nome do arquivo.
+# 1 find p/ tudo: as contas e os assets. `%h` = dir do usuário, `%f` = nome do arquivo, `%T@` = mtime (o logo_v).
 # foto é webp desde 2026-08 (photo.png = acervo antigo, ainda válido — lib/team-photo.sh)
 find "$cdir/users" -mindepth 2 -maxdepth 2 -type f -size +0c \
      \( -name account.json -o -name photo.webp -o -name photo.png -o -name logo.png \) \
-     -printf '%h\t%f\n' 2>/dev/null \
+     -printf '%h\t%f\t%T@\n' 2>/dev/null \
   | awk -F'\t' -v amap="$TD/assets.json" -v alst="$TD/accts.lst" '
       function esc(s){ gsub(/\\/,"\\\\",s); gsub(/"/,"\\\"",s); return s }
       { n=split($1,p,"/"); l=p[n]
@@ -53,11 +55,12 @@ find "$cdir/users" -mindepth 2 -maxdepth 2 -type f -size +0c \
         seen[l]=1
         if ($2 == "account.json") { acct[l]=1; print $1 "/account.json" > alst }
         else if ($2 ~ /^photo\./)  hp[l]=1
-        else if ($2 == "logo.png")  hl[l]=1 }
+        else if ($2 == "logo.png") { hl[l]=1; split($3, t, "."); lv[l]=t[1] substr(t[2] "000", 1, 3) } }
       END{ printf "{" > amap; sep=""
            for (l in seen) {
-             printf "%s\"%s\":{\"hp\":%s,\"hl\":%s}", sep, esc(l),
-                    (l in hp ? "true":"false"), (l in hl ? "true":"false") > amap
+             printf "%s\"%s\":{\"hp\":%s,\"hl\":%s%s}", sep, esc(l),
+                    (l in hp ? "true":"false"), (l in hl ? "true":"false"),
+                    ((l in lv) && lv[l] ~ /^[0-9]+$/ ? ",\"lv\":" lv[l] : "") > amap
              sep="," }
            printf "}\n" > amap }'
 [[ -s "$TD/assets.json" ]] || printf '{}\n' > "$TD/assets.json"
@@ -68,6 +71,7 @@ teams="$( { [[ -s "$TD/accts.lst.ok" ]] && xargs -a "$TD/accts.lst.ok" -d'\n' -r
         ((input_filename | split("/"))[-2]) as $l
         | (($A[0][$l] // {}).hp == true) as $hp
         | (($A[0][$l] // {}).hl == true) as $hl
+        | ($A[0][$l].lv // null) as $lv
         | (.team // {}) as $tm
         # coorte do login (campo vence regex, senão a default) — mesma regra do sc_users, e
         # resolvida DENTRO deste jq: um fork por login num endpoint público seria caro.
@@ -83,7 +87,8 @@ teams="$( { [[ -s "$TD/accts.lst.ok" ]] && xargs -a "$TD/accts.lst.ok" -d'\n' -r
               | with_entries(select(.value != "")))
              + (if $tm.ai == true then {ai:true} else {} end)) as $fields
             | if ($fields|length) > 0 or $hp or $hl
-              then {($l): ($fields + {has_photo:$hp, has_logo:$hl})} else empty end
+              then {($l): ($fields + {has_photo:$hp, has_logo:$hl}
+                           + (if $hl and $lv != null then {logo_v:$lv} else {} end))} else empty end
           end' 2>/dev/null
     # participante compartilhado (USERS_FROM) sem account local: só os assets. Coorte não se
     # aplica (não há `.team` p/ consultar) — é o mesmo que a versão dir-a-dir fazia.
@@ -92,7 +97,8 @@ teams="$( { [[ -s "$TD/accts.lst.ok" ]] && xargs -a "$TD/accts.lst.ok" -d'\n' -r
        | from_entries) as $tem
       | ($A[0] // {}) | to_entries[]
       | select(($tem[.key] // 0) == 0 and (.value.hp or .value.hl))
-      | {(.key): {has_photo:(.value.hp), has_logo:(.value.hl)}}' 2>/dev/null
+      | {(.key): ({has_photo:(.value.hp), has_logo:(.value.hl)}
+                  + (if .value.hl and .value.lv != null then {logo_v:.value.lv} else {} end))}' 2>/dev/null
   # ordena por login: a versão dir-a-dir iterava `find | sort`, então saía em ordem alfabética.
   # Manter a MESMA ordem é o que deixa a troca provável byte a byte (e o front, que usa isto
   # como mapa, não se importa — mas um diff que fecha vale mais que um "não deve importar").
