@@ -104,7 +104,7 @@ jq -cn --argjson store "$store" --slurpfile lg "$LOGF" --argjson gl "$goodlangs"
       being_calibrated:(($clive|length) > 0), calibrating:$clive,
       good_langs:$gl, tl_override:$ov, tl_mods:$mods,
       tl_method:$meth, kattis:$kp,
-      tl_clock:$clk, wall_tl:(if $wtl == "" then null else ($wtl | tonumber) end),
+      tl_clock:$clk, wall_tl:(if $wtl == "" then null else ($wtl | tonumber) end), tl_unified:((($mods // {}).unified // false) == true),
       time_limits:$eff, time_limits_calibrated:$cal,
       time_limits_by_method:{moj:{calibrated:$calm, effective:$effm}, kattis:{calibrated:$calk, effective:$effk}},
       missing_langs:[ $gl[] | select(. as $g | ($served|index($g)|not)) ],     # sem TL em NENHUM host

@@ -455,26 +455,43 @@ tl_conf_kattis(){
 # `default` não entra (o juiz não lê TLMOD[default.sum]). A regra mora em _TL_EFF_DEF.
 # tl_conf_mods <pkgdir> -> {"sum":{lang:n},"mult":{lang:n}} (números; a última linha vence), ou {} sem nenhum.
 tl_conf_mods(){
-  local conf="$1/conf" _c
+  local conf="$1/conf" _c _u=false _l
   [[ -n "$1" && -f "$conf" ]] || { echo '{}'; return; }
   _c="$(<"$conf")" 2>/dev/null || _c=""
-  [[ "$_c" == *'.sum]'* || "$_c" == *'.mult]'* ]] || { echo '{}'; return; }   # quase todo conf: sem processo
-  sed -nE 's/^[[:space:]]*TLMOD\[([A-Za-z0-9]{1,16})\.(sum|mult)\]=(-?([0-9]+\.?[0-9]*|\.[0-9]+))[[:space:]]*(#.*)?$/\1\t\2\t\3/p' \
+  # TL ÚNICO (TLUNIFIED=y, 05/11/2026): vai no MESMO objeto, como `unified: true` — todo leitor de TL já passa o tl_mods
+  # pelo tl_eff, que unifica o calibrado antes do resto. A última linha vence (como o source do juiz); sem processo.
+  if [[ "$_c" == *TLUNIFIED* ]]; then
+    while IFS= read -r _l; do
+      [[ "$_l" =~ ^[[:space:]]*TLUNIFIED=[\"\']?([A-Za-z]*) ]] && { [[ "${BASH_REMATCH[1]}" == y ]] && _u=true || _u=false; }
+    done <<<"$_c"
+  fi
+  if [[ "$_c" != *'.sum]'* && "$_c" != *'.mult]'* ]]; then   # quase todo conf: sem processo
+    [[ "$_u" == true ]] && echo '{"unified":true}' || echo '{}'; return
+  fi
+  { sed -nE 's/^[[:space:]]*TLMOD\[([A-Za-z0-9]{1,16})\.(sum|mult)\]=(-?([0-9]+\.?[0-9]*|\.[0-9]+))[[:space:]]*(#.*)?$/\1\t\2\t\3/p' \
       "$conf" 2>/dev/null \
     | jq -Rnc '[inputs | split("\t") | select(length == 3 and ((.[2] | tonumber?) != null))
                 | select(.[0] as $l | ["default", "py2", "py3", "cc", "cxx", "hpp", "h"] | index($l) | not)]
                | if length == 0 then {}
-                 else reduce .[] as $e ({sum: {}, mult: {}}; .[$e[1]][$e[0]] = ($e[2] | tonumber)) end'
+                 else reduce .[] as $e ({sum: {}, mult: {}}; .[$e[1]][$e[0]] = ($e[2] | tonumber)) end'; } \
+    | if [[ "$_u" == true ]]; then jq -c '. + {unified: true}'; else cat; fi
 }
 # _TL_EFF_DEF — o TL EFETIVO numa definição jq só (todo lugar que EXIBE TL usa esta; ⚠ cópia LITERAL no
 # mojtools gen-problem-json.sh — o smoke-tl-mods.sh confere que as duas são iguais):
 #   tl_eff($cal; $ov; $m) p/ cada linguagem L (união das chaves do calibrado, do override e dos mods):
 #   $ov[L] // $ov.default // (($cal[L] // $cal.default) + sum[L]) × mult[L], arredondado a 1e-6 (o bc do juiz
 #   não arredonda; isto só limpa o ruído do ponto flutuante). default = $ov.default // $cal.default. Valores
-#   string (convenção do store); linguagem sem base nem override some.
+#   string (convenção do store); linguagem sem base nem override some. TL ÚNICO ($m.unified, o TLUNIFIED=y do conf):
+#   ANTES de tudo, o calibrado vira tl_unify = o máx das linguagens (≠ default) em TODA chave e no default — o TL do
+#   pior W entre todas as good, a conta do juiz (mojtools tl_unify_table); o TLMOD e o override seguem por cima.
 _TL_EFF_DEF='
+def tl_unify: ([ to_entries[] | select(.key != "default") | (.value | tonumber?) ] | max) as $u
+  | if $u == null then .
+    else ([ to_entries[] | select(.key != "default" and ((.value | tonumber?) == $u)) | .value ] | first) as $us
+         | map_values($us) + {default: $us} end;
 def tl_eff($cal; $ov; $m):
-  ($m.sum // {}) as $s | ($m.mult // {}) as $x
+  (if ($m.unified // false) == true then ($cal | tl_unify) else $cal end) as $cal
+  | ($m.sum // {}) as $s | ($m.mult // {}) as $x
   | ((($cal | keys) + ($ov | keys) + ($s | keys) + ($x | keys)) | unique) as $ks
   | reduce $ks[] as $k ({};
       .[$k] = (if $k == "default" then ($ov["default"] // $cal["default"])

@@ -738,7 +738,11 @@ function toggleDetail(p, item, toggle, submitWrap) {
     const rl = resolveLangs(p.languages || []);
     const restricted = Array.isArray(p.languages) && p.languages.length > 0 && rl !== LANGUAGES;
     let chips;   // [{label, time}]
-    if (restricted) {
+    // TL ÚNICO (TLUNIFIED=y): o mesmo em toda linguagem — um chip só (se um ajuste por linguagem do conf desfez a
+    // igualdade, os chips de sempre: a tela nunca esconde um TL diferente)
+    if (p.tl_unified && Object.keys(tl).length && new Set(Object.values(tl).map((v) => String(+v))).size === 1) {
+      chips = [{ label: T('todas as linguagens', 'all languages', 'todos los lenguajes'), time: Object.values(tl)[0] }];
+    } else if (restricted) {
       chips = rl.map((l) => ({ label: l.label, time: tl[l.id] != null ? tl[l.id] : tl.default }))
         .filter((c) => c.time != null);
     } else {

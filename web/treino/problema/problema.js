@@ -130,8 +130,13 @@ async function loadProblem() {
   if (tEntries.length) {
     ptl.append(el('span', { class: 'tl-label' }, T('⏱ Tempo limite', '⏱ Time limit', '⏱ Tiempo límite')));
     const clk = tlClockBadge(p); if (clk) ptl.append(clk);   // TL de CPU (TLCLOCK=cpu no pacote)
-    tEntries.forEach(([k, v]) => {
-      const label = k === 'default' ? T('padrão', 'default', 'predeterminado') : (langById(k).label || k);
+    // TL ÚNICO (TLUNIFIED=y no pacote): o mesmo em toda linguagem — um chip só (se um ajuste por linguagem do conf
+    // desfez a igualdade, os chips de sempre: a tela nunca esconde um TL diferente)
+    const one = p.tl_unified && new Set(tEntries.map(([, v]) => String(+v))).size === 1;
+    const uni = one ? [['', tEntries[0][1]]] : tEntries;
+    uni.forEach(([k, v]) => {
+      const label = one ? T('todas as linguagens', 'all languages', 'todos los lenguajes')
+        : (k === 'default' ? T('padrão', 'default', 'predeterminado') : (langById(k).label || k));
       ptl.append(el('span', { class: 'tl-chip' }, el('b', {}, label), el('span', { class: 'tl-time' }, fmtTime(v))));
     });
   }

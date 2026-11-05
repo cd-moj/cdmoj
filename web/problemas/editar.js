@@ -122,7 +122,8 @@ function applyTlMethod() {
 // checkbox mostra o efetivo, e salvar só ESCREVE a chave quando o valor difere do default ou quando ela
 // já estava no conf — antes, qualquer clique na aba gravava TODOS os checkboxes como =y/=n explícitos
 // (e um ALLOWPARALLELTEST ausente aparecia DESMARCADO, embora signifique ligado).
-const CF_YN = [['cf_allowparallel', 'ALLOWPARALLELTEST', 'y'], ['cf_tlererun', 'TLERERUN', 'y'], ['cf_stopwa', 'STOPWHEN_WA', 'n'], ['cf_stoptle', 'STOPWHEN_TLE', 'n'], ['cf_stopre', 'STOPWHEN_RE', 'n'], ['cf_samenuma', 'SAMENUMA', 'n']];
+// TLUNIFIED (docs/PACOTE.md "TL único", 05/11/2026): o mesmo TL em toda linguagem; ausente = por linguagem.
+const CF_YN = [['cf_tlunified', 'TLUNIFIED', 'n'], ['cf_allowparallel', 'ALLOWPARALLELTEST', 'y'], ['cf_tlererun', 'TLERERUN', 'y'], ['cf_stopwa', 'STOPWHEN_WA', 'n'], ['cf_stoptle', 'STOPWHEN_TLE', 'n'], ['cf_stopre', 'STOPWHEN_RE', 'n'], ['cf_samenuma', 'SAMENUMA', 'n']];
 const CF_FLAG = [['cf_allowtle', 'ALLOWTLEDURINGCALIBRATION']];   // y ou ausente
 // SAMPLE=no: o problema declara que NÃO tem exemplos (função, interativo, linguagem própria…) — o
 // enunciado não mostra a caixa e não há exemplo p/ baixar; ausente = tem exemplos (sample*). A

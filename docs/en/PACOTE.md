@@ -1,4 +1,4 @@
-<!-- i18n-source: PACOTE.md blob:5ccb9b8a0930699415cd5e99bf79aa8befaf08fe -->
+<!-- i18n-source: PACOTE.md blob:0bdf63d3f725971757f2e0572ec2348896624f4e -->
 # MOJ: the problem package (canonical format)
 
 > **Translation note.** This manual is a translation of the Portuguese original. The command-line tools (`moj`, `moj-contest`, `moj-comp`) print their messages in Portuguese, and the command examples below are identical to the original.
@@ -450,6 +450,7 @@ All the keys that `build-and-test.sh` understands:
 | `TLMETHOD` | `moj` | the **time-limit method** (section 10, "Time-limit methods"): `moj` = `calibrafactor` × worst time + 0.02 s; `kattis` = the method of the Kattis spec (2025-09). Both are per language. Calibration measures both every time: a change **does not require recalibration** (the line is outside the two tl-checksum stamps). On the web: Limits tab; in the CLI: `moj edit` → 8 → 11, and the `KATTIS_*` keys in → 12 | 0 |
 | `TLCLOCK` | `wall` | the **time-limit clock** (section 10, "Time-limit clock"): `wall` = wall-clock time, as always; `cpu` = CPU time (user+sys), with the wall clock only as a larger ceiling that catches whoever is blocked or sleeps. For ICPC-style problems; **not** for parallel problems (`CPUNEEDED` > 1 fails the package). **Changing it recalibrates**. On the web: Limits tab; in the CLI: `moj edit` → 8 → 13 | 0 |
 | `WALLTL` | — | only with `TLCLOCK=cpu`: the **minimum** wall-clock ceiling, in seconds (from 1 to 60). The ceiling is the largest of 3 × the time limit, the CPU ceiling + 1 s and this. **Changing it recalibrates**. In the CLI: `moj edit` → 8 → 14 | 0 |
+| `TLUNIFIED` | `n` | **single TL** (section 10, "Single TL"): `y` = the same time limit in every language, the largest among them (the one of the worst time among all `good` solutions), in both methods — the model of the Kattis spec. **Changing it recalibrates**. On the web: Limits tab; in the CLI: `moj edit` → 8 → 15 | 0 |
 | `KATTIS_AC_TO_TIME_LIMIT` | `2.0` | Kattis method: the time limit is at least this × the worst time of the `good` solutions (from 1 to 100; the `ac_to_time_limit` of the spec) | 0 |
 | `KATTIS_TIME_LIMIT_TO_TLE` | `1.5` | Kattis method: a `slow` solution must exceed this × the time limit on some test (from 1 to 100; the `time_limit_to_tle` of the spec) | 0 |
 | `KATTIS_TIME_RESOLUTION` | `1.0` | Kattis method: the time limit is a multiple of this, rounded up (more than 0 and up to 10 s; the `time_resolution` of the spec) | 0 |
@@ -996,6 +997,30 @@ both: on the CPU clock, when it reaches the 5 s wall-clock ceiling (the CPU ceil
   that sleeps gets a certain TLE at every TL up to the one it ran with, and is "not measured" above it, without
   failing the configuration.
 
+### Single TL: the same in every language
+
+The time limit is **per language**: each language with `good` solutions has its own, and a language without `good`
+solutions uses `default` (the smallest). With `TLUNIFIED=y` the problem has **one time limit only**, the same in every
+accepted language, as if all `good` solutions were in one language. It is the model of the Kattis spec, and the one of
+the LATAM.
+
+- **The calculation:** the single TL is the **largest** time limit among the languages, by the method in the `conf`.
+  Both formulas grow with W, so the largest TL is the one of the worst time among all `good` solutions. In MOJ:
+  `calibrafactor × max W + 0.02 s`. In Kattis: `⌈a × max W / r⌉ × r`. The calibration measures nothing more: the judges'
+  table stays per language, and the single TL comes from it.
+- **Example:** `good` solutions in C++ with 0.21 s and in Python with 1.30 s. Per language, MOJ gives C++ 0.30 s and
+  Python 1.78 s. With the single TL, both (and every other accepted language) get 1.78 s. In Kattis, 3 s.
+- **Changing it recalibrates.** The line is in the `tl_checksum`: the `pass`, `slow` and `wrong` solutions must be judged
+  again by the single TL. A `slow` solution in C++ that exceeded the C++ TL can pass within the Python TL, and the
+  calibration shows this as divergent.
+- **What still applies on top:** `TLMOD[<lang>.sum|.mult]` and `TLOVERRIDE[<lang>]` still apply, because they are an
+  explicit choice of the author. But they undo the "same TL in every language", and the validation warns.
+  `TLOVERRIDE[default]` applies to every language and undoes nothing.
+- **The student sees** a single chip, "all languages", in training and in the contest. The contest's time-limit sheet
+  has one column and the note "does not depend on the language".
+- **Kattis:** an imported native package gets `TLUNIFIED=y`, because in the spec the problem has one time limit only.
+  The round trip MOJ → Kattis → MOJ keeps the value.
+
 ### Solutions: does each one do what its category requires?
 
 Calibration returns, per judge and per solution, the code of **each test** (`AC`, `WA`, `TLE`, `MLE`,
@@ -1042,7 +1067,7 @@ package in cache?"*.
 | | `tl_checksum` (narrow) | `pkg_version` (wide) |
 |---|---|---|
 | How it is calculated | `tl-checksum.sh <pkg>` | `tl-checksum.sh --all-sols <pkg>` |
-| Covers | `conf` (except the lines `SAMPLE`, `FUNCTION_LANGS` and `TLMETHOD`; `TLCLOCK` and `WALLTL` **are in**), `tests/input/*`, `tests/output/*` (not empty), `tests/score`, `sols/good/*`, `scripts/*` (content **and** execute bit) **except `scripts/validator.cpp`** | all that the narrow stamp covers **+ `sols/pass`, `sols/slow`, `sols/wrong`, `sols/upcoming` + `scripts/validator.cpp`** |
+| Covers | `conf` (except the lines `SAMPLE`, `FUNCTION_LANGS` and `TLMETHOD`; `TLCLOCK`, `WALLTL` and `TLUNIFIED` **are in**), `tests/input/*`, `tests/output/*` (not empty), `tests/score`, `sols/good/*`, `scripts/*` (content **and** execute bit) **except `scripts/validator.cpp`** | all that the narrow stamp covers **+ `sols/pass`, `sols/slow`, `sols/wrong`, `sols/upcoming` + `scripts/validator.cpp`** |
 | What it is for | it ties the **TL** to the package: it is the `checksum` of `run/tl/<id>.json`, the one of the owners index and the one that `/contest/problems` compares | it is the **key of the judge cache** and the identity of a calibration: `/judge/package-meta` returns it as `checksum`, and the agent downloads again when it changes |
 
 Neither of the two covers `docs/enunciado.*`, `tags`, `author` or `.moj-meta.json`

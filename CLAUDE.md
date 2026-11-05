@@ -655,6 +655,17 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   o juízo do Kattis (`calx`, `$wallk`) como lento de verdade; o editor (`testsTable`) e o `moj calib` marcam "parede".
   Sem isso a `slow` que dorme dava "nenhum fator serve" (achado no E2E de 05/11/2026). Testes: `smoke-tl-clock.sh`,
   `smoke-limits-tab.gjs.sh`, `smoke-preflight.sh`, `smoke-statement-langs.sh` (o `/contest/problems`).
+- **TL ÚNICO (05/11/2026; pedido do Roberto p/ a LATAM)** — formato em `docs/PACOTE.md` §10 "TL único", motor no mojtools
+  (`tl_unify_table`). `TLUNIFIED=y` no conf = o mesmo TL em toda linguagem = o MÁX da tabela do método (as fórmulas
+  crescem com o W; a tabela dos juízes segue por linguagem). No servidor é UM ponto: `tl_conf_mods` leva `unified: true`
+  e o `tl_eff` (`_TL_EFF_DEF`, def `tl_unify`) unifica o calibrado ANTES do TLMOD/override — todo leitor (served, rotas,
+  `effof`, `tls_eff`, folha de TL) herda; os consumidores do `tl_mods` só leem `.sum`/`.mult`. O índice de donos leva
+  `tl_unified` (e o `unified` no `tl_mods`, p/ o `status.sh`); o json servível leva `tl_unified` (o `/contest/problems`
+  lê no MESMO jq do `tl_clock`). Simulação: com `$m.unified` o W de cada solução é o máx W (`tls_cfint`). Aluno: UM chip
+  "todas as linguagens" só quando todos os valores são iguais (ajuste por linguagem desfaz a igualdade e volta aos chips
+  de sempre). Editor `cf_tlunified` (`CF_YN`, padrão n); Painel pílula "TL único". DENTRO do tl-checksum (ligar
+  recalibra). Testes: `smoke-tl-unified.sh`, `smoke-tl-sim.sh`, `smoke-tl-mods.sh` (a cópia literal),
+  `smoke-limits-tab.gjs.sh`, `smoke-statement-langs.sh`.
 - **LOCKS do store de TL e da calibração (26/10/2026)**: todo ler-e-regravar de `run/tl/<id>.json` passa por
   `_tl_locked <id>` (`lib/tl-store.sh`: `run/tl/<id>.lock`, `flock -w 10`, rc 75 ⇒ o tl-report responde 500) — dois
   juízes reportando juntos perdiam a entrada de um (o último `mv` vencia); o sumário das soluções por `_calx_locked`

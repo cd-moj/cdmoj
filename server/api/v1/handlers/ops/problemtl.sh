@@ -25,7 +25,7 @@ body="$(jq -cn --arg p "$problem" --arg cks "$cur" \
    --argjson store "$(tl_store_get "$problem")" --arg clk "$clk" --arg wtl "$wtl" '
    {success:true, problem:$p, checksum:$cks, time_limits:$tl,
     time_limits_calibrated:$tlcal, tl_override:$ov, tl_mods:$mods, tl_method:$meth, time_limits_by_method:$bm,
-    tl_clock:$clk, wall_tl:(if $wtl == "" then null else ($wtl | tonumber) end),
+    tl_clock:$clk, wall_tl:(if $wtl == "" then null else ($wtl | tonumber) end), tl_unified:((($mods // {}).unified // false) == true),
     calibrated_checksum:($store.checksum // ""),
     hosts:($store.hosts // {}), updated_at:($store.updated_at // null),
     stale:(($store.checksum // "") != $cks and ($store.checksum // "") != "")}')"

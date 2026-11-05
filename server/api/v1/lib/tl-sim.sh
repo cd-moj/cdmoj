@@ -9,7 +9,8 @@
 #            default = o máx, entre os juízes, do menor W do juiz (o TL[default] de cada um é o menor).
 #   MOJ    : TL = off + cf × W + 0,02 (cf = TLMOD[calibrafactor]; "A+B" no conf vira A + B × W, a conta do bc do
 #            calibreitor); Kattis: TL = o menor múltiplo de r ≥ a × W, no mínimo r (tl_kattis do mojtools).
-#   Depois, a MESMA regra do servidor (tl_eff, lib/tl-store.sh): TLMOD sum/mult e o TLOVERRIDE, que é final.
+#   Depois, a MESMA regra do servidor (tl_eff, lib/tl-store.sh): TL ÚNICO (o `unified` do TLUNIFIED=y: o máx das
+#   linguagens), TLMOD sum/mult e o TLOVERRIDE, que é final.
 #
 # Cada solução, em cada juiz, contra o TL de uma configuração (tolerância d = TLMOD[<lang>|default.drift]):
 #   good/pass │ todo teste ≤ TL + d
@@ -111,7 +112,9 @@ def tls_cfint($cases; $w; $ov; $m; $drift; $off):
   [ $cases[] | select((.tdep or .ce or .n == 0 or .tmax == null) | not)
     | . as $c
     | select((($ov // {})[$c.lang] // ($ov // {}).default) == null)
-    | (($w[$c.lang] // $w.default) | tls_num) as $wl
+    # TL ÚNICO ($m.unified): todo TL sai do MAIOR W (o pior entre todas as good), em toda linguagem
+    | ((if (($m // {}).unified // false) == true then ([ $w | to_entries[] | select(.key != "default") | .value ] | max)
+        else ($w[$c.lang] // $w.default) end) | tls_num) as $wl
     | (((($m // {}).sum // {})[$c.lang] // 0) | tls_num) as $s
     | (((($m // {}).mult // {})[$c.lang] // 1) | tls_num) as $x
     | (((($drift // {})[$c.lang] // ($drift // {}).default // 0) | tls_num) // 0) as $d

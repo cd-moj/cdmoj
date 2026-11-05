@@ -112,6 +112,15 @@ ck('parede com CPUNEEDED=4: sem aviso', $('cf_cpu_warn').kids.length === 0);
 load('CALIBRATIONTL=5'); $('cf_tlmethod').value = 'kattis'; $('cf_tlclock').value = 'cpu'; out = save();
 ck('os dois juntos: TLMETHOD no topo, TLCLOCK no fim', out.split('\n')[0] === 'TLMETHOD=kattis' && out.split('\n').pop() === 'TLCLOCK=cpu');
 
+// ---- TL ÚNICO (05/11/2026, docs/PACOTE.md "TL único"): TLUNIFIED tri-estado, ausente = por linguagem
+load('CALIBRATIONTL=5');
+ck('sem TLUNIFIED: desmarcado; salvar não grava', $('cf_tlunified').checked === false && !has(save(), 'TLUNIFIED'));
+$('cf_tlunified').checked = true; out = save();
+ck('marcar grava TLUNIFIED=y no fim do conf (dentro do tl-checksum: recalibra)', out === 'CALIBRATIONTL=5\nTLUNIFIED=y');
+load('TLUNIFIED=y'); ck('lê y como marcado', $('cf_tlunified').checked === true);
+$('cf_tlunified').checked = false; out = save();
+ck('desmarcar com a linha presente grava n explícito', confVal(out, 'TLUNIFIED') === 'n');
+
 // ---- AVISO da aba Limites contra os juízes de hoje (judge_capacity; incidente de 30/09/2026: MEMLIMITMB=262144)
 const kids = (id) => $(id).kids.map((k) => k.cls + '|' + k.text);
 load('MEMLIMITMB=262144');

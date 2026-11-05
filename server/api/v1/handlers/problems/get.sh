@@ -56,7 +56,7 @@ if [[ -f "$jf" ]]; then
         statement_html_b64:(.statement_html_b64 // null),
         time_limits:$tl, time_limits_calibrated:$tlc, tl_override:$ov, tl_mods:$mods,
         tl_method:$meth, kattis:$kp, time_limits_by_method:$bm,
-        tl_clock:$clk, wall_tl:(if $wtl == "" then null else ($wtl | tonumber) end),
+        tl_clock:$clk, wall_tl:(if $wtl == "" then null else ($wtl | tonumber) end), tl_unified:((($mods // {}).unified // false) == true),
         tags:(.tags // []) }' "$jf" 2>/dev/null
 else
   jq -cn --argjson base "$base" --argjson val "$val" --argjson tl "$tleff" \
@@ -65,5 +65,5 @@ else
     '{success:true} + $base + {validation:$val, time_limits:$tl,
                                time_limits_calibrated:$tlc, tl_override:$ov, tl_mods:$mods,
                                tl_method:$meth, kattis:$kp, time_limits_by_method:$bm,
-                               tl_clock:$clk, wall_tl:(if $wtl == "" then null else ($wtl | tonumber) end)}'
+                               tl_clock:$clk, wall_tl:(if $wtl == "" then null else ($wtl | tonumber) end), tl_unified:((($mods // {}).unified // false) == true)}'
 fi

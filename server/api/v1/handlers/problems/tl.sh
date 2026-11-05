@@ -69,7 +69,7 @@ body="$(jq -cn --arg p "$id" --arg cks "$cur" \
    | {success:true, problem:$p, checksum:$cks, time_limits:$tl,
       time_limits_calibrated:$tlcal, tl_override:$ov, tl_mods:$mods,
       tl_method:$meth, kattis:$kp, time_limits_by_method:$bm,
-      tl_clock:$clk, wall_tl:(if $wtl == "" then null else ($wtl | tonumber) end),
+      tl_clock:$clk, wall_tl:(if $wtl == "" then null else ($wtl | tonumber) end), tl_unified:((($mods // {}).unified // false) == true),
       calibrated_checksum:$cal, hosts:($store.hosts // {}),
       updated_at:($store.updated_at // null), calibrated_at:($store.updated_at // null),
       calibrated:$calibrated,

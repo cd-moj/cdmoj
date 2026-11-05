@@ -88,6 +88,14 @@ const tlCell = (p) => {
                'Time limit by the Kattis method (TLMETHOD=kattis in the conf): the smallest multiple of the resolution that is at least the multiplier × the worst time of the good solutions.',
                'Tiempo límite por el método Kattis (TLMETHOD=kattis en el conf): el menor múltiplo de la resolución que es al menos el multiplicador × el peor tiempo de las soluciones buenas.') }, 'K'));
   }
+  // TL único (docs/PACOTE.md "TL único"): o mesmo em toda linguagem
+  if (p.tl_unified) {
+    box.append(el('span', { class: 'pill', style: 'margin-left:.35rem',
+      title: T('TL único (TLUNIFIED=y no conf): o mesmo tempo-limite em todas as linguagens, o maior entre elas (o pior tempo entre todas as soluções good).',
+               'Single TL (TLUNIFIED=y in the conf): the same time limit in every language, the largest among them (the worst time among all good solutions).',
+               'TL único (TLUNIFIED=y en el conf): el mismo tiempo límite en todos los lenguajes, el mayor entre ellos (el peor tiempo entre todas las soluciones buenas).') },
+      T('TL único', 'single TL', 'TL único')));
+  }
   // relógio do TL (docs/PACOTE.md "Relógio do TL"): só o de CPU se anuncia — a parede é a de sempre
   if (p.tl_clock === 'cpu') {
     box.append(el('span', { class: 'pill', style: 'margin-left:.35rem',
