@@ -1,11 +1,14 @@
 #!/bin/bash
-# smoke-team-logo-nginx.sh — MÍDIA DE TIME no nginx (05/11/2026; moj-app.conf.in "MÍDIA DE TIME" + o bloco de mesmo nome
+# smoke-team-media-nginx.sh — MÍDIA DE TIME no nginx (05/11/2026; moj-app.conf.in "MÍDIA DE TIME" + o bloco de mesmo nome
 # nos dois conf.d). O placar de 500+ times rebaixava cada brasão a cada minuto, um bash por pedido no balde do /submit.
 # Garante:
 #   · o BRASÃO válido sai do DISCO pelo nginx (image/png, ETag, 304), com cache imutável quando a URL leva `v`;
+#   · a FOTO também: photo.webp › photo.png legado (a ordem do tp_file), `thumb` não vazio = só a photo.thumb.webp, e o
+#     cache do bash (miniatura 1 dia, foto 1 min, imutável com `v`);
 #   · TODO o resto cai no bash (@moj_media), que segue sendo a autoridade: argumento fora da lista de caracteres
-#     (ponto/hífen no começo, %, /), host de OUTRO contest (o contest_mismatch), arquivo ausente, argumento faltando;
-#   · foto, música e o padrão vão ao bash pela zona PRÓPRIA de mídia, com o freio do treino valendo no site principal;
+#     (ponto/hífen no começo, %, /), host de OUTRO contest (o contest_mismatch), arquivo ausente (a foto PADRÃO, a
+#     miniatura que o bash gera), argumento faltando;
+#   · música e o padrão vão ao bash pela zona PRÓPRIA de mídia, com o freio do treino valendo no site principal;
 #   · o bloco "MÍDIA DE TIME" é o MESMO nos dois templates do conf.d (só um deles é instalado).
 # Com `nginx` no PATH sobe um nginx de teste (porta alta, tudo em tmp) com o snippet e o bloco REAIS renderizados; cada
 # `fastcgi_pass` vira um `return` que ecoa a rota — é como se vê que o pedido caiu no bash. Sem nginx, só os templates.
@@ -16,9 +19,10 @@ pass=0; fail=0; ck(){ if eval "$2"; then echo "  ok: $1"; ((pass++)); else echo 
 blk(){ sed -n '/^# >>> MÍDIA DE TIME/,/^# <<< MÍDIA DE TIME/p' "$1"; }
 
 echo "== templates =="
-ck "o bloco existe no moj-prod.conf.in"                 '[[ "$(blk "$E/moj-prod.conf.in" | grep -c "moj_logo_file\|zone=moj_media")" -ge 2 ]]'
+ck "o bloco existe no moj-prod.conf.in"                 '[[ "$(blk "$E/moj-prod.conf.in" | grep -c "moj_logo_file\|moj_photo_file\|zone=moj_media")" -ge 3 ]]'
 ck "…e é IGUAL no moj-prod-http.conf.in"                '[[ "$(blk "$E/moj-prod.conf.in")" == "$(blk "$E/moj-prod-http.conf.in")" ]]'
 ck "o snippet serve o brasão do disco e cai no bash"    'grep -q "location = /api/v1/contest/team-logo" "$TPL" && grep -q "try_files     \$moj_logo_file @moj_media;" "$TPL"'
+ck "…e a foto (webp › png legado › bash)"               'grep -q "location = /api/v1/contest/team-photo" "$TPL" && grep -q "try_files     \$moj_photo_file \$moj_photo_alt @moj_media;" "$TPL"'
 ck "@moj_media: zona própria, SEM o breaker do contest" '[[ "$(sed -n "/^location @moj_media {/,/^}/p" "$TPL" | grep -c "limit_conn              moj_media\|moj-breaker-contest")" == 1 ]] && sed -n "/^location @moj_media {/,/^}/p" "$TPL" | grep -q "limit_conn              moj_media"'
 
 if ! command -v nginx >/dev/null 2>&1; then
@@ -30,12 +34,20 @@ echo "== nginx de teste =="
 T="$(mktemp -d)"; PORT=$(( 20000 + RANDOM % 20000 ))
 trap 'nginx -p "$T" -c "$T/nginx.conf" -s stop >/dev/null 2>&1; rm -rf "$T"' EXIT
 mkdir -p "$T/logs" "$T/run" "$T/wr/run" "$T/wr/contests/prova-x/users/time1" "$T/wr/contests/prova-x/users/time2" \
-         "$T/wr/contests/prova-x/users/.removed-users/velho" "$T/wr/contests/outra/users/t9" "$T/wr/segredo"
+         "$T/wr/contests/prova-x/users/.removed-users/velho" "$T/wr/contests/outra/users/t9" "$T/wr/segredo" \
+         "$T/wr/contests/prova-x/users/legado" "$T/wr/contests/prova-x/users/dupla" "$T/wr/contests/prova-x/users/semthumb"
 ln -s "$ROOT" "$T/wr/cdmoj"
 printf '\x89PNG\r\n\x1a\nbrasao-time1' > "$T/wr/contests/prova-x/users/time1/logo.png"
 printf '\x89PNG\r\n\x1a\nvelho'        > "$T/wr/contests/prova-x/users/.removed-users/velho/logo.png"
 printf '\x89PNG\r\n\x1a\nt9'           > "$T/wr/contests/outra/users/t9/logo.png"
 printf 'SEGREDO\n'                     > "$T/wr/segredo/logo.png"
+U="$T/wr/contests/prova-x/users"
+printf 'RIFF0000WEBPfoto-time1'        > "$U/time1/photo.webp"
+printf 'RIFF0000WEBPthumb-time1'       > "$U/time1/photo.thumb.webp"
+printf '\x89PNG\r\n\x1a\nfoto-legado'  > "$U/legado/photo.png"
+printf 'RIFF0000WEBPfoto-dupla'        > "$U/dupla/photo.webp"
+printf '\x89PNG\r\n\x1a\nresiduo-dupla' > "$U/dupla/photo.png"
+printf 'RIFF0000WEBPfoto-semthumb'     > "$U/semthumb/photo.webp"
 # o snippet REAL: includes de /etc/nginx fora (não existem aqui); cada fastcgi_pass ecoa a rota e a location
 sed "s#@WORKROOT@#$T/wr#g; s#@ROUTER@#/nao/usado#g; /include[[:space:]]\+\/etc\/nginx\/moj-/d" "$TPL" \
   | awk '/^location @moj_media \{/{m=1} /^\}/{m=0}
@@ -82,6 +94,36 @@ ck "com v: imutável por um ano"                         '[[ "$S" == 200 && "$(h
 req prova-x.moj.test "$L?contest=prova-x&user=time1&v=1"
 ck "no subdomínio DO contest: do disco"                 '[[ "$S" == 200 && "$B" == *brasao-time1 ]]'
 
+echo "== a foto sai do disco =="
+P='/api/v1/contest/team-photo'
+req moj.test "$P?contest=prova-x&user=time1"
+ck "foto: o photo.webp, image/webp, sem bash"           '[[ "$S" == 200 && "$B" == *foto-time1 && "$(hd Content-Type)" == image/webp ]]'
+ck "foto sem v: 1 min (o telão externo busca sem v)"    '[[ "$(hd Cache-Control)" == "public, max-age=60" && -n "$(hd ETag)" ]]'
+ET="$(hd ETag)"; req moj.test "$P?contest=prova-x&user=time1" -H "If-None-Match: $ET"
+ck "foto: If-None-Match → 304"                          '[[ "$S" == 304 && -z "$B" ]]'
+req moj.test "$P?contest=prova-x&user=time1&thumb=1"
+ck "miniatura: a photo.thumb.webp, 1 dia"               '[[ "$S" == 200 && "$B" == *thumb-time1 && "$(hd Cache-Control)" == "public, max-age=86400" ]]'
+req moj.test "$P?contest=prova-x&user=time1&thumb=0"
+ck "thumb=0 também é miniatura (a regra do bash: não vazio)" '[[ "$B" == *thumb-time1 ]]'
+req moj.test "$P?contest=prova-x&user=time1&thumb=&v=9"
+ck "thumb vazio = a foto; com v: imutável"              '[[ "$B" == *foto-time1 && "$(hd Cache-Control)" == "public, max-age=31536000, immutable" ]]'
+req moj.test "$P?contest=prova-x&user=time1&thumb=1&v=9"
+ck "miniatura com v: imutável"                          '[[ "$B" == *thumb-time1 && "$(hd Cache-Control)" == "public, max-age=31536000, immutable" ]]'
+req moj.test "$P?contest=prova-x&user=legado"
+ck "só o photo.png legado: ele, image/png"              '[[ "$S" == 200 && "$B" == *foto-legado && "$(hd Content-Type)" == image/png ]]'
+req moj.test "$P?contest=prova-x&user=dupla"
+ck "webp e png juntos: o webp (a ordem do tp_file)"     '[[ "$B" == *foto-dupla ]]'
+req prova-x.moj.test "$P?contest=prova-x&user=time1&thumb=1"
+ck "no subdomínio DO contest: do disco"                 '[[ "$S" == 200 && "$B" == *thumb-time1 ]]'
+fellp(){ req "$1" "$2"; [[ "$S" == 200 && "$B" == "bash-media $P?"* ]]; }
+ck "miniatura que falta: bash (ele a gera)"             'fellp moj.test "$P?contest=prova-x&user=semthumb&thumb=1"'
+ck "…e nunca a foto grande no lugar dela"               '[[ "$B" != *foto-semthumb ]]'
+ck "miniatura do png legado (não existe): bash"         'fellp moj.test "$P?contest=prova-x&user=legado&thumb=1"'
+ck "time sem foto: bash (a foto PADRÃO)"                'fellp moj.test "$P?contest=prova-x&user=time2"'
+ck "subdomínio de OUTRO contest: bash"                  'fellp outra.moj.test "$P?contest=prova-x&user=time1"'
+ck "login com ponto no começo: bash"                    'fellp moj.test "$P?contest=prova-x&user=.removed-users"'
+ck "barra codificada: bash"                             'fellp moj.test "$P?contest=prova-x&user=..%2Ftime1&thumb=1"'
+
 echo "== todo o resto cai no bash (a autoridade) =="
 fell(){ req "$1" "$2"; [[ "$S" == 200 && "$B" == "bash-media $L?"* ]]; }
 ck "time sem brasão"                                    'fell moj.test "$L?contest=prova-x&user=time2"'
@@ -101,12 +143,12 @@ ck "pipe cru não forja o separador da chave do map"    'fell moj.test "$L?conte
 req moj.test "$L?contest=prova-x&user=..%2F..%2Fsegredo"
 ck "…e nada de fora do contests/ vaza"                  '[[ "$B" != *SEGREDO* ]]'
 
-echo "== foto, música e o padrão: bash pela zona de mídia =="
-for r in team-photo team-music placeholder; do
+echo "== música e o padrão: bash pela zona de mídia =="
+for r in team-music placeholder; do
   req moj.test "/api/v1/contest/$r?contest=prova-x&user=time1&thumb=1"
   ck "$r → @moj_media com a query"                     '[[ "$B" == "bash-media /api/v1/contest/$r?contest=prova-x&user=time1&thumb=1" ]]'
 done
-req prova-x.moj.test "/api/v1/contest/team-photo?contest=prova-x&user=time1"
+req prova-x.moj.test "/api/v1/contest/team-music?contest=prova-x&user=time1"
 ck "…também no subdomínio"                              '[[ "$B" == bash-media* ]]'
 req moj.test "/api/v1/contest/team-photos?contest=prova-x"
 ck "rota vizinha (team-photos) segue na /api/v1/ geral"  '[[ "$B" == bash-geral* ]]'
@@ -115,12 +157,16 @@ ck "o resto da API segue na /api/v1/ geral"             '[[ "$B" == bash-geral* 
 
 echo "== freio do treino (moj-shed-treino) =="
 touch "$T/shed"
-req moj.test "/api/v1/contest/team-photo?contest=prova-x&user=time1"
+req moj.test "/api/v1/contest/team-music?contest=prova-x&user=time1"
 ck "site principal: mídia no bash → 503"                '[[ "$S" == 503 ]]'
-req prova-x.moj.test "/api/v1/contest/team-photo?contest=prova-x&user=time1"
+req moj.test "/api/v1/contest/team-photo?contest=prova-x&user=time2"
+ck "…inclusive a foto que caiu no bash (a padrão)"      '[[ "$S" == 503 ]]'
+req prova-x.moj.test "/api/v1/contest/team-music?contest=prova-x&user=time1"
 ck "subdomínio de contest: não olha o freio"            '[[ "$S" == 200 && "$B" == bash-media* ]]'
 req moj.test "$L?contest=prova-x&user=time1"
 ck "o brasão do disco não passa pelo bash: segue 200"   '[[ "$S" == 200 && "$B" == *brasao-time1 ]]'
+req moj.test "/api/v1/contest/team-photo?contest=prova-x&user=time1&thumb=1"
+ck "…nem a foto do disco"                               '[[ "$S" == 200 && "$B" == *thumb-time1 ]]'
 rm -f "$T/shed"
 
 echo ""; echo "RESULT: $pass passed, $fail failed"; exit $(( fail>0?1:0 ))

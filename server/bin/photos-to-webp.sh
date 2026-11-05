@@ -55,7 +55,8 @@ for c in "${CONTESTS[@]}"; do
     # temporário é `.tmp`, que não é formato nenhum (era o motivo de falhar em tudo)
     if convert "$f" -auto-orient -strip -resize '1000x1000>' -quality 82 "webp:$d/photo.webp.tmp" 2>/dev/null \
        && [[ "$(file --mime-type -b "$d/photo.webp.tmp" 2>/dev/null)" == image/webp ]]; then
-      mv -f "$d/photo.webp.tmp" "$d/photo.webp"; rm -f "$f"
+      # a miniatura do png sai junto (o nginx a serveria sem conferir o mtime; a próxima leitura a refaz da webp)
+      rm -f "$d/photo.thumb.webp"; mv -f "$d/photo.webp.tmp" "$d/photo.webp"; rm -f "$f"
       nsz=$(stat -c %s "$d/photo.webp" 2>/dev/null || echo 0); after=$((after+nsz)); ok=$((ok+1))
       printf 'OK  %s/%s %s KB -> %s KB\n' "$c" "$login" "$((sz/1024))" "$((nsz/1024))"
     else

@@ -576,21 +576,29 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   `/contest/teams` vira `t.photoUrl` e o link só renderiza com o placar **ABERTO**
   (`opts.showPhotos = !frozenView`, pelo cabeçalho `X-MOJ-Frozen`) — no freeze a foto
   denunciaria presença. Galeria do telão e o painel **Pessoas › Times** seguem como antes.
-  **O BRASÃO SAI DO DISCO PELO NGINX** (05/11/2026; relato do Ribas: no placar de 500+ times o `max-age=60` sem
+  **BRASÃO E FOTO SAEM DO DISCO PELO NGINX** (05/11/2026; relato do Ribas: no placar de 500+ times o `max-age=60` sem
   validador e o re-render de cada poll rebaixavam ~500 brasões por minuto por aba, um bash cada no balde do contest — o
-  do `/submit`; 121 × 429 só de brasão num dia): `location = /api/v1/contest/team-logo` do `moj-app.conf.in` (seção
-  "MÍDIA DE TIME") faz `try_files $moj_logo_file @moj_media`. O `map` (bloco "MÍDIA DE TIME" IGUAL nos dois
-  `moj-prod*.conf.in`) só monta o caminho com argumento em `[A-Za-z0-9._-]` sem ponto/hífen no começo (`$arg_*` chega
-  CRU) e host vazio ou IGUAL ao contest (o `contest_mismatch`, por retro-referência na chave `contest|host|user`); o
-  resto cai no bash, que segue sendo a AUTORIDADE — a doutrina do porteiro: o nginx serve só o caso feliz. URL com `v`
-  (o **`logo_v`** do `/contest/teams` = mtime do `logo.png` em ms, que o placar e o painel Times põem na URL) =
-  `immutable` por 1 ano; sem `v`, 10 min + ETag; o `team-logo.sh` responde o mesmo cabeçalho. ⚠ A TRAVA DE SEDE não se
-  repete no nginx (`run/site-lock` é 700 de propósito): um IP preso baixa o brasão de outro contest pelo site
-  principal — é PNG público; foto/música seguem barradas. Foto, música e o padrão (bash: webp, miniatura,
-  placeholder) vão à **`@moj_media`**: zona PRÓPRIA `moj_media` de 16 em voo (com site 16 + contest 32 = o pool de 64),
-  sem o breaker do contest, com o microcache e o freio do treino. Mudou um desses templates ⇒ reinstalar o nginx no
-  deploy. Testes: `smoke-team-logo-nginx.sh` (nginx de teste com o snippet e o bloco REAIS; `fastcgi_pass` vira um eco
-  da rota), `smoke-contest-teams.sh` (`logo_v`), `smoke-score-flag-title.gjs.sh` (a URL).
+  do `/submit`; 121 × 429 só de brasão num dia; a foto veio no mesmo dia, a pedido dele): `location =
+  /api/v1/contest/team-{logo,photo}` do `moj-app.conf.in` (seção "MÍDIA DE TIME") fazem `try_files … @moj_media`. O
+  `map` `$moj_team_dir` (bloco "MÍDIA DE TIME" IGUAL nos dois `moj-prod*.conf.in`) só monta o dir do time com argumento
+  em `[A-Za-z0-9._-]` sem ponto/hífen no começo (`$arg_*` chega CRU) e host vazio ou IGUAL ao contest (o
+  `contest_mismatch`, por retro-referência na chave `contest|host|user`); o resto cai no bash, que segue sendo a
+  AUTORIDADE — a doutrina do porteiro: o nginx serve só o caso feliz. FOTO: `photo.webp` › `photo.png` (a ordem do
+  `tp_file`); `thumb` não vazio (a regra do bash) = só a `photo.thumb.webp`; sem foto = bash (a PADRÃO, `X-MOJ-Photo`).
+  ⚠ **INVARIANTE da miniatura: existe ⇒ é da foto ATUAL** — o nginx não faz o `-nt` do `tp_thumb`. Quem grava a garante:
+  `tp_store` apaga a velha e troca a foto sob o flock dela (`.thumb.lock`; se a nova não sai, falta miniatura e o bash a
+  gera), `tp_remove` apaga a miniatura primeiro, `photos-to-webp.sh` idem. Escritor NOVO de `photo.*` passa pelo
+  `tp_store`/`tp_remove` (teste: `smoke-animeitor.sh`, com `convert` que falha só no 320x320). Cache: URL com `v` =
+  `immutable` (o **`logo_v`** do `/contest/teams` = mtime do `logo.png` em ms, que o placar e o painel Times põem na
+  URL; a galeria do telão manda o mtime da foto); sem `v` = o cache de sempre (brasão 10 min, miniatura 1 dia, foto
+  1 min — o telão externo busca a foto sem `v`) + ETag; os handlers bash respondem o mesmo cabeçalho. ⚠ A TRAVA DE SEDE
+  não se repete no nginx (`run/site-lock` é 700 de propósito): um IP preso baixa brasão/foto de outro contest pelo site
+  principal — é mídia pública; música e o resto seguem barrados. Música, o padrão e o que cai no bash vão à
+  **`@moj_media`**: zona PRÓPRIA `moj_media` de 16 em voo (com site 16 + contest 32 = o pool de 64), sem o breaker do
+  contest, com o microcache e o freio do treino. Mudou um desses templates ⇒ reinstalar o nginx no deploy (e rodar os
+  smokes de nginx NO SERVIDOR: lá os `include /etc/nginx/moj-*` casam arquivos reais). Testes:
+  `smoke-team-media-nginx.sh` (nginx de teste com o snippet e o bloco REAIS; `fastcgi_pass` vira um eco da rota),
+  `smoke-contest-teams.sh` (`logo_v`), `smoke-score-flag-title.gjs.sh` (a URL), `smoke-animeitor.sh` (a miniatura).
 - **Calibração/TL — 3 mecanismos de autoria (2026-08-19)**: (1) o `/problems/calib` devolve
   **`sols`** estruturado por host (`[{file,lang,category,verdict,tests:[{name,code,time,tl}]}]`,
   do `.calib-sols.json` do calibreitor via `/judge/calib-report` — que PRESERVA sols/reports

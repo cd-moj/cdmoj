@@ -1,13 +1,15 @@
 # GET /contest/team-photo?contest=<id>&user=<login>[&thumb=1]   -> foto do time
-# Gate = o do PLACAR (público; contest SECRETO exige sessão do contest).
+# Público, inclusive em contest SECRETO (ver abaixo). O nginx serve a foto e a miniatura do DISCO antes de chegar aqui
+# (moj-app.conf.in "MÍDIA DE TIME"); este handler responde o que cai nele — a foto PADRÃO, a miniatura que falta (e a
+# gera), argumento estranho, host de outro contest — e o caminho sem nginx. Mesmo cache dos dois lados.
 #   sem thumb  -> a foto (webp; png no acervo antigo) — é o que a galeria do telão e o painel Evento › Times abrem
 #   &thumb=1   -> a MINIATURA de 320px (~7 KB), para a galeria do .animeitor
 # TIME SEM FOTO **não dá mais 404**: devolve a FOTO PADRÃO do contest (200) com o cabeçalho
 # `X-MOJ-Photo: placeholder`. É o que faz o Animeitor achar imagem para todo time do placar.
 # Quem precisa saber quem MANDOU foto usa o `has_photo` das listagens (/contest/teams,
 # /contest/animeitor/photos) — é lá que mora a verdade, e é o que a galeria do telão consulta.
-# O cliente manda `&v=<mtime>` na URL, então a foto real pode ter cache longo; a padrão troca
-# quando o .animeitor quiser, por isso cache curto.
+# Cache da foto REAL: com `&v=<mtime>` (a galeria do telão) a URL é imutável; sem ele, miniatura 1 dia e foto 1 min (o
+# telão externo busca sem `v`). A padrão troca quando o .animeitor quiser: sempre 1 min.
 contest="$(param contest)"
 [[ -n "$contest" ]] || fail 400 "Missing contest" "contest_missing"
 require_contest "$contest"
@@ -25,13 +27,14 @@ source "$_LIBDIR/team-photo.sh"
 want_thumb="$(param thumb)"
 if [[ -n "$want_thumb" ]]; then f="$(tp_thumb "$contest" "$quser")"; else f="$(tp_file "$contest" "$quser")"; fi
 if [[ -n "$f" ]]; then
-  ph=0; maxage=$([[ -n "$want_thumb" ]] && echo 86400 || echo 60)
+  ph=0; cc="public, max-age=60"; [[ -n "$want_thumb" ]] && cc="public, max-age=86400"
+  [[ -n "$(param v)" ]] && cc="public, max-age=31536000, immutable"
 else
-  f="$(tp_placeholder "$contest" "$want_thumb")"; ph=1; maxage=60
+  f="$(tp_placeholder "$contest" "$want_thumb")"; ph=1; cc="public, max-age=60"
 fi
 [[ -n "$f" ]] || fail 404 "Sem foto" "no_photo"      # nem padrão (instalação sem server/etc)
 
-printf 'Status: 200 OK\r\nContent-Type: %s\r\nCache-Control: max-age=%s\r\n' "$(tp_ctype "$f")" "$maxage"
+printf 'Status: 200 OK\r\nContent-Type: %s\r\nCache-Control: %s\r\n' "$(tp_ctype "$f")" "$cc"
 (( ph )) && printf 'X-MOJ-Photo: placeholder\r\n'
 printf '\r\n'
 cat "$f"

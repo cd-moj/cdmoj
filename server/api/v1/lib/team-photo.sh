@@ -45,9 +45,18 @@ tp_store(){
   if [[ "$(file --mime-type -b "$out.tmp" 2>/dev/null)" != image/webp ]]; then
     rm -f "$out.tmp"; return 2
   fi
-  mv -f "$out.tmp" "$out"
-  rm -f "$d/photo.png"                              # o webp substitui o legado deste time
-  _tp_mkthumb "$out" "$d/$TP_THUMB"                 # miniatura já sai pronta (50 ms)
+  # ⚠ INVARIANTE (05/11/2026): miniatura no disco ⇒ é da foto ATUAL. O nginx serve photo.thumb.webp direto do disco
+  # (moj-app.conf.in "MÍDIA DE TIME") e não sabe conferir o `-nt` do tp_thumb. Por isso a velha sai ANTES de a foto
+  # nova entrar, tudo sob o flock da miniatura (o tp_thumb pode estar gerando a partir da foto velha agora mesmo);
+  # se a nova não sair, falta miniatura e o pedido cai no bash, que a gera. Lock vencido = segue sem ele (como antes).
+  local th="$d/$TP_THUMB"
+  {
+    flock -w 10 9 || true
+    rm -f "$th"
+    mv -f "$out.tmp" "$out"
+    rm -f "$d/photo.png"                            # o webp substitui o legado deste time
+    _tp_mkthumb "$out" "$th"                        # miniatura já sai pronta (50 ms)
+  } 9>"$d/.thumb.lock" 2>/dev/null
   printf '%s' "$out"
 }
 
@@ -78,8 +87,8 @@ tp_thumb(){
   printf '%s' "$src"                                        # sem miniatura, serve a foto
 }
 
-# tp_remove <c> <login> — apaga a foto (as duas extensões) e a miniatura
-tp_remove(){ local d; d="$(user_dir "$1" "$2")"; rm -f "$d/photo.webp" "$d/photo.png" "$d/$TP_THUMB"; }
+# tp_remove <c> <login> — apaga a miniatura e a foto (as duas extensões); a miniatura PRIMEIRO (o nginx a serve sozinho)
+tp_remove(){ local d; d="$(user_dir "$1" "$2")"; rm -f "$d/$TP_THUMB" "$d/photo.webp" "$d/photo.png"; }
 
 # --- FOTO PADRÃO (quem não mandou foto) -------------------------------------------------
 # A API nunca mais devolve 404 de foto: time sem foto recebe a PADRÃO, para o Animeitor (que

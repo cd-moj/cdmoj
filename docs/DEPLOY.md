@@ -128,15 +128,18 @@ de `<id>.<host>` e o injeta em `CONTEST_HOST`; no site principal ele vem **vazio
 trata vazio como ausente — então **um** server block serve os dois. O isolamento continua sendo da
 API (o nginx só transporta o id).
 
-**Mídia de time no nginx (05/11/2026).** O brasão (`/api/v1/contest/team-logo`) sai do DISCO pelo próprio nginx
-(`contests/<c>/users/<l>/logo.png`, com ETag e imutável quando a URL leva o `v` do `/contest/teams`). O nginx serve só o
-caso feliz, conferido por um `map` no `conf.d/moj.conf`: os argumentos passam na lista de caracteres e o host é o site
-principal ou o subdomínio do mesmo contest. Todo o resto cai no bash, numa zona de limite própria (`moj_media`, 16 em
-voo). Foto, música e o padrão também usam essa zona, fora do balde do contest. Por isso o `www-data` precisa ler
+**Mídia de time no nginx (05/11/2026).** O brasão (`/api/v1/contest/team-logo`) e a foto (`/api/v1/contest/team-photo`,
+com a miniatura) saem do DISCO pelo próprio nginx (`contests/<c>/users/<l>/{logo.png,photo.webp,photo.png,
+photo.thumb.webp}`, com ETag e imutáveis quando a URL leva `v`). O nginx serve só o caso feliz, conferido por um `map` no
+`conf.d/moj.conf`: os argumentos passam na lista de caracteres e o host é o site principal ou o subdomínio do mesmo
+contest. Todo o resto cai no bash, numa zona de limite própria (`moj_media`, 16 em voo): a foto padrão, a miniatura que
+falta, a música e o padrão, fora do balde do contest. Por isso o `www-data` precisa ler
 `contests/` (o grupo do dono já dá isso: diretórios 770, arquivos 660). Mudou o `moj-app.conf.in` ou o
 `moj-prod*.conf.in`? Reinstale o nginx (a mesma linha do `install-nginx.sh`; rode antes com `--dry-run`).
 Conferir: `curl -sI 'https://moj.<host>/api/v1/contest/team-logo?contest=<c>&user=<l>&v=1'` → `200`, `image/png`,
-`immutable`, com `urt=-` no access log (sem upstream = sem bash). Teste: `server/test/smoke-team-logo-nginx.sh`.
+`immutable`, com `urt=-` no access log (sem upstream = sem bash); a foto idem com `team-photo` (`image/webp`). Rode
+`server/test/smoke-team-media-nginx.sh` e `smoke-robots.sh` NO SERVIDOR antes do `install-nginx.sh`: lá os
+`include /etc/nginx/moj-*` casam arquivos reais.
 
 **DNS curinga + certificado `*.<host>` são REQUISITO** (16/10/2026): o time só entra pelo subdomínio do contest
 (`lib/team-host.sh`, `TEAM_HOST_LOCK=1` no `etc/common.conf`). Instalação sem subdomínio (localhost, um fork) liga

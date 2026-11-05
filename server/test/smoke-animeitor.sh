@@ -114,6 +114,20 @@ rm -f "$C/users/time-b/photo.thumb.webp"
 callf /contest/team-photo GET '' 'contest=an&user=time-b&thumb=1' '' "$TMP/p4.bin"
 ck "legado gera miniatura na 1ª leitura" '[[ -s "$C/users/time-b/photo.thumb.webp" ]]'
 ck "sem thumb continua a foto cheia" 'true'  # coberto acima (image/webp + max-age=60)
+# INVARIANTE (05/11/2026): miniatura no disco ⇒ é da foto ATUAL — o nginx a serve sem conferir o mtime. Trocar a foto
+# troca a miniatura; se a miniatura nova NÃO sai (convert falha só no 320x320), a velha não pode sobrar.
+printf 'MINIATURA-VELHA' > "$C/users/time-a/photo.thumb.webp"
+call /contest/animeitor/photo POST ani 'contest=an' "{\"login\":\"time-a\",\"file_b64\":\"$PNG1\"}"
+ck "trocar a foto troca a miniatura" '[[ "$(file --mime-type -b "$C/users/time-a/photo.thumb.webp")" == image/webp ]] && ! grep -q MINIATURA-VELHA "$C/users/time-a/photo.thumb.webp"'
+mkdir -p "$TMP/fakebin"; REALCONV="$(command -v convert)"
+printf '#!/bin/bash\n[[ "$*" == *320x320* ]] && exit 1\nexec %q "$@"\n' "$REALCONV" > "$TMP/fakebin/convert"; chmod +x "$TMP/fakebin/convert"
+printf 'MINIATURA-VELHA' > "$C/users/time-a/photo.thumb.webp"
+PATH="$TMP/fakebin:$PATH" call /contest/animeitor/photo POST ani 'contest=an' "{\"login\":\"time-a\",\"file_b64\":\"$PNG1\"}"
+ck "miniatura nova falhou: a velha NÃO sobra (o pedido cai no bash, que a gera)" 'grep -q "\"saved\":true" <<<"$BODY" && [[ -s "$C/users/time-a/photo.webp" && ! -e "$C/users/time-a/photo.thumb.webp" ]]'
+callf /contest/team-photo GET '' 'contest=an&user=time-a&thumb=1' '' "$TMP/p5.bin"
+ck "…e a 1ª leitura a refaz"     '[[ "$(file --mime-type -b "$C/users/time-a/photo.thumb.webp")" == image/webp ]]'
+callf /contest/team-photo GET '' 'contest=an&user=time-a&thumb=1&v=5' '' "$TMP/p6.bin"
+ck "foto real com v: imutável (o mesmo cache do nginx)" 'head -c 200 "$TMP/p6.bin" | grep -q "Cache-Control: public, max-age=31536000, immutable"'
 callf /contest/animeitor/photos-zip GET ani 'contest=an' '' "$TMP/fotos.bin"
 unhead "$TMP/fotos.bin" "$TMP/fotos.zip"
 ck "pacote tem fotos/<login> + índice" 'unzip -Z1 "$TMP/fotos.zip" 2>/dev/null | grep -q "fotos/time-a.webp" && unzip -Z1 "$TMP/fotos.zip" | grep -q "teams.csv"'

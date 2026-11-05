@@ -4568,7 +4568,7 @@
         "tags": [
           "contest"
         ],
-        "summary": "Foto do time — PÚBLICA, inclusive em contest secreto (webp; png no acervo antigo; thumb=1 = miniatura de 320px). TIME SEM FOTO devolve a FOTO PADRÃO do contest (200 + header X-MOJ-Photo: placeholder), não 404 — quem precisa saber quem mandou foto usa has_photo das listagens ⚠ em contest SUPER SECRETO o <img>/<audio> cru não serve (tag de mídia não manda Authorization): o cliente tem de BUSCAR com Bearer — o front usa web/shared/media-auth.js, que converte em blob:",
+        "summary": "Foto do time — PÚBLICA, inclusive em contest secreto (webp; png no acervo antigo; thumb=1 = miniatura de 320px). TIME SEM FOTO devolve a FOTO PADRÃO do contest (200 + header X-MOJ-Photo: placeholder), não 404 — quem precisa saber quem mandou foto usa has_photo das listagens. O nginx serve a foto e a miniatura direto do disco (ETag/304); a padrão, a miniatura que falta (o handler a gera), argumento fora da lista de caracteres e o subdomínio de outro contest caem no handler bash. Cache-Control: com v = public, max-age=31536000, immutable; sem v = miniatura 86400 s, foto 60 s; a padrão sempre 60 s",
         "parameters": [
           {
             "$ref": "#/components/parameters/contest"
@@ -4588,12 +4588,16 @@
             "schema": {
               "type": "string"
             },
-            "description": "1 = miniatura 320px (Cache-Control longo; o cliente manda &v=<mtime>)"
-          }
-        ],
-        "security": [
+            "description": "não vazio = miniatura 320px (thumb=1)"
+          },
           {
-            "bearerAuth": []
+            "name": "v",
+            "in": "query",
+            "required": false,
+            "description": "cache-buster estável (o mtime da galeria do telão): com ele a resposta da foto real é imutável",
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {

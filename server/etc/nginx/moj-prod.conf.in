@@ -61,20 +61,38 @@ limit_conn_zone $moj_contest_conn zone=moj_contest:1m;
 # já tem fallback próprio (backlog 16 → 502 → @moj_fcgiwrap).
 limit_conn_zone $moj_contest_conn zone=moj_porteiro:1m;
 
-# >>> MÍDIA DE TIME (bloco IGUAL no moj-prod-http.conf.in; o smoke-team-logo-nginx.sh o lê daqui e compara os dois)
+# >>> MÍDIA DE TIME (bloco IGUAL no moj-prod-http.conf.in; o smoke-team-media-nginx.sh o lê daqui e compara os dois)
 # 05/11/2026: no placar de 500+ times o brasão era rebaixado a cada minuto (max-age=60, sem validador) e cada pedido era
 # um bash no balde do contest, o MESMO do /submit. As peças moram no snippet (moj-app.conf.in, "MÍDIA DE TIME"):
-#   · o BRASÃO sai do disco pelo nginx. $moj_logo_file é o caminho RELATIVO a @WORKROOT@/contests SÓ quando os dois
-#     argumentos passam na lista de caracteres ($arg_* chega CRU: sem %, sem /, sem ponto ou hífen no começo) e o host
-#     é o site principal ou o subdomínio DO MESMO contest (o contest_mismatch do router.sh). Senão vira um caminho que
-#     não existe e o pedido cai no bash, que segue sendo a autoridade (os 400/403/404 de sempre);
-#   · com `v` na URL (o logo_v do /contest/teams, o mtime) a resposta é imutável; sem ele, 10 min + ETag (304 barato);
-#   · zona PRÓPRIA p/ o bash de mídia (foto, música, padrão e o brasão que caiu no bash): não disputa o balde do contest.
-map "$arg_contest|$moj_contest_host|$arg_user" $moj_logo_file {
-    default "/.sem-brasao";
-    "~^(?<mlc>[A-Za-z0-9][A-Za-z0-9._-]*)\|(?:\k<mlc>)?\|(?<mlu>[A-Za-z0-9][A-Za-z0-9._-]*)$" "/$mlc/users/$mlu/logo.png";
+#   · BRASÃO e FOTO saem do disco pelo nginx. $moj_team_dir é o dir do time RELATIVO a @WORKROOT@/contests SÓ quando os
+#     dois argumentos passam na lista de caracteres ($arg_* chega CRU: sem %, sem /, sem ponto ou hífen no começo) e o
+#     host é o site principal ou o subdomínio DO MESMO contest (o contest_mismatch do router.sh). Senão os caminhos
+#     viram um arquivo que não existe e o pedido cai no bash, que segue sendo a autoridade (400/403/404, foto padrão);
+#   · a foto segue a ordem do tp_file (photo.webp, depois o photo.png legado); com `thumb` não vazio (a regra do bash),
+#     só a photo.thumb.webp — sem ela o bash a gera. Time sem foto = bash (a foto PADRÃO, X-MOJ-Photo: placeholder);
+#   · com `v` na URL (logo_v do /contest/teams, mtime da galeria do telão) a resposta é imutável; sem ele, o cache de
+#     sempre do bash (brasão 10 min, miniatura 1 dia, foto 1 min — o telão externo busca a foto sem `v`) + ETag/304;
+#   · zona PRÓPRIA p/ o bash de mídia (música, padrão e o que caiu no bash): não disputa o balde do contest.
+map "$arg_contest|$moj_contest_host|$arg_user" $moj_team_dir {
+    default "";
+    "~^(?<mtc>[A-Za-z0-9][A-Za-z0-9._-]*)\|(?:\k<mtc>)?\|(?<mtu>[A-Za-z0-9][A-Za-z0-9._-]*)$" "/$mtc/users/$mtu";
+}
+map $moj_team_dir $moj_logo_file { "" "/.sem-midia"; default "$moj_team_dir/logo.png"; }
+map "$moj_team_dir|$arg_thumb" $moj_photo_file {
+    default "/.sem-midia";
+    "~^(?<mpf>/[^|]+)\|$" "$mpf/photo.webp";
+    "~^(?<mpt>/[^|]+)\|." "$mpt/photo.thumb.webp";
+}
+map "$moj_team_dir|$arg_thumb" $moj_photo_alt {
+    default "/.sem-midia";
+    "~^(?<mpa>/[^|]+)\|$" "$mpa/photo.png";
 }
 map $arg_v $moj_logo_cc { "" "public, max-age=600"; default "public, max-age=31536000, immutable"; }
+map "$arg_v|$arg_thumb" $moj_photo_cc {
+    default "public, max-age=60";
+    "~^[^|]" "public, max-age=31536000, immutable";
+    "~^\|."  "public, max-age=86400";
+}
 map $host $moj_media_conn { default "media"; }
 limit_conn_zone $moj_media_conn zone=moj_media:1m;
 # <<< MÍDIA DE TIME

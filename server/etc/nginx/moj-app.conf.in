@@ -148,12 +148,15 @@ location /api/v1/problems/ {
 
 # --- MÍDIA DE TIME (05/11/2026) ----------------------------------------------------------
 # Maps e zona no conf.d/moj.conf (bloco "MÍDIA DE TIME"). Mídia de time é PÚBLICA por desenho (vai ao telão externo,
-# que busca sem sessão — ver o handler contest/team-logo.sh), então o nginx serve o BRASÃO direto do disco: zero bash,
-# fora de todo balde, ETag/Last-Modified de graça (304). O bash continua sendo a autoridade: argumento fora da lista de
-# caracteres, host de OUTRO contest e arquivo ausente caem nele (@moj_media).
+# que busca sem sessão — ver os handlers contest/team-{logo,photo}.sh), então o nginx serve o BRASÃO e a FOTO direto do
+# disco: zero bash, fora de todo balde, ETag/Last-Modified de graça (304). O bash continua sendo a autoridade: argumento
+# fora da lista de caracteres, host de OUTRO contest e arquivo ausente caem nele (@moj_media) — inclusive a foto PADRÃO
+# de quem não mandou a sua e a miniatura que ainda não existe (o bash a gera).
+# ⚠ A miniatura do disco é servida SEM o `-nt` do tp_thumb: quem garante que ela é da foto atual é quem grava
+# (tp_store a apaga e troca a foto sob o flock dela; tp_remove a apaga primeiro; photos-to-webp.sh idem).
 # ⚠ A TRAVA DE SEDE (lib/site-lock.sh) NÃO se repete aqui: run/site-lock é 700 de propósito (o nginx não o enxerga), e
-# o que ela protege é o conteúdo de outro contest/treino durante a prova — um PNG público não é isso. Um IP preso
-# baixa o brasão de outro contest pelo site principal; foto, música e todo o resto seguem barrados pelo bash.
+# o que ela protege é o conteúdo de outro contest/treino durante a prova — brasão e foto públicos não são isso. Um IP
+# preso baixa a mídia de outro contest pelo site principal; música, padrão e todo o resto seguem barrados pelo bash.
 # ⚠ add_header numa location ANULA o do pai (regra do nginx): o server não declara nenhum, nada se perde.
 location = /api/v1/contest/team-logo {
     root          @WORKROOT@/contests;
@@ -161,10 +164,15 @@ location = /api/v1/contest/team-logo {
     try_files     $moj_logo_file @moj_media;
     add_header    Cache-Control $moj_logo_cc;
 }
-# Foto, música e o padrão seguem no bash (webp, miniatura, placeholder) numa zona PRÓPRIA de 16 em voo: com o site (16)
+location = /api/v1/contest/team-photo {
+    root          @WORKROOT@/contests;
+    try_files     $moj_photo_file $moj_photo_alt @moj_media;
+    add_header    Cache-Control $moj_photo_cc;
+}
+# Música e o padrão seguem no bash, e tudo que cai do brasão/foto também, numa zona PRÓPRIA de 16 em voo: com o site (16)
 # e o contest (32, o breaker) fecha o pool de 64 do fcgiwrap — mídia não disputa o balde do /submit. Excedente = 429.
 # Microcache e freio do treino como na /api/v1/ geral; o breaker do contest NÃO (é o balde que a mídia deixou).
-location ~ ^/api/v1/contest/(?:team-photo|team-music|placeholder)$ {
+location ~ ^/api/v1/contest/(?:team-music|placeholder)$ {
     error_page 418 = @moj_media;
     return 418;
 }
