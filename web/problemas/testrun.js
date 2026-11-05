@@ -32,7 +32,12 @@ export function testsTable(tests) {
       ? { class: 'num drift', title: T('Acima do tempo-limite, mas aceito pela tolerância do conf (TLMOD[<linguagem>.drift] ou TLMOD[default.drift]).',
                                          'Above the time limit, but accepted by the conf tolerance (TLMOD[<language>.drift] or TLMOD[default.drift]).',
                                          'Por encima del tiempo límite, pero aceptado por la tolerancia del conf (TLMOD[<language>.drift] o TLMOD[default.drift]).') }
-      : { class: 'num' }, t.time == null ? '—' : (+t.time).toFixed(2) + 's'),
+      : { class: 'num' }, t.time == null ? '—' : (+t.time).toFixed(2) + 's',
+      // relógio de CPU (TLCLOCK=cpu): o teste morreu pelo teto de PAREDE — o tempo acima é o CPU, que pode ser pequeno
+      t.wall ? el('span', { class: 'muted', title: T('Relógio de CPU: o teste foi interrompido pelo teto de parede (o programa dormia ou estava bloqueado). O tempo é o de CPU.',
+                                                     'CPU clock: the test was stopped at the wall-clock ceiling (the program was sleeping or blocked). The time is the CPU time.',
+                                                     'Reloj de CPU: la prueba se detuvo en el techo de reloj de pared (el programa dormía o estaba bloqueado). El tiempo es el de CPU.') },
+                         ' · ' + T('parede', 'wall', 'pared')) : null),
     el('td', { class: 'num' }, t.tl == null ? '—' : secs(t.tl)))));
   return el('table', { class: 'soltests' },
     el('thead', {}, el('tr', {},

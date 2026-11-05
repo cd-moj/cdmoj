@@ -124,6 +124,10 @@ const flush = async () => { for (let i = 0; i < 30; i++) await Promise.resolve()
   const cls = (i) => timeCells[i]._cls.has('drift');
   ck('testsTable: AC dentro do TL sem destaque; AC acima do TL em amarelo; TLE não; AC,PE acima também', timeCells.length === 4 && !cls(0) && cls(1) && !cls(2) && cls(3));
   ck('testsTable: o amarelo explica a tolerância no title', /tolerância/.test(timeCells[1].attrs.title || ''));
+  // relógio de CPU (TLCLOCK=cpu): o teste morto pelo teto de PAREDE leva a marca, com a explicação; os outros não
+  const tw = testsTable([{name:'a',code:'TLE',time:0.23,tl:0.33,wall:true},{name:'b',code:'TLE',time:1.2,tl:0.33}]);
+  const wcells = all(tw).filter(n => n.tagName==='TD' && /parede/.test(txt(n)));
+  ck('testsTable: "· parede" só no teste morto pela parede', wcells.length === 1 && /^0\.23s/.test(txt(wcells[0])));
   print(`RESULT: ${PASS} passed, ${FAIL} failed`);
 })().catch(e => { print('EXCEÇÃO: ' + e + '\n' + (e.stack || '')); print('RESULT: 0 passed, 1 failed'); });
 JS

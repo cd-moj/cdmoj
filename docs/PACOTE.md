@@ -960,6 +960,9 @@ de CPU, quando chega ao teto de parede de 5 s (o teto de CPU é de 4 s: 1 + 2,2,
 - **O aluno vê**: o tempo-limite aparece com o selo "tempo de CPU" no treino e no contest, com a explicação do
   teto de parede. A folha de TL da prova marca o problema com † e explica numa nota, nos três idiomas.
 - No report do julgamento, os tempos são de CPU, e cada teste mostra também a parede.
+- Na calibração, o teste que morreu pelo teto de parede leva a marca **parede** (no editor e no `moj calib`): o tempo
+  dele é o de CPU, que pode ficar abaixo do TL. A simulação do TL sabe disso: uma `slow` que dorme dá TLE com certeza
+  em todo TL até aquele com que rodou e fica "não medida" acima dele, sem reprovar a configuração.
 
 ### Soluções: cada uma faz o que a categoria pede?
 

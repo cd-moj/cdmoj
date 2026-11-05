@@ -7438,7 +7438,7 @@
         "tags": [
           "problems"
         ],
-        "summary": "Resumo de calibração por juiz (TL, log, reports) Relógio do TL (05/11/2026; PACOTE.md \"Relógio do TL\"): tl_clock (wall|cpu, o TLCLOCK do conf) e wall_tl (o WALLTL, número ou null) — no cpu os tempos e o TL são de CPU (user+sys) e a parede é um teto maior.",
+        "summary": "Resumo de calibração por juiz (TL, log, reports) Relógio do TL (05/11/2026; PACOTE.md \"Relógio do TL\"): tl_clock (wall|cpu, o TLCLOCK do conf) e wall_tl (o WALLTL, número ou null) — no cpu os tempos e o TL são de CPU (user+sys) e a parede é um teto maior. No relógio de CPU, o teste morto pelo teto de parede vem com wall:true em sols[].tests[] (TLE sem CPU acima do TL); tl_sim e o juízo do Kattis o tratam como TLE certo.",
         "security": [
           {
             "bearerAuth": []

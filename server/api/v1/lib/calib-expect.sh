@@ -42,13 +42,14 @@ def calx_cls: if . == "AC" or . == "AC,PE" then "AC" elif . == "WA" then "WA" el
   elif . == "MLE" then "MLE" elif . == "RE" or . == "RE_NZEC" or . == "TMT" then "RE"
   elif . == "UE" then "UE" else "X" end;
 def calx_num: if type == "number" then . elif . == null then null else (tostring | tonumber? // null) end;
-# calx_tests($m): os testes da solução pelo método $m — [{c, t, tl}] —, ou null se a linha não tem esse juízo.
+# calx_tests($m): os testes da solução pelo método $m — [{c, t, tl, w}] —, ou null se a linha não tem esse juízo. `w` =
+# o teste morreu pelo teto de PAREDE no relógio de CPU (TLCLOCK=cpu; o `wall` do .calib-sols.json): TLE sem CPU acima do TL.
 # As good rodam com o TL fictício da calibração: o juízo delas é por TEMPO (contra o servido), qualquer método.
 def calx_tests($m):
   if (.category // "") == "good" or ((.method // "moj") == $m) then
-    [ (.tests // [])[] | {c: ((.code // "") | calx_cls), t: (.time | calx_num), tl: (.tl | calx_num)} ]
+    [ (.tests // [])[] | {c: ((.code // "") | calx_cls), t: (.time | calx_num), tl: (.tl | calx_num), w: (.wall == true)} ]
   elif ((.tests // []) | length) > 0 and ((.tests // []) | all(has("code_alt"))) then
-    [ (.tests // [])[] | {c: ((.code_alt // "") | calx_cls), t: (.time | calx_num), tl: (.tl_alt | calx_num)} ]
+    [ (.tests // [])[] | {c: ((.code_alt // "") | calx_cls), t: (.time | calx_num), tl: (.tl_alt | calx_num), w: (.wall == true)} ]
   else null end;
 # calx($eff; $allowtle; $drift; $m; $kp): a expectativa de UMA solução pelo método $m. $eff = TL efetivo
 # {lang:"seg"} DESSE método; $allowtle = bool; $drift = a TOLERÂNCIA do conf {lang|default: seg} (calx_drift)
@@ -71,7 +72,9 @@ def calx($eff; $allowtle; $drift; $m; $kp):
   # os testes que deram TLE; o teto de tempo de cada teste (`etl`) diz se a margem chegou a ser medida
   | ($m == "kattis") as $isk
   | ((($kp // {}).a | calx_num) // 2) as $ka | ((($kp // {}).b | calx_num) // 1.5) as $kb
-  | ([ $ts[] | select(.c == "TLE" and .t != null and .tl != null and .tl > 0) | (.t / .tl) ] | max) as $rmax
+  | ([ $ts[] | select(.c == "TLE" and .t != null and .tl != null and .tl > 0 and (.w | not)) | (.t / .tl) ] | max) as $rmax
+  # morte pela PAREDE no relógio de CPU: o teto de parede é ≥ 3 × TL ≥ b × TL — a lenta é lenta de verdade
+  | ([ $ts[] | select(.c == "TLE" and .w) ] | length > 0) as $wallk
   | ((.etl // null) | calx_num) as $etl
   | ([ $ts[] | select(.c == "TLE" and .tl != null) | .tl ] | max) as $tltle
   | (if ($cat | IN("good", "pass", "slow", "wrong") | not) then {state: "skip", why: "category"}
@@ -91,7 +94,7 @@ def calx($eff; $allowtle; $drift; $m; $kp):
      elif $cat == "slow" then
        (if ($n.TLE > 0) and ($wrongish == 0) then
           (if ($isk | not) then {state: "ok", why: "tle"}
-           elif ($rmax != null) and ($rmax >= ($kb - 0.000000001)) then {state: "ok", why: "tle"}
+           elif $wallk or (($rmax != null) and ($rmax >= ($kb - 0.000000001))) then {state: "ok", why: "tle"}
            elif ($etl != null) and ($tltle != null) and ($etl < ($kb * $tltle - 0.000000001))
              then {state: "note", why: "tle_unmeasured"}
            else {state: "note", why: "tle_no_margin"} end)

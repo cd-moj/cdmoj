@@ -649,7 +649,11 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   `_doc_t`); folha de TL da prova: † no problema + nota (`_doc_tl_matrix` lê o `tl_clock` do json do banco). Editor:
   `cf_tlclock`/`cf_walltl` na aba Limites (`CF_SEL` agora leva `[id, chave, default, valores, topo?]` — só o TLMETHOD
   vai ao topo) e aviso de `cpu` + `CPUNEEDED>1` (o `validate-problem.sh` reprova, `conf_tlclock_sane`). Painel: pílula
-  "CPU"; Central: item informativo `tl_clock` (ok, nunca aviso — é escolha do autor). Testes: `smoke-tl-clock.sh`,
+  "CPU"; Central: item informativo `tl_clock` (ok, nunca aviso — é escolha do autor). **Morte pela PAREDE** (o `wall: true`
+  que o calibreitor põe no teste do `sols`): o tempo é o CPU, que pode ficar abaixo do TL — a simulação (`tl-sim.sh`,
+  `wk` = o menor `tl` com que um teste morreu pela parede) o conta como TLE certo em todo TL ≤ wk e "não medido" acima, e
+  o juízo do Kattis (`calx`, `$wallk`) como lento de verdade; o editor (`testsTable`) e o `moj calib` marcam "parede".
+  Sem isso a `slow` que dorme dava "nenhum fator serve" (achado no E2E de 05/11/2026). Testes: `smoke-tl-clock.sh`,
   `smoke-limits-tab.gjs.sh`, `smoke-preflight.sh`, `smoke-statement-langs.sh` (o `/contest/problems`).
 - **LOCKS do store de TL e da calibração (26/10/2026)**: todo ler-e-regravar de `run/tl/<id>.json` passa por
   `_tl_locked <id>` (`lib/tl-store.sh`: `run/tl/<id>.lock`, `flock -w 10`, rc 75 ⇒ o tl-report responde 500) — dois

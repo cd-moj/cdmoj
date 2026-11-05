@@ -1,4 +1,4 @@
-<!-- i18n-source: PACOTE.md blob:0de209847076bb2539cbfb5d2e9310688a9f7b01 -->
+<!-- i18n-source: PACOTE.md blob:5ccb9b8a0930699415cd5e99bf79aa8befaf08fe -->
 # MOJ: the problem package (canonical format)
 
 > **Translation note.** This manual is a translation of the Portuguese original. The command-line tools (`moj`, `moj-contest`, `moj-comp`) print their messages in Portuguese, and the command examples below are identical to the original.
@@ -991,6 +991,10 @@ both: on the CPU clock, when it reaches the 5 s wall-clock ceiling (the CPU ceil
   wall-clock ceiling explained. The contest's time-limit sheet marks the problem with † and explains it in a note,
   in the three languages.
 - In the judging report, the times are CPU time, and each test also shows the wall clock.
+- In the calibration, a test stopped at the wall-clock ceiling gets the **wall** mark (in the editor and in
+  `moj calib`): its time is the CPU time, which can be below the TL. The TL simulation knows this: a `slow` solution
+  that sleeps gets a certain TLE at every TL up to the one it ran with, and is "not measured" above it, without
+  failing the configuration.
 
 ### Solutions: does each one do what its category requires?
 

@@ -16,6 +16,10 @@
 #   slow MOJ  │ algum teste > TL + d          slow Kattis │ algum teste ≥ b × TL (a margem da spec)
 #   O teste morto no teto `etl` só prova "≥ etl": se ele não decide, a solução fica "não medida" (unmeasured) e não
 #   reprova a configuração. Falha que não depende do TL (WA/RE/MLE/UE) e as wrong ficam de fora.
+#   Morte pela PAREDE no relógio de CPU (TLCLOCK=cpu; o `wall` do teste, 05/11/2026): o TLE não veio do CPU, que pode
+#   ter ficado ABAIXO do TL (o programa dormia ou estava bloqueado). Ele prova TLE em toda configuração de TL ≤ o TL com
+#   que o teste rodou (`wk`: o teto de parede só cresce com o TL); acima disso, "não medido". Sem isso a `slow` que dorme
+#   saía "não estoura" em toda linha, e a sugestão virava "nenhum fator serve".
 #
 # Sugestão: MOJ — o cf atual se vale, senão 1,35, senão o meio do intervalo válido [cf_min, cf_max), senão conflito
 # (a solução que dá o piso e a que dá o teto). Kattis — o MAIOR r que vale (com o a e o b do conf), senão o a (mais
@@ -50,17 +54,19 @@ def tls_r6: ((. * 1000000) | round) / 1000000;
 def tls_r2: ((. * 100) | round) / 100;
 def tls_abs: if . < 0 then -. else . end;
 # os casos: UMA solução num juiz da versão atual — {cat, file, lang, host, n, tmax (o maior tempo), wac (o maior AC),
-# killed (algum teste morto no teto), etl, tdep (falha que não depende do TL), acc (aceita: good que conta p/ o W)}
+# killed (algum teste morto no teto), etl, wk (o menor TL com que um teste morreu pela parede, ou null), tdep (falha que
+# não depende do TL), acc (aceita: good que conta p/ o W)}
 def tls_cases($hx; $allowtle):
   [ $hx[] | select(.stale | not) | .host as $h | (.sols // [])[]
     | select((.category // "") | IN("good", "pass", "slow"))
     | ((.etl // null) | tls_num) as $etl
-    | [ (.tests // [])[] | {c: ((.code // "") | calx_cls), t: (.time | tls_num)} ] as $ts
+    | [ (.tests // [])[] | {c: ((.code // "") | calx_cls), t: (.time | tls_num), w: (.wall == true), tl: (.tl | tls_num)} ] as $ts
     | (.verdict // "" | tostring) as $v
     | {cat: .category, file: (.category + "/" + (.file // "")), lang: (.lang // ""), host: $h, n: ($ts | length),
        tmax: ([ $ts[] | .t // empty ] | max), wac: ([ $ts[] | select(.c == "AC") | .t // empty ] | max),
        killed: ([ $ts[] | select(.c == "TLE" and .t != null and $etl != null and .t >= ($etl - 0.000001)) ] | length > 0),
-       etl: $etl, tdep: ([ $ts[] | select(.c | IN("WA", "RE", "MLE", "UE", "X")) ] | length > 0),
+       etl: $etl, wk: ([ $ts[] | select(.w and .c == "TLE" and .tl != null) | .tl ] | min),
+       tdep: ([ $ts[] | select(.c | IN("WA", "RE", "MLE", "UE", "X")) ] | length > 0),
        acc: (($v | startswith("Accepted")) or ($allowtle and ($v | startswith("Time Limit")))),
        ce: (($v | test("^Compilation Error")) or ($v | test("not availa"; "i")))} ];
 # W por juiz ({host: {lang: W}}, só linguagens com good aceita no juiz) e o servido ({lang: W, default})
@@ -87,7 +93,9 @@ def tls_eval($c; $eff; $drift; $isk; $b):
     elif $c.cat == "slow" then
       (if $isk then ($b * $tl) else ($tl + $d) end) as $thr
       | if ($isk and ($c.tmax >= ($thr - 0.000000001))) or (($isk | not) and ($c.tmax > ($thr + 0.000000001))) then "ok"
-        elif $c.killed then "unmeasured" else "fail" end
+        elif $c.wk != null and $tl <= ($c.wk + 0.000000001) then "ok"
+        elif $c.killed or $c.wk != null then "unmeasured" else "fail" end
+    elif $c.wk != null then (if $tl <= ($c.wk + 0.000000001) or $c.tmax > ($tl + $d + 0.000000001) then "fail" else "unmeasured" end)
     elif $c.killed then (if ($tl + $d) < ($c.etl - 0.000000001) then "fail" else "unmeasured" end)
     elif $c.tmax > ($tl + $d + 0.000000001) then "fail" else "ok" end;
 def tls_row($cases; $eff; $drift; $isk; $b):
@@ -96,7 +104,9 @@ def tls_row($cases; $eff; $drift; $isk; $b):
      fail: ([ $ev[] | select(.r == "fail") | .f ] | unique),
      unmeasured: ([ $ev[] | select(.r == "unmeasured") | .f ] | unique)};
 # o intervalo de cf em que todas as soluções que dependem dele saem certas: [min, max) — piso das good/pass, teto
-# das slow (a de teste morto no teto entra pelo etl: abaixo dele a configuração vale com certeza)
+# das slow (a de teste morto no teto entra pelo etl: abaixo dele a configuração vale com certeza; a morta pela parede,
+# pelo TL com que rodou — `wk`, como se o tempo fosse wk + d, com 1 µs de folga: ali o TLE é certo INCLUSIVE no próprio
+# wk, que costuma ser o TL do fator atual, e o intervalo é aberto em cima)
 def tls_cfint($cases; $w; $ov; $m; $drift; $off):
   [ $cases[] | select((.tdep or .ce or .n == 0 or .tmax == null) | not)
     | . as $c
@@ -106,7 +116,7 @@ def tls_cfint($cases; $w; $ov; $m; $drift; $off):
     | (((($m // {}).mult // {})[$c.lang] // 1) | tls_num) as $x
     | (((($drift // {})[$c.lang] // ($drift // {}).default // 0) | tls_num) // 0) as $d
     | select($wl != null and $wl > 0 and $x != null and $x > 0)
-    | (if $c.killed then $c.etl else $c.tmax end) as $t
+    | ([ $c.tmax, (if $c.killed then $c.etl else empty end), (if $c.wk != null then ($c.wk + $d + 0.000001) else empty end) ] | max) as $t
     | ((((($t - $d) / $x) - $s - 0.02 - $off) / $wl)) as $cf
     | {f: $c.file, cf: $cf, k: (if $c.cat == "slow" then "max" else "min" end)} ] as $b
   | ([ $b[] | select(.k == "min") ] | max_by(.cf)) as $lo
@@ -117,7 +127,7 @@ def tls_cfint($cases; $w; $ov; $m; $drift; $off):
 # os limites do TL EFETIVO do Kattis que cada solução impõe, sem o arredondamento: good/pass pedem TL ≥ tmax − d; a
 # lenta pede b × TL ≤ tmax. No conflito, nomeia a de piso mais alto e a lenta de teto mais baixo (o par que se cruza)
 def tls_kbounds($cases; $ov; $drift; $b):
-  [ $cases[] | select((.tdep or .ce or .n == 0 or .tmax == null or .killed) | not) | . as $c
+  [ $cases[] | select((.tdep or .ce or .n == 0 or .tmax == null or .killed or .wk != null) | not) | . as $c
     | select((($ov // {})[$c.lang] // ($ov // {}).default) == null)
     | (((($drift // {})[$c.lang] // ($drift // {}).default // 0) | tls_num) // 0) as $d
     | if $c.cat == "slow" then {f: $c.file, k: "max", v: ($c.tmax / $b)} else {f: $c.file, k: "min", v: ($c.tmax - $d)} end ] as $x

@@ -1,4 +1,4 @@
-<!-- i18n-source: PACOTE.md blob:0de209847076bb2539cbfb5d2e9310688a9f7b01 -->
+<!-- i18n-source: PACOTE.md blob:5ccb9b8a0930699415cd5e99bf79aa8befaf08fe -->
 # MOJ: el paquete de problema (formato canónico)
 
 > **Nota de traducción.** Este manual es una traducción del original en portugués. Las herramientas de línea de comandos (`moj`, `moj-contest`, `moj-comp`) muestran sus mensajes en portugués, y los ejemplos de comandos son idénticos al original.
@@ -975,6 +975,10 @@ en los dos: en el de CPU, cuando llega al techo de reloj de pared de 5 s (el tec
   competencia, con la explicación del techo de reloj de pared. La hoja de tiempos límite de la competencia marca el
   problema con † y lo explica en una nota, en los tres idiomas.
 - En el reporte de la evaluación, los tiempos son de CPU, y cada prueba muestra también el reloj de pared.
+- En la calibración, la prueba detenida en el techo de reloj de pared lleva la marca **pared** (en el editor y en
+  `moj calib`): su tiempo es el de CPU, que puede quedar por debajo del TL. La simulación del TL lo sabe: una `slow` que
+  duerme da TLE con certeza en todo TL hasta aquel con el que corrió, y queda "no medida" por encima, sin reprobar la
+  configuración.
 
 ### Soluciones: ¿cada una hace lo que pide su categoría?
 
