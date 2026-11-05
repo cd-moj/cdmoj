@@ -1,9 +1,12 @@
 # GET /contest/team-music?contest=<id>&user=<login>   -> a MÚSICA do time (audio/mpeg)
-# Gate = o do PLACAR (público; contest SECRETO exige sessão do contest), igual ao /contest/team-photo.
+# Público, inclusive em contest SECRETO (ver abaixo), igual ao /contest/team-photo. O nginx serve a música do DISCO antes de
+# chegar aqui (moj-app.conf.in "MÍDIA DE TIME", com Range/206); este handler responde o que cai nele — a música PADRÃO,
+# argumento estranho, host de outro contest — e o caminho sem nginx. Mesmo cache dos dois lados: a música real com
+# `&v=<mtime>` (a galeria do telão) é imutável; sem ele (o telão externo) e a padrão, 1 min.
 # TIME SEM MÚSICA não dá 404: devolve a MÚSICA PADRÃO do contest (200) com o cabeçalho
 # `X-MOJ-Music: placeholder` — é o que faz o Animeitor ter faixa para todo time do placar.
 # Quem precisa saber quem MANDOU a sua usa o `has_music` das listagens.
-# Sem suporte a Range (a API não tem em lugar nenhum): o player toca progressivo, que é o uso
+# Sem suporte a Range AQUI (a API não tem em lugar nenhum; o nginx tem): o player toca progressivo, que é o uso
 # aqui (tocar do começo quando o time resolve). Mandamos Content-Length para o cliente saber o
 # tamanho e conseguir mostrar a duração.
 contest="$(param contest)"
@@ -21,11 +24,13 @@ valid_id "$quser" || fail 400 "Invalid user" "user_invalid"
 source "$_LIBDIR/team-music.sh"
 
 f="$(tm_file "$contest" "$quser")"
-if [[ -n "$f" ]]; then ph=0; else f="$(tm_placeholder "$contest")"; ph=1; fi
+cc="public, max-age=60"
+if [[ -n "$f" ]]; then ph=0; [[ -n "$(param v)" ]] && cc="public, max-age=31536000, immutable"
+else f="$(tm_placeholder "$contest")"; ph=1; fi
 [[ -n "$f" ]] || fail 404 "Sem música" "no_music"   # nem padrão (instalação sem server/etc)
 
-printf 'Status: 200 OK\r\nContent-Type: audio/mpeg\r\nContent-Length: %s\r\nAccept-Ranges: none\r\nCache-Control: max-age=60\r\n' \
-  "$(stat -c %s "$f" 2>/dev/null || echo 0)"
+printf 'Status: 200 OK\r\nContent-Type: audio/mpeg\r\nContent-Length: %s\r\nAccept-Ranges: none\r\nCache-Control: %s\r\n' \
+  "$(stat -c %s "$f" 2>/dev/null || echo 0)" "$cc"
 (( ph )) && printf 'X-MOJ-Music: placeholder\r\n'
 printf '\r\n'
 cat "$f"

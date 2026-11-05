@@ -174,6 +174,9 @@ call /contest/animeitor/music POST ani 'contest=an' "{\"login\":\"telao.animeito
 ck "conta de papel não tem música" 'grep -q "role_account" <<<"$BODY"'
 callf /contest/team-music GET '' 'contest=an&user=time-a' '' "$TMP/m1.bin"
 ck "team-music serve audio/mpeg"  'head -c 200 "$TMP/m1.bin" | grep -q "Content-Type: audio/mpeg" && head -c 200 "$TMP/m1.bin" | grep -q "Content-Length: 3336"'
+ck "música sem v: 1 min"           'head -c 300 "$TMP/m1.bin" | grep -q "Cache-Control: public, max-age=60"'
+callf /contest/team-music GET '' 'contest=an&user=time-a&v=9' '' "$TMP/m1v.bin"
+ck "música com v: imutável (o mesmo cache do nginx)" 'head -c 300 "$TMP/m1v.bin" | grep -q "Cache-Control: public, max-age=31536000, immutable"'
 ck "quem TEM música não leva padrão" '! head -c 200 "$TMP/m1.bin" | grep -q "X-MOJ-Music"'
 callf /contest/team-music GET '' 'contest=an&user=time-b' '' "$TMP/m2.bin"
 ck "sem música → 200 com a padrão" 'head -c 200 "$TMP/m2.bin" | grep -q "Status: 200" && head -c 200 "$TMP/m2.bin" | grep -q "X-MOJ-Music: placeholder"'

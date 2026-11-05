@@ -4612,7 +4612,7 @@
         "tags": [
           "contest"
         ],
-        "summary": "Música do time — PÚBLICA, inclusive em contest secreto (mp3 — a faixa que o telão toca quando ele resolve). TIME SEM MÚSICA devolve a MÚSICA PADRÃO do contest (200 + header X-MOJ-Music: placeholder), não 404 — quem precisa saber quem mandou a sua usa has_music das listagens. Sem suporte a Range (toca progressivo) ⚠ em contest SUPER SECRETO o <img>/<audio> cru não serve (tag de mídia não manda Authorization): o cliente tem de BUSCAR com Bearer — o front usa web/shared/media-auth.js, que converte em blob:",
+        "summary": "Música do time — PÚBLICA, inclusive em contest secreto (mp3 — a faixa que o telão toca quando ele resolve). TIME SEM MÚSICA devolve a MÚSICA PADRÃO do contest (200 + header X-MOJ-Music: placeholder), não 404 — quem precisa saber quem mandou a sua usa has_music das listagens. O nginx serve a música do time direto do disco (ETag/304, Range/206); a padrão, argumento fora da lista de caracteres e o subdomínio de outro contest caem no handler bash (sem Range). Cache-Control: com v = public, max-age=31536000, immutable; sem v e a padrão = 60 s",
         "parameters": [
           {
             "$ref": "#/components/parameters/contest"
@@ -4624,16 +4624,20 @@
             "schema": {
               "type": "string"
             }
-          }
-        ],
-        "security": [
+          },
           {
-            "bearerAuth": []
+            "name": "v",
+            "in": "query",
+            "required": false,
+            "description": "cache-buster estável (o music_mtime da galeria do telão): com ele a resposta da música real é imutável",
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
           "200": {
-            "description": "audio/mpeg (+ Content-Length); sem música do time vem a padrão (X-MOJ-Music: placeholder)"
+            "description": "audio/mpeg (+ Content-Length); 206 com Range (só o nginx); sem música do time vem a padrão (X-MOJ-Music: placeholder)"
           }
         }
       }

@@ -5,10 +5,11 @@
 #   · o BRASÃO válido sai do DISCO pelo nginx (image/png, ETag, 304), com cache imutável quando a URL leva `v`;
 #   · a FOTO também: photo.webp › photo.png legado (a ordem do tp_file), `thumb` não vazio = só a photo.thumb.webp, e o
 #     cache do bash (miniatura 1 dia, foto 1 min, imutável com `v`);
+#   · e a MÚSICA: music.mp3 (audio/mpeg, Range/206), 1 min sem `v`, imutável com ele;
 #   · TODO o resto cai no bash (@moj_media), que segue sendo a autoridade: argumento fora da lista de caracteres
 #     (ponto/hífen no começo, %, /), host de OUTRO contest (o contest_mismatch), arquivo ausente (a foto PADRÃO, a
 #     miniatura que o bash gera), argumento faltando;
-#   · música e o padrão vão ao bash pela zona PRÓPRIA de mídia, com o freio do treino valendo no site principal;
+#   · o padrão vai ao bash pela zona PRÓPRIA de mídia, com o freio do treino valendo no site principal;
 #   · o bloco "MÍDIA DE TIME" é o MESMO nos dois templates do conf.d (só um deles é instalado).
 # Com `nginx` no PATH sobe um nginx de teste (porta alta, tudo em tmp) com o snippet e o bloco REAIS renderizados; cada
 # `fastcgi_pass` vira um `return` que ecoa a rota — é como se vê que o pedido caiu no bash. Sem nginx, só os templates.
@@ -23,6 +24,7 @@ ck "o bloco existe no moj-prod.conf.in"                 '[[ "$(blk "$E/moj-prod.
 ck "…e é IGUAL no moj-prod-http.conf.in"                '[[ "$(blk "$E/moj-prod.conf.in")" == "$(blk "$E/moj-prod-http.conf.in")" ]]'
 ck "o snippet serve o brasão do disco e cai no bash"    'grep -q "location = /api/v1/contest/team-logo" "$TPL" && grep -q "try_files     \$moj_logo_file @moj_media;" "$TPL"'
 ck "…e a foto (webp › png legado › bash)"               'grep -q "location = /api/v1/contest/team-photo" "$TPL" && grep -q "try_files     \$moj_photo_file \$moj_photo_alt @moj_media;" "$TPL"'
+ck "…e a música"                                        'grep -q "location = /api/v1/contest/team-music" "$TPL" && grep -q "try_files     \$moj_music_file @moj_media;" "$TPL"'
 ck "@moj_media: zona própria, SEM o breaker do contest" '[[ "$(sed -n "/^location @moj_media {/,/^}/p" "$TPL" | grep -c "limit_conn              moj_media\|moj-breaker-contest")" == 1 ]] && sed -n "/^location @moj_media {/,/^}/p" "$TPL" | grep -q "limit_conn              moj_media"'
 
 if ! command -v nginx >/dev/null 2>&1; then
@@ -48,6 +50,7 @@ printf '\x89PNG\r\n\x1a\nfoto-legado'  > "$U/legado/photo.png"
 printf 'RIFF0000WEBPfoto-dupla'        > "$U/dupla/photo.webp"
 printf '\x89PNG\r\n\x1a\nresiduo-dupla' > "$U/dupla/photo.png"
 printf 'RIFF0000WEBPfoto-semthumb'     > "$U/semthumb/photo.webp"
+printf 'ID3musica-do-time1-0123456789' > "$U/time1/music.mp3"
 # o snippet REAL: includes de /etc/nginx fora (não existem aqui); cada fastcgi_pass ecoa a rota e a location
 sed "s#@WORKROOT@#$T/wr#g; s#@ROUTER@#/nao/usado#g; /include[[:space:]]\+\/etc\/nginx\/moj-/d" "$TPL" \
   | awk '/^location @moj_media \{/{m=1} /^\}/{m=0}
@@ -124,6 +127,24 @@ ck "subdomínio de OUTRO contest: bash"                  'fellp outra.moj.test "
 ck "login com ponto no começo: bash"                    'fellp moj.test "$P?contest=prova-x&user=.removed-users"'
 ck "barra codificada: bash"                             'fellp moj.test "$P?contest=prova-x&user=..%2Ftime1&thumb=1"'
 
+echo "== a música sai do disco =="
+M='/api/v1/contest/team-music'
+req moj.test "$M?contest=prova-x&user=time1"
+ck "música: o music.mp3, audio/mpeg, Content-Length"    '[[ "$S" == 200 && "$B" == ID3musica-do-time1-0123456789 && "$(hd Content-Type)" == audio/mpeg && "$(hd Content-Length)" == 29 ]]'
+ck "música sem v: 1 min (o telão externo busca sem v)"  '[[ "$(hd Cache-Control)" == "public, max-age=60" && -n "$(hd ETag)" ]]'
+ET="$(hd ETag)"; req moj.test "$M?contest=prova-x&user=time1" -H "If-None-Match: $ET"
+ck "música: If-None-Match → 304"                        '[[ "$S" == 304 && -z "$B" ]]'
+req moj.test "$M?contest=prova-x&user=time1" -H "Range: bytes=3-8"
+ck "música: Range → 206 com o pedaço"                   '[[ "$S" == 206 && "$B" == musica && "$(hd Content-Range)" == "bytes 3-8/29" ]]'
+req moj.test "$M?contest=prova-x&user=time1&v=77"
+ck "música com v: imutável"                             '[[ "$S" == 200 && "$(hd Cache-Control)" == "public, max-age=31536000, immutable" ]]'
+req prova-x.moj.test "$M?contest=prova-x&user=time1"
+ck "no subdomínio DO contest: do disco"                 '[[ "$S" == 200 && "$B" == ID3musica* ]]'
+fellm(){ req "$1" "$2"; [[ "$S" == 200 && "$B" == "bash-media $M?"* ]]; }
+ck "time sem música: bash (a música PADRÃO)"            'fellm moj.test "$M?contest=prova-x&user=time2"'
+ck "subdomínio de OUTRO contest: bash"                  'fellm outra.moj.test "$M?contest=prova-x&user=time1"'
+ck "login com hífen no começo: bash"                    'fellm moj.test "$M?contest=prova-x&user=-time1"'
+
 echo "== todo o resto cai no bash (a autoridade) =="
 fell(){ req "$1" "$2"; [[ "$S" == 200 && "$B" == "bash-media $L?"* ]]; }
 ck "time sem brasão"                                    'fell moj.test "$L?contest=prova-x&user=time2"'
@@ -143,12 +164,10 @@ ck "pipe cru não forja o separador da chave do map"    'fell moj.test "$L?conte
 req moj.test "$L?contest=prova-x&user=..%2F..%2Fsegredo"
 ck "…e nada de fora do contests/ vaza"                  '[[ "$B" != *SEGREDO* ]]'
 
-echo "== música e o padrão: bash pela zona de mídia =="
-for r in team-music placeholder; do
-  req moj.test "/api/v1/contest/$r?contest=prova-x&user=time1&thumb=1"
-  ck "$r → @moj_media com a query"                     '[[ "$B" == "bash-media /api/v1/contest/$r?contest=prova-x&user=time1&thumb=1" ]]'
-done
-req prova-x.moj.test "/api/v1/contest/team-music?contest=prova-x&user=time1"
+echo "== o padrão: bash pela zona de mídia =="
+req moj.test "/api/v1/contest/placeholder?contest=prova-x&kind=music&thumb=1"
+ck "placeholder → @moj_media com a query"               '[[ "$B" == "bash-media /api/v1/contest/placeholder?contest=prova-x&kind=music&thumb=1" ]]'
+req prova-x.moj.test "/api/v1/contest/placeholder?contest=prova-x"
 ck "…também no subdomínio"                              '[[ "$B" == bash-media* ]]'
 req moj.test "/api/v1/contest/team-photos?contest=prova-x"
 ck "rota vizinha (team-photos) segue na /api/v1/ geral"  '[[ "$B" == bash-geral* ]]'
@@ -157,16 +176,18 @@ ck "o resto da API segue na /api/v1/ geral"             '[[ "$B" == bash-geral* 
 
 echo "== freio do treino (moj-shed-treino) =="
 touch "$T/shed"
-req moj.test "/api/v1/contest/team-music?contest=prova-x&user=time1"
+req moj.test "/api/v1/contest/placeholder?contest=prova-x"
 ck "site principal: mídia no bash → 503"                '[[ "$S" == 503 ]]'
 req moj.test "/api/v1/contest/team-photo?contest=prova-x&user=time2"
 ck "…inclusive a foto que caiu no bash (a padrão)"      '[[ "$S" == 503 ]]'
-req prova-x.moj.test "/api/v1/contest/team-music?contest=prova-x&user=time1"
+req prova-x.moj.test "/api/v1/contest/placeholder?contest=prova-x"
 ck "subdomínio de contest: não olha o freio"            '[[ "$S" == 200 && "$B" == bash-media* ]]'
 req moj.test "$L?contest=prova-x&user=time1"
 ck "o brasão do disco não passa pelo bash: segue 200"   '[[ "$S" == 200 && "$B" == *brasao-time1 ]]'
 req moj.test "/api/v1/contest/team-photo?contest=prova-x&user=time1&thumb=1"
 ck "…nem a foto do disco"                               '[[ "$S" == 200 && "$B" == *thumb-time1 ]]'
+req moj.test "/api/v1/contest/team-music?contest=prova-x&user=time1"
+ck "…nem a música do disco"                             '[[ "$S" == 200 && "$B" == ID3musica* ]]'
 rm -f "$T/shed"
 
 echo ""; echo "RESULT: $pass passed, $fail failed"; exit $(( fail>0?1:0 ))
