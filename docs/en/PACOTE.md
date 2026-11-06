@@ -1,4 +1,4 @@
-<!-- i18n-source: PACOTE.md blob:0bdf63d3f725971757f2e0572ec2348896624f4e -->
+<!-- i18n-source: PACOTE.md blob:ce4d266a52f5d7304839304a8aaec6fc236a8f4b -->
 # MOJ: the problem package (canonical format)
 
 > **Translation note.** This manual is a translation of the Portuguese original. The command-line tools (`moj`, `moj-contest`, `moj-comp`) print their messages in Portuguese, and the command examples below are identical to the original.
@@ -134,6 +134,10 @@ The quality gate enforces three rules:
 
 1. **The sections `## Entrada` and `## Saída` are mandatory.** Without them the problem fails
    validation. (The validator also accepts `## Input`, `## Output` and `## Salida`, with one to three `#`.)
+   In an **interactive** problem, an `## Interaction` section counts for both. `## Interação` and
+   `## Interacción` also count. Describe the conversation with the arbiter in it. Do not write `## Input` only
+   to point to the Interaction section. Warning: `SAMPLE=no` does not remove the sections. In a function
+   submission, `## Input` describes the parameters and `## Output` describes the return value.
 2. **The title does not go in the text.** A first line `% Título do problema` is **legacy**: the
    renderer removes it. The real title is the field `display_title` of `.moj-meta.json` (section 5).
    The renderer injects an `<h1>` from it.
@@ -834,8 +838,8 @@ Arthur Botelho, 2026-09-22).
 | `has_author` | the file `author` exists |
 | `has_statement` | `docs/enunciado.{md,org,tex}` exists |
 | `html_builds` | pandoc can render the statement |
-| `secao_entrada` | the statement has `## Entrada` |
-| `secao_saida` | the statement has `## Saída` (accepts `Output` and `Salida`) |
+| `secao_entrada` | the statement has `## Entrada`, or an `## Interaction` section (interactive problem) |
+| `secao_saida` | the statement has `## Saída` (accepts `Output` and `Salida`), or an `## Interaction` section |
 | `html_builds_<lang>`, `secao_entrada_<lang>`, `secao_saida_<lang>` | the same, for each translation `docs/enunciado.<lang>.md` that exists |
 | `examples_present` | at least one input/output pair exists |
 | `tests_paired` | each input has its output, and the reverse |

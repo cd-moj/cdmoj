@@ -7300,7 +7300,7 @@
         ],
         "responses": {
           "200": {
-            "description": "{checks:[{name,ok,detail}],html_built,render_warnings,ok} — checks incluem secao_entrada/secao_saida; render_warnings pode trazer 'exemplo-no-texto?'"
+            "description": "{checks:[{name,ok,detail}],html_built,render_warnings,ok} — checks incluem secao_entrada/secao_saida (## Entrada e ## Saída, ou uma seção ## Interação/Interaction/Interacción no interativo, que vale pelas duas: ok com o detalhe 'dispensada'); render_warnings pode trazer 'exemplo-no-texto?'"
           }
         }
       }

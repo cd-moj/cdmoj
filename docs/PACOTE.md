@@ -131,6 +131,10 @@ Três regras que o portão de qualidade cobra:
 
 1. **As seções `## Entrada` e `## Saída` são obrigatórias.** Sem elas o problema não passa na
    validação. (O validador também aceita `## Input`, `## Output` e `## Salida`, e de um a três `#`.)
+   No problema **interativo**, uma seção `## Interação` vale pelas duas. Valem também `## Interaction` e
+   `## Interacción`. Descreva nela a conversa com o árbitro. Não escreva `## Entrada` só para remeter à
+   Interação. Atenção: o `SAMPLE=no` não dispensa as seções. Na submissão de função, `## Entrada`
+   descreve os parâmetros e `## Saída` descreve o retorno.
 2. **O título não vai no texto.** Uma primeira linha `% Título do problema` é **legado**: o
    renderizador a remove. O título verdadeiro é o campo `display_title` do `.moj-meta.json`
    (seção 5), e o renderizador injeta um `<h1>` a partir dele.
@@ -808,8 +812,8 @@ estavam conferidas (relato do Arthur Botelho, 22/09/2026).
 | `has_author` | existe o arquivo `author` |
 | `has_statement` | existe `docs/enunciado.{md,org,tex}` |
 | `html_builds` | o pandoc consegue renderizar o enunciado |
-| `secao_entrada` | o enunciado tem `## Entrada` |
-| `secao_saida` | o enunciado tem `## Saída` (aceita `Output` e `Salida`) |
+| `secao_entrada` | o enunciado tem `## Entrada`, ou uma seção `## Interação` (problema interativo) |
+| `secao_saida` | o enunciado tem `## Saída` (aceita `Output` e `Salida`), ou uma seção `## Interação` |
 | `html_builds_<lang>`, `secao_entrada_<lang>`, `secao_saida_<lang>` | o mesmo, para cada tradução `docs/enunciado.<lang>.md` presente |
 | `examples_present` | existe pelo menos um par input/output |
 | `tests_paired` | todo input tem seu output, e vice-versa |

@@ -35,7 +35,9 @@ Imprima um único inteiro: a quantidade de pares.
 Três regras que a validação cobra ou avisa:
 
 1. **`## Entrada` e `## Saída` são obrigatórias** (valem também `## Input`/`## Output`). Outras
-   seções são livres: `## Notas`, `## Observação`, `## Subtarefas`…
+   seções são livres: `## Notas`, `## Observação`, `## Subtarefas`… No problema **interativo**, a seção
+   `## Interação` vale pelas duas: descreva nela a conversa com o árbitro (ver
+   [PACOTE](PACOTE.md)).
 2. **O título não vai no texto.** Ele é um campo do problema; um `% Título` na primeira linha é
    legado e é removido.
 3. **Os exemplos não vão no texto.** Eles vêm de `tests/input/sample*` e aparecem sozinhos no fim.

@@ -85,6 +85,13 @@ ck "aviso nota-sem-traducao(sample2,en)" 'grep -q "nota-sem-traducao(sample2,en)
 printf 'Salida test.\n\n## Entrada\n\nx\n\n## Salida\n\ny\n' > "$P/docs/enunciado.es.md"
 VALIDATE_RUN_SOLS=0 TREINO_JSONS="$FIX/treino/var/jsons" bash "$MOJTOOLS_DIR/validate-problem.sh" "$P" "col#pa" >/dev/null 2>&1
 ck "## Salida passa na seção de saída ES" '[[ "$(jq -r ".checks[]|select(.name==\"secao_saida_es\")|.ok" "$V")" == true ]]'
+# INTERATIVO (05/11/2026): uma seção de Interação vale pelo par Entrada/Saída — a convenção do Kattis
+printf 'Interacción test.\n\n## Interacción\n\nEl juez envía N.\n' > "$P/docs/enunciado.es.md"
+VALIDATE_RUN_SOLS=0 TREINO_JSONS="$FIX/treino/var/jsons" bash "$MOJTOOLS_DIR/validate-problem.sh" "$P" "col#pa" >/dev/null 2>&1
+ck "## Interacción vale pela entrada E pela saída ES (dispensada)" '[[ "$(jq -r "[.checks[]|select(.name==\"secao_entrada_es\" or .name==\"secao_saida_es\")|.ok]|all" "$V")" == true && "$(jq -r ".checks[]|select(.name==\"secao_entrada_es\")|.detail" "$V")" == dispensada* ]]'
+printf 'Sin secciones.\n\n## Notas\n\nx\n' > "$P/docs/enunciado.es.md"
+VALIDATE_RUN_SOLS=0 TREINO_JSONS="$FIX/treino/var/jsons" bash "$MOJTOOLS_DIR/validate-problem.sh" "$P" "col#pa" >/dev/null 2>&1
+ck "…e sem nenhuma das formas segue reprovando"  '[[ "$(jq -r ".checks[]|select(.name==\"secao_entrada_es\")|.ok" "$V")" == false && "$(jq -r .ok "$V")" == false ]]'
 rm -f "$P/docs/enunciado.es.md"
 TREINO_JSONS="$FIX/treino/var/jsons" MOJ_TL_STORE="$RUN/tl" bash "$MOJTOOLS_DIR/gen-problem-json.sh" "$P" "col#pa" >/dev/null 2>&1
 

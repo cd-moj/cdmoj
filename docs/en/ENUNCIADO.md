@@ -1,4 +1,4 @@
-<!-- i18n-source: ENUNCIADO.md blob:f5fe9f2a5b40ad163417a47e89df1ace605fd0cb -->
+<!-- i18n-source: ENUNCIADO.md blob:f877ebec7c6b33e5e5b334ea2815635324ceb276 -->
 # Writing the statement: Markdown and formulas
 
 > **Translation note.** This manual is a translation of the Portuguese original. The command-line tools (`moj`, `moj-contest`, `moj-comp`) print their messages in Portuguese, and the command examples below are identical to the original.
@@ -39,7 +39,8 @@ The validation enforces or warns about three rules:
 
 1. **`## Input` and `## Output` are required.** The Portuguese headings `## Entrada`/`## Saída` are also
    valid (and so are the Spanish `## Entrada`/`## Salida`). You can add other sections freely:
-   `## Notes`, `## Remarks`, `## Subtasks`…
+   `## Notes`, `## Remarks`, `## Subtasks`… In an **interactive** problem, the `## Interaction` section
+   counts for both. Describe the conversation with the arbiter in it (see [PACOTE](PACOTE.md)).
 2. **Do not put the title in the text.** The title is a field of the problem. A `% Title` on the first
    line is legacy, and the system removes it.
 3. **Do not put the samples in the text.** They come from `tests/input/sample*`, and they appear

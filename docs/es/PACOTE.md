@@ -1,4 +1,4 @@
-<!-- i18n-source: PACOTE.md blob:0bdf63d3f725971757f2e0572ec2348896624f4e -->
+<!-- i18n-source: PACOTE.md blob:ce4d266a52f5d7304839304a8aaec6fc236a8f4b -->
 # MOJ: el paquete de problema (formato canónico)
 
 > **Nota de traducción.** Este manual es una traducción del original en portugués. Las herramientas de línea de comandos (`moj`, `moj-contest`, `moj-comp`) muestran sus mensajes en portugués, y los ejemplos de comandos son idénticos al original.
@@ -134,6 +134,10 @@ Tres reglas que exige el filtro de calidad:
 
 1. **Las secciones `## Entrada` y `## Saída` son obligatorias.** Sin ellas el problema no pasa la
    validación. (El validador también acepta `## Input`, `## Output` y `## Salida`, y de uno a tres `#`.)
+   En el problema **interactivo**, una sección `## Interacción` vale por las dos. También valen
+   `## Interação` e `## Interaction`. Describe en ella la conversación con el árbitro. No escribas
+   `## Entrada` solo para remitir a la Interacción. Atención: `SAMPLE=no` no quita las secciones. En el envío
+   de función, `## Entrada` describe los parámetros y `## Salida` describe el valor de retorno.
 2. **El título no va en el texto.** Una primera línea `% Título do problema` es **legado**: el
    renderizador la quita. El título verdadero es el campo `display_title` del `.moj-meta.json`
    (sección 5), y el renderizador inyecta un `<h1>` a partir de él.
@@ -819,8 +823,8 @@ estaban verificadas (relato de Arthur Botelho, 22/09/2026).
 | `has_author` | existe el archivo `author` |
 | `has_statement` | existe `docs/enunciado.{md,org,tex}` |
 | `html_builds` | pandoc logra renderizar el enunciado |
-| `secao_entrada` | el enunciado tiene `## Entrada` |
-| `secao_saida` | el enunciado tiene `## Saída` (acepta `Output` y `Salida`) |
+| `secao_entrada` | el enunciado tiene `## Entrada`, o una sección `## Interacción` (problema interactivo) |
+| `secao_saida` | el enunciado tiene `## Saída` (acepta `Output` y `Salida`), o una sección `## Interacción` |
 | `html_builds_<lang>`, `secao_entrada_<lang>`, `secao_saida_<lang>` | lo mismo, para cada traducción `docs/enunciado.<lang>.md` presente |
 | `examples_present` | existe al menos un par input/output |
 | `tests_paired` | todo input tiene su output, y viceversa |

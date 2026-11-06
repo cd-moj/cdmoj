@@ -1,4 +1,4 @@
-<!-- i18n-source: ENUNCIADO.md blob:f5fe9f2a5b40ad163417a47e89df1ace605fd0cb -->
+<!-- i18n-source: ENUNCIADO.md blob:f877ebec7c6b33e5e5b334ea2815635324ceb276 -->
 # Escribir el enunciado: Markdown y fórmulas
 
 > **Nota de traducción.** Este manual es una traducción del original en portugués. Las herramientas de línea de comandos (`moj`, `moj-contest`, `moj-comp`) muestran sus mensajes en portugués, y los ejemplos de comandos son idénticos al original.
@@ -39,6 +39,8 @@ Tres reglas que la validación exige o sobre las que advierte:
 
 1. **`## Entrada` y `## Salida` son obligatorias.** También valen `## Input`/`## Output` y el título
    portugués `## Saída`. Las demás secciones son libres: `## Notas`, `## Observaciones`, `## Subtareas`…
+   En el problema **interactivo**, la sección `## Interacción` vale por las dos. Describe en ella la
+   conversación con el árbitro (ver [PACOTE](PACOTE.md)).
 2. **El título no va en el texto.** Es un campo del problema; un `% Título` en la primera línea es
    un formato heredado y el sistema lo elimina.
 3. **Los ejemplos no van en el texto.** Vienen de `tests/input/sample*` y aparecen solos al final.
