@@ -1576,7 +1576,10 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   (`find`). O jq do coletor mora em VARIÁVEIS — o
   `jq-portability.sh` não o compila: rode os smokes com o jq 1.7 antes de deployar. Teste
   com mock: `smoke-contest-nutella.sh`. Comando novo se valida na imagem de TESTE `26tete`,
-  nunca numa sede real.
+  nunca numa sede real. **Trava de tela (06/11/2026)**: mora no SERVIDOR do nutellaboot; só
+  `POST …/lock|unlock` (ações `lock`/`unlock` do `/contest/nutella`, botões 🔒/🔓 do painel) a mudam —
+  `cantouch`/`donottouch` por `…/commands` voltam na mesma volta do long-poll e saíram da lista do painel.
+  `precontest` ("Iniciar prova") e `cleanhomenow` APAGAM as homes: o painel pede o id da sede digitado.
 - **PAINEL DO TREINO: admin × super-admin e AÇÃO DE VÁRIOS ALVOS (16/10/2026)** — um `.admin` comum deslogou 1.310
   contas de uma vez (ele mesmo e o super-admin no meio), e as `/ops` aceitavam o `.admin` LOCAL de qualquer contest.
   Portões em `lib/auth.sh`: **`require_treino_admin`** (sessão DO TREINO + `.admin`) e **`require_treino_superadmin`**

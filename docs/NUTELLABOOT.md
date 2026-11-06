@@ -59,6 +59,17 @@ máquina↔time** (roster/binding).
   só tem o GET do long-poll da própria máquina: **405**), e a rota de frota `POST /commands` exige
   `targets:{sede: "all"|[macs]}` **e credencial de console**. O MOJ usou as duas erradas até 21/09/2026 e o
   mock, que aceitava qualquer POST, escondeu — hoje o mock é estrito como o serviço.
+- **Trava de tela (06/11/2026, LATAM)**: a trava mora NO SERVIDOR do nutellaboot (`lockstate` da máquina, que a
+  tela de bloqueio consulta a cada ~4 s, inclusive depois de reiniciar). Muda SÓ por
+  **`POST /site-images/{i}/lock|unlock`** (corpo vazio ou `{"target":"all"}`; lista de MACs = 400 `no_target`) e
+  **`POST /site-images/{i}/machines/{mac}/lock|unlock`** (sem corpo), escopo `commands:write`; a rota também
+  enfileira o `donottouch`/`cantouch` p/ o agente agir na hora e gera `machine.locked/unlocked`. ⚠ Mandar
+  `cantouch`/`donottouch` por `…/commands` só fala com o agente: a tela volta ao estado do servidor na mesma volta
+  do long-poll — era o "destrava e retrava" relatado na LATAM. Por isso o painel não oferece os dois na lista de
+  comandos, e sim os botões 🔒/🔓.
+- **`precontest` = "Iniciar prova" e APAGA**: limpa as homes, liga o firewall, zera os editores e trava a tela no
+  servidor; nada destrava sozinho depois. `cleanhomenow` também apaga. No painel os dois pedem o id da sede
+  DIGITADO (o `confirm` comum é fácil de aceitar sem ler).
 - Auth: `Authorization: Bearer …`, em duas classes que o MOJ aceita:
   - **`nb3s_…` — chave de SERVIÇO, a recomendada: UMA POR EVENTO**, criada pelo Ribas na tela `/admin/` do
     nutellaboot com os escopos `machines:read commands:write alerts:write bindings:write roster:read
@@ -179,7 +190,9 @@ máquina↔time** (roster/binding).
   `source:"binding"` — um roster oficial enviado depois a sobrescreve; **`push-bindings` vai em LOTE**
   (`PUT …/bindings`, até 1000 por request, resultado por item; serviço antigo sem a rota cai na fila de sempre).
   `command-status {image, command_id}` lê `GET …/commands/{id}` (acked/pending/expired por MAC) — o painel
-  acompanha por 60 s depois de mandar uma ordem. `status.agent_version`/`capabilities` (camada 2026.09.2) marca o
+  acompanha por 60 s depois de mandar uma ordem. **`lock`/`unlock {image, mac?}`** (06/11) chamam as rotas de trava
+  acima, com os MESMOS gates e alvos do `command` (`image:"all"` = cada sede DO contest; `mac` exige a sede) e
+  auditoria `nutella-lock`/`nutella-unlock` por sede. `status.agent_version`/`capabilities` (camada 2026.09.2) marca o
   agente novo; `t_agent` continua valendo p/ a 1ª leva.
 - **O LOGIN publica o vínculo** (`lib/nutella-bind.sh`, 21/09): com o UA do agente novo, o login de um
   time DIZ em que máquina ele está, e o MOJ faz o `PUT …/binding {user_id, source:"moj-login", at, boot_id}`.
@@ -259,7 +272,8 @@ papel tentando roubar o vínculo, adoção/perfis/pressão/rank_ed, privacidade 
 `limit=5000`), a telemetria nova com frota MISTA (agente novo × antigo), o bruto ANTIGO por máquina e o
 fallback sem a rota de lote reagregando IGUAL, roster VAZIO (sedes pelo UA do login · imagem listada à
 mão · erro claro sem nada), sede recusada ⇒ `skipped` e serviço mudo ⇒ falha, catálogo, gates de
-comando e push-roster. A view tem o seu: `smoke-mlinux-view.gjs.sh` (DOM falso no gjs, do jeito que o
+comando, trava de tela (`lock`/`unlock` por sede, por máquina e em todas as sedes; o mock recusa lista de MACs
+como o serviço) e push-roster. Os botões 🔒/🔓 e o catálogo rotulado do painel, no `admin-inplace.gjs.sh`. A view tem o seu: `smoke-mlinux-view.gjs.sh` (DOM falso no gjs, do jeito que o
 relatório a inlina; cache novo × antigo, pt × en). O elo pelo MAC (clone de machine_id + reboot) e o
 binding de reserva estão no `smoke-contest-nutella.sh`; a publicação no login tem o `smoke-nutella-bind.sh`
 (o que publica e o que NÃO, dedup, reboot, 404 do roster, 503 ⇒ retry, replay, e o caminho DESTACADO de

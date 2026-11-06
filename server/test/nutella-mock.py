@@ -22,6 +22,7 @@ Fixtures em <fixdir>:
   machines.<img>.json         GET …/site-images/<img>/machines[?active_since=]
   samples.<img>.<mac>.json    GET …/machines/<mac>/samples  e, 1 por linha, no LOTE …/<img>/samples
   commands.json               GET …/site-images/<img>/commands (catálogo {allowed, blocked})
+  lockstate.<img>.json        a TRAVA DE TELA do servidor (POST …/lock|unlock da sede e da máquina): {mac:{locked,since,by}}
   bindings.<img>.json         estado dos vínculos (PUT/DELETE …/machines/<mac>/binding)
   legacy                      (arquivo vazio) emula o serviço ANTERIOR a 21/09/2026: sem `code` nos erros,
                               401 p/ chave de serviço em /whoami e na lista, sem webhooks por entrada, sem
@@ -300,6 +301,36 @@ class H(BaseHTTPRequestHandler):
             if not isinstance(j.get("targets"), dict) or not j["targets"]:
                 return self._reject(400, "esperava targets: {sede: 'all' | [macs]}", body)
             return ok({"command": j.get("command"), "results": {k: {"machines": 1} for k in j["targets"]}})
+        # A TRAVA DE TELA mora no SERVIDOR (lockstate; a tela de bloqueio o consulta a cada 4 s). A rota da SEDE aceita
+        # corpo vazio ou {"target":"all"} e RECUSA lista de máquinas (400 no_target, de propósito: travava a sala
+        # inteira quando alguém marcava só algumas); a da MÁQUINA não leva corpo. Conferido no serviço em 06/11/2026.
+        m = re.fullmatch(rf"/api/v1/site-images/{IMG}/(lock|unlock)", path)
+        if m and self.command == "POST":
+            img, act = m.group(1), m.group(2)
+            if not self._image_ok(who, img):
+                return
+            if any(k in j for k in ("targets", "macs", "mac", "machines")) or j.get("target", "all") != "all":
+                return self._reject(400, "esta rota trava/destrava a SEDE inteira; p/ algumas máquinas use …/machines/{mac}/" + act, body, "no_target")
+            macs = [x.get("mac") for x in (_load(f"machines.{img}.json", {}) or {}).get("machines", [])]
+            ls = _load(f"lockstate.{img}.json", {})
+            for mm in macs:
+                ls[mm] = {"locked": act == "lock", "since": time.time(), "by": who}
+            _save(f"lockstate.{img}.json", ls)
+            return ok({"machines": len(macs), "locked": act == "lock"})
+        m = re.fullmatch(rf"/api/v1/site-images/{IMG}/machines/{MAC}/(lock|unlock)", path)
+        if m and self.command == "POST":
+            img, mac, act = m.group(1), m.group(2).lower().replace(":", "-"), m.group(3)
+            if not self._image_ok(who, img):
+                return
+            if body:
+                return self._reject(400, "esta rota não leva corpo", body)
+            macs = [x.get("mac") for x in (_load(f"machines.{img}.json", {}) or {}).get("machines", [])]
+            if mac not in macs:
+                return self._reject(404, "máquina desconhecida", body, "invalid_mac")
+            ls = _load(f"lockstate.{img}.json", {})
+            ls[mac] = {"locked": act == "lock", "since": time.time(), "by": who}
+            _save(f"lockstate.{img}.json", ls)
+            return ok({"mac": mac, "locked": act == "lock"})
         m = re.fullmatch(rf"/api/v1/site-images/{IMG}/commands", path)
         if m and self.command == "POST":
             img = m.group(1)

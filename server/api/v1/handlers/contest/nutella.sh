@@ -29,6 +29,13 @@
 #         explícito no staff-filters = 403 — comando é AÇÃO, não leitura; diverge de
 #         propósito do "ausente = vê tudo" das rotas de leitura). `op` validado contra o
 #         catálogo `allowed` da imagem AO VIVO. Tudo auditado (nutella-*).
+# POST {action:"lock"|"unlock", image, mac?}   TRAVA/DESTRAVA a tela DE VERDADE (06/11/2026): a trava mora no
+#         SERVIDOR do NutellaBoot (lockstate; a tela de bloqueio o consulta a cada 4 s) — `POST /site-images/{i}/
+#         lock|unlock` com {"target":"all"} (a sede inteira; a rota RECUSA lista de máquinas de propósito: 400
+#         no_target) ou `POST …/machines/{mac}/lock|unlock` sem corpo (uma máquina). Os comandos `cantouch`/
+#         `donottouch` por …/commands só falam com o agente e o efeito some na mesma volta do long-poll (o agente
+#         reaplica a trava do servidor): era o "destrava e retrava" da LATAM (sede 26brbrub). Mesmos gates do
+#         `command` (staff só na própria sede, fail-closed; image:"all" só admin). Auditado (nutella-lock/unlock).
 contest="$(param contest)"
 [[ -n "$contest" ]] || fail 400 "Missing contest" "contest_missing"
 require_contest "$contest"
@@ -64,6 +71,35 @@ _nb_bind_json(){
         | {enabled: $en, published: $pub, queued: $q, last_at: ($m._at // null),
            log: {ok: ($m.ok // 0), noroster: ($m.noroster // 0), image_unknown: ($m.image_unknown // 0),
                  retry: ($m.retry // 0), error: ($m.error // 0)}}' 2>/dev/null
+}
+
+# _nb_cmd_gate <image> — AÇÃO numa sede (comando, trava): admin em qualquer uma; .cstaff/.staff SÓ na própria
+# sede e fail-CLOSED (sem escopo explícito no staff-filters = 403; o mapa sede→imagem vem do cache da coleta).
+_nb_cmd_gate(){
+  local img="$1" scope sede
+  is_admin && return 0
+  [[ "$img" != all ]] || fail 403 "Frota inteira é só do admin" "admin_required"
+  [[ -s "$CACHE" ]] || fail 409 "Sem coleta ainda (o mapa sede→imagem vem dela)" "no_cache"
+  scope="$(_nb_scope_json)"
+  [[ "$scope" != null ]] || fail 403 "Defina o escopo de sede do staff (staff-filters) antes de comandar" "command_scope_required"
+  sede="$(jq -r --arg i "$img" 'first(.sedes[] | select(.id == $i) | .name) // "" | ascii_downcase' "$CACHE" 2>/dev/null)"
+  [[ -n "$sede" ]] || fail 404 "Imagem desconhecida" "image_unknown"
+  jq -e --arg s "$sede" 'index($s) != null' <<<"$scope" >/dev/null 2>&1 \
+    || fail 403 "Esta sede não está no seu escopo" "site_forbidden"
+}
+# _nb_cmd_targets <image> — preenche TARGETS: `all` = as sedes DO CONTEST (cache da coleta; sem cache, a lista do
+# conf) — nunca a frota do serviço: o nutellaboot hospeda sedes de OUTROS eventos e `POST /commands` atinge todas
+# (além de exigir credencial de console, que a chave de serviço não tem).
+_nb_cmd_targets(){
+  local img="$1" _t
+  TARGETS=()
+  if [[ "$img" == all ]]; then
+    while IFS= read -r _t; do [[ "$_t" =~ ^[A-Za-z0-9._-]{1,64}$ ]] && TARGETS+=("$_t"); done \
+      < <({ jq -r '.sedes[].id' "$CACHE" 2>/dev/null; nb_images "$contest"; } | awk 'NF && !seen[$0]++')
+    (( ${#TARGETS[@]} )) || fail 409 "Sem sedes conhecidas — rode a coleta ou informe as site-images" "no_cache"
+  else
+    TARGETS=("$img")
+  fi
 }
 
 if [[ "${REQUEST_METHOD:-GET}" == GET ]]; then
@@ -338,29 +374,8 @@ command)
   [[ "$op" =~ ^[a-z0-9_-]{1,40}$ ]] || fail 422 "op inválida" "op_invalid"
   [[ "$img" =~ ^[A-Za-z0-9._-]{1,64}$ ]] || fail 422 "image inválida" "image_invalid"
   [[ -z "$mac" || "$mac" =~ ^[A-Za-z0-9:-]{1,32}$ ]] || fail 422 "mac inválido" "mac_invalid"
-  if ! is_admin; then
-    # .cstaff/.staff: fail-CLOSED — precisa de escopo explícito e a imagem tem de ser da
-    # sede dele (mapa sede→imagem sai do cache da coleta).
-    [[ "$img" != all ]] || fail 403 "Frota inteira é só do admin" "admin_required"
-    [[ -s "$CACHE" ]] || fail 409 "Sem coleta ainda (o mapa sede→imagem vem dela)" "no_cache"
-    scope="$(_nb_scope_json)"
-    [[ "$scope" != null ]] || fail 403 "Defina o escopo de sede do staff (staff-filters) antes de comandar" "command_scope_required"
-    sede="$(jq -r --arg i "$img" 'first(.sedes[] | select(.id == $i) | .name) // "" | ascii_downcase' "$CACHE" 2>/dev/null)"
-    [[ -n "$sede" ]] || fail 404 "Imagem desconhecida" "image_unknown"
-    jq -e --arg s "$sede" 'index($s) != null' <<<"$scope" >/dev/null 2>&1 \
-      || fail 403 "Esta sede não está no seu escopo" "site_forbidden"
-  fi
-  # SEDES-ALVO. `all` = as sedes DO CONTEST (cache da coleta; sem cache, a lista do conf) — nunca
-  # a frota do serviço: o nutellaboot hospeda sedes de OUTROS eventos e `POST /commands` atinge
-  # todas (além de exigir credencial de console, que a chave de serviço não tem).
-  targets=()
-  if [[ "$img" == all ]]; then
-    while IFS= read -r _t; do [[ "$_t" =~ ^[A-Za-z0-9._-]{1,64}$ ]] && targets+=("$_t"); done \
-      < <({ jq -r '.sedes[].id' "$CACHE" 2>/dev/null; nb_images "$contest"; } | awk 'NF && !seen[$0]++')
-    (( ${#targets[@]} )) || fail 409 "Sem sedes conhecidas — rode a coleta ou informe as site-images" "no_cache"
-  else
-    targets=("$img")
-  fi
+  _nb_cmd_gate "$img"
+  _nb_cmd_targets "$img"; targets=("${TARGETS[@]}")
   # op contra o catálogo AO VIVO (da 1ª sede-alvo; o serviço revalida em cada destino)
   r="$(nb_curl "$contest" GET "/site-images/${targets[0]}/commands")"
   [[ "$(nb_status "$r")" == 200 ]] || fail 502 "nutellaboot indisponível (catálogo)" "upstream_error"
@@ -389,6 +404,35 @@ command)
   ok_json_slurp '{sent:true, op:$op, image:$img, mac:$mac, ok:$okn, failed:$badn, sedes:($u | from_entries),
                   upstream:(($u[0].value // null))}' u "$(cat "$resf"; rm -f "$resf")" \
     --arg op "$op" --arg img "$img" --arg mac "$mac" --argjson okn "$okn" --argjson badn "$badn"
+  ;;
+lock|unlock)
+  # a TRAVA DE VERDADE (ver o cabeçalho): mora no servidor do NutellaBoot, não no agente
+  nb_configured "$contest" || fail 409 "Integração não configurada" "not_configured"
+  img="$(jq -r '.image // ""' <<<"$body")"
+  mac="$(jq -r '.mac // ""' <<<"$body")"
+  [[ "$img" =~ ^[A-Za-z0-9._-]{1,64}$ ]] || fail 422 "image inválida" "image_invalid"
+  [[ -z "$mac" || "$mac" =~ ^[A-Za-z0-9:-]{1,32}$ ]] || fail 422 "mac inválido" "mac_invalid"
+  [[ -z "$mac" || "$img" != all ]] || fail 422 "Uma máquina exige a sede dela (image)" "mac_needs_image"
+  _nb_cmd_gate "$img"
+  _nb_cmd_targets "$img"
+  bf="$(mktemp)"; resf="$(mktemp)"; : > "$resf"; okn=0; badn=0; st=""
+  printf '{"target":"all"}' > "$bf"
+  for _t in "${TARGETS[@]}"; do
+    if [[ -n "$mac" ]]; then r="$(nb_curl "$contest" POST "/site-images/$_t/machines/$mac/$action")"
+    else                     r="$(nb_curl "$contest" POST "/site-images/$_t/$action" "$bf")"; fi
+    st="$(nb_status "$r")"
+    if [[ "$st" == 2* ]]; then okn=$((okn+1)); else badn=$((badn+1)); fi
+    jq -cn --arg i "$_t" --arg st "$st" --arg b "$(nb_body "$r" | head -c 2000)" \
+      '{key:$i, value:({status:($st|tonumber? // 0)} + (try ($b|fromjson) catch {} | if type=="object" then {machines, locked, detail, code} else {} end | with_entries(select(.value != null))))}' >> "$resf"
+    audit_log_to "$contest" "nutella-$action" "image=$_t mac=${mac:-todas} status=$st by=$SESSION_LOGIN"
+  done
+  rm -f "$bf"
+  if (( okn == 0 )); then
+    det="$(jq -rs 'map(.value.detail // empty) | first // ""' "$resf" 2>/dev/null)"; rm -f "$resf"
+    fail 502 "nutellaboot recusou ($action, HTTP $st)${det:+: $det}" "upstream_error"
+  fi
+  ok_json_slurp '{sent:true, action:$a, image:$img, mac:$mac, ok:$okn, failed:$badn, sedes:($u | from_entries)}' \
+    u "$(cat "$resf"; rm -f "$resf")" --arg a "$action" --arg img "$img" --arg mac "$mac" --argjson okn "$okn" --argjson badn "$badn"
   ;;
 *)
   fail 400 "action inválida" "action_invalid"

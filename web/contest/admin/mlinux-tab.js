@@ -199,6 +199,20 @@ export function makeMlinuxTab(CONTEST) {
   }
 
   // -- comandos (admin: qualquer sede + frota; c/staff: as próprias — a API corta) ------
+  // RÓTULOS do catálogo do NutellaBoot (06/11/2026). `cantouch`/`donottouch` SAEM da lista: por …/commands eles só
+  // falam com o agente, e a tela volta ao estado da trava do SERVIDOR na mesma volta do long-poll (era o "destrava e
+  // retrava" da LATAM). Travar/destravar de verdade = os botões 🔒/🔓 (POST …/lock|unlock). `danger` = apaga dados:
+  // pede o id da sede digitado.
+  const HIDE_OPS = new Set(['cantouch', 'donottouch']);
+  const OPS = {
+    precontest: { danger: true, label: () => T('Iniciar prova — APAGA as homes, liga o firewall e trava a tela', 'Start contest — ERASES the home dirs, enables the firewall and locks the screen', 'Iniciar prueba — BORRA los homes, activa el firewall y bloquea la pantalla') },
+    cleanhomenow: { danger: true, label: () => T('Limpar as homes agora — APAGA o trabalho dos times', 'Clean the home dirs now — ERASES the teams\' work', 'Limpiar los homes ahora — BORRA el trabajo de los equipos') },
+    enablefirewall: { label: () => T('Ligar o firewall', 'Enable the firewall', 'Activar el firewall') },
+    disablefirewall: { label: () => T('Desligar o firewall', 'Disable the firewall', 'Desactivar el firewall') },
+    mlreboot: { label: () => T('Reiniciar a máquina', 'Reboot the machine', 'Reiniciar la máquina') },
+    mlpoweroff: { label: () => T('Desligar a máquina', 'Power off the machine', 'Apagar la máquina') },
+  };
+  const opLabel = (op) => (OPS[op] ? OPS[op].label() + ' (' + op + ')' : op);
   function commandCard() {
     const d = RESP && RESP.data;
     if (!d || !d.sedes || !d.sedes.length) return null;
@@ -220,20 +234,53 @@ export function makeMlinuxTab(CONTEST) {
       try {
         const r = await apiGet('/contest/nutella?contest=' + enc(CONTEST) + '&catalog=' + enc(img), G);
         selOp.innerHTML = '';
-        (r.allowed || []).forEach((op) => selOp.append(el('option', { value: op }, op)));
+        (r.allowed || []).filter((op) => !HIDE_OPS.has(op)).forEach((op) => selOp.append(el('option', { value: op }, opLabel(op))));
       } catch { /* catálogo indisponível: select fica vazio e o POST diria o porquê */ }
     };
     selSede.addEventListener('change', () => { fillMacs(); fillOps(); });
     fillMacs(); fillOps();
+    const alvoTxt = (img, mac) => {
+      const sede = d.sedes.find((s) => s.id === img);
+      return img === 'all' ? T(`TODAS as máquinas das ${d.sedes.length} sedes DESTE contest`, `ALL machines in the ${d.sedes.length} sites of THIS contest`, `TODAS las máquinas en las ${d.sedes.length} sedes de ESTA competencia`)
+        : mac ? T(`a máquina ${mac} (${sede ? sede.name : img})`, `machine ${mac} (${sede ? sede.name : img})`, `la máquina ${mac} (${sede ? sede.name : img})`)
+          : T(`as ${sede ? sede.seen : '?'} máquinas de ${sede ? sede.name : img}`, `the ${sede ? sede.seen : '?'} machines of ${sede ? sede.name : img}`, `las ${sede ? sede.seen : '?'} máquinas de ${sede ? sede.name : img}`);
+    };
+    // 🔒/🔓 = a TRAVA DO SERVIDOR (POST …/lock|unlock): persistente (sobrevive a reboot) até a ordem contrária
+    const lockBtn = (act) => el('button', { class: 'btn' + (act === 'unlock' ? '' : ' ghost'), onclick: async () => {
+      const img = selSede.value, mac = selMac.value;
+      if (!img) return;
+      if (mac && img === 'all') { msg.className = 'small error-box'; msg.textContent = T('Escolha a sede da máquina.', 'Pick the machine\'s site.', 'Elige la sede de la máquina.'); return; }
+      const alvo = alvoTxt(img, mac);
+      // eslint-disable-next-line no-alert
+      if (!confirm(act === 'unlock' ? T(`DESTRAVAR a tela de ${alvo}?`, `UNLOCK the screen of ${alvo}?`, `¿DESBLOQUEAR la pantalla de ${alvo}?`)
+        : T(`TRAVAR a tela de ${alvo}?`, `LOCK the screen of ${alvo}?`, `¿BLOQUEAR la pantalla de ${alvo}?`))) return;
+      msg.className = 'small'; msg.textContent = '…';
+      try {
+        const body = { action: act, image: img }; if (mac) body.mac = mac;
+        const r = await apiPost('/contest/nutella?contest=' + enc(CONTEST), body, G);
+        const bad = Object.entries(r.sedes || {}).filter(([, v]) => !(v.status >= 200 && v.status < 300));
+        msg.className = 'small' + (bad.length ? ' error-box' : '');
+        msg.textContent = (act === 'unlock' ? T(`🔓 telas destravadas em ${r.ok || 0} sede(s)`, `🔓 screens unlocked in ${r.ok || 0} site(s)`, `🔓 pantallas desbloqueadas en ${r.ok || 0} sede(s)`)
+          : T(`🔒 telas travadas em ${r.ok || 0} sede(s)`, `🔒 screens locked in ${r.ok || 0} site(s)`, `🔒 pantallas bloqueadas en ${r.ok || 0} sede(s)`))
+          + (bad.length ? T(' — recusado em: ', ' — refused at: ', ' — rechazado en: ') + bad.map(([k, v]) => k + ' (HTTP ' + v.status + (v.detail ? ': ' + v.detail : '') + ')').join(', ') : '');
+      } catch (e) { msg.className = 'small error-box'; msg.textContent = e.message || T('falha', 'failed', 'fallido'); }
+    } }, act === 'unlock' ? T('🔓 Destravar telas', '🔓 Unlock screens', '🔓 Desbloquear pantallas') : T('🔒 Travar telas', '🔒 Lock screens', '🔒 Bloquear pantallas'));
     const btn = el('button', { class: 'btn', onclick: async () => {
       const op = selOp.value, img = selSede.value, mac = selMac.value;
       if (!op || !img) return;
-      const sede = d.sedes.find((s) => s.id === img);
-      const alvo = img === 'all' ? T(`TODAS as máquinas das ${d.sedes.length} sedes DESTE contest`, `ALL machines in the ${d.sedes.length} sites of THIS contest`, `TODAS las máquinas en las ${d.sedes.length} sedes de ESTA competencia`)
-        : mac ? T(`a máquina ${mac} (${sede ? sede.name : img})`, `machine ${mac} (${sede ? sede.name : img})`, `la máquina ${mac} (${sede ? sede.name : img})`)
-          : T(`as ${sede ? sede.seen : '?'} máquinas de ${sede ? sede.name : img}`, `the ${sede ? sede.seen : '?'} machines of ${sede ? sede.name : img}`, `las ${sede ? sede.seen : '?'} máquinas de ${sede ? sede.name : img}`);
-      // eslint-disable-next-line no-alert
-      if (!confirm(T(`Enviar "${op}" para ${alvo}?`, `Send "${op}" to ${alvo}?`, `¿Enviar "${op}" a ${alvo}?`))) return;
+      const alvo = alvoTxt(img, mac);
+      if (OPS[op] && OPS[op].danger) {
+        // APAGA DADOS: o id da sede (ou TODAS) digitado — o "OK" de um confirm é fácil demais de dar sem ler
+        const want = img === 'all' ? T('TODAS', 'ALL', 'TODAS') : img;
+        // eslint-disable-next-line no-alert
+        const got = prompt(T(`"${opLabel(op)}" em ${alvo}.\nIsto APAGA dados das máquinas. Digite ${want} para confirmar:`,
+          `"${opLabel(op)}" on ${alvo}.\nThis ERASES data on the machines. Type ${want} to confirm:`,
+          `"${opLabel(op)}" en ${alvo}.\nEsto BORRA datos de las máquinas. Escribe ${want} para confirmar:`));
+        if ((got || '').trim() !== want) { msg.className = 'small'; msg.textContent = T('Cancelado (confirmação não confere).', 'Cancelled (confirmation did not match).', 'Cancelado (la confirmación no coincide).'); return; }
+      } else {
+        // eslint-disable-next-line no-alert
+        if (!confirm(T(`Enviar "${opLabel(op)}" para ${alvo}?`, `Send "${opLabel(op)}" to ${alvo}?`, `¿Enviar "${opLabel(op)}" a ${alvo}?`))) return;
+      }
       msg.textContent = '…';
       try {
         const body = { action: 'command', op, image: img };
@@ -268,9 +315,15 @@ export function makeMlinuxTab(CONTEST) {
       el('div', { class: 'small muted', style: 'margin:.1rem 0 .4rem' },
         T('O comando entra na fila do nutellaboot e a máquina executa no próximo contato. Tudo é auditado.',
           'The command is queued in nutellaboot and runs on the machine\'s next contact. Everything is audited.',
-          'El comando entra en la cola de nutellaboot y se ejecuta en el próximo contacto de la máquina. Todo queda auditado.')),
+          'El comando entra en la cola de nutellaboot y se ejecuta en el próximo contacto de la máquina. Todo queda auditado.'),
+        ' ',
+        T('A trava de tela fica no servidor do nutellaboot e vale até a ordem contrária, inclusive depois de reiniciar: use 🔒/🔓. "Iniciar prova" também trava.',
+          'The screen lock lives on the nutellaboot server and holds until the opposite order, even after a reboot: use 🔒/🔓. "Start contest" also locks.',
+          'El bloqueo de pantalla vive en el servidor de nutellaboot y vale hasta la orden contraria, incluso tras reiniciar: usa 🔒/🔓. "Iniciar prueba" también bloquea.')),
       el('div', { class: 'row', style: 'gap:.5rem;flex-wrap:wrap;align-items:center' },
         el('label', {}, T('Sede ', 'Site ', 'Sede '), selSede), el('label', {}, T('Máquina ', 'Machine ', 'Máquina '), selMac),
+        lockBtn('lock'), lockBtn('unlock')),
+      el('div', { class: 'row', style: 'gap:.5rem;flex-wrap:wrap;align-items:center;margin-top:.4rem' },
         el('label', {}, T('Comando ', 'Command ', 'Comando '), selOp), btn),
       msg);
   }

@@ -269,6 +269,40 @@ call /contest/nutella POST '{"action":"command","op":"disablefirewall","image":"
 ck "comando bloqueado pelo modelo → 502 com o motivo do serviço" '[[ "$OUT" == *"Status: 502"* && "$OUT" == *DISABLE_FIREWALL* ]]'
 jq -n '{allowed:["mlreboot","precontest","cleanhomenow"], blocked:{}}' > "$MOCKD/commands.json"
 
+echo "== TRAVA DE TELA (lock/unlock, 06/11/2026: a trava mora no SERVIDOR do NutellaBoot) =="
+# O "destravar" por cantouch (…/commands) só falava com o agente e a tela retravava na volta do long-poll (LATAM,
+# sede 26brbrub). Agora: POST …/site-images/{i}/unlock {"target":"all"} (a sede) ou …/machines/{mac}/unlock sem
+# corpo (uma máquina). O mock é ESTRITO: lista de máquinas na rota da sede = 400 no_target.
+: > "$MOCKD/posts.log"; : > "$MOCKD/rejected.log"
+call /contest/nutella POST '{"action":"unlock","image":"26tsca"}'
+ck "admin destrava a sede → 200, 1 sede ok"     '[[ "$(J .sent)" == true && "$(J .action)" == unlock && "$(J .ok)" == 1 && "$(J ".sedes[\"26tsca\"].machines")" == 2 ]]'
+ck "mock recebeu POST …/26tsca/unlock {target:all}" 'jq -e "select(.path==\"/api/v1/site-images/26tsca/unlock\") | .body | fromjson | .target == \"all\"" "$MOCKD/posts.log" >/dev/null'
+ck "o lockstate do servidor ficou destravado (as 2)" '[[ "$(jq -c "[.[] | .locked] | unique" "$MOCKD/lockstate.26tsca.json")" == "[false]" && "$(jq length "$MOCKD/lockstate.26tsca.json")" == 2 ]]'
+ck "…e NÃO foi pelo comando cantouch"          '! grep -q "cantouch" "$MOCKD/posts.log"'
+: > "$MOCKD/posts.log"
+call /contest/nutella POST '{"action":"lock","image":"26tsca","mac":"'"$M1"'"}'
+ck "uma MÁQUINA: POST …/machines/{mac}/lock, sem corpo" '[[ "$(J .sent)" == true ]] && jq -e "select(.path==\"/api/v1/site-images/26tsca/machines/aa-bb-01/lock\") | .body == \"\"" "$MOCKD/posts.log" >/dev/null'
+ck "…só ela travou"                             '[[ "$(jq -r ".[\"aa-bb-01\"].locked" "$MOCKD/lockstate.26tsca.json")" == true && "$(jq -c "[.[] | .locked] | sort" "$MOCKD/lockstate.26tsca.json")" == "[false,true]" ]]'
+ck "nada caiu na recusa do mock (nunca lista na rota da sede)" '[[ ! -s "$MOCKD/rejected.log" ]]'
+: > "$MOCKD/posts.log"
+call /contest/nutella POST '{"action":"lock","image":"all"}'
+ck "\"todas\" = uma chamada por sede DO CONTEST (2)" '[[ "$(J .ok)" == 2 ]] && grep -q "site-images/26tsca/lock" "$MOCKD/posts.log" && grep -q "site-images/26tscb/lock" "$MOCKD/posts.log" && ! grep -q 26zzzz "$MOCKD/posts.log"'
+call /contest/nutella POST '{"action":"unlock","image":"all","mac":"'"$M1"'"}'
+ck "máquina sem a sede → 422"                   '[[ "$OUT" == *"Status: 422"* && "$OUT" == *mac_needs_image* ]]'
+call /contest/nutella POST '{"action":"unlock","image":"26tsca","mac":"aa-bb-99"}'
+ck "máquina desconhecida → 502 com o motivo do serviço" '[[ "$OUT" == *"Status: 502"* && "$OUT" == *"máquina desconhecida"* ]]'
+call /contest/nutella POST '{"action":"unlock","image":"26tsca"}' cst
+ck "cstaff na própria sede → 200"               '[[ "$(J .sent)" == true ]]'
+call /contest/nutella POST '{"action":"unlock","image":"26tscb"}' cst
+ck "cstaff em sede ALHEIA → 403"                '[[ "$OUT" == *"Status: 403"* && "$OUT" == *site_forbidden* ]]'
+call /contest/nutella POST '{"action":"unlock","image":"all"}' cst
+ck "cstaff em todas → 403"                      '[[ "$OUT" == *"Status: 403"* && "$OUT" == *admin_required* ]]'
+call /contest/nutella POST '{"action":"unlock","image":"26tsca"}' stf
+ck "staff SEM escopo → 403 (fail-closed)"       '[[ "$OUT" == *"Status: 403"* && "$OUT" == *command_scope_required* ]]'
+ck "trava/destrava auditadas (uma linha por sede)" '[[ "$(grep -c "nutella-unlock" "$C/var/admin-audit.log")" -ge 2 && "$(grep -c "nutella-lock" "$C/var/admin-audit.log")" -ge 3 ]]'
+: > "$MOCKD/posts.log"; printf '{"target":["aa-bb-01"]}' > "$MOCKD/bad.json"
+ck "o mock recusa lista na rota da sede (é o que o serviço faz)" '[[ "$(curl -s -o /dev/null -w "%{http_code}" -X POST -H "Authorization: Bearer $(cat "$C/secrets/nutellaboot.key")" -H "Content-Type: application/json" -d @"$MOCKD/bad.json" "$MURL/api/v1/site-images/26tsca/unlock")" == 400 ]]'
+
 echo "== push-roster =="
 call /contest/nutella POST '{"action":"push-roster"}'
 ck "sem force: roster povoado é PRESERVADO" '[[ "$(J .kept)" == 2 && "$(J .pushed)" == 0 ]]'

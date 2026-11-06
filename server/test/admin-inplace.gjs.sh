@@ -46,7 +46,7 @@ globalThis.location={hash:'', search:'', hostname:'x', origin:'https://c.x'}; gl
 globalThis.window={open:()=>null, addEventListener:()=>{}}; globalThis.fetch=async()=>({ok:false,status:500});
 globalThis.URLSearchParams=class { constructor(){} get(){ return null; } toString(){ return ''; } };
 document.getElementById=(id)=>new FakeNode('div');
-const getToken=()=>''; const apiPost=async()=>({}); const mlinuxSections=()=>[el('div',{},'sec')]; const MLINUX_CSS='';
+const getToken=()=>''; const apiPost=async(...a)=>(globalThis.__apiPost ? globalThis.__apiPost(...a) : ({})); const mlinuxSections=()=>[el('div',{},'sec')]; const MLINUX_CSS='';
 const initContestShell=async()=>({});
 EOF
 strip "$W/shared/dom.js"; strip "$W/shared/admin-ui.js"; strip "$W/shared/regions-match.js"; }
@@ -164,6 +164,43 @@ check "$(kv mlinux pan_kept_on_bind)" true "mlinux: …sem reconstruir o panoram
 check "$(kv mlinux hook_kept)" true "mlinux: cartão do webhook ficou durante a coleta"
 check "$(kv mlinux hook_changed)" true "mlinux: cartão do webhook atualizou quando instalou"
 check "$(kv mlinux bind_kept_on_hook)" true "mlinux: …sem reconstruir o cartão do vínculo"
+
+# ------------------------------------------- mlinux › comandos: trava de tela + catálogo rotulado (06/11) ---
+# cantouch/donottouch fora da lista (por …/commands não seguram: a tela volta à trava do SERVIDOR); 🔒/🔓 mandam
+# action lock|unlock; comando que APAGA (precontest/cleanhomenow) exige o id da sede DIGITADO
+run mlcmd mlinux-tab.js '
+FakeNode.prototype.addEventListener=function(k,f){ (this._h=this._h||{})[k]=f; };
+let R={configured:true,url:"https://nb",can_admin:true,bind:{enabled:true,published:3,queued:0,log:{}},webhook:{installed:false,events:0},status:{running:false},data:{collected_at:1,version:2,link:{mode:"ua",linked:1,present:1,coverage:100},window:{},contest:"c",global:{},by_node:{},sedes:[{id:"26x",name:"X",seen:2,machines:[{mac:"aa"},{mac:"bb"}]}]}};
+let POSTS=[]; let CONF=true; let PROMPT="";
+async function apiGet(p){ if(p.includes("catalog=")) return {allowed:["precontest","cantouch","donottouch","mlreboot","resetcontaeditores"]}; if(p.includes("/nutella")) return JSON.parse(JSON.stringify(R)); return {}; }
+globalThis.__apiPost=async(p,b)=>{ POSTS.push(b); return b.action==="lock"||b.action==="unlock" ? {sent:true,ok:1,failed:0,sedes:{"26x":{status:200}}} : {sent:true,command_ids:{}}; };
+globalThis.confirm=()=>CONF; globalThis.prompt=()=>PROMPT;
+const walk=(n,f)=>{ f(n); for (const c of (n.children||[])) if (c.nodeType===1) walk(c,f); };
+(async()=>{ const tab=makeMlinuxTab("c"); await tab.load(); await new Promise(r=>r()); await null;
+  const box=tab.panel.children[6]; const sels=[], btns=[]; walk(box,(n)=>{ if(n.tagName==="select") sels.push(n); if(n.tagName==="button") btns.push(n); });
+  const [selSede, selMac, selOp]=sels; const ops=selOp.children.map(o=>o.attrs.value);
+  print("ops="+ops.join(","));
+  print("pre_label="+(selOp.children[0].textContent.includes("APAGA") && selOp.children[0].textContent.includes("(precontest)")));
+  print("raw_label="+(selOp.children[ops.indexOf("resetcontaeditores")].textContent==="resetcontaeditores"));
+  const lockB=btns.find(b=>b.textContent.includes("Travar")), unlB=btns.find(b=>b.textContent.includes("Destravar")), sendB=btns.find(b=>!b.textContent.includes("Travar")&&!b.textContent.includes("Destravar"));
+  selSede.value="26x"; await lockB._h.click(); print("lock_body="+JSON.stringify(POSTS.pop()));
+  selMac.value="bb"; await unlB._h.click(); print("unlock_mac_body="+JSON.stringify(POSTS.pop()));
+  print("msg_ok="+box.textContent.includes("destravadas em 1 sede"));
+  CONF=false; selMac.value=""; await lockB._h.click(); print("lock_cancel_posts="+POSTS.length); CONF=true;
+  selSede.value="all"; selMac.value="aa"; await lockB._h.click(); print("all_with_mac_posts="+POSTS.length);
+  selSede.value="26x"; selMac.value=""; selOp.value="precontest"; PROMPT="26X"; await sendB._h.click(); print("danger_wrong_posts="+POSTS.length);
+  PROMPT=" 26x "; await sendB._h.click(); print("danger_ok_op="+(POSTS.length===1 && POSTS[0].op));
+})().catch(e=>print("ERRO "+e+"\n"+e.stack));' > "$T/mlcmd.out"
+check "$(kv mlcmd ops)" "precontest,mlreboot,resetcontaeditores" "mlinux cmd: cantouch/donottouch fora do catálogo"
+check "$(kv mlcmd pre_label)" true "mlinux cmd: precontest rotulado (APAGA) com o código"
+check "$(kv mlcmd raw_label)" true "mlinux cmd: op sem rótulo aparece crua"
+check "$(kv mlcmd lock_body)" '{"action":"lock","image":"26x"}' "mlinux cmd: 🔒 da sede manda action lock"
+check "$(kv mlcmd unlock_mac_body)" '{"action":"unlock","image":"26x","mac":"bb"}' "mlinux cmd: 🔓 da máquina leva o mac"
+check "$(kv mlcmd msg_ok)" true "mlinux cmd: mensagem de destravadas"
+check "$(kv mlcmd lock_cancel_posts)" 0 "mlinux cmd: confirm negado não manda nada"
+check "$(kv mlcmd all_with_mac_posts)" 0 "mlinux cmd: máquina com 'todas as sedes' não manda"
+check "$(kv mlcmd danger_wrong_posts)" 0 "mlinux cmd: precontest com confirmação errada não manda"
+check "$(kv mlcmd danger_ok_op)" precontest "mlinux cmd: precontest com o id digitado manda"
 
 # ------------------------------------------------------------ Sessões (sessions-tab, slim) -------
 run sessions sessions-tab.js '
