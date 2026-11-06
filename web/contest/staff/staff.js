@@ -1,7 +1,7 @@
 // contest/staff/staff.js — área do .staff: fila de tarefas de impressão + modo automático.
 // Fluxo: pegar (claim) → imprimir o PDF gerado (capa+doc) → marcar entregue.
 // Modo automático: deixe a aba aberta; cada tarefa nova é reservada, impressa e marcada
-// como "processada" assim que a impressão dispara (onafterprint / timeout).
+// como "processada" assim que a impressão dispara (ver printBlobIframe: quando seguir p/ a próxima).
 // O .cstaff (chefe de sede) entra em modo SOMENTE LEITURA: acompanha a fila do escopo
 // dele sem ações nem automático — a API corta print-action/print-pdf p/ ele (403).
 import { apiGet, apiPost, getToken } from '/shared/api.js';
@@ -66,13 +66,30 @@ async function pdfBlobUrl(id) {
 
 // AUTO: imprime um blob num iframe renderizado fora da tela (sem pop-up — o auto não tem
 // gesto do usuário). Em modo kiosk (--kiosk-printing) imprime sem diálogo. NÃO usa
-// visibility:hidden (o Firefox não imprime iframe escondido). Resolve no onafterprint/timeout.
+// visibility:hidden (o Firefox não imprime iframe escondido).
+// QUANDO SEGUIR P/ A PRÓXIMA (06/11/2026, aquecimento da LATAM): o Chrome NUNCA dispara o `onafterprint` p/ PDF em
+// iframe, então toda tarefa esperava o teto de 8 s — 9 s fixos por tarefa, teto de ~5,7 tarefas/min, e a sede do
+// Brasil (241 tarefas em 1 h, pico de 10/min) acumulou 145 na fila, espera mediana de 22 min. No Chromium o `print()`
+// BLOQUEIA enquanto há diálogo, mas no kiosk volta ANTES de o trabalho sair, e um `print()` que chega com o anterior
+// em curso é DESCARTADO EM SILÊNCIO — medido no Chrome 156 (kiosk + "Salvar como PDF", 30 PDFs reais da prova, 41
+// págs.): seguir 0,5 s depois perdeu metade; 0,75 s, 1; 1 s, 1,5 s e 3 s, nenhum. PRINT_GAP_MS = 3 s é 3× o limite
+// medido (impressora/CUPS e máquina da sede são mais lentas): ~13 tarefas/min, contra o pico de 10/min medido.
+// O Firefox (o pdf.js troca o `print()` por um que volta antes de desenhar) segue no `onafterprint`/8 s. O iframe e o
+// blob vivem PRINT_KEEP_MS depois de seguir. NÃO encurte o gap sem repetir a medida de perda.
+const IS_CHROMIUM = /Chrome\//.test(navigator.userAgent) && !/Firefox\//.test(navigator.userAgent);
+const PRINT_GAP_MS = 3000;       // Chromium: espera depois de o print() voltar
+const PRINT_FALLBACK_MS = 8000;  // demais navegadores: teto sem o onafterprint (o de sempre)
+const PRINT_KEEP_MS = 60000;     // vida do iframe e do blob depois de seguir
 function printBlobIframe(url) {
   return new Promise((res) => {
     const ifr = el('iframe', { style: 'position:fixed;left:-10000px;top:0;width:800px;height:1100px;border:0' });
     let done = false;
-    const fin = () => { if (done) return; done = true; setTimeout(() => ifr.remove(), 2000); res(); };
-    ifr.onload = () => { setTimeout(() => { try { const w = ifr.contentWindow; w.focus(); w.onafterprint = fin; w.print(); setTimeout(fin, 8000); } catch (_) { fin(); } }, 600); };
+    const fin = () => {
+      if (done) return; done = true;
+      setTimeout(() => { ifr.remove(); URL.revokeObjectURL(url); }, PRINT_KEEP_MS);
+      res();
+    };
+    ifr.onload = () => { setTimeout(() => { try { const w = ifr.contentWindow; w.focus(); w.onafterprint = fin; w.print(); setTimeout(fin, IS_CHROMIUM ? PRINT_GAP_MS : PRINT_FALLBACK_MS); } catch (_) { fin(); } }, 600); };
     ifr.src = url; document.body.append(ifr);
   });
 }
@@ -113,7 +130,7 @@ async function autoTick() {
   try {
     await action(t.id, 'claim');              // reserva (409 already_claimed => outra aba pegou)
     const url = await pdfBlobUrl(t.id);
-    try { await printBlobIframe(url); } finally { setTimeout(() => URL.revokeObjectURL(url), 10000); }
+    await printBlobIframe(url);               // o blob é revogado junto com o iframe (PRINT_KEEP_MS)
     await action(t.id, 'processed', { mode: 'auto' });
   } catch (e) {
     if (!(e && e.code === 'already_claimed')) seen.delete(t.id);  // erro real: permite retry

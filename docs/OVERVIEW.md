@@ -582,8 +582,10 @@ auto-verdicts-set`, `review-claim/extend/giveup/vote/agree/conflict/resolve`, `v
   A **folha de rosto** (raster, letras garrafais via `caption:` auto-ajustável que sempre cabe) traz
   o **nome do time/participante** (+ universidade) e o login, o **nº sequencial** (conferência), o
   **nº de páginas do documento** (exceto a capa) e um campo **assinatura + hora**. Há **modo automático**: a aba
-  reserva, imprime (iframe + `window.print()`) e marca **processada** ao detectar a impressão
-  (`onafterprint`); para impressão sem o diálogo do SO, rode o navegador em **kiosk**. **Toda**
+  reserva, imprime (iframe + `window.print()`) e marca **processada** — no Chromium 3 s depois de o `print()`
+  voltar (o `onafterprint` nunca dispara p/ PDF em iframe; `print()` com o anterior em curso é descartado calado —
+  `PRINT_GAP_MS` no `staff.js`, medido em 06/11/2026), nos demais pelo `onafterprint` ou 8 s; para impressão sem o
+  diálogo do SO, rode o navegador em **kiosk**. Uma 2ª estação automática divide a fila (o claim dá 409). **Toda**
   operação é auditada (`print-request`/`-claim`/`-served`/`-processed`/`-delivered`/`-download`,
   `staff-filters`). O admin habilita/desabilita por conf `PRINT` (toggle `allow_print`).
   - **Balões** 🎈: na **mesma fila** do `.staff`, o sistema gera automaticamente uma **tarefa de
