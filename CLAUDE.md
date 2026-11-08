@@ -613,7 +613,7 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   não se repete no nginx (`run/site-lock` é 700 de propósito): um IP preso baixa brasão/foto de outro contest pelo site
   principal — é mídia pública; o resto segue barrado. O que cai no bash vai à
   **`@moj_media`**: zona PRÓPRIA `moj_media` de 16 em voo (com site 16 + contest 32 = o pool de 64), sem o breaker do
-  contest, com o microcache e o freio do treino. Mudou um desses templates ⇒ reinstalar o nginx no deploy (e rodar os
+  contest, com o microcache e o freio do treino. **CORS (08/11/2026, revelação da LATAM):** os 4 blocos e o `@moj_media` mandam `Access-Control-Allow-Origin: *` (`always`) e o padrão/bash expõem `X-MOJ-Photo`/`X-MOJ-Music` — o Animeitor lê a mídia no NAVEGADOR com `crossOrigin`/fetch (a `<img>` comum não precisa; a mídia nunca levou o cabeçalho e a revelação quebrou com "erro de CORS"); a API comum segue sem CORS. Mudou um desses templates ⇒ reinstalar o nginx no deploy (e rodar os
   smokes de nginx NO SERVIDOR: lá os `include /etc/nginx/moj-*` casam arquivos reais). Testes:
   `smoke-team-media-nginx.sh` (nginx de teste com o snippet e o bloco REAIS; `fastcgi_pass` vira um eco da rota),
   `smoke-contest-teams.sh` (`logo_v`), `smoke-score-flag-title.gjs.sh` (a URL), `smoke-animeitor.sh` (a miniatura).

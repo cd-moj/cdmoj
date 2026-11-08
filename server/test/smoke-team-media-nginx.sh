@@ -241,6 +241,18 @@ req moj.test "/api/v1/contest/team-photo?contest=prova-x&user=time1&thumb=1"
 ck "…nem a foto do disco"                               '[[ "$S" == 200 && "$B" == *thumb-time1 ]]'
 req moj.test "/api/v1/contest/team-music?contest=prova-x&user=time1"
 ck "…nem a música do disco"                             '[[ "$S" == 200 && "$B" == ID3musica* ]]'
+req moj.test "$L?contest=prova-x&user=time2"
+ck "CORS também no 503 do freio (always)"               '[[ "$S" == 503 && "$(hd Access-Control-Allow-Origin)" == "*" ]]'
 rm -f "$T/shed"
+
+echo "== CORS (08/11/2026: o Animeitor lê a mídia no navegador com crossOrigin/fetch) =="
+cors(){ req "$1" "$2" -H "Origin: https://animeitor.naquadah.com.br"; [[ "$(hd Access-Control-Allow-Origin)" == "*" ]]; }
+ck "brasão do disco: Access-Control-Allow-Origin *"     'cors moj.test "$L?contest=prova-x&user=time1" && [[ "$S" == 200 ]]'
+ck "brasão 304 também leva"                              'E0="$(hd ETag)"; req moj.test "$L?contest=prova-x&user=time1" -H "If-None-Match: $E0" -H "Origin: https://x"; [[ "$S" == 304 && "$(hd Access-Control-Allow-Origin)" == "*" ]]'
+ck "foto do disco"                                      'cors moj.test "/api/v1/contest/team-photo?contest=prova-x&user=time1" && [[ "$B" == *foto-time1 ]]'
+ck "música do disco (e o Range 206)"                    'cors moj.test "/api/v1/contest/team-music?contest=prova-x&user=time1" && req moj.test "/api/v1/contest/team-music?contest=prova-x&user=time1" -H "Range: bytes=0-3" -H "Origin: https://x" && [[ "$S" == 206 && "$(hd Access-Control-Allow-Origin)" == "*" ]]'
+ck "o padrão do disco (+ Expose do X-MOJ-Photo)"        'cors moj.test "$H0?contest=prova-x" && [[ "$(hd Access-Control-Expose-Headers)" == *X-MOJ-Photo* ]]'
+ck "o que cai no bash (@moj_media) também leva"         'cors moj.test "$L?contest=prova-x&user=time2" && [[ "$B" == bash-media* ]]'
+ck "rota de API comum NÃO ganha CORS (só a mídia)"      'req moj.test "/api/v1/contest/score?contest=prova-x" -H "Origin: https://x"; [[ -z "$(hd Access-Control-Allow-Origin)" ]]'
 
 echo ""; echo "RESULT: $pass passed, $fail failed"; exit $(( fail>0?1:0 ))
