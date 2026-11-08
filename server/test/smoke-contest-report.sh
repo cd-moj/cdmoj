@@ -184,6 +184,10 @@ ck "estatísticas: árvore de sedes (RTREE, com nó agregador) — com o índice
   'grep -q "const RTREE=\[{\"i\":0,\"n\":\"Brasil\",\"d\":0," "$R/statistics.html" && ! grep -q "\"r\":\"^" "$R/statistics.html"'
 ck "placar/runs: RMEM (login → nós, regra única de sedes) embutido; o filtro não compila regex" \
   'grep -q "var RTREE=.*, RMEM={" "$R/index.html" && grep -q "var RTREE=.*, RMEM={" "$R/runs.html" && ! grep -q "safeRe" "$R/index.html"'
+# o mapa NÃO pode sair vazio (08/11/2026: de 03/09 a 08/11 o rep_js_json era chamado antes de existir, o RMEM saía {} e
+# escolher QUALQUER sede da árvore esvaziava o placar — o grep de cima aceitava o "{}")
+ck "placar/runs: RMEM NÃO vazio (tem os logins do fixture)" \
+  '! grep -q "RMEM={}" "$R/index.html" && ! grep -q "RMEM={}" "$R/runs.html" && grep -A3 "RMEM={" "$R/index.html" | grep -q "\"[a-z0-9]*\": \["'
 # --- mlinux.html (nutellaboot) ---
 ck "mlinux: página gerada do cache"        '[[ -s "$R/mlinux.html" ]]'
 ck "mlinux: entra na NAV das outras"       'grep -q "mlinux.html" "$R/index.html"'

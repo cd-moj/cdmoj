@@ -51,6 +51,16 @@ source "$HERE/../api/v1/lib/cohorts.sh"
 : "${MOJ_WEB:=$MOJ_HOME/web}"
 : "${MOJ_PROBLEMS_DIR:=$MOJ_HOME/../moj-problems}"
 
+# rep_js_json — JSON que vai EMBUTIDO num <script> como literal JS (stdin → stdout). O parser de
+# HTML fecha o <script> no PRIMEIRO "</script>" que vê, mesmo dentro de uma string JSON: um time
+# chamado "<script>alert(1)</script>" (LATAM 2026) quebrava statistics.html inteiro ("literal not
+# terminated before end of script"). Todo "<" vira \u003c (válido em JSON e em JS; fora de string
+# o JSON nunca tem "<") e U+2028/U+2029 viram escapes (terminadores de linha p/ motores antigos).
+# ⚠ DEFINIDO AQUI, NO TOPO (08/11/2026): o RMEM (mapa login → sedes dos filtros) o chama bem antes de onde ele
+# morava; de 03/09 a 08/11 a chamada dava "command not found" calada, o RMEM saía {} e escolher QUALQUER sede da
+# árvore no relatório esvaziava o placar (relato do Jeremias Gomes, finais LATAM; cl-tcp idem).
+rep_js_json(){ LC_ALL=C sed -e 's/</\\u003c/g' -e 's/\xe2\x80\xa8/\\u2028/g' -e 's/\xe2\x80\xa9/\\u2029/g'; }
+
 C="${1:-}"; OUTD="${2:-}"
 [[ -n "$C" && -n "$OUTD" ]] || { echo "uso: report-gen.sh <contest> <outdir>" >&2; exit 1; }
 case "$C" in *[!A-Za-z0-9._@#+-]* | "" | *..* ) echo "report-gen: invalid contest id" >&2; exit 1;; esac
@@ -555,12 +565,7 @@ rmdir "$OUTD/fotos" 2>/dev/null || true   # sem foto nenhuma = sem diretório
 
 # escape/format: definidos ANTES das bandeiras — rep_flag usa esc() no alt/title.
 esc(){ printf '%s' "$1" | sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g' -e 's/"/\&quot;/g' -e "s/'/\&#39;/g"; }
-# rep_js_json — JSON que vai EMBUTIDO num <script> como literal JS (stdin → stdout). O parser de
-# HTML fecha o <script> no PRIMEIRO "</script>" que vê, mesmo dentro de uma string JSON: um time
-# chamado "<script>alert(1)</script>" (LATAM 2026) quebrava statistics.html inteiro ("literal not
-# terminated before end of script"). Todo "<" vira \u003c (válido em JSON e em JS; fora de string
-# o JSON nunca tem "<") e U+2028/U+2029 viram escapes (terminadores de linha p/ motores antigos).
-rep_js_json(){ LC_ALL=C sed -e 's/</\\u003c/g' -e 's/\xe2\x80\xa8/\\u2028/g' -e 's/\xe2\x80\xa9/\\u2029/g'; }
+# rep_js_json: definido no topo (antes do RMEM, que o usa — ver lá).
 # data no formato do idioma do relatório (dd/mm em pt, yyyy-mm-dd em en)
 fmt_dt(){ (( ${1:-0} > 0 )) && date -d "@$1" "+$([[ "${LOC:-pt}" == en ]] && printf '%%Y-%%m-%%d %%H:%%M' || printf '%%d/%%m/%%Y %%H:%%M')" 2>/dev/null || printf '—'; }
 
