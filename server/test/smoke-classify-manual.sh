@@ -80,5 +80,50 @@ PUB="$(PATH_INFO=/contest/classification REQUEST_METHOD=GET QUERY_STRING="contes
 eqk "$(jq -r '.stages[0] | "\(.chip) \(.teams | keys | join(",")) \(.teams.alfa.via) \(.labels.manual.short.pt)"' <<<"$PUB")" "SBC alfa,delta manual escolha da organização" "placar público: chip da próxima fase e a via \"escolha da organização\""
 jq -e '[.. | .reason? // empty] | length == 0' <<<"$PUB" >/dev/null && ok || bad "motivo vazou no público"
 
+# ---- VIAS COM RÓTULO (09/11/2026, finais LATAM: o motivo público das 80 vagas era "organizers' choice") ----------------
+# motor: sem `labels` sai IGUAL a antes; com `labels`, os rótulos da config entram e o via_order segue a ordem dela
+eqk "$(jq -c '{labels: (.labels | keys), via_order}' "$FIX/o.json")" '{"labels":["manual"],"via_order":["manual"]}' "sem labels: só a via manual (como antes)"
+LBL='{"country-part":{"pt":"Participação do país","en":"Country participation","es":"Participación del país","short":{"pt":"país","en":"country","es":"país"}},"pend":"Pendente"}'
+jq --argjson l "$LBL" '. + {labels:$l}' "$FIX/cfg.json" > "$FIX/c3.json"; bash "$ENG" sel "$FIX/c3.json" "$FIX/o3.json"
+eqk "$(jq -c '.via_order' "$FIX/o3.json")" '["manual","country-part","pend"]' "com labels: via_order = manual + as da config, na ordem"
+eqk "$(jq -r '"\(.labels["country-part"].short.en)|\(.labels.pend)|\(.labels.manual.short.en)"' "$FIX/o3.json")" "country|Pendente|organizers' choice" "com labels: os da config + o manual"
+for bad in '{"p1":"x"}' '{"comite":"x"}' '{"Maiusc":"x"}' '{"z":null}' '{"z":{"pt":1}}'; do
+  jq --argjson l "$bad" '. + {labels:$l}' "$FIX/cfg.json" > "$FIX/k3.json"
+  bash "$ENG" --check "$FIX/k3.json" 2>/dev/null; eqk "$?" 2 "--check recusa labels $bad"
+done
+# handler: num estágio do motor manual o add aceita manual_vias + vias do catálogo (sem comite) + as da config.labels
+calla POST "$(jq -cn --argjson l "$LBL" '{action:"apply", stage:"vagas", config:{algorithm:"manual", slots:5, labels:$l}, name:"Final"}')"
+eqk "$(J '.applied')" "true" "apply com labels"
+calla POST '{"action":"add","stage":"vagas","login":"alfa","via":"p1"}';           eqk "$(J '.override')" "ov-1" "add com via do catálogo (p1)"
+calla POST '{"action":"add","stage":"vagas","login":"beta","via":"country-part"}'; eqk "$(J '.override')" "ov-2" "add com via da config (country-part)"
+calla POST '{"action":"add","stage":"vagas","login":"gama","via":"zzz"}';          eqk "$(J '.error.code')" "via_invalid" "via desconhecida = 422 via_invalid"
+calla POST '{"action":"add","stage":"vagas","login":"gama","via":"comite"}';       eqk "$(J '.error.code')" "via_invalid" "comite (marcador legado) = 422 via_invalid"
+vst(){ jq -r "first(.stages[] | select(.id == \"vagas\")) | $1" "$C/classification.json"; }
+eqk "$(vst '"\(.teams.alfa.via)|\(.teams.beta.via)|\(.labels.p1.short.pt)|\(.labels["country-part"].short.pt)"')" \
+  "p1|country-part|$(jq -r '.vias.p1.short.pt' "$ROOT/score/classify-catalog.json")|país" "estágio: vias dos times e os rótulos (catálogo + config)"
+# relabel: troca SÓ a via (id, motivo, autor e data ficam), com a mesma validação; vai ao audit com via=antiga→nova
+AT1="$(vst '.overrides[] | select(.id=="ov-1") | .at')"
+calla POST '{"action":"relabel","stage":"vagas","id":"ov-1","via":"p2"}'
+eqk "$(J '.override')" "ov-1" "relabel responde o mesmo id"
+eqk "$(vst '.overrides[] | select(.id=="ov-1") | "\(.via)|\(.at)|\(.login)|\(.op)"')" "p2|$AT1|alfa|add" "relabel: via nova, mesma data, mesmo time"
+eqk "$(vst '"\(.teams.alfa.via)|\(.labels.p2.short.pt != null)|\(.overrides | length)"')" "p2|true|2" "relabel: time com a via nova, rótulo dela, nenhum override novo"
+tail -1 "$C/var/admin-audit.log" | grep -q "relabel stage=vagas key=alfa id=ov-1 via=p1→p2" && ok || bad "relabel no audit com via=antiga→nova"
+calla POST '{"action":"relabel","stage":"vagas","id":"ov-1","via":"zzz"}';   eqk "$(J '.error.code')" "via_invalid" "relabel com via desconhecida = 422"
+calla POST '{"action":"relabel","stage":"vagas","id":"ov-9","via":"p1"}';    eqk "$(J '.error.code')" "override_notfound" "relabel de id inexistente = 404"
+calla POST '{"action":"exclude","stage":"vagas","login":"gama","reason":"teste"}'
+calla POST '{"action":"relabel","stage":"vagas","id":"ov-3","via":"p1"}';    eqk "$(J '.error.code')" "override_not_add" "relabel de um exclude = 409 override_not_add"
+# outros motores: só as manual_vias
+jq -c '.stages += [{id:"brx", status:"draft", config:{algorithm:"sbc-fase1"}, teams:{}, overrides:[]}]' "$C/classification.json" > "$FIX/cf2" && mv "$FIX/cf2" "$C/classification.json"
+calla POST '{"action":"add","stage":"brx","login":"gama","via":"p1","reason":"x"}'; eqk "$(J '.error.code')" "via_invalid" "motor não-manual: via do catálogo segue recusada no add"
+# público: o rótulo de cada via (o short do catálogo e o da config), nunca o motivo
+calla POST '{"action":"publish","stage":"vagas"}'
+PUB2="$(PATH_INFO=/contest/classification REQUEST_METHOD=GET QUERY_STRING="contest=sel" CONTESTSDIR="$FIX" SESSIONDIR="$SESS" bash "$ROUTER" 2>/dev/null | awk 'f{print} /^\r?$/{f=1}')"
+eqk "$(jq -r 'first(.stages[] | select(.id=="vagas")) | "\(.teams.alfa.via)|\(.labels.p2.short.pt != null)|\(.labels["country-part"].short.en)"' <<<"$PUB2")" "p2|true|country" "público: vias e rótulos do catálogo e da config"
+# relatório (classificados.html): o short certo de cada time
+if ( cd "$ROOT/score" && CONTESTSDIR="$FIX" bash report-gen.sh sel "$FIX/rep" >/dev/null 2>&1 ) && [[ -s "$FIX/rep/classificados.html" ]]; then
+  grep -q "país" "$FIX/rep/classificados.html" && grep -qF "$(jq -r '.vias.p2.short.pt' "$ROOT/score/classify-catalog.json")" "$FIX/rep/classificados.html" && ok \
+    || bad "classificados.html sem o rótulo da via (config/catálogo)"
+else bad "report-gen não gerou classificados.html no fixture"; fi
+
 echo "smoke-classify-manual: PASS=$PASS FAIL=$FAIL"
 (( FAIL == 0 ))

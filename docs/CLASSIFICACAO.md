@@ -65,6 +65,18 @@ escolhe quem sobe.
   dos já promovidos = 409 `slots_below_promoted` (desfaça promoções antes).
 - "🔄 Atualizar placar" re-aplica (re-lê o placar) e mantém as promoções.
 - O catálogo marca o motor com `reason_optional` e `manual_slots`. Fora do `add`, o motivo segue obrigatório.
+- **Vias com rótulo** (09/11/2026, finais LATAM: as vagas da PDA apareciam como "escolha da organização"). A via é o
+  motivo PÚBLICO da vaga (o chip, o `classificados.html`, o `/contest/classification`). Neste motor o `add` aceita:
+  - as de sempre: `manual`, `lista`, `reserva`;
+  - as vias do catálogo, menos `comite` (o marcador legado): `p1`–`p4`, `regra1`, `regra2`, `regra4`, `fem-latam`,
+    `fem-host-country`, `wf-overall`, `wf-region`. O rótulo vem do catálogo;
+  - as vias novas da `config.labels` do estágio: `{"<via>": {"pt","en","es","short": {"pt","en","es"}}}` (ou só um
+    texto). Id = minúsculas, dígitos e `-`, até 32; no máximo 50. Não pode repetir uma via do catálogo nem `manual`,
+    `lista`, `reserva` ou `comite` (o `--check` recusa: o rótulo delas é o do catálogo).
+- O motor põe os rótulos da config no `labels` do estágio e as vias no `via_order`, depois de `manual`, na ordem da
+  config. Sem `labels`, a saída é a de antes.
+- Via errada numa promoção: `relabel {id, via}` troca só a via (ver a tabela de overrides). No painel, o seletor na
+  linha do time promovido faz isso.
 
 ## Motor `latam-pda` (regional LATAM → Campeonato Latino-Americano, a "PDA")
 
@@ -188,8 +200,9 @@ Vale para TODO estágio. O cálculo do motor e as decisões manuais ficam SEPARA
 |---|---|---|
 | `exclude {login}` | O time sai do CÁLCULO (`exclude[]` do motor) e o motor roda de novo: o próximo pela regra herda a vaga. | Time inelegível, dado errado (escola ou região trocada). |
 | `withdraw {login\|ext}` | O time sai da lista SEM recalcular: a vaga fica vaga (o comitê ou a lista de espera a preenche). | Time que desistiu depois da classificação. |
-| `add {login \| ext+team, via}` | O time entra à mão, com a via `manual`, `lista` ou `reserva`. Para o motor ele já está promovido (`preassigned[]`): o recálculo não lhe dá outra vaga. Time de fora do placar entra como `ext:<id>`. | Decisão do comitê (a regra 3 da SBC), caso de borda. |
+| `add {login \| ext+team, via}` | O time entra à mão, com a via `manual`, `lista` ou `reserva` (no motor `manual`, também as do catálogo e as da `config.labels`; fora disso, 422 `via_invalid`). Para o motor ele já está promovido (`preassigned[]`): o recálculo não lhe dá outra vaga. Time de fora do placar entra como `ext:<id>`. | Decisão do comitê (a regra 3 da SBC), caso de borda. |
 | `override_undo {id}` | Desfaz o override e volta ao cálculo. | Engano. |
+| `relabel {id, via}` | Troca só a via de um `add`: id, time, motivo, autor e data ficam. A via passa pela mesma validação do `add` (422 `via_invalid`); id inexistente = 404 `override_notfound`; override que não é `add` = 409 `override_not_add`; para `reserva` além das vagas = 409 `reserve_full`. O audit registra `via=antiga→nova`. | Promoção com o motivo público errado. |
 | `promote_next {reason}` | O 1º da lista de espera (recalculada agora) entra como `add` via `lista`. Só motor com lista de espera; lista vazia = 409 `waitlist_empty`. | Vaga aberta por desistência. |
 
 - Um override por time: o segundo dá 409 `override_exists` (desfaça o primeiro).
@@ -232,7 +245,7 @@ Vale para TODO estágio. O cálculo do motor e as decisões manuais ficam SEPARA
   até o fim da prova para todas as sedes + 1 min (`freeze_locked`). Depois disso, com o placar ainda congelado
   (a revelação não aconteceu), a tela pede confirmação (`board_frozen` → `force_frozen`). Rascunho segue livre.
 - Na relação, cada linha do motor tem ✂ (retirar sem recalcular) e ⊘ (excluir e recalcular). Linha manual ou retirada
-  tem ↩ (desfazer). "➕ Promover à mão" leva login ou time de fora do placar, via e motivo. A lista "🛠 Overrides
+  tem ↩ (desfazer). A linha manual tem também o seletor da via (`relabel`, sem desfazer). "➕ Promover à mão" leva login ou time de fora do placar, via e motivo. A lista "🛠 Overrides
   manuais" mostra todos, com quem e quando.
 
 A criação de contest leva `modules.classificacao{algorithm, config}` (um estágio, o padrão do motor) ou
@@ -243,7 +256,7 @@ dados da prova.
 Testes: `server/test/smoke-classify-br.sh` (motor, relatório com dois estágios, gate de rascunho, handler e overrides),
 `smoke-classify-pda.sh` (o motor da PDA passo a passo, `--check`, `--geo`, lista de espera, `promote_next`, reserva,
 trava com 8 escritas em paralelo), `smoke-classify-mundial.sh` (campeões, 1 por instituição, região sem time → geral,
-medalhas com empate), `smoke-classify-manual.sh` (placar, promoção sem motivo, `slots_full`, desfazer),
+medalhas com empate), `smoke-classify-manual.sh` (placar, promoção sem motivo, `slots_full`, desfazer, vias com rótulo, `relabel`),
 `smoke-score-classified.gjs.sh` (chips do placar), `smoke-classify-tab.gjs.sh` (o painel: grupos, ações no estágio
 certo, nova etapa, editor JSON), `smoke-contest-modules.sh` (catálogo × allowlist, spec com
 `stages[]`).

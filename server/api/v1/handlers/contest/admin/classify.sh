@@ -17,8 +17,13 @@
 #   add      {login | ext+team, reason, via?, univ?, school?, country?, region?} -> promove à mão (via
 #                                         manual|lista|reserva); p/ o motor, conta como já promovido
 #   override_undo {id}                 -> desfaz um override
+#   relabel {id, via}                  -> troca a via de um `add` existente, mantendo id, motivo, autor e data (09/11/2026,
+#                                         finais LATAM); mesma validação de via do add; o audit leva via=antiga→nova
 # Motor `manual` (catálogo reason_optional/manual_slots): TODA promoção é um `add` — motivo opcional, no máximo
-#   config.slots promovidos (409 slots_full); o result traz o `ranking` (o placar) p/ o painel.
+#   config.slots promovidos (409 slots_full); o result traz o `ranking` (o placar) p/ o painel. A VIA do add (e do
+#   relabel) pode ser, além das manual_vias, uma via do CATÁLOGO (p1–p4, fem-*…; menos `comite`, o marcador legado do
+#   cl_ovs) ou uma das `config.labels` do estágio — o rótulo PÚBLICO (placar, relatório, /contest/classification) passa
+#   a ser o passo da regra, não "escolha da organização" (09/11/2026). Nos outros motores, só as manual_vias.
 #   promote_next {reason}              -> o 1º da LISTA DE ESPERA (recalculada contra o estágio atual) vira um
 #                                         add via "lista" (motor com waitlist no catálogo; 409 waitlist_empty).
 #                                         add via "reserva" além das vagas de reserva do motor = 409 reserve_full
@@ -142,6 +147,16 @@ _compose(){
            labels: (($c[0].vias + (.result.labels // {})) | with_entries(select(.key as $k | $order | any(.[]; . == $k)))),
            chip: (.chip // $E.defaults.chip // .name // .id)}' "$1"
 }
+# _via_ok <via> <estágio> — a via vale p/ um add/relabel neste estágio? Motor manual (catálogo reason_optional ou
+# manual_slots): manual_vias + vias do catálogo (sem `comite`) + chaves de config.labels; demais motores: manual_vias.
+_via_ok(){
+  [[ "$1" =~ ^[a-z0-9-]{1,32}$ ]] || return 1
+  jq -e --arg v "$1" --slurpfile c "$CL_CATALOG" '
+    (.config.algorithm // "") as $a
+    | (any($c[0].engines[]; .id == $a and (.reason_optional == true or .manual_slots == true))) as $man
+    | ($c[0].manual_vias // []) + (if $man then ((($c[0].vias // {}) | keys) - ["comite"]) + ((.config.labels // {}) | keys) else [] end)
+    | index($v) != null' "$2" >/dev/null 2>&1
+}
 _need_reason(){ # [optional] — motivo (texto, ≤ 500) em REASON; obrigatório, salvo `optional` (motor manual)
   REASON="$(jq -r '((.reason // .note // "") | tostring | gsub("^\\s+|\\s+$"; ""))' "$BF")"
   [[ -n "$REASON" || "${1:-}" == optional ]] || fail 422 "Motivo obrigatório" "reason_required"
@@ -246,12 +261,13 @@ case "$action" in
     audit_log_to "$contest" classify "$action stage=$stage by=$SESSION_LOGIN"
     ok_json '{status:$st, stage:$s}' --arg st "$st" --arg s "$stage"
     ;;
-  exclude|withdraw|add|override_undo)
+  exclude|withdraw|add|override_undo|relabel)
     stage="${stage:-final-br}"
     _lock
     exists=1
     _stage_get "$stage" > "$W/st.json" || { exists=0; jq -cn --arg s "$stage" '{id:$s, status:"draft", teams:{}}' > "$W/st.json"; }
     [[ "$exists" == 1 || "$action" == add || "$action" == exclude ]] || fail 404 "Estágio não existe: $stage" "no_stage"
+    AUDX=""
     [[ "$(jq -r '.status // ""' "$W/st.json")" == published ]] && _frozen_guard
     jq -c "$CL_JQ"'cl_ovs' "$W/st.json" > "$W/ovs.json"
     rerun=1     # withdraw (e desfazer um withdraw) NÃO recalcula: compõe sobre a saída guardada
@@ -264,6 +280,25 @@ case "$action" in
       jq -c --arg i "$oid" 'map(select(.id != $i))' "$W/ovs.json" > "$W/ovs2.json"
       key="$(jq -r 'if (.login // "") != "" then .login else "ext:" + (.ext // "") end' "$W/ov.json")"
       REASON="$(jq -r '.reason // ""' "$W/ov.json")"
+    elif [[ "$action" == relabel ]]; then
+      # troca SÓ a via de um add (id, motivo, autor e data ficam); recalcula como o add (o motor recebe a via no
+      # preassigned)
+      oid="$(jq -r '.id // ""' "$BF")"
+      [[ "$oid" =~ ^ov-[0-9]{1,6}$ ]] || fail 400 "id de override inválido" "override_invalid"
+      jq -ce --arg i "$oid" 'first(.[] | select(.id == $i)) // empty' "$W/ovs.json" > "$W/ov.json" \
+        || fail 404 "Override não encontrado: $oid" "override_notfound"
+      [[ "$(jq -r '.op' "$W/ov.json")" == add ]] || fail 409 "Só um add tem via: $oid é $(jq -r '.op' "$W/ov.json")" "override_not_add"
+      via="$(jq -r '.via // ""' "$BF")"
+      _via_ok "$via" "$W/st.json" || fail 422 "via inválida p/ promoção manual: $via" "via_invalid"
+      oldvia="$(jq -r '.via // "manual"' "$W/ov.json")"
+      if [[ "$via" == reserva && "$oldvia" != reserva ]]; then
+        jq -e "$CL_JQ"'(.result.reserve.slots // null) as $n | $n == null or ([ cl_ovs[] | select(.op == "add" and .via == "reserva") ] | length) < $n' \
+          "$W/st.json" >/dev/null 2>&1 || fail 409 "As vagas de reserva deste estágio já foram usadas" "reserve_full"
+      fi
+      jq -c --arg i "$oid" --arg v "$via" 'map(if .id == $i then . + {via:$v} else . end)' "$W/ovs.json" > "$W/ovs2.json"
+      key="$(jq -r 'if (.login // "") != "" then .login else "ext:" + (.ext // "") end' "$W/ov.json")"
+      REASON="$(jq -r '.reason // ""' "$W/ov.json")"
+      AUDX="via=${oldvia}→${via} "
     else
       # motor manual (catálogo reason_optional): a PROMOÇÃO é o próprio cálculo e o motivo é opcional
       ralg="$(jq -r '.config.algorithm // ""' "$W/st.json")"
@@ -294,8 +329,7 @@ case "$action" in
         add)
           [[ "$intm" == 0 ]] || fail 409 "$key já está na lista deste estágio" "already_classified"
           via="$(jq -r '.via // "manual"' "$BF")"
-          jq -e --arg v "$via" '.manual_vias | index($v)' "$CL_CATALOG" >/dev/null 2>&1 \
-            || fail 422 "via inválida p/ promoção manual: $via" "via_invalid"
+          _via_ok "$via" "$W/st.json" || fail 422 "via inválida p/ promoção manual: $via" "via_invalid"
           # motor manual: no máximo `slots` promovidos (o admin aumenta o número p/ promover mais)
           if jq -e --arg a "$ralg" 'any(.engines[]; .id == $a and .manual_slots == true)' "$CL_CATALOG" >/dev/null 2>&1; then
             jq -e "$CL_JQ"'(.config.slots // null) as $n | $n == null or ([ cl_ovs[] | select(.op == "add") ] | length) < $n' \
@@ -338,9 +372,9 @@ case "$action" in
     _compose "$W/st.json" "$res" > "$W/new.json" || fail 500 "Falha ao compor o estágio" "write_fail"
     _stage_put "$W/new.json"
     mod_enable "$contest" classificacao
-    audit_log_to "$contest" classify-override "$action stage=$stage key=$key id=${oid} reason=${REASON:0:200} by=$SESSION_LOGIN"
+    audit_log_to "$contest" classify-override "$action stage=$stage key=$key id=${oid} ${AUDX}reason=${REASON:0:200} by=$SESSION_LOGIN"
     ok_json_slurp '{stage:$s, override:$o, overrides:$f[0].overrides, total:($f[0].teams | length)}' f "$(cat "$W/new.json")" \
       --arg s "$stage" --arg o "$oid"
     ;;
-  *) fail 400 "action deve ser preview|apply|publish|unpublish|delete|exclude|withdraw|add|override_undo|promote_next" "action_invalid";;
+  *) fail 400 "action deve ser preview|apply|publish|unpublish|delete|exclude|withdraw|add|override_undo|relabel|promote_next" "action_invalid";;
 esac

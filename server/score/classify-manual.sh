@@ -8,19 +8,37 @@
 #
 #   classify-manual.sh <contest> <config.json> [out]
 #   classify-manual.sh --check <config.json>          (rc 0 | rc 2 + {errors})
-# config: {slots: N (≥ 0), ranking_limit?: 500, exclude?: [login], preassigned?: [{login}]}
+# config: {slots: N (≥ 0), ranking_limit?: 500, exclude?: [login], preassigned?: [{login}],
+#          labels?: {"<via>": {pt, en, es, short:{pt, en, es}} | "texto"}}
 # saída:  {classified:[] (nada é automático), ranking:[{place, login, team, univ, total, penalty, flag}] (o placar
 #          OFICIAL, sem convidados e sem os excluídos, até ranking_limit linhas), slots, pre:[…], blocks, warnings,
-#          labels (a via `manual` aqui é "promovido pela organização", não "comitê")}
+#          labels (a via `manual` aqui é "promovido pela organização", não "comitê") + os `labels` da config,
+#          via_order = ["manual"] + as vias da config, na ordem}
+# VIAS COM RÓTULO (09/11/2026, finais LATAM: o motivo PÚBLICO das 80 vagas da pda era "organizers' choice" em todas):
+# `labels` define vias NOVAS (id ^[a-z0-9-]{1,32}$, rótulo pela regra do label_ok do classify-pda.sh) que o `add` do
+# handler aceita num estágio deste motor, junto das manual_vias e das vias do CATÁLOGO (p1–p4, fem-*…). Não redefine
+# as reservadas (manual|lista|reserva|comite) nem as do catálogo — o rótulo delas vem de lá (lidas do catálogo aqui,
+# nunca uma lista à mão).
 set -u
 HERE="$(cd "$(dirname "$(readlink -f "$0")")" && pwd)"
 mn_check(){
-  jq -c 'def nonneg: type == "number" and floor == . and . >= 0;
-    if type != "object" then ["a config tem de ser um objeto {slots}"] else [
+  jq -c --slurpfile cat "$HERE/classify-catalog.json" 'def nonneg: type == "number" and floor == . and . >= 0;
+    def label_ok: . == null or type == "string" or (type == "object" and all(to_entries[]; (.key | test("^(pt|en|es)$")) and (.value | type) == "string" or .key == "short"));
+    ((["manual","lista","reserva","comite"] + ($cat[0].manual_vias // []) + (($cat[0].vias // {}) | keys)) | unique) as $reserved
+    | if type != "object" then ["a config tem de ser um objeto {slots}"] else [
       (if (.slots | nonneg) | not then "slots: inteiro ≥ 0 (quantos times serão promovidos)" else empty end),
       (if has("ranking_limit") and ((.ranking_limit | nonneg and . >= 1) | not) then "ranking_limit: inteiro ≥ 1" else empty end),
       (if has("exclude") and (.exclude | type) != "array" then "exclude: lista" else empty end),
-      (if has("preassigned") and (.preassigned | type) != "array" then "preassigned: lista" else empty end)
+      (if has("preassigned") and (.preassigned | type) != "array" then "preassigned: lista" else empty end),
+      (if has("labels") then
+         (if (.labels | type) != "object" then "labels: objeto {via: {pt,en,es,short}}"
+          elif (.labels | length) > 50 then "labels: no máximo 50 vias"
+          else (.labels | to_entries[] | .key as $k
+                | if (.key | test("^[a-z0-9-]{1,32}$")) | not then "labels.\(.key): id de via = minúsculas, dígitos e -, até 32"
+                  elif ($reserved | index($k)) != null then "labels.\(.key): via reservada ou do catálogo (o rótulo vem de lá)"
+                  elif .value == null or ((.value | label_ok) | not) then "labels.\(.key): rótulo = texto ou {pt,en,es,short}"
+                  else empty end) end)
+       else empty end)
     ] end' "$1" 2>/dev/null || printf '["config não é JSON válido"]'
 }
 if [[ "${1:-}" == --check ]]; then
@@ -54,7 +72,8 @@ jq -Rn --arg contest "$C" --slurpfile cfg "$CFG" --rawfile rk "$W/rank.tsv" --ra
      classified:[], total:0, ranking:$R[0:$lim],
      pre:[ $P[] | select($byl[.] != null) | $byl[.] | {login, place, total, team, univ} ],
      blocks:[{id:"manual", type:"manual", slots:$cfg[0].slots, used:($P | length)}],
-     via_order:["manual"],
-     labels:{manual:{pt:"Promovido pela organização", en:"Promoted by the organizers", es:"Promovido por la organización",
-                     short:{pt:"escolha da organização", en:"organizers\u0027 choice", es:"elección de la organización"}}},
+     via_order:(["manual"] + (($cfg[0].labels // {}) | keys_unsorted)),
+     labels:({manual:{pt:"Promovido pela organização", en:"Promoted by the organizers", es:"Promovido por la organización",
+                      short:{pt:"escolha da organização", en:"organizers\u0027 choice", es:"elección de la organización"}}}
+             + ($cfg[0].labels // {})),
      warnings:($wn[0] // [])}' > "$OUT"

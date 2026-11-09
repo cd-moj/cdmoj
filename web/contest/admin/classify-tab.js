@@ -138,8 +138,17 @@ export function makeClassifyTab(CONTEST) {
     try { await call(Object.assign({ stage: sid }, body)); await load(); } catch (e) { showErr(e); }
   };
 
+  // promoção à mão: a via (o motivo público da vaga) troca no lugar — `relabel`, sem desfazer/refazer (id, motivo e data ficam)
+  function relabelSelect(id, via, st) {
+    const s = viaSelect(st);
+    if (!viaOptions(st).includes(via || 'manual')) s.append(el('option', { value: via }, via));
+    s.value = via || 'manual';
+    s.onchange = () => { if (s.value !== (via || 'manual')) act({ action: 'relabel', id, via: s.value }); };
+    return s;
+  }
+
   // --- tabela da relação, agrupada por via na ordem do estágio (via fora da ordem aparece no fim, pelo id) ---
-  function relationTable(rel, labels, order, withActions) {
+  function relationTable(rel, labels, order, withActions, st) {
     const wrap = el('div', {});
     const vias = (order || []).slice();
     rel.forEach((t) => { if (!vias.includes(t.via)) vias.push(t.via); });
@@ -163,6 +172,7 @@ export function makeClassifyTab(CONTEST) {
             td.append(el('button', { class: 'btn ghost small', title: T('desfazer a retirada', 'undo the withdrawal', 'deshacer el retiro'),
               onclick: () => act({ action: 'override_undo', id: t.withdrawn.id }) }, '↩'));
           } else if (t.manual) {
+            if (t.override) td.append(relabelSelect(t.override, t.via, st), ' ');
             td.append(el('button', { class: 'btn ghost small', title: T('desfazer a promoção manual', 'undo the manual promotion', 'deshacer la promoción manual'),
               onclick: () => { if (confirm(T('Desfazer a promoção manual de ', 'Undo the manual promotion of ', '¿Deshacer la promoción manual de ') + t.login + '?')) act({ action: 'override_undo', id: t.override }); } }, '↩'));
           } else {
@@ -210,14 +220,30 @@ export function makeClassifyTab(CONTEST) {
           el('th', {}, T('Motivo', 'Reason', 'Motivo')), el('th', {}, T('Quem / quando', 'Who / when', 'Quién / cuándo')), el('th', {}, ''))), tb)));
   }
 
-  function addBox(optionalReason) {
+  // vias que um add aceita neste estágio — a MESMA regra do _via_ok do handler: manual_vias e, no motor manual, também as
+  // vias do catálogo (menos `comite`, o marcador legado) e as da config.labels do estágio (09/11/2026, finais LATAM: o
+  // motivo público era "escolha da organização" em todas as vagas)
+  function viaOptions(st) {
+    const base = (DATA.manual_vias || ['manual']).slice();
+    const alg = st ? algOf((st.config && st.config.algorithm) || '') : null;
+    if (!alg || !(alg.reason_optional || alg.manual_slots)) return base;
+    const extra = Object.keys(DATA.vias || {}).filter((v) => v !== 'comite').concat(Object.keys((st.config || {}).labels || {}));
+    extra.forEach((v) => { if (!base.includes(v)) base.push(v); });
+    return base;
+  }
+  function viaSelect(st) {
+    const labels = Object.assign({}, (st && st.config && st.config.labels) || {}, (st && st.labels) || {});
+    return el('select', { title: T('via (o motivo público da vaga)', 'via (the public reason for the slot)', 'vía (el motivo público del cupo)') },
+      ...viaOptions(st).map((v) => el('option', { value: v }, viaLabel(labels, v, false) + (viaLabel(labels, v, false) === v ? '' : ' (' + v + ')'))));
+  }
+  function addBox(optionalReason, st) {
     const mode = el('select', {}, el('option', { value: 'login' }, T('time do placar (login)', 'scoreboard team (login)', 'equipo del marcador (login)')),
       el('option', { value: 'ext' }, T('time de fora do placar', 'team outside the scoreboard', 'equipo fuera del marcador')));
     const login = el('input', { placeholder: 'login', style: 'min-width:150px' });
     const ext = el('input', { placeholder: T('id (ex.: lugia-usb)', 'id (e.g., lugia-usb)', 'id (ej.: lugia-usb)'), style: 'min-width:140px;display:none' });
     const team = el('input', { placeholder: T('nome do time', 'team name', 'nombre del equipo'), style: 'min-width:150px;display:none' });
     const univ = el('input', { placeholder: T('escola', 'school', 'escuela'), style: 'min-width:100px;display:none' });
-    const via = el('select', {}, ...(DATA.manual_vias || ['manual']).map((v) => el('option', { value: v }, viaLabel(null, v, false))));
+    const via = viaSelect(st);
     const reason = el('input', { placeholder: optionalReason ? T('motivo (opcional)', 'reason (optional)', 'motivo (opcional)') : T('motivo (obrigatório)', 'reason (required)', 'motivo (obligatorio)'), style: 'min-width:220px' });
     mode.onchange = () => { const e = mode.value === 'ext'; login.style.display = e ? 'none' : ''; [ext, team, univ].forEach((x) => { x.style.display = e ? '' : 'none'; }); };
     return el('div', { class: 'row', style: 'gap:.5rem;flex-wrap:wrap;align-items:center;margin-top:.6rem' },
@@ -251,8 +277,10 @@ export function makeClassifyTab(CONTEST) {
           // o campo do motivo abre NA LINHA do time; ✔ promove, ✕ desiste
           act0.innerHTML = '';
           const why = el('input', { placeholder: T('motivo (opcional)', 'reason (optional)', 'motivo (opcional)'), style: 'min-width:200px' });
-          act0.append(why, ' ',
-            el('button', { class: 'btn small', title: T('promover', 'promote', 'promover'), onclick: () => act({ action: 'add', login: t.login, reason: why.value.trim() }) }, '✔'), ' ',
+          const via = viaSelect(st);
+          act0.append(via, ' ', why, ' ',
+            el('button', { class: 'btn small', title: T('promover', 'promote', 'promover'), onclick: () => act(Object.assign({ action: 'add', login: t.login, reason: why.value.trim() },
+              via.value && via.value !== 'manual' ? { via: via.value } : {})) }, '✔'), ' ',
             el('button', { class: 'btn ghost small', title: T('cancelar', 'cancel', 'cancelar'), onclick: idle }, '✕'));
         } }, T('⬆ Promover', '⬆ Promote', '⬆ Promover')));
       };
@@ -322,10 +350,10 @@ export function makeClassifyTab(CONTEST) {
           if (confirm(T('Apagar o estágio em rascunho ', 'Delete the draft stage ', '¿Borrar la etapa en borrador ') + st.id + T('? (overrides inclusive)', '? (overrides included)', '? (overrides incluidos)'))) act({ action: 'delete' });
         } }, T('🗑 Apagar rascunho', '🗑 Delete draft', '🗑 Borrar borrador'))),
       warningsBox(st.result && st.result.warnings, Object.assign({}, DATA.vias, st.labels)),
-      relationTable(rel, st.labels, st.via_order, true),
+      relationTable(rel, st.labels, st.via_order, true, st),
       ...(alg && alg.form === 'manual'
         // motor manual: as promoções SÃO a classificação — o placar com "Promover" em vez dos detalhes do cálculo
-        ? [rankingBox(st, rel), addBox(true)]
+        ? [rankingBox(st, rel), addBox(true, st)]
         : [addBox(false),
           (() => { const d = resultDetails(st.result, st.labels); return d ? el('details', { style: 'margin-top:.6rem' },
             el('summary', {}, el('b', {}, T('📊 Detalhes do cálculo', '📊 Computation details', '📊 Detalles del cálculo'))), d) : null; })(),
