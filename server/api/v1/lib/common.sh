@@ -111,8 +111,21 @@ _reason() {
 # fail <http-status> <message> [error-code] — envelope de erro + encerra.
 # `_fail_hook <http> <código>`, se o handler o definir, roda UMA vez antes da resposta (o auth/login registra a
 # tentativa recusada). Função só existe na requisição que a definiu: o molde roda cada uma num subshell.
+# _drain_body — consome o corpo da requisição que o handler NÃO leu. Quando o handler recusa antes do read_body
+# (sem login, papel errado, contest fechado) e a bash sai sem ler o stdin, o fcgiwrap troca a resposta por um 502
+# opaco ("An error occurred while reading the request"): foram os 24 × 502 do upload de foto do Chile (07/11/2026),
+# onde o certo era o 401/403 com o motivo. Limitado ao CONTENT_LENGTH; corpo já lido = stdin em EOF, sai na hora.
+# SÓ no processo principal: um `fail` dentro de `$(…)` encerra só o subshell, e o handler ainda vai ler o corpo.
+_drain_body() {
+  [[ "$BASHPID" == "$$" ]] || return 0
+  local n="${CONTENT_LENGTH:-0}"
+  [[ "$n" =~ ^[0-9]+$ ]] && (( n > 0 )) || return 0
+  case "${REQUEST_METHOD:-}" in POST|PUT|PATCH) head -c "$n" > /dev/null 2>&1 || true ;; esac
+}
+
 fail() {
   local code="${1:-400}" msg="$2" ecode="${3:-$1}" x="${FAIL_EXTRA:-}"
+  _drain_body
   if [[ -z "${_FAIL_HOOK_RAN:-}" ]] && declare -F _fail_hook >/dev/null; then
     _FAIL_HOOK_RAN=1; _fail_hook "$code" "$ecode" 2>/dev/null || true
   fi

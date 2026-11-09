@@ -60,6 +60,9 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
 - Handler típico: `require_method POST`; `require_auth`; `body="$(read_body)"`; valida com
   `jq -e .`; lê com `jq -r`; responde com `emit_json 200 OK` + objeto `jq`, ou
   `fail <http> "<msg>" "<code>"`. Querystring: `param <nome>`. Helpers em `lib/common.sh`.
+  O `fail` DRENA o corpo que o handler não leu (`_drain_body`, até o `CONTENT_LENGTH`, só no processo principal —
+  09/11/2026): recusar antes do `read_body` e sair sem ler o stdin faz o fcgiwrap trocar o 401/403 por um 502 opaco
+  (o upload de foto do Chile na LATAM). Teste: `smoke-fail-drain.sh`.
 - **Envelope**: `{success:true,…}` / `{success:false,error:{message,code}}`, sempre com o
   status HTTP correto. EPOCH para tempo.
 - **`jq` + ARG_MAX** (ver `../CLAUDE.md`): JSON grande (mapas com milhares de chaves, ex.: o
