@@ -1,4 +1,4 @@
-<!-- i18n-source: PACOTE.md blob:ce4d266a52f5d7304839304a8aaec6fc236a8f4b -->
+<!-- i18n-source: PACOTE.md blob:cd8f642b7d2797f060613138d6998ff68e54bf31 -->
 # MOJ: the problem package (canonical format)
 
 > **Translation note.** This manual is a translation of the Portuguese original. The command-line tools (`moj`, `moj-contest`, `moj-comp`) print their messages in Portuguese, and the command examples below are identical to the original.
@@ -467,14 +467,14 @@ All the keys that `build-and-test.sh` understands:
 | `ULIMITS[-f]` | `256000` | maximum size of a file that the program can write | 0 |
 | `ALLOWPARALLELTEST` | on (absent = `y`) | `y` = the judge **can** run many tests of this submission at the same time, each on its k CPUs, when it has idle CPU (admin policy; off during a contest); `n` = one test at a time. **It does not change the time limit**: calibration always runs one test at a time. See "Parallel problems" below | 453 |
 | `STACKLIMITMB` | 128 | stack in MB. It wins over `ULIMITS[-s]`. The JVM mirrors it in `-Xss` | 0 |
-| `MEMLIMITMB` | no RSS limit | memory limit in MB, measured by the **peak RSS**. If you set it, the virtual memory limit is turned off (that limit is unfair to JVM and Go). The JVM uses this value in `-Xmx`. The unit is **MB**: 256 MB is `256`, not `262144`. Above what one judge slot holds (today about 9 GB), each test takes more slots and the submission waits longer; above the memory of every judge, the problem cannot be judged (Judge Error) — the Dashboard and the editor's Limits tab warn you | 0 |
+| `MEMLIMITMB` | no RSS limit | memory limit in MB, measured by the **peak RSS**. If you set it, the virtual memory limit is turned off (that limit is unfair to JVM and Go). The JVM uses this value in `-Xmx`. The unit is **MB**: 256 MB is `256`, not `262144`. Above what one judge slot holds (today about 9 GB), each test takes more slots and the submission waits longer; above the memory of every judge, the problem cannot be judged (Judge Error) — the Dashboard and the editor's Limits tab warn you. A program that the judge kills for going over the memory cap also gets **Memory Limit Exceeded**, with or without `MEMLIMITMB` | 0 |
 | `COMPILEMEMLIMIT` | `2048` | memory in MB available for **compilation** (`kotlinc` uses more than 600 MB) | 0 |
 | `MAXPARALLELTESTS` | judge ceiling (4) | ceiling of simultaneous tests for this problem (integer ≥ 1); it is never more than the judge ceiling (`parallel_max`, default 4) or `nproc/k` in a manual run | 0 |
 | `CPUNEEDED` | `1` | **CPUs that each test needs** (1..64; parallel problem — OpenMP/MPI/pthreads). The judge joins k slots for each test, and the cage gets `MOJ_TEST_CPUS`/`OMP_NUM_THREADS` = k. A change recalibrates. See "Parallel problems" | 0 |
 | `SAMENUMA` | `n` | with `CPUNEEDED>1`, `y` = the k CPUs of each test are on the same NUMA node | 0 |
 | `STOPWHEN_WA` | does not stop | `y` stops at the first Wrong Answer | 0 |
 | `STOPWHEN_TLE` | does not stop | `y` stops at the first Time Limit Exceeded | 0 |
-| `STOPWHEN_RE` | does not stop | `y` stops at the first Runtime Error | 0 |
+| `STOPWHEN_RE` | does not stop | `y` stops at the first Runtime Error or Memory Limit Exceeded | 0 |
 | `TLERERUN` | `y` | runs the test one more time before it confirms a TLE (prevents TLE from machine noise) | 0 |
 | `CALIBRATIONTL` | `5` | time limit used **during** calibration, before a real TL exists | 0 |
 | `ALLOWTLEDURINGCALIBRATION` | off | `y` accepts a `good` solution with TLE as "calibrated" (the language gets a TL even when it goes over `CALIBRATIONTL` — rare cases of a `good` solution that is deliberately at the limit) | 0 |

@@ -449,14 +449,14 @@ Todas as chaves que o `build-and-test.sh` entende:
 | `ULIMITS[-f]` | `256000` | tamanho máximo de arquivo que o programa pode escrever | 0 |
 | `ALLOWPARALLELTEST` | ligado (ausente = `y`) | `y` = o juiz **pode** rodar vários testes desta submissão ao mesmo tempo, cada um nas suas k CPUs, quando tem CPU ociosa (política do admin; em prova fica desligada); `n` = um teste por vez. **Não muda o tempo-limite**: a calibração é sempre um teste por vez. Ver "Problemas paralelos" abaixo | 453 |
 | `STACKLIMITMB` | 128 | pilha em MB. Vence o `ULIMITS[-s]`. A JVM espelha isso no `-Xss` | 0 |
-| `MEMLIMITMB` | sem limite por RSS | limite de memória em MB, medido pelo **pico de RSS**. Ligar isso desliga o limite de memória virtual (que penalizaria injustamente JVM e Go). A JVM usa este valor no `-Xmx`. A unidade é **MB**: 256 MB é `256`, não `262144`. Acima do que um slot de juiz comporta (hoje ~9 GB), cada teste ocupa mais slots e a submissão espera mais; acima da memória de qualquer juiz, o problema não é julgável (Judge Error) — o Painel e a aba Limites do editor avisam | 0 |
+| `MEMLIMITMB` | sem limite por RSS | limite de memória em MB, medido pelo **pico de RSS**. Ligar isso desliga o limite de memória virtual (que penalizaria injustamente JVM e Go). A JVM usa este valor no `-Xmx`. A unidade é **MB**: 256 MB é `256`, não `262144`. Acima do que um slot de juiz comporta (hoje ~9 GB), cada teste ocupa mais slots e a submissão espera mais; acima da memória de qualquer juiz, o problema não é julgável (Judge Error) — o Painel e a aba Limites do editor avisam. O programa que o juiz mata por passar do teto de memória também recebe **Memory Limit Exceeded**, com ou sem `MEMLIMITMB` | 0 |
 | `COMPILEMEMLIMIT` | `2048` | memória em MB liberada para a **compilação** (o `kotlinc` passa de 600 MB) | 0 |
 | `MAXPARALLELTESTS` | teto do juiz (4) | teto de testes ao mesmo tempo deste problema (inteiro ≥ 1); nunca passa do teto do juiz (`parallel_max`, default 4) nem de `nproc/k` rodando à mão | 0 |
 | `CPUNEEDED` | `1` | **CPUs que cada teste precisa** (1..64; problema paralelo — OpenMP/MPI/pthreads). O juiz junta k slots para cada teste e a jaula entra com `MOJ_TEST_CPUS`/`OMP_NUM_THREADS` = k. Mudar recalibra. Ver "Problemas paralelos" | 0 |
 | `SAMENUMA` | `n` | com `CPUNEEDED>1`, `y` = as k CPUs de cada teste no mesmo nó NUMA | 0 |
 | `STOPWHEN_WA` | não para | `y` interrompe no primeiro Wrong Answer | 0 |
 | `STOPWHEN_TLE` | não para | `y` interrompe no primeiro Time Limit Exceeded | 0 |
-| `STOPWHEN_RE` | não para | `y` interrompe no primeiro Runtime Error | 0 |
+| `STOPWHEN_RE` | não para | `y` interrompe no primeiro Runtime Error ou Memory Limit Exceeded | 0 |
 | `TLERERUN` | `y` | repete o teste uma vez antes de confirmar um TLE (evita TLE por ruído da máquina) | 0 |
 | `CALIBRATIONTL` | `5` | tempo-limite usado **durante** a calibração, antes de existir um TL real | 0 |
 | `ALLOWTLEDURINGCALIBRATION` | desligado | `y` aceita solução `good` com TLE como "calibrou" (a linguagem ganha TL mesmo estourando o `CALIBRATIONTL` — casos raros de good deliberadamente no limite) | 0 |

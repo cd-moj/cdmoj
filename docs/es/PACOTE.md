@@ -1,4 +1,4 @@
-<!-- i18n-source: PACOTE.md blob:ce4d266a52f5d7304839304a8aaec6fc236a8f4b -->
+<!-- i18n-source: PACOTE.md blob:cd8f642b7d2797f060613138d6998ff68e54bf31 -->
 # MOJ: el paquete de problema (formato canónico)
 
 > **Nota de traducción.** Este manual es una traducción del original en portugués. Las herramientas de línea de comandos (`moj`, `moj-contest`, `moj-comp`) muestran sus mensajes en portugués, y los ejemplos de comandos son idénticos al original.
@@ -458,14 +458,14 @@ Todas las claves que entiende `build-and-test.sh`:
 | `ULIMITS[-f]` | `256000` | tamaño máximo de archivo que el programa puede escribir | 0 |
 | `ALLOWPARALLELTEST` | activado (ausente = `y`) | `y` = el juez **puede** ejecutar varias pruebas de este envío al mismo tiempo, cada una en sus k CPUs, cuando tiene CPU ociosa (política del admin; en una competencia queda desactivada); `n` = una prueba a la vez. **No cambia el tiempo límite**: la calibración es siempre una prueba a la vez. Ver "Problemas paralelos" abajo | 453 |
 | `STACKLIMITMB` | 128 | pila en MB. Gana sobre `ULIMITS[-s]`. La JVM lo refleja en `-Xss` | 0 |
-| `MEMLIMITMB` | sin límite por RSS | límite de memoria en MB, medido por el **pico de RSS**. Activarlo desactiva el límite de memoria virtual (que penalizaría injustamente a la JVM y a Go). La JVM usa este valor en `-Xmx`. La unidad es **MB**: 256 MB es `256`, no `262144`. Por encima de lo que soporta un slot de juez (hoy unos 9 GB), cada prueba ocupa más slots y el envío espera más; por encima de la memoria de cualquier juez, el problema no se puede juzgar (Judge Error) — el Panel y la pestaña Límites del editor avisan | 0 |
+| `MEMLIMITMB` | sin límite por RSS | límite de memoria en MB, medido por el **pico de RSS**. Activarlo desactiva el límite de memoria virtual (que penalizaría injustamente a la JVM y a Go). La JVM usa este valor en `-Xmx`. La unidad es **MB**: 256 MB es `256`, no `262144`. Por encima de lo que soporta un slot de juez (hoy unos 9 GB), cada prueba ocupa más slots y el envío espera más; por encima de la memoria de cualquier juez, el problema no se puede juzgar (Judge Error) — el Panel y la pestaña Límites del editor avisan. El programa que el juez mata por pasar del tope de memoria también recibe **Memory Limit Exceeded**, con o sin `MEMLIMITMB` | 0 |
 | `COMPILEMEMLIMIT` | `2048` | memoria en MB liberada para la **compilación** (`kotlinc` pasa de 600 MB) | 0 |
 | `MAXPARALLELTESTS` | tope del juez (4) | tope de pruebas al mismo tiempo de este problema (entero ≥ 1); nunca pasa del tope del juez (`parallel_max`, default 4) ni de `nproc/k` al ejecutar a mano | 0 |
 | `CPUNEEDED` | `1` | **CPUs que necesita cada prueba** (1..64; problema paralelo — OpenMP/MPI/pthreads). El juez junta k slots para cada prueba y la jaula entra con `MOJ_TEST_CPUS`/`OMP_NUM_THREADS` = k. Cambiarlo recalibra. Ver "Problemas paralelos" | 0 |
 | `SAMENUMA` | `n` | con `CPUNEEDED>1`, `y` = las k CPUs de cada prueba en el mismo nodo NUMA | 0 |
 | `STOPWHEN_WA` | no se detiene | `y` interrumpe en el primer Wrong Answer | 0 |
 | `STOPWHEN_TLE` | no se detiene | `y` interrumpe en el primer Time Limit Exceeded | 0 |
-| `STOPWHEN_RE` | no se detiene | `y` interrumpe en el primer Runtime Error | 0 |
+| `STOPWHEN_RE` | no se detiene | `y` interrumpe en el primer Runtime Error o Memory Limit Exceeded | 0 |
 | `TLERERUN` | `y` | repite la prueba una vez antes de confirmar un TLE (evita TLE por ruido de la máquina) | 0 |
 | `CALIBRATIONTL` | `5` | tiempo límite usado **durante** la calibración, antes de que exista un TL real | 0 |
 | `ALLOWTLEDURINGCALIBRATION` | desactivado | `y` acepta una solución `good` con TLE como "calibró" (el lenguaje obtiene TL aunque exceda el `CALIBRATIONTL` — casos raros de good deliberadamente en el límite) | 0 |
