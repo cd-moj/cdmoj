@@ -491,6 +491,12 @@ _pr_t() {
     pt:firstsub)   printf 'primeiro time da sede a resolver este problema' ;;
     en:firstsub)   printf 'first team at this site to solve this problem' ;;
     es:firstsub)   printf 'primer equipo de la sede en resolver este problema' ;;
+    pt:taskshort)  printf 'tarefa nº %s' "${3:-}" ;;
+    en:taskshort)  printf 'task #%s' "${3:-}" ;;
+    es:taskshort)  printf 'tarea n.º %s' "${3:-}" ;;
+    pt:site)       printf 'sede: %s' "${3:-}" ;;
+    en:site)       printf 'site: %s' "${3:-}" ;;
+    es:site)       printf 'sede: %s' "${3:-}" ;;
     pt:test_team)  printf 'TESTE DE IMPRESSÃO' ;;
     en:test_team)  printf 'PRINT TEST' ;;
     es:test_team)  printf 'PRUEBA DE IMPRESIÓN' ;;
@@ -508,6 +514,21 @@ _pr_t() {
     es:test_all)   printf 'todas las sedes' ;;
     *)             _pr_t pt "$k" "${3:-}" ;;
   esac
+}
+
+# _pr_site <c> <login> — a SEDE do time para a folha (regra única de sedes, lib/regions.sh: gravada > regex); vazio
+# sem o módulo `sedes` ou sem sede. Só o nome do nó, como a fila e o painel mostram.
+_pr_site() {
+  # o mod_on precisa do conf_value_to (common.sh): sourceada sozinha (smokes, scripts), a lib lê a linha por grep
+  if declare -F conf_value_to >/dev/null; then
+    declare -F mod_on >/dev/null || source "${_LIBDIR:-${BASH_SOURCE[0]%/*}}/modules.sh" 2>/dev/null
+    mod_on "$1" sedes || return 0
+  else
+    local m; m="$(sed -n 's/^CONTEST_MODULES=//p' "$CONTESTSDIR/$1/conf" 2>/dev/null | tail -1 | tr -d "\"'\\\\[:space:]")"
+    [[ ",$m," == *",sedes,"* ]] || return 0
+  fi
+  declare -F rg_site_of >/dev/null || source "${_LIBDIR:-${BASH_SOURCE[0]%/*}}/regions.sh" 2>/dev/null
+  rg_site_of "$1" "$2" 2>/dev/null
 }
 
 # _pr_test_band <y> — a faixa "TESTE — NÃO ENTREGAR" da tarefa de teste, na folha de rosto e na de balão. Roda DENTRO
@@ -582,10 +603,12 @@ _pr_render() {  # <c> <id> <src> <meta> <cache>
   login="$(jq -r '.login // ""' "$meta" 2>/dev/null)"
   # TAREFA DE TESTE (pr_test_create): sem time; o lugar do time diz TESTE DE IMPRESSÃO e a folha leva a faixa
   local istest; istest="$(jq -r '.test == true' "$meta" 2>/dev/null)"
-  [[ "$istest" == true ]] && { team="$(_pr_t "$L" test_team)"; login="-"; }
+  local site=""
+  if [[ "$istest" == true ]]; then login="$(_pr_t "$L" test_team)"; team=""
+  else site="$(_pr_site "$c" "$login")"; fi
   # caption faz expansão de %; neutraliza e evita leitura de @arquivo (dados do passwd)
   cap_esc(){ local s="${1//%/%%}"; [[ "$s" == @* ]] && s=" $s"; printf '%s' "$s"; }
-  team="$(cap_esc "$team")"; univ="$(cap_esc "$univ")"; login="$(cap_esc "$login")"
+  team="$(cap_esc "$team")"; univ="$(cap_esc "$univ")"; login="$(cap_esc "$login")"; site="$(cap_esc "$site")"
   if (( docok )); then pagesline="$(_pr_t "$L" pages "$pages")"
   else pagesline="$(_pr_t "$L" convfail)"; fi
   _pr_fonts_load; FB="${_PR_FB:-$_PR_F1}"; FR="${_PR_FR:-$FB}"
@@ -594,15 +617,21 @@ _pr_render() {  # <c> <id> <src> <meta> <cache>
   local -a cov=( _pr_magick -size 1240x1754 xc:white )
   local _pr_cw _pr_cf; _pr_cap_init
   addcap(){ _pr_addcap "$@"; }   # w h x y fill font weight gravity text
-  addcap 1080  46  80   78 '#555' "$FR" ''   center "$(_pr_t "$L" team)"
-  addcap 1080 210  80  130 black  "$FB" 700  center "$team"
-  [[ -n "$univ" ]] && addcap 1080 64 80 352 '#333' "$FR" '' center "$univ"
-  addcap 1080  44  80  430 '#555' "$FR" ''   center "$(_pr_t "$L" login)"
-  addcap 1080 100  80  478 black  "$FB" 700  center "$login"
-  cov+=( -fill none -stroke '#999' -strokewidth 2 -draw "line 80,620 1160,620" -stroke none )
-  addcap 1080  56  80  664 '#555' "$FR" ''   center "$(_pr_t "$L" taskno)"
-  addcap 1080 220  80  724 black  "$FB" 800  center "$seq"
-  addcap 1080  74  80  966 black  "$FR" ''   center "$pagesline"
+  # LAYOUT de 09/11/2026 (relato da Camila, aprovado por ela): o LOGIN é o maior texto — é por ele que a sala acha o
+  # time; o nº da tarefa (só conferência com o sistema) vai pequeno para o canto: grande, ele era lido como o
+  # destino e houve entrega errada. A sede aparece (módulo sedes).
+  addcap  400  36 760   18 '#777' "$FR" ''   east   "$(_pr_t "$L" taskshort "$seq")"
+  [[ "$istest" == true ]] || addcap 1080 46 80 120 '#555' "$FR" '' center "$(_pr_t "$L" login)"
+  addcap 1080 230  80  172 black  "$FB" 800  center "$login"
+  cov+=( -fill none -stroke '#999' -strokewidth 2 -draw "line 80,440 1160,440" -stroke none )
+  if [[ -n "$team" ]]; then
+    addcap 1080  44  80  476 '#555' "$FR" ''   center "$(_pr_t "$L" team)"
+    addcap 1080 150  80  526 black  "$FB" 700  center "$team"
+  fi
+  [[ -n "$univ" ]] && addcap 1080 60 80 690 '#333' "$FR" '' center "$univ"
+  [[ -n "$site" ]] && addcap 1080 56 80 766 '#333' "$FB" 700 center "$(_pr_t "$L" site "$site")"
+  cov+=( -fill none -stroke '#999' -strokewidth 2 -draw "line 80,880 1160,880" -stroke none )
+  addcap 1080  74  80  920 black  "$FR" ''   center "$pagesline"
   cov+=( -fill none -stroke '#999' -strokewidth 2 -draw "line 80,1080 1160,1080" -stroke none )
   [[ "$istest" == true ]] && _pr_test_band 1150
   addcap  600  46  80 1500 black  "$FR" ''   west   "$(_pr_t "$L" sign)"
@@ -808,7 +837,9 @@ _pr_render_balloon() {
   univ="$(jq -r '.univ // ""' "$meta")"
   login="$(jq -r '.login // ""' "$meta")"
   local istest; istest="$(jq -r '.test == true' "$meta" 2>/dev/null)"
-  [[ "$istest" == true ]] && { team="$(_pr_t "$L" test_team)"; login="-"; }
+  local site=""
+  if [[ "$istest" == true ]]; then login="$(_pr_t "$L" test_team)"; team=""
+  else site="$(_pr_site "$c" "$login")"; fi
   short="$(jq -r '.short // "?"' "$meta")"
   colorhex="$(jq -r '.color_hex // "CCCCCC"' "$meta")"
   # o nome foi gravado na criação, no idioma do contest daquele momento (`color_lang`; ausente =
@@ -816,29 +847,29 @@ _pr_render_balloon() {
   colorname="$(jq -r --arg l "$L" 'if (.color_lang // "pt") == $l then (.color_name // "") else "" end' "$meta")"
   [[ -n "$colorname" ]] || colorname="$(pr_color_name "$colorhex" "$L")"
   cap_esc(){ local s="${1//%/%%}"; [[ "$s" == @* ]] && s=" $s"; printf '%s' "$s"; }
-  team="$(cap_esc "$team")"; univ="$(cap_esc "$univ")"; login="$(cap_esc "$login")"; colorname="$(cap_esc "$colorname")"; short="$(cap_esc "$short")"
+  team="$(cap_esc "$team")"; univ="$(cap_esc "$univ")"; login="$(cap_esc "$login")"; colorname="$(cap_esc "$colorname")"; short="$(cap_esc "$short")"; site="$(cap_esc "$site")"
   _pr_fonts_load; FB="${_PR_FB:-$_PR_F1}"; FR="${_PR_FR:-$FB}"
 
   local -a cov=( _pr_magick -size 1240x1754 xc:white )
   local _pr_cw _pr_cf; _pr_cap_init
   addcap(){ _pr_addcap "$@"; }   # letreiros cacheados (ver _pr_cap_tile)
-  addcap 1080  46  80   66 '#555' "$FR" ''   center "$(_pr_t "$L" balloon)"
-  addcap 1080 150  80  120 black  "$FB" 700  center "$team"
-  [[ -n "$univ" ]] && addcap 1080 54 80 280 '#333' "$FR" '' center "$univ"
-  addcap 1080  40  80  346 '#555' "$FR" ''   center "$(_pr_t "$L" login)"
-  addcap 1080  78  80  388 black  "$FB" 700  center "$login"
-  cov+=( -fill none -stroke '#999' -strokewidth 2 -draw "line 80,500 1160,500" -stroke none )
-  addcap 540  52  80  528 '#555' "$FR" ''   center "$(_pr_t "$L" problem)"
-  addcap 540 200  80  590 black  "$FB" 800  center "$short"
-  addcap 540  52 620  528 '#555' "$FR" ''   center "$(_pr_t "$L" color)"
+  # LAYOUT de 09/11/2026 (Camila): o LOGIN no topo e maior; o nº pequeno no canto; a letra e o balão maiores no
+  # espaço que o nº grande ocupava. A sede aparece (módulo sedes).
+  addcap  400  36 760   18 '#777' "$FR" ''   east   "$(_pr_t "$L" taskshort "$seq")"
+  addcap 1080  46  80   62 '#555' "$FR" ''   center "$(_pr_t "$L" balloon)"
+  addcap 1080 200  80  112 black  "$FB" 800  center "$login"
+  [[ -n "$team" ]] && addcap 1080 100 80 322 black "$FB" 700 center "$team"
+  [[ -n "$univ" ]] && addcap 1080 46 80 430 '#333' "$FR" '' center "$univ"
+  [[ -n "$site" ]] && addcap 1080 44 80 484 '#333' "$FB" 700 center "$(_pr_t "$L" site "$site")"
+  cov+=( -fill none -stroke '#999' -strokewidth 2 -draw "line 80,560 1160,560" -stroke none )
+  addcap 540  52  80  600 '#555' "$FR" ''   center "$(_pr_t "$L" problem)"
+  addcap 540 260  80  662 black  "$FB" 800  center "$short"
+  addcap 540  52 620  600 '#555' "$FR" ''   center "$(_pr_t "$L" color)"
   cov+=( -fill "#$colorhex" -stroke '#333' -strokewidth 2 )
-  cov+=( -draw "translate 890,690 ellipse 0,0 78,98 0,360" )
-  cov+=( -draw "translate 890,690 polygon -12,96 12,96 0,122" )
+  cov+=( -draw "translate 890,780 ellipse 0,0 100,126 0,360" )
+  cov+=( -draw "translate 890,780 polygon -15,124 15,124 0,156" )
   cov+=( -fill none -stroke none )
-  addcap 540  72 620  812 black  "$FB" 700  center "$colorname"
-  cov+=( -fill none -stroke '#999' -strokewidth 2 -draw "line 80,910 1160,910" -stroke none )
-  addcap 1080  54  80  956 '#555' "$FR" ''   center "$(_pr_t "$L" taskno)"
-  addcap 1080 200  80 1016 black  "$FB" 800  center "$seq"
+  addcap 540  72 620  952 black  "$FB" 700  center "$colorname"
   cov+=( -fill none -stroke '#999' -strokewidth 2 -draw "line 80,1300 1160,1300" -stroke none )
   # PRIMEIRO DA SEDE: faixa entre a linha e a assinatura (o espaço livre da folha). Só aparece
   # quando o campo foi DECIDIDO como true — ver pr_reconcile_balloons; a tarefa espera até haver

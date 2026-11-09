@@ -201,4 +201,10 @@ touch -d "@$(( $(stat -c %Y "$ROOT/api/v1/lib/print.sh") - 60 ))" "$bout"; m1="$
 pr_build_balloon pr blnx >/dev/null
 ck "balão: cache mais velho que o print.sh (deploy) se refaz" '[[ "$(stat -c %Y "$bout")" -gt "$m1" ]]'
 
+# a SEDE na folha (layout de 09/11/2026, Camila): a regra única de sedes, e só com o módulo sedes
+mkdir -p "$C/var"; printf '[{"name":"Curitiba","regex":"^time-"}]\n' > "$C/regions.json"
+ck "sem o módulo sedes: sem sede na folha"        '[[ -z "$(_pr_site pr time-x)" ]]'
+printf 'CONTEST_MODULES=sedes\n' >> "$C/conf"
+ck "com o módulo sedes: a sede do time (pela regex)" '[[ "$(_pr_site pr time-x)" == Curitiba ]]'
+
 echo ""; echo "RESULT: $pass passed, $fail failed"; exit $(( fail>0?1:0 ))

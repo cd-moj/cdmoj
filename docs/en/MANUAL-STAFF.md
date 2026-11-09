@@ -1,4 +1,4 @@
-<!-- i18n-source: MANUAL-STAFF.md blob:399c1548fe5ab18936345525ee8b920fde793477 -->
+<!-- i18n-source: MANUAL-STAFF.md blob:6a99b75004c337adc9866f28a2ed6661f947bb50 -->
 # MOJ: Room staff manual (.staff and .cstaff)
 
 > **Translation note.** This manual is a translation of the Portuguese original. The command-line tools (`moj`, `moj-contest`, `moj-comp`) print their messages in Portuguese, and the command examples below are identical to the original.
@@ -76,8 +76,10 @@ The screens in the [illustrated tutorial](/contest/ajuda/staff.html) show the En
 
 #### What comes out of the printer
 
-First the **cover sheet** (team, university, login, task number, number of pages and a
-line for a signature), then the document. Source code comes out in a **monospaced font, with the
+First the **cover sheet**, then the document. On the cover sheet, the **team login is the largest text**: you use
+it to find the team in the room. Below it come the team name, the university and the site, the number of pages and
+the line for a signature. The **task number** is small, in the top corner: you use it only to check against the
+system. The balloon sheet uses the same layout: login at the top, then the problem and the balloon color. Source code comes out in a **monospaced font, with the
 original indentation and numbered lines**. So you can point to a line and say "line 42".
 
 **Each page of code identifies itself**, at the top and at the bottom. At the top: the date and the

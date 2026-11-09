@@ -1,4 +1,4 @@
-<!-- i18n-source: MANUAL-STAFF.md blob:399c1548fe5ab18936345525ee8b920fde793477 -->
+<!-- i18n-source: MANUAL-STAFF.md blob:6a99b75004c337adc9866f28a2ed6661f947bb50 -->
 # MOJ: Manual del personal de sala (.staff y .cstaff)
 
 > **Nota de traducción.** Este manual es una traducción del original en portugués. Las herramientas de línea de comandos (`moj`, `moj-contest`, `moj-comp`) muestran sus mensajes en portugués, y los ejemplos de comandos son idénticos al original.
@@ -76,8 +76,10 @@ ves en las pantallas del [tutorial ilustrado](/contest/ajuda/staff.html).
 
 #### Qué sale de la impresora
 
-Primero la **portada** (equipo, universidad, usuario, número de la tarea, número de páginas y una
-línea para firmar), después el documento. El código fuente sale en **fuente monoespaciada, con la
+Primero la **portada**, después el documento. En la portada, el **usuario del equipo es el texto más grande**: con
+él encuentras al equipo en la sala. Debajo vienen el nombre del equipo, la universidad y la sede, el número de páginas
+y la línea para firmar. El **número de la tarea** va pequeño en la esquina de arriba: solo sirve para verificar con el
+sistema. La hoja del globo sigue el mismo molde: usuario arriba, después el problema y el color del globo. El código fuente sale en **fuente monoespaciada, con la
 indentación original y las líneas numeradas** — se puede señalar con el dedo y decir "línea 42".
 
 **Cada página de código se identifica sola**, arriba y abajo: arriba, la fecha y el nombre del

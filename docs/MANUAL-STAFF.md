@@ -72,8 +72,10 @@ vê nas telas do [tutorial ilustrado](/contest/ajuda/staff.html).
 
 #### O que sai na impressora
 
-Primeiro a **folha de rosto** (time, universidade, login, número da tarefa, nº de páginas e uma
-linha para assinar), depois o documento. Código-fonte sai em **fonte monoespaçada, com a
+Primeiro a **folha de rosto**, depois o documento. Na folha de rosto, o **login do time é o maior texto**: é por ele
+que você acha o time na sala. Embaixo vêm o nome do time, a universidade e a sede, o nº de páginas e a linha para
+assinar. O **número da tarefa** fica pequeno no canto de cima: serve só para conferir com o sistema. A folha do
+balão segue o mesmo molde: login no topo, depois o problema e a cor do balão. Código-fonte sai em **fonte monoespaçada, com a
 indentação original e as linhas numeradas** — dá para apontar o dedo e dizer "linha 42".
 
 **Cada página de código se identifica sozinha**, em cima e embaixo: no alto, a data e o nome do
