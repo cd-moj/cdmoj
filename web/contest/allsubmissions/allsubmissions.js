@@ -8,7 +8,7 @@ import { status } from '/shared/auth.js';
 import { el, verdictClass, isPending, fmtDate } from '/shared/ui.js';
 import { T } from '/shared/i18n.js';
 import { mountChrome } from '/lib/contest-chrome.js';
-import { openReportAuthed as openReportFor, openTextAuthed } from '/shared/submission-links.js';
+import { srcLink, logLink, runLink } from '/shared/submission-links.js';
 import { langLabel } from '/shared/languages.js';
 
 const qs = new URLSearchParams(location.search);
@@ -40,9 +40,6 @@ async function downloadAuthed(path, filename) {
     document.body.append(a); a.click(); a.remove();
   } catch { alert(T('Falha ao baixar.', 'Download failed.', 'Error al descargar.')); }
 }
-// código/log cru e report.html: a janela abre NO CLIQUE e o erro da API aparece nela (shared/submission-links.js)
-const openLogAuthed = (path) => openTextAuthed(CONTEST, path);
-const openReportAuthed = (path) => openReportFor(CONTEST, path);
 
 function filteredSubs() {
   const fuEl = document.getElementById('fUser'); // removido no modo anônimo
@@ -129,10 +126,12 @@ function rowTable(items) {
       el('td', { class: 'small' }, langLabel(s.lang)),
       el('td', {}, el('span', { class: 'verdict ' + verdictClass(s.verdict) }, pending ? el('span', {}, el('span', { class: 'spin' }), ' ' + s.verdict) : vShow(s.verdict))),
       el('td', {},
-        el('a', { href: '#', title: T('ver código', 'view code', 'ver código'), onclick: (e) => { e.preventDefault(); openLogAuthed(`/submission/source?contest=${encodeURIComponent(CONTEST)}&id=${encodeURIComponent(s.submission_id)}&time=${encodeURIComponent(s.epoch)}`); } }, T('ver', 'view', 'ver')),
+        // "ver": o pop-up com cor de sintaxe (Ctrl/clique do meio: a página da submissão)
+        srcLink(CONTEST, { id: s.submission_id, sub_epoch: s.epoch, lang: s.lang }, T('ver', 'view', 'ver')),
         ' ',
         el('a', { href: '#', title: T('baixar', 'download', 'descargar'), class: 'small muted', onclick: (e) => { e.preventDefault(); downloadAuthed(`/submission/source?contest=${encodeURIComponent(CONTEST)}&id=${encodeURIComponent(s.submission_id)}&time=${encodeURIComponent(s.epoch)}`, s.submission_id + '.' + (s.lang || 'txt').toLowerCase()); } }, '⬇')),
-      el('td', {}, el('a', { href: '#', onclick: (e) => { e.preventDefault(); openReportAuthed(`/submission/log?contest=${encodeURIComponent(CONTEST)}&id=${encodeURIComponent(s.submission_id)}&time=${encodeURIComponent(s.epoch)}`); } }, s.submission_id.slice(0, 8)))));
+      // o id curto: link de verdade para a página da submissão; 📄 abre o report numa aba (como antes)
+      el('td', {}, runLink(CONTEST, { id: s.submission_id }), ' ', logLink(CONTEST, { id: s.submission_id, sub_epoch: s.epoch }, '📄'))));
   });
   return el('div', { class: 'chart-wrap' }, el('table', { class: 'moj' }, head, tb));
 }

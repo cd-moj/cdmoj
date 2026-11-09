@@ -5,6 +5,7 @@
 import { el } from '/shared/ui.js';
 import { getToken } from '/shared/api.js';
 import { T } from '/shared/i18n.js';
+import { openCodeDialog } from '/shared/code-viewer.js';
 
 const enc = encodeURIComponent;
 
@@ -90,14 +91,35 @@ export async function openTextAuthed(contest, path) {
 
 const srcExt = (s) => ((s && s.lang) ? String(s.lang) : 'txt').toLowerCase();
 
-// logLink(contest, s) / srcLink(contest, s) -> <a> prontos. `s` = {id, sub_epoch, lang}.
+// LINKS DE VERDADE (09/11/2026, relato do Roberto: "clique do meio/botão direito não funciona"): o `href` é a PÁGINA DA
+// SUBMISSÃO (/contest/run/ — compartilhável entre juízes; o token vem do localStorage da aba nova). Só o clique
+// ESQUERDO simples é interceptado: o log abre o report numa aba (como sempre) e o código abre o POP-UP com cor de
+// sintaxe (pedido do Paulo). Ctrl/Cmd/Shift-clique, clique do meio e "abrir em nova aba" vão para a página.
+// No TREINO não há página da submissão (ela é do juiz de contest; ali quem vê é o próprio dono): o link segue `#`.
+const hasRunPage = (contest) => !!contest && contest !== 'treino';
+export const runHref = (contest, id, hash) => (hasRunPage(contest)
+  ? `/contest/run/?c=${enc(contest)}&id=${enc(id)}` + (hash ? '#' + hash : '') : '#');
+const plainClick = (e) => e.button === 0 && !e.ctrlKey && !e.metaKey && !e.shiftKey && !e.altKey;
+
+// logLink(contest, s) / srcLink(contest, s) / runLink(contest, s) -> <a> prontos. `s` = {id, sub_epoch, lang}.
 export function logLink(contest, s, label) {
-  return el('a', { href: '#', onclick: (e) => { e.preventDefault();
+  return el('a', { href: runHref(contest, s.id, 'report'), onclick: (e) => { if (hasRunPage(contest) && !plainClick(e)) return; e.preventDefault();
     openReportAuthed(contest, `/submission/log?contest=${enc(contest)}&id=${enc(s.id)}&time=${enc(s.sub_epoch || '')}`); } },
     label || '📄 log');
 }
 export function srcLink(contest, s, label) {
-  return el('a', { href: '#', onclick: (e) => { e.preventDefault();
-    downloadAuthed(contest, `/submission/source?contest=${enc(contest)}&id=${enc(s.id)}&time=${enc(s.sub_epoch || '')}`, s.id + '.' + srcExt(s)); } },
+  return el('a', { href: runHref(contest, s.id, 'code'),
+    title: T('ver o código (Ctrl/clique do meio: a página da submissão)', 'view the code (Ctrl/middle click: the submission page)', 'ver el código (Ctrl/clic central: la página del envío)'),
+    onclick: (e) => { if (hasRunPage(contest) && !plainClick(e)) return; e.preventDefault();
+      openCodeDialog(contest, s, { runHref: hasRunPage(contest) ? runHref(contest, s.id) : null }); } },
     label || T('💻 código', '💻 code', '💻 código'));
+}
+// o id curto (8 hex, o que se dita e se procura) como link para a página da submissão
+export function runLink(contest, s, label) {
+  return el('a', { href: runHref(contest, s.id), class: 'small', style: 'font-family:var(--mono,monospace)',
+    title: T('página da submissão: ', 'submission page: ', 'página del envío: ') + s.id }, label || String(s.id || '').slice(0, 8));
+}
+// baixa o código-fonte (a extensão da linguagem) — o que o srcLink fazia antes do pop-up
+export function downloadSource(contest, s) {
+  return downloadAuthed(contest, `/submission/source?contest=${enc(contest)}&id=${enc(s.id)}&time=${enc(s.sub_epoch || '')}`, s.id + '.' + srcExt(s));
 }

@@ -59,6 +59,23 @@ Abaixo dos contadores vem a lista das submissões seguradas para revisão. Para 
 2. **Analisar.** No painel você tem tudo à mão: o **veredicto computado**, o **log** de execução, o **código** enviado e um seletor de veredicto. Dois botões ajudam: **+5 min** (pede mais tempo, caso os 5 minutos não bastem) e **Desistir** (larga a submissão para outra pessoa pegar).
 3. **Votar e liberar.** Escolha o veredicto no seletor e clique para votar. Atenção: o **voto é permanente** (não dá para desfazer) e ele **libera você na hora** para pegar a próxima tarefa.
 
+### A página da submissão
+
+Cada submissão tem uma página própria: `/contest/run/?c=<contest>&id=<id>`. Ela mostra numa tela só:
+
+- o problema, a linguagem, a hora e o minuto da prova, o veredicto, os pontos e o juiz que rodou;
+- a tabela dos testes, com o **primeiro teste que falhou** marcado (na ordem do nome do teste);
+- o **código com cor de sintaxe**, só leitura, com **📋 Copiar** e **⬇ Baixar**;
+- o **report** de execução, dentro da página (**↗ Abrir em nova aba** abre à parte).
+
+Como chegar nela:
+
+- Na fila e em **Todas as Submissões**, o **id curto** (os 8 primeiros caracteres) é um link para a página. Para mostrar uma submissão a outro juiz, copie o link (**🔗 Copiar link**) ou dite o id curto.
+- No campo **🔗 id da submissão**, digite o id ou os 8 primeiros caracteres e clique em **Abrir**.
+- Os links **📄 log** e **💻 código** funcionam com o clique do meio e com "abrir em nova aba": abrem a página da submissão. O clique simples em **💻 código** abre o código num **pop-up** com cor de sintaxe, sem sair da tela.
+
+O juiz julga às cegas: a página **não** mostra quem enviou. Só o juiz-chefe e o admin veem o time.
+
 ### Dois juízes têm de concordar
 
 Uma submissão só tem seu veredicto entregue ao competidor quando **N juízes votam a mesma coisa** — o N é decidido pelo admin do contest (Central › Regras → "Nº de juízes que validam cada veredicto", de 1 a 5; o padrão é 2). Quando os votos batem, o veredicto vai para o competidor (a entrega é feita por um único escritor, o daemon, para não haver bagunça). Com N=1, o seu voto sozinho decide.

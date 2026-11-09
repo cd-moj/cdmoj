@@ -9,7 +9,7 @@ import { apiGet, apiGetText, apiPost } from '/shared/api.js';
 import { status } from '/shared/auth.js';
 import { el, verdictClass, isPending, fmtDate } from '/shared/ui.js';
 import { mountChrome } from '/lib/contest-chrome.js';
-import { logLink as _logLink, srcLink as _srcLink } from '/shared/submission-links.js';
+import { logLink as _logLink, srcLink as _srcLink, runLink as _runLink, runHref } from '/shared/submission-links.js';
 import { T } from '/shared/i18n.js';
 import { pokeStaffAlert } from '/shared/staff-alert.js';
 import { langLabel } from '/shared/languages.js';
@@ -27,6 +27,8 @@ const shortOf = (pid) => { const p = problems.find(x => x.problem_id === pid); r
 // log/código autenticados (com a extensão certa) — helpers compartilhados em submission-links.js
 const logLink = (s) => _logLink(CONTEST, s);
 const srcLink = (s) => _srcLink(CONTEST, s);
+// o id curto (8 hex) é link de verdade para a página da submissão (/contest/run/) — o que se dita a outro juiz
+const runLink = (s) => _runLink(CONTEST, s);
 
 // ===================== MODO MANUAL (fila de revisão) =====================
 // toda ação na fila (pegar/votar/desistir) atualiza o alerta global na hora — o banner não espera o próximo poll
@@ -76,7 +78,7 @@ function evalPanel(it) {
     el('div', { class: 'row', style: 'gap:1rem; flex-wrap:wrap; align-items:center; margin:.3rem 0' },
       el('div', {}, el('span', { class: 'small muted' }, T('Veredicto computado (referência): ', 'Computed verdict (reference): ', 'Veredicto calculado (referencia): ')),
         el('span', { class: 'verdict ' + verdictClass(it.computed_verdict), style: 'font-weight:700' }, it.computed_verdict || '?')),
-      logLink(it), srcLink(it)),
+      runLink(it), logLink(it), srcLink(it)),
     el('div', { class: 'row', style: 'gap:.5rem; align-items:center; margin:.5rem 0' },
       el('label', { class: 'small' }, T('Seu veredicto: ', 'Your verdict: ', 'Tu veredicto: ')), sel, vb, msg),
     el('div', { class: 'row', style: 'margin-top:.4rem; align-items:center; gap:.5rem' },
@@ -121,7 +123,7 @@ function renderReview() {
       el('td', {}, el('span', { class: 'verdict ' + verdictClass(s.computed_verdict) }, s.computed_verdict || '?')),
       el('td', {}, el('span', { class: 'verdict ' + (s.conflict ? 'flag-anom' : '') }, stLabel(s.status) + (s.conflict ? ' ⚠' : ''))),
       el('td', {}, whoCell),
-      el('td', {}, el('div', { class: 'row', style: 'gap:.4rem' }, logLink(s), srcLink(s))),
+      el('td', {}, el('div', { class: 'row', style: 'gap:.4rem' }, runLink(s), logLink(s), srcLink(s))),
       el('td', {}, actionCell)));
   });
   box.append(el('div', { class: 'chart-wrap' }, el('table', { class: 'moj' }, head, tb)));
@@ -180,7 +182,7 @@ function renderLegacy() {
       el('td', { class: 'small' }, langLabel(s.lang)),
       el('td', {}, el('span', { class: 'verdict ' + verdictClass(s.verdict) }, isPending(s.verdict) ? el('span', {}, el('span', { class: 'spin' }), ' ' + s.verdict) : s.verdict)),
       ...(PRIV ? [el('td', {}, sel, ' ', btn, ' ', msg)] : []),
-      el('td', {}, el('div', { class: 'row', style: 'gap:.4rem' }, logLink({ id: s.id, sub_epoch: s.epoch }), srcLink({ id: s.id, sub_epoch: s.epoch, lang: s.lang })))));
+      el('td', {}, el('div', { class: 'row', style: 'gap:.4rem' }, runLink({ id: s.id }), logLink({ id: s.id, sub_epoch: s.epoch }), srcLink({ id: s.id, sub_epoch: s.epoch, lang: s.lang })))));
   });
   box.append(el('div', { class: 'chart-wrap' }, el('table', { class: 'moj' }, head, tb)));
 }
@@ -200,6 +202,13 @@ async function boot() {
   if (!st.logged_in) { location.href = '/contest/?c=' + enc(CONTEST); return; }
   if (!st.is_judge && !st.is_admin) { document.body.innerHTML = '<div class="container"><div class="notice">' + T('Acesso restrito a juízes.', 'Access restricted to judges.', 'Acceso restringido a jueces.') + '</div></div>'; return; }
   ME = st.login || ''; PRIV = !!(st.is_admin || st.is_chief);
+  // abrir uma submissão pelo id (ou o começo dele, 8+ hex) — a página da submissão resolve o prefixo
+  const oi = document.getElementById('openId');
+  if (oi) {
+    const go = () => { const v = oi.value.trim().toLowerCase(); if (/^[0-9a-f]{8,32}$/.test(v)) location.href = runHref(CONTEST, v); };
+    oi.addEventListener('keydown', (e) => { if (e.key === 'Enter') go(); });
+    const ob = document.getElementById('openIdBtn'); if (ob) ob.addEventListener('click', go);
+  }
   await mountChrome(CONTEST, basic, { auth: true });
   problems = (await apiGet('/contest/problems?contest=' + enc(CONTEST), G).catch(() => null)) || [];
   problems = Array.isArray(problems) ? problems : (problems.problems || []);

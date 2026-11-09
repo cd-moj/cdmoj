@@ -1935,6 +1935,48 @@
         }
       }
     },
+    "/submission/info": {
+      "get": {
+        "tags": [
+          "submission"
+        ],
+        "summary": "A página da submissão do juiz: uma submissão (id completo ou prefixo de 8+ hex); identidade só p/ admin/juiz-chefe",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          },
+          {
+            "name": "id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8,32}$"
+            },
+            "description": "os 32 hex ou um prefixo de 8 a 31 hex"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{id, round, sub_epoch, minute, problem_id, letter, title, lang, verdict, verdict_canon, score, score_max, score_kind, correct, total_tests, tests[], host, duration_s, finalized_at, pending, has_source, has_log, review, anonymous} + {login, team, univ} só p/ admin/juiz-chefe"
+          },
+          "403": {
+            "description": "judge_required (time, .mon)"
+          },
+          "404": {
+            "description": "notfound"
+          },
+          "409": {
+            "description": "ambiguous — error.ids (até 10), error.matches"
+          }
+        }
+      }
+    },
     "/submission/summary": {
       "get": {
         "tags": [

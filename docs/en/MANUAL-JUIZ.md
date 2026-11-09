@@ -1,4 +1,4 @@
-<!-- i18n-source: MANUAL-JUIZ.md blob:b8d6e4b9f0f66d79dfe606653a03c20461fdb725 -->
+<!-- i18n-source: MANUAL-JUIZ.md blob:7efd993bfb10e0e5bedee6b21cc38fd6ec30be67 -->
 # MOJ: Manual for judges (.judge and .cjudge)
 
 > **Translation note.** This manual is a translation of the Portuguese original. The command-line tools (`moj`, `moj-contest`, `moj-comp`) print their messages in Portuguese, and the command examples below are identical to the original.
@@ -61,6 +61,23 @@ Below the counters, you see the list of the submissions that are held for review
 1. **Claim to evaluate.** Click to reserve the submission. A maximum of 2 persons can work on the same submission. Your reservation has a time limit of 5 minutes. When you claim it, the screen changes to a stable panel. This panel does not reload automatically while you work (thus you do not lose your work).
 2. **Analyze.** The panel gives you all the data: the **computed verdict** (the reference), the execution **log**, the submitted **code** and a verdict selector. Two buttons help you: **+5 min** (asks for more time, if 5 minutes are not sufficient) and **Give up** (releases the submission, so that another person can claim it).
 3. **Vote and release.** Select the verdict in the selector. Click **✓ Vote and release**. ⚠ The **vote is permanent** (you cannot undo it). The vote **releases you immediately**, so that you can claim the next task.
+
+### The submission page
+
+Each submission has its own page: `/contest/run/?c=<contest>&id=<id>`. It shows on one screen:
+
+- the problem, the language, the time and the contest minute, the verdict, the points and the judge machine;
+- the table of tests, with the **first test that failed** marked (in the order of the test names);
+- the **code with syntax highlighting**, read-only, with **📋 Copy** and **⬇ Download**;
+- the execution **report**, inside the page (**↗ Open in a new tab** opens it separately).
+
+How to get to it:
+
+- In the queue and in **All Submissions**, the **short id** (the first 8 characters) is a link to the page. To show a submission to another judge, copy the link (**🔗 Copy link**) or read out the short id.
+- In the **🔗 submission id** field, type the id or its first 8 characters and click **Open**.
+- The **📄 log** and **💻 code** links work with the middle click and with "open in a new tab": they open the submission page. A normal click on **💻 code** opens the code in a **pop-up** with syntax highlighting, on the same screen.
+
+The judge judges blind: the page does **not** show who submitted. Only the chief judge and the admin see the team.
 
 ### Two judges must agree
 

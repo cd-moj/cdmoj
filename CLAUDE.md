@@ -557,10 +557,17 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   quadradinhos do `report.html` "voltarem para a página de submissão" (relato de juiz) — em
   QUATRO telas, porque a rotina foi copiada. O `report.html` do mojtools sempre esteve certo
   (`id=`/`href=` pelo mesmo `slugify`, sem `<base>`, sem JS). Fonte única:
-  **`openHtmlReport(html)`** em `web/shared/submission-links.js` (blob + `window.open` + revoke em
-  60 s); isolar não é motivo para srcdoc — o report traz `default-src 'none'` no próprio `<head>`.
+  **`openHtmlReport(html, w?)`** em `web/shared/submission-links.js` (blob numa janela aberta NO CLIQUE —
+  `openReportAuthed`/`openTextAuthed`; o erro da API aparece nela; o blob vive até a aba fechar, 09/11/2026); isolar
+  não é motivo para srcdoc — o report traz `default-src 'none'` no próprio `<head>`.
   Embed INLINE (a prévia do mojlog na fila do treino, o site da rodada arquivada) pode seguir com
   srcdoc, e é a allowlist do inventário executável em `smoke-handlers.sh`.
+- **PÁGINA DA SUBMISSÃO DO JUIZ (09/11/2026; Roberto e Paulo):** `/contest/run/?c=&id=` (`web/contest/run/`), dados de
+  `/submission/info` (só juiz; id completo ou PREFIXO de 8+ hex, 409 `ambiguous`; identidade SÓ p/ admin/chefe — a
+  regra do allsubmissions, aplicada no servidor; pendente pelo history; rodada arquivada). Os links de log e código
+  (`logLink`/`srcLink`) têm `href` REAL para ela: o clique do meio e "abrir em nova aba" funcionam; só o clique esquerdo
+  simples é interceptado (log → aba do report; código → o POP-UP `shared/code-viewer.js`, CodeMirror `readOnly`). No
+  TREINO o href segue `#` (lá não há página). `runLink` = o id curto como link. Teste: `smoke-submission-info.sh`.
 - **`el()` mora em `web/shared/dom.js`** (sem dependência de rede) e o `ui.js` re-exporta —
   é o que permite reusar renderizadores no relatório offline. Importar de `/shared/ui.js`
   segue valendo p/ os ~79 arquivos que já faziam isso.

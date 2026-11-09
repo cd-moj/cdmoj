@@ -76,14 +76,16 @@ function attachImages(dom, insert) {
   });
 }
 
-export async function createEditor(parent, { doc = '', cm = 'cpp', images = false, tab = false } = {}) {
+// `readOnly: true` (09/11/2026): o visualizador de código do juiz (shared/code-viewer.js) — realce e seleção, sem edição.
+export async function createEditor(parent, { doc = '', cm = 'cpp', images = false, tab = false, readOnly = false } = {}) {
   try {
     const { EditorView, basicSetup } = await import(CM);
     let langExt = null;
     if (cm && LANG[cm]) { try { langExt = await LANG[cm](); } catch { langExt = null; } }
     // o Tab entra DEPOIS do basicSetup (o keymap — Tab dos campos de snippet — roda antes) e nos
     // DOIS arrays: sem realce o Tab tem de indentar igual
-    const tabExt = tab ? [tabExtension(EditorView, tab)] : [];
+    const tabExt = tab && !readOnly ? [tabExtension(EditorView, tab)] : [];
+    if (readOnly) tabExt.push(EditorView.editable.of(false));
     let view;
     try {
       view = new EditorView({ doc, extensions: langExt ? [basicSetup, langExt, ...tabExt] : [basicSetup, ...tabExt], parent });
@@ -103,7 +105,7 @@ export async function createEditor(parent, { doc = '', cm = 'cpp', images = fals
     };
   } catch (e) {
     const ta = document.createElement('textarea');
-    ta.className = 'code-fallback'; ta.value = doc; ta.spellcheck = false; ta.rows = 20;
+    ta.className = 'code-fallback'; ta.value = doc; ta.spellcheck = false; ta.rows = 20; ta.readOnly = !!readOnly;
     if (tab) attachTabTextarea(ta, tab);
     parent.appendChild(ta);
     const insert = (text) => {
