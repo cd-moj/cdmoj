@@ -144,6 +144,8 @@ You can receive these verdicts:
 
 {{VERDICTS}}
 
+{{VERDICT_RULE}}
+
 In a contest the verdict is all that you receive: no failed test case, no diff and no partial
 score. The test data is contest material.
 

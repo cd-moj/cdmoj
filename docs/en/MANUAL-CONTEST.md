@@ -1,4 +1,4 @@
-<!-- i18n-source: MANUAL-CONTEST.md blob:e74c7e744e5f25c51f9449e9763cc83c00c8e184 -->
+<!-- i18n-source: MANUAL-CONTEST.md blob:fb069beea93d0fab2dbb7fab72933cf26cc2c428 -->
 # MOJ: Contestant manual (contest)
 
 > **Translation note.** This manual is a translation of the Portuguese original. The command-line tools (`moj`, `moj-contest`, `moj-comp`) print their messages in Portuguese, and the command examples below are identical to the original.
@@ -241,6 +241,11 @@ Below the problem list there is a filter by problem and a table with your submis
 | Log | Shows when viewing the log is allowed. It opens the judging report. |
 
 You **always see the canonical verdict** (without the embedded score), with a summary line that depends on the contest mode. While a submission is pending, the list updates automatically.
+
+When a submission fails more than one test, the organizers choose which error counts. In most contests, the
+**first failing test** counts: the samples of the statement are judged first, then the other tests. If your
+program fails the sample, you get the error of the sample. In old contests, the **most severe error** among all
+tests can count. The contest information sheet tells the rule.
 
 The **Log** column (or link) opens the judging report. In contests in **ICPC** mode, the log is usually hidden by default, to prevent test data leaks. The organizers can enable or disable this option.
 

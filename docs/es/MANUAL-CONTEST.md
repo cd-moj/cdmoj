@@ -1,4 +1,4 @@
-<!-- i18n-source: MANUAL-CONTEST.md blob:e74c7e744e5f25c51f9449e9763cc83c00c8e184 -->
+<!-- i18n-source: MANUAL-CONTEST.md blob:fb069beea93d0fab2dbb7fab72933cf26cc2c428 -->
 # MOJ: Manual del competidor (competencia)
 
 > **Nota de traducción.** Este manual es una traducción del original en portugués. Las herramientas de línea de comandos (`moj`, `moj-contest`, `moj-comp`) muestran sus mensajes en portugués, y los ejemplos de comandos son idénticos al original.
@@ -240,6 +240,11 @@ Justo debajo de la lista de problemas hay un filtro por problema y una tabla con
 | Log | Aparece cuando ver el registro está habilitado; abre el informe de la evaluación. |
 
 Ves **siempre el veredicto canónico** (sin la puntuación incluida), con una línea de resumen según el modo de la competencia. Mientras haya algún envío pendiente, la lista se actualiza sola.
+
+Cuando el envío falla en más de un caso, la organización elige qué error vale. En la mayoría de las competencias
+vale el **1.er caso que falló**: los ejemplos del enunciado se juzgan primero y después los demás casos. Si tu
+programa falla el ejemplo, recibes el error del ejemplo. En competencias antiguas puede valer el **error más
+grave** entre todos los casos. La hoja de información de la competencia dice la regla.
 
 La columna (o enlace) **Log** abre el informe de la evaluación. En competencias en modo **ICPC**, el registro suele estar oculto por defecto, para evitar que se filtren los casos de prueba, y la organización puede activar o desactivar esa opción.
 

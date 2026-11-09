@@ -827,6 +827,13 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   expõe input+diff de TODOS os testes, então o gate do log/summary usa o valor EFETIVO —
   `SHOWLOG` explícito no conf manda; **ausente = OCULTO em modo icpc** (anti-vazamento de prova)
   e visível nos demais modos. Religar em icpc = o settings POST grava `SHOWLOG=1` explícito.
+- **Regra do veredicto** (`VERDICT_RULE=first` no conf do contest, 09/11/2026; Central › Regras, campo `verdict_rule`
+  do `/contest/admin/settings`, `moj-contest settings set verdict_rule=`): `first` = o do 1º teste que falhou (exemplos
+  primeiro, depois o nome natural) · ausente/`worst` = o do teste mais grave (o de sempre; treino nunca muda). Contest
+  NOVO nasce `first` (`cc_settings_conf_lines`: só `verdict_rule:"worst"` explícito não grava); o export leva sempre a
+  regra (duplicate de antigo continua `worst`). Vai no JOB ao enfileirar (`intake_enqueue` e o gêmeo `spool-drain.py`;
+  rejulgamento passa pelo mesmo intake) → agente (`MOJ_VERDICT_RULE`) → mojtools `build-and-test.sh`. A info sheet diz a
+  regra (`{{VERDICT_RULE}}`), e o preflight `stop_first` muda o porquê. Teste: `smoke-verdict-rule.sh` (+ deprio, preflight).
 - **Veredicto manual** (`MANUAL_VERDICT`, opt-in): o **daemon** (`daemons/judged.sh`) SEGURA o
   veredicto computado (grava `contests/<c>/review/<id>.json`, history fica provisório) SÓ p/ o que
   `auto-verdicts.json` manda p/ revisão — regra **OPT-OUT** desde 25/09/2026 (`lib/review-rules.sh`, fonte

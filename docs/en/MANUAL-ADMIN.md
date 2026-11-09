@@ -1,4 +1,4 @@
-<!-- i18n-source: MANUAL-ADMIN.md blob:c79570632cf80673c1822e3657e4332b6db1b5ca -->
+<!-- i18n-source: MANUAL-ADMIN.md blob:9c0e93f3945eb01d6098a41b97ca4ca3e0cf4fc9 -->
 # MOJ: Organizer manual (the contest .admin panel)
 
 > **Translation note.** This manual is a translation of the Portuguese original. The command-line tools (`moj`, `moj-contest`, `moj-comp`) print their messages in Portuguese, and the command examples below are identical to the original.
@@ -161,6 +161,17 @@ contest offers it). If the problem has no title in that language, MOJ uses the P
 > style (the full cell painted with the balloon color), set it in **Home › Rules › "Solved" cell
 > on the scoreboard**. Light colors get an outline so that they stay visible. This applies to the
 > scoreboard, the reveal ceremony and the report.
+
+> **Which verdict the team gets.** When a submission fails more than one test, the contest rule
+> decides which error counts. In **Home › Rules › Which verdict the team gets**:
+> - **The first failing test** (the default of a new contest, the ICPC rule): the samples are judged
+>   first, then the other tests by name, and the first error counts. A team that fails the sample
+>   gets the error of the sample.
+> - **The most severe test** (the old MOJ rule; the contests created before 2026-11-09 keep it): the
+>   worst error among all tests counts (TLE/MLE, then RE, then WA).
+>
+> The change applies to the judgings and rejudgings done after you save. To apply the new rule to
+> old submissions, rejudge them.
 
 Outside the panel, but linked from Home: **credential badges**, **reveal ceremony**, **jplag**,
 **staff queue** and **scoreboard**.

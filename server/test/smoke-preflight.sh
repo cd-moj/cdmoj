@@ -280,6 +280,10 @@ printf '{"id":"col#p0","title":"P0","public":true,"stop_when":{"wa":true,"tle":f
 run
 check "segue após TLE => warn com a letra, os testes e o que falta" '[[ "$(lvl stop_first)" == warn && "$(det stop_first)" == *"A(214 testes, segue após TLE)"* ]]'
 check "e em inglês"                                     '[[ "$(printf "%s" "$BODY" | jq -r "first(.checks[]|select(.id==\"stop_first\")|.detail_en)")" == *"A(214 tests, keeps going after TLE)"* ]]'
+check "regra worst: avisa que o resto ainda muda o veredicto" '[[ "$(det stop_first)" == *"mais grave"* ]]'
+printf 'VERDICT_RULE=first\n' >> "$C/conf"; run
+check "regra first: o resto é só espera"                '[[ "$(lvl stop_first)" == warn && "$(det stop_first)" == *"nada depois dele muda o resultado"* ]]'
+sed -i '/^VERDICT_RULE=/d' "$C/conf"
 printf '{"id":"col#p0","title":"P0","public":true,"stop_when":{"wa":true,"tle":true,"re":true},"tests":214}' > "$FIX/treino/var/jsons/col#p0.json"
 run
 check "para no 1º erro => ok"                           '[[ "$(lvl stop_first)" == ok ]]'

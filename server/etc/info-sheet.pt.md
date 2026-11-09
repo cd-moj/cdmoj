@@ -147,6 +147,8 @@ Você pode receber estes veredictos:
 
 {{VERDICTS}}
 
+{{VERDICT_RULE}}
+
 Em uma prova o veredicto é tudo o que você recebe: nenhum caso de teste que falhou, nenhum
 *diff* e nenhuma pontuação parcial. Os dados de teste são material da prova.
 

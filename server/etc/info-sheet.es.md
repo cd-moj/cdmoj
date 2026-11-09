@@ -147,6 +147,8 @@ Usted puede recibir estos veredictos:
 
 {{VERDICTS}}
 
+{{VERDICT_RULE}}
+
 En una competencia el veredicto es todo lo que usted recibe: ningún caso de prueba fallido,
 ningún *diff* y ninguna puntuación parcial. Los datos de prueba son material de la competencia.
 

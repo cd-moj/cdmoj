@@ -105,7 +105,7 @@ mkdir -p "$FIX/pj"; printf 'CONTEST_JUDGES=%q\n' "j1 j2" > "$FIX/pj/conf"
 PJ="$(CONTESTSDIR="$FIX" PYTHONDONTWRITEBYTECODE=1 python3 - "$ROOT/daemons/spool-drain.py" <<'EOF'
 import importlib.util, sys
 spec = importlib.util.spec_from_file_location("sd", sys.argv[1]); m = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(m); prio, judges, pj = m.conf("pj"); print(",".join(m.allowed_hosts(pj, judges, "a#b")))
+spec.loader.exec_module(m); prio, judges, pj, _vr = m.conf("pj"); print(",".join(m.allowed_hosts(pj, judges, "a#b")))
 EOF
 )"
 ck "drenador: CONTEST_JUDGES com dois hosts ⇒ j1,j2 (era só o último)" '[[ "$PJ" == "j1,j2" ]]'
@@ -130,6 +130,17 @@ for i in 7 6 5 4 3 2 1 0; do pyrun "${B[i]}" >/dev/null; done   # do último p/ 
 DBG="$(for s in "${B[@]}"; do printf '%s ' $(( $(qts "$s") - $(qenq "$s") )); done)"
 ok=1; for i in 0 1 2 3 4; do normal "${B[i]}" || ok=0; done; for i in 5 6 7; do adiantado "${B[i]}" || ok=0; done
 ck "represado: 1º–5º normais, 6º–8º adiantados" '(( ok == 1 ))'
+
+echo "== regra do veredicto do contest (VERDICT_RULE=first) vai no job; sem ela, nada =="
+qvr(){ jq -r '.verdict_rule // "SEM"' "$(find "$QUEUEDIR" -mindepth 2 -name "*_$1.json" -print -quit)" 2>/dev/null; }
+mkc vf lista-publica $'VERDICT_RULE=first\n'; sub vf; V1="$SID"; drain
+ck "judged: contest first ⇒ job verdict_rule=first" '[[ "$(qvr "$V1")" == first ]]'
+mkc vw lista-publica $'VERDICT_RULE=worst\n'; sub vw; V2="$SID"; drain
+ck "judged: worst ⇒ job sem o campo"              '[[ "$(qvr "$V2")" == SEM ]]'
+sub vf; V3="$SID"; pyrun "$V3"
+ck "drenador Python: first ⇒ verdict_rule=first"  '[[ "$(qvr "$V3")" == first ]]'
+sub vw; V4="$SID"; pyrun "$V4"
+ck "drenador Python: worst ⇒ sem o campo"         '[[ "$(qvr "$V4")" == SEM ]]'
 
 echo "== escalonador: ordem pelo nome, carência pela idade REAL, famintos pelo nome =="
 ( source "$ROOT/judge-gw/sched-lib.sh"; sched_init_dirs

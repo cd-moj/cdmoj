@@ -1,4 +1,4 @@
-<!-- i18n-source: MANUAL-ADMIN.md blob:c79570632cf80673c1822e3657e4332b6db1b5ca -->
+<!-- i18n-source: MANUAL-ADMIN.md blob:9c0e93f3945eb01d6098a41b97ca4ca3e0cf4fc9 -->
 # MOJ: Manual del organizador (el panel .admin de la competencia)
 
 > **Nota de traducción.** Este manual es una traducción del original en portugués. Las herramientas de línea de comandos (`moj`, `moj-contest`, `moj-comp`) muestran sus mensajes en portugués, y los ejemplos de comandos son idénticos al original.
@@ -158,6 +158,17 @@ portugués.
 > prefieres el clásico (la celda entera pintada con el color del globo), márcalo en **Central ›
 > Reglas › Celda de "resuelto" en el marcador**; los colores claros reciben un contorno para no desaparecer. Vale
 > para el marcador, la ceremonia de revelación y el informe.
+
+> **Qué veredicto recibe el equipo.** Cuando un envío falla en más de un caso, la regla de la
+> competencia decide qué error vale. En **Central › Reglas › Qué veredicto recibe el equipo**:
+> - **El del 1.er caso que falló** (el valor por defecto de una competencia nueva, la regla del ICPC):
+>   los ejemplos se juzgan primero, después los demás casos por nombre, y vale el primer error. Quien
+>   falla el ejemplo recibe el error del ejemplo.
+> - **El del caso más grave** (la regla anterior del MOJ; las competencias creadas antes del
+>   09/11/2026 siguen con ella): vale el peor error entre todos los casos (TLE/MLE, después RE, después WA).
+>
+> El cambio vale para los juzgamientos y rejuzgamientos hechos después de guardar. Para aplicar la
+> regla nueva a envíos antiguos, rejuzga.
 
 Fuera del panel, pero enlazadas desde la Central: **etiquetas de credenciales**, **ceremonia de revelación**,
 **jplag**, **cola del staff** y **marcador**.

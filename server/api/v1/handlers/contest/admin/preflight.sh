@@ -34,7 +34,7 @@ add3(){
 
 # conf num subshell-safe: só os campos que precisamos
 CONTEST_TYPE=""; CONTEST_START=0; CONTEST_END=0; FREEZE_TIME=""; LANGUAGES=""; LOGIN_START_TIME=""; LOGIN_ENABLED=""
-PRINT=""; MANUAL_VERDICT=""; REVIEW_JUDGES=""; PROBS=(); CONTEST_JUDGES=""; DEMO=""
+PRINT=""; MANUAL_VERDICT=""; REVIEW_JUDGES=""; PROBS=(); CONTEST_JUDGES=""; DEMO=""; VERDICT_RULE=""
 load_contest_conf "$contest"
 mode="$(contest_score_mode "$contest")"
 # MÓDULOS (lib/modules.sh): checagem de feature de evento só roda com o módulo LIGADO — contest
@@ -334,13 +334,24 @@ if [[ "${CONTEST_TYPE:-icpc}" == icpc ]]; then
     [[ -n "$sw_k" ]] && sw_bad+=" ${PROBS[i+3]}(${sw_t} testes, segue após ${sw_k})"
   done
   if [[ -n "$sw_bad" ]]; then
+    # a REGRA DO VEREDICTO (09/11/2026) muda o porquê: com `first` o resto dos testes não muda nada (é só espera); com
+    # `worst` (o de sempre) eles ainda decidem o veredicto — parar no 1º erro muda o que o time recebe
+    if [[ "${VERDICT_RULE:-}" == first ]]; then
+      sw_why="a regra do veredicto é o 1º teste que falhou, então nada depois dele muda o resultado, mas estes rodam TODOS os testes:"
+      sw_why_en="the verdict rule is the first failing test, so nothing after it changes the result, but these run ALL the tests:"
+      sw_why_es="la regla del veredicto es el 1.er caso que falló, así que nada después de él cambia el resultado, pero estos ejecutan TODAS las pruebas:"
+    else
+      sw_why="em prova ICPC só o 1º erro importa, mas estes rodam TODOS os testes depois dele (e, com a regra do veredicto \"mais grave\" — Central › Regras —, um erro mais grave depois do 1º ainda muda o veredicto):"
+      sw_why_en="in an ICPC contest only the 1st failure matters, but these run ALL the tests after it (and, with the \"most severe\" verdict rule — Home › Rules —, a more severe error after the 1st still changes the verdict):"
+      sw_why_es="en una competencia ICPC solo importa el 1.er error, pero estos ejecutan TODAS las pruebas después de él (y, con la regla del veredicto \"más grave\" — Central › Reglas —, un error más grave después del 1.º todavía cambia el veredicto):"
+    fi
     sw_bad_en="${sw_bad// testes, segue após / tests, keeps going after }"; sw_bad_es="${sw_bad// testes, segue após / pruebas, sigue después de }"
     add3 stop_first warn "Problema que segue julgando depois do 1º erro" \
-      "em prova ICPC só o 1º erro importa, mas estes rodam TODOS os testes depois dele:$sw_bad — um TLE pode levar minutos p/ sair. No editor do problema, aba Limites, marque \"parar no primeiro\" TLE/WA/RE (STOPWHEN_*=y no conf)" \
+      "$sw_why$sw_bad — um TLE pode levar minutos p/ sair. No editor do problema, aba Limites, marque \"parar no primeiro\" TLE/WA/RE (STOPWHEN_*=y no conf)" \
       "Problem that keeps judging after the 1st failure" \
-      "in an ICPC contest only the 1st failure matters, but these run ALL the tests after it:$sw_bad_en — a TLE can take minutes to come out. In the problem editor, Limits tab, tick \"stop at first\" TLE/WA/RE (STOPWHEN_*=y in the conf)" \
+      "$sw_why_en$sw_bad_en — a TLE can take minutes to come out. In the problem editor, Limits tab, tick \"stop at first\" TLE/WA/RE (STOPWHEN_*=y in the conf)" \
       "Problema que sigue evaluando después del 1.er error" \
-      "en una competencia ICPC solo importa el 1.er error, pero estos ejecutan TODAS las pruebas después de él:$sw_bad_es — un TLE puede tardar minutos en salir. En el editor del problema, pestaña Límites, marca \"detener en el primer\" TLE/WA/RE (STOPWHEN_*=y en el conf)"
+      "$sw_why_es$sw_bad_es — un TLE puede tardar minutos en salir. En el editor del problema, pestaña Límites, marca \"detener en el primer\" TLE/WA/RE (STOPWHEN_*=y en el conf)"
   elif (( sw_n > 0 )); then
     add3 stop_first ok "Julgamento para no 1º erro" "os $sw_n problema(s) com a informação param no 1º TLE/WA/RE$( (( sw_unk > 0 )) && echo " ($sw_unk sem a informação — reindexe)")" \
       "Judging stops at the 1st failure" "the $sw_n problem(s) with the information stop at the 1st TLE/WA/RE$( (( sw_unk > 0 )) && echo " ($sw_unk without the information — reindex)")" \

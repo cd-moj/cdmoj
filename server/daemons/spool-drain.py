@@ -71,12 +71,15 @@ def q_unescape(v):
 def conf(contest):
     if contest in _conf_cache:
         return _conf_cache[contest]
-    prio, judges = "lista-publica", ""
+    prio, judges, vrule = "lista-publica", "", ""
     try:
         with open(os.path.join(CONTESTS, contest, "conf"), encoding="utf-8", errors="replace") as f:
             for ln in f:
                 s = ln.strip()
-                if s.startswith("CONTEST_PRIORITY="):
+                if s.startswith("VERDICT_RULE="):
+                    # regra do veredicto do contest (espelho do intake_enqueue): só `first` vai no job
+                    vrule = "first" if s.split("=", 1)[1].strip().strip("'\"") == "first" else ""
+                elif s.startswith("CONTEST_PRIORITY="):
                     prio = s.split("=", 1)[1].strip().strip("'\"") or prio
                 elif s.startswith("CONTEST_JUDGES="):
                     # o conf é gravado com %q: `j1\\ j2` — sem desfazer o escape só o último host julgava
@@ -90,7 +93,7 @@ def conf(contest):
             pj = json.load(f)
     except Exception:
         pj = {}
-    _conf_cache[contest] = (prio, judges, pj)
+    _conf_cache[contest] = (prio, judges, pj, vrule)
     return _conf_cache[contest]
 
 
@@ -202,7 +205,7 @@ def process(base):
                 and VALID.match(login) and sid and problem):
             give_back(claim, orig)
             return False
-        prio, judges, pj = conf(contest)
+        prio, judges, pj, vrule = conf(contest)
         if code_b64:  # archive_source: decodifica p/ users/<login>/submissions/<id>.<lang>
             try:
                 raw = base64.b64decode(code_b64)
@@ -221,6 +224,8 @@ def process(base):
                "priority": prio, "enqueued_at": int(time.time())}
         if ah:
             job["allowed_hosts"] = ah
+        if vrule:
+            job["verdict_rule"] = vrule
         band = BANDS.get(prio, "080-lista-publica")
         bdir = os.path.join(QUEUE, band)
         os.makedirs(bdir, exist_ok=True)

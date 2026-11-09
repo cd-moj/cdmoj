@@ -58,8 +58,13 @@ const want=[['Login habilitado','Acesso'],['SUPER SECRETO','Acesso'],['Gate de l
   ['ver o log de julgamento','O que o time vê'],['Editor de código no browser','O que o time vê'],['pedidos de impressão','O que o time vê'],
   ['Veredicto manual','Julgamento'],['Nº de juízes que validam','Julgamento'],['Linguagens permitidas','Julgamento'],['Máquinas de juiz','Julgamento'],
   ['Placar anônimo','Placar'],['Penalidade','Placar'],['Placar completo','Placar'],['Balões durante o freeze','Placar'],['Célula "resolveu"','Placar'],
-  ['Fuso horário da prova','Identidade'],['Abertura do login','Identidade'],['Prioridade no julgamento','Julgamento']];
+  ['Fuso horário da prova','Identidade'],['Abertura do login','Identidade'],['Prioridade no julgamento','Julgamento'],['Qual veredicto o time recebe','Julgamento']];
 for (const [txt, g] of want) { const got=sec(txt); ck('"'+txt+'" → '+g, got.includes(g), got); }
+// REGRA DO VEREDICTO (09/11/2026): o contest diz a dele (ausente = worst); contest NOVO nasce com first
+ck('admin: contest sem a regra = "mais grave"', makeSettingsEditor({ value:{}, mode:'admin', contestMode:'icpc' }).getValue().verdict_rule==='worst');
+ck('admin: contest first = first', makeSettingsEditor({ value:{ verdict_rule:'first' }, mode:'admin', contestMode:'icpc' }).getValue().verdict_rule==='first');
+ck('criação: nasce com first', makeSettingsEditor({ value:{}, mode:'create', contestMode:'icpc' }).getValue().verdict_rule==='first');
+ck('criação a partir de cópia worst: segue worst', makeSettingsEditor({ value:{ verdict_rule:'worst' }, mode:'create', contestMode:'icpc' }).getValue().verdict_rule==='worst');
 ck('o "auto-cadastro (late users)" não existe mais', !ed.el.textContent.includes('auto-cadastro') && ed.getValue().allow_late===undefined);
 // PRIORIDADE (01/10/2026): editável no modo admin, sem Super; Super travada; só vai no getValue() quando MUDA
 const sels=(e)=>{ const out=[]; const walk=(n)=>{ for (const c of (n.children||[])) { if (c.tagName==='select') out.push(c); walk(c); } }; walk(e.el); return out; };

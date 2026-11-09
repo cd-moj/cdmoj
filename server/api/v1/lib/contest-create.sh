@@ -114,6 +114,10 @@ cc_settings_conf_lines(){
   v="$(jq -r '.score_anon' <<<"$spec")";     [[ "$v" == true ]] && printf 'SCORE_ANON=%q\n' 1
   v="$(jq -r '.manual_verdict' <<<"$spec")"; [[ "$v" == true ]] && printf 'MANUAL_VERDICT=%q\n' 1
   v="$(jq -r '.secret' <<<"$spec")";         [[ "$v" == true ]] && printf 'SECRET=%q\n' 1
+  # REGRA DO VEREDICTO (09/11/2026, decisão do Ribas): contest NOVO nasce com `first` (o do 1º teste que falhou,
+  # exemplos primeiro). Só `verdict_rule:"worst"` explícito mantém o de sempre — é o que o export/duplicate de um
+  # contest antigo (sem a linha) carrega, então a cópia não muda de regra. Spec sem a chave = contest novo = first.
+  v="$(jq -r '.verdict_rule // ""' <<<"$spec")"; [[ "$v" == worst ]] || printf 'VERDICT_RULE=%q\n' first
   # DEMO=1 é TRAVA, não modo: nada no sistema muda de comportamento por causa dele. Ele existe
   # para o `/contest/admin/seed` (dados sintéticos) poder recusar QUALQUER contest que não seja
   # de demonstração — uma prova de verdade nunca pode ser semeada, nem por engano.
@@ -1177,7 +1181,7 @@ cc_tpl_relativize(){
     (.start|tonumber? // 0) as $st | (.end|tonumber? // 0) as $en
     | (.login_start|tonumber? // 0) as $ls | (.freeze|tonumber? // 0) as $fz
     | pick(["mode","priority","languages","show_log","show_editor","show_tl",
-            "allow_backup","allow_print","score_anon","manual_verdict","secret",
+            "allow_backup","allow_print","score_anon","manual_verdict","secret","verdict_rule",
             "login_ua_substring","score_full_users","locale","tz","login_enabled",
             "penalty_minutes","penalty_verdicts",
             "colors","regions","teams_meta","modules"])
@@ -1204,7 +1208,7 @@ cc_export_spec(){
     LANGUAGES=""; USERS_FROM=""; LOCALE=""; LOGIN_START_TIME=""; LOGIN_ENABLED=""; CONTEST_TZ=""
     FREEZE_TIME=""; SHOWLOG=""; SHOWEDITOR=""; SHOWTL=""; SCORE_ANON=""
     BACKUP=""; PRINT=""; MANUAL_VERDICT=""; LOGIN_UA_SUBSTRING=""; SCORE_FULL_USERS=""; SECRET=""
-    PENALTY_MINUTES=""; PENALTY_VERDICTS="__unset"; CONTEST_JUDGES=""; CONTEST_MODULES=""
+    PENALTY_MINUTES=""; PENALTY_VERDICTS="__unset"; CONTEST_JUDGES=""; CONTEST_MODULES=""; VERDICT_RULE=""
     . "$cdir/conf" 2>/dev/null
     jq -cn \
       --arg name "$CONTEST_NAME" --arg mode "$CONTEST_TYPE" --arg prio "$CONTEST_PRIORITY" \
@@ -1215,8 +1219,10 @@ cc_export_spec(){
       --arg showtl "$SHOWTL" --arg anon "$SCORE_ANON" --arg backup "$BACKUP" --arg prnt "$PRINT" \
       --arg manual "$MANUAL_VERDICT" --arg ua "$LOGIN_UA_SUBSTRING" --arg sfu "$SCORE_FULL_USERS" \
       --arg secret "$SECRET" --arg pmin "$PENALTY_MINUTES" --arg pvd "$PENALTY_VERDICTS" \
-      --arg jdg "$CONTEST_JUDGES" '
+      --arg jdg "$CONTEST_JUDGES" --arg vrule "$VERDICT_RULE" '
       {name:$name, mode:(if $mode=="" then "icpc" else $mode end)}
+      # SEMPRE explícito: um contest antigo (sem a linha = worst) duplicado continua worst (o create sem a chave = first)
+      + {verdict_rule:(if $vrule == "first" then "first" else "worst" end)}
       + (if $prio != "" then {priority:$prio} else {} end)
       + (if ($start|tonumber?) then {start:($start|tonumber)} else {} end)
       + (if ($end|tonumber?) then {end:($end|tonumber)} else {} end)

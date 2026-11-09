@@ -123,6 +123,11 @@ rebaixa o pacote) — então o juiz não pode confiar no conf do cache: o **clai
 ao build-and-test (`MOJ_TL_METHOD`), ao teto do job (`_job_cap`) e ao `ensure_cached` (job `kattis` com tabela
 sem a metade Kattis recalibra antes de julgar). Fora do `.cmeta` de propósito: um 13º campo na ordem fixa que
 os três leitores leem igual é a armadilha já paga uma vez. Agente antigo ignora o campo e usa o conf do cache.
+A **regra do veredicto** do CONTEST (09/11/2026; `VERDICT_RULE=first` no conf do contest, Central › Regras) entra no job
+ao ENFILEIRAR, não no claim: o `intake_enqueue` (judged.sh, conf já sourced) e o gêmeo `spool-drain.py` põem
+**`verdict_rule:"first"`** (ausente = o mais grave, o job de sempre). O rejulgamento passa pelo mesmo intake, então segue
+a regra do momento. O agente a repassa ao build-and-test em `MOJ_VERDICT_RULE` (mojtools: `first` = o do 1º teste que
+falhou, exemplos primeiro); agente antigo ignora o campo.
 O `POST /judge/calib-report` leva, além do log texto e dos `reports` (report.html por solução),
 o campo **`sols`** = o `.calib-sols.json` do calibreitor (a calibração POR EXTENSO:
 `[{file,lang,category,verdict,method,etl,tests:[{name,code,time,tl,code_alt,tl_alt}]}]` — `code_alt`/`tl_alt` =

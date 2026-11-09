@@ -87,6 +87,11 @@ export function makeSettingsEditor({ value = {}, mode = 'admin', canSuper = fals
     el('option', { value: 'icon' }, T('Neutro + bolinha da cor (padrão)', 'Neutral + colour dot (default)', 'Neutro + punto de color (por defecto)')),
     el('option', { value: 'fill' }, T('Célula pintada com a cor do balão', 'Cell filled with the balloon colour', 'Celda pintada con el color del globo')));
   blnStyle.value = s.balloon_style === 'fill' ? 'fill' : 'icon';
+  // regra do veredicto (09/11/2026): contest NOVO nasce com "1º que falhou"; o GET diz a do contest (ausente = worst)
+  const vRule = el('select', {},
+    el('option', { value: 'first' }, T('O do 1º teste que falhou (exemplos primeiro, depois pelo nome)', 'The first failing test (samples first, then by name)', 'El del 1.er caso que falló (ejemplos primero, después por nombre)')),
+    el('option', { value: 'worst' }, T('O do teste mais grave (TLE/MLE > RE > WA)', 'The most severe test (TLE/MLE > RE > WA)', 'El del caso más grave (TLE/MLE > RE > WA)')));
+  vRule.value = isCreate ? (s.verdict_rule === 'worst' ? 'worst' : 'first') : (s.verdict_rule === 'first' ? 'first' : 'worst');
   const ua = el('input', { value: s.login_ua_substring || '', placeholder: T('substring do UA (vazio = sem gate)', 'UA substring (empty = no gate)', 'substring del UA (vacío = sin filtro)') });
   // data-k: o settings-tab esconde este campo sem o módulo `maquinas` (por chave, não por índice)
   const uaField = field(T('Gate de login por substring de UA (só não-privilegiados)', 'Login gate by UA substring (only non-privileged)', 'Filtro de inicio de sesión por substring de UA (solo no privilegiados)'), ua);
@@ -218,6 +223,14 @@ export function makeSettingsEditor({ value = {}, mode = 'admin', canSuper = fals
         'Decides this contest’s turn in the judging queue and the submission rule. List (public or private): each team has at most 3 submissions waiting for a verdict; the next one is refused until a result comes out. Contest: judged before the lists and with no limit; from the 6th submission waiting for a verdict, the team’s next ones go further back in the queue. Only the training super-admin gives the Super priority. Every change is recorded in the Audit log.',
         'Decide el turno de esta competencia en la cola de evaluación y la regla de envíos. Lista (pública o privada): cada equipo tiene como máximo 3 envíos esperando veredicto; el siguiente se rechaza hasta que salga un resultado. Competencia: se evalúa antes que las listas y sin límite; a partir del 6.º envío esperando veredicto, los siguientes del equipo van más atrás en la cola. Solo el superadministrador del entrenamiento da la prioridad Super. Todo cambio queda registrado en la Auditoría.')),
     field(T('Prioridade', 'Priority', 'Prioridad'), aPrio));
+  // idem: no FIM (índices 38–40 no GROUPS do settings-tab.js, seção Julgamento; na criação vêm depois dos balões)
+  box.append(
+    el('h3', { style: 'margin:1rem 0 .3rem' }, T('🧾 Qual veredicto o time recebe', '🧾 Which verdict the team gets', '🧾 Qué veredicto recibe el equipo')),
+    el('p', { class: 'muted small' },
+      T('Quando a submissão erra em mais de um teste, qual erro vale. "1º que falhou" é a regra do ICPC: os testes são julgados na ordem (os exemplos primeiro, depois pelo nome) e vale o primeiro erro — quem errou o exemplo recebe o erro do exemplo. "Mais grave" é a regra antiga do MOJ: vale o pior erro entre todos os testes. A mudança vale para os julgamentos e rejulgamentos feitos depois de salvar.',
+        'When the submission fails more than one test, which error counts. "First failing" is the ICPC rule: the tests are judged in order (samples first, then by name) and the first error counts — whoever fails the sample gets the sample’s error. "Most severe" is the old MOJ rule: the worst error among all tests counts. The change applies to judgings and rejudgings done after saving.',
+        'Cuando el envío falla en más de un caso, qué error vale. "1.º que falló" es la regla del ICPC: los casos se juzgan en orden (los ejemplos primero, después por nombre) y vale el primer error — quien falla el ejemplo recibe el error del ejemplo. "Más grave" es la regla anterior del MOJ: vale el peor error entre todos los casos. El cambio vale para los juzgamientos y rejuzgamientos hechos después de guardar.')),
+    field(T('Veredicto', 'Verdict', 'Veredicto'), vRule));
 
   function getValue() {
     return {
@@ -245,7 +258,7 @@ export function makeSettingsEditor({ value = {}, mode = 'admin', canSuper = fals
       score_anon: scoreAnon.checked, show_tl: showTL.checked,
       allow_backup: allowBackup.checked, allow_print: allowPrint.checked,
       manual_verdict: manualVerdict.checked, secret: secret.checked, login_ua_substring: ua.value,
-      balloons_during_freeze: balloonsFreeze.checked, balloon_style: blnStyle.value,
+      balloons_during_freeze: balloonsFreeze.checked, balloon_style: blnStyle.value, verdict_rule: vRule.value,
       review_judges: Math.min(5, Math.max(1, parseInt(revJudges.value, 10) || 2)),
       languages: langs.get(),
       judges: judges.get(),

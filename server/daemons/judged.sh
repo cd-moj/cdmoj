@@ -260,15 +260,19 @@ intake_enqueue() {
     ah="$(printf '%s\n' $CONTEST_JUDGES | grep -v '^$' | jq -R . | jq -cs .)"
     [[ -n "$ah" ]] || ah='[]'
   fi
+  # REGRA DO VEREDICTO do contest (VERDICT_RULE=first no conf, 09/11/2026): vai no job e o agente a repassa ao
+  # build-and-test (MOJ_VERDICT_RULE) — o do 1º teste que falhou. Ausente = o mais grave (o job de sempre, sem campo).
+  local vr=""; [[ "${VERDICT_RULE:-}" == first ]] && vr=first
   # a FONTE vai ao jq por ARQUIVO (--rawfile): `--arg b` estoura ARG_MAX >~96 KiB e o job
   # sairia vazio/mudo — a mesma classe do incidente 2026-08-19 no /submit
   local job _bf; _bf="$(mktemp)"; printf '%s' "$code_b64" > "$_bf"
   job="$(jq -cn --arg id "$id" --arg c "$contest" --arg p "$problem" --arg login "$login" \
     --arg lang "$lang" --arg f "${filename:-solution}" --rawfile b "$_bf" \
-    --arg prio "$prio" --argjson now "$EPOCHSECONDS" --argjson ah "$ah" \
+    --arg prio "$prio" --argjson now "$EPOCHSECONDS" --argjson ah "$ah" --arg vr "$vr" \
     '{id:$id, contest:$c, problem_id:$p, login:$login, lang:$lang, filename:$f,
       code_b64:$b, priority:$prio, enqueued_at:$now}
-     + (if ($ah|length) > 0 then {allowed_hosts:$ah} else {} end)')"
+     + (if ($ah|length) > 0 then {allowed_hosts:$ah} else {} end)
+     + (if $vr != "" then {verdict_rule:$vr} else {} end)')"
   rm -f "$_bf"
   if [[ -z "$job" ]]; then
     log "intake_enqueue: job vazio (jq falhou) id=$id — Judge Error em vez de silêncio"
@@ -618,7 +622,7 @@ process_spool_file() {
   # ---- carrega do conf: CONTEST_START (tempo), CONTEST_PRIORITY/CONTEST_JUDGES (fila pull).
   # (source seguro: já validamos contest; o conf é confiável no deploy.) As vars CONTEST_END/
   # CONTEST_TYPE/MOJCONTESTSERVERS ficam declaradas local só p/ o source não vazá-las global.
-  local CONTEST_START="" CONTEST_END="" CONTEST_TYPE="" MOJCONTESTSERVERS="" CONTEST_PRIORITY="" CONTEST_JUDGES=""
+  local CONTEST_START="" CONTEST_END="" CONTEST_TYPE="" MOJCONTESTSERVERS="" CONTEST_PRIORITY="" CONTEST_JUDGES="" VERDICT_RULE=""
   if [[ -r "$cdir/conf" ]]; then
     # shellcheck source=/dev/null
     source "$cdir/conf" 2>/dev/null || true

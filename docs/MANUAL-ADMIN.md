@@ -154,6 +154,17 @@ não tem título nesse idioma, o MOJ usa o título em português.
 > Regras › Célula "resolveu" no placar**; as cores claras ganham contorno para não sumirem. Vale
 > para o placar, a cerimônia de revelação e o relatório.
 
+> **Qual veredicto o time recebe.** Quando uma submissão erra em mais de um teste, a regra do
+> contest decide qual erro vale. Em **Central › Regras › Qual veredicto o time recebe**:
+> - **O do 1º teste que falhou** (o padrão de um contest novo, a regra do ICPC): os exemplos são
+>   julgados primeiro, depois os outros testes pelo nome, e vale o primeiro erro. Quem erra o exemplo
+>   recebe o erro do exemplo.
+> - **O do teste mais grave** (a regra antiga do MOJ; os contests criados antes de 09/11/2026 ficam
+>   nela): vale o pior erro entre todos os testes (TLE/MLE, depois RE, depois WA).
+>
+> A mudança vale para os julgamentos e rejulgamentos feitos depois de salvar. Para aplicar a regra
+> nova a submissões antigas, rejulgue.
+
 Fora do painel, mas linkadas da Central: **etiquetas de credenciais**, **cerimônia de revelação**,
 **jplag**, **fila do staff** e **placar**.
 

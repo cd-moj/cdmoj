@@ -140,6 +140,13 @@ _doc_t(){
     es:tl_per_lang) printf 'El límite de tiempo depende del lenguaje: una columna por lenguaje.';;
     pt:ed_index) printf 'Problemas deste editorial';; en:ed_index) printf 'Problems in this editorial';; es:ed_index) printf 'Problemas de este editorial';;
     pt:none_w) printf 'nenhum';;          en:none_w) printf 'none';;            es:none_w) printf 'ninguno';;
+    # a REGRA DO VEREDICTO do contest (VERDICT_RULE, 09/11/2026) — a frase da seção 2.1 da info sheet
+    pt:vrule_first) printf 'Quando a submissão falha em mais de um teste, vale o veredicto do **primeiro teste que falhou**. Os exemplos do enunciado são julgados primeiro, depois os outros testes.';;
+    en:vrule_first) printf 'When a submission fails more than one test, the verdict of the **first failing test** counts. The samples of the statement are judged first, then the other tests.';;
+    es:vrule_first) printf 'Cuando el envío falla en más de un caso, vale el veredicto del **primer caso que falló**. Los ejemplos del enunciado se juzgan primero y después los demás casos.';;
+    pt:vrule_worst) printf 'Quando a submissão falha em mais de um teste, vale o veredicto **mais grave** entre eles (TLE ou MLE, depois RE, depois WA).';;
+    en:vrule_worst) printf 'When a submission fails more than one test, the **most severe** verdict among them counts (TLE or MLE, then RE, then WA).';;
+    es:vrule_worst) printf 'Cuando el envío falla en más de un caso, vale el veredicto **más grave** entre ellos (TLE o MLE, después RE, después WA).';;
     pt:all_langs) printf 'todas as linguagens da plataforma';; en:all_langs) printf 'all platform languages';; es:all_langs) printf 'todos los lenguajes de la plataforma';;
     pt:file_ext)  printf 'Extensão do arquivo';;     en:file_ext)  printf 'File extension';;      es:file_ext)  printf 'Extensión del archivo';;
     pt:no_versions) printf 'nenhum juiz reportou versões ainda';; en:no_versions) printf 'no judge reported versions yet';; es:no_versions) printf 'ningún juez ha reportado versiones todavía';;
@@ -253,13 +260,13 @@ _doc_meta(){
   # CPEN/CPENV = penalidade ICPC (minutos e códigos que penalizam; "__unset" = default da
   # plataforma) e CFSIZE = teto de saída do programa (ULIMITS[-f], KB) — a folha de ambiente
   # publica os três (2026-09-14, padrão da folha da SBC).
-  CPEN=""; CPENV=""; CFSIZE=""
+  CPEN=""; CPENV=""; CFSIZE=""; CVRULE=""
   _kv="$( declare -A ULIMITS 2>/dev/null || true
     . "$CONTESTSDIR/$c/conf" 2>/dev/null
-    printf 'CNAME=%q CDATE=%q CLANGS=%q CMEM=%q CSTACK=%q CPEN=%q CPENV=%q CFSIZE=%q' \
+    printf 'CNAME=%q CDATE=%q CLANGS=%q CMEM=%q CSTACK=%q CPEN=%q CPENV=%q CFSIZE=%q CVRULE=%q' \
       "${CONTEST_NAME:-$c}" "${CONTEST_START:-0}" "${LANGUAGES:-}" \
       "${MEMLIMITMB:-1024}" "${ULIMITS[-s]:-131072}" \
-      "${PENALTY_MINUTES:-20}" "${PENALTY_VERDICTS-__unset}" "${ULIMITS[-f]:-256000}" )"
+      "${PENALTY_MINUTES:-20}" "${PENALTY_VERDICTS-__unset}" "${ULIMITS[-f]:-256000}" "${VERDICT_RULE:-}" )"
   [[ -n "$_kv" ]] && eval "$_kv"
   [[ -n "$CNAME" ]] || CNAME="$c"
   [[ "$CPEN" =~ ^[0-9]+$ ]] || CPEN=20
@@ -511,6 +518,7 @@ _doc_html_infosheet(){
       -e "s|{{COMPILE_TL}}|${DOC_COMPILE_TL:-30}|g" \
       -e "s|{{PENALTY}}|${CPEN:-20}|g" \
       -e "s|{{PENALTY_EXCEPTIONS}}|$(_doc_escs "$(_doc_penalty_exceptions "$l")")|g" \
+      -e "s|{{VERDICT_RULE}}|$(_doc_t "$l" "$([[ "$CVRULE" == first ]] && echo vrule_first || echo vrule_worst)" | sed 's/[&|\\]/\\&/g')|g" \
       > "$tmp"
   local body; body="$(render_markdown_html < "$tmp" 2>/dev/null)"
   rm -f "$tmp"

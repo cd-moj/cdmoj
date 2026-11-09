@@ -11,7 +11,7 @@ source "$_LIBDIR/contest-gate.sh"
 
 if [[ "${REQUEST_METHOD:-GET}" == GET ]]; then
   CONTEST_NAME=""; CONTEST_START=0; CONTEST_END=0; LOGIN_START_TIME=""; LOGIN_ENABLED=""; CONTEST_TZ=""
-  FREEZE_TIME=""; LOCALE=""; SHOWLOG=""; SHOWEDITOR=""; LOGIN_UA_SUBSTRING=""; SCORE_ANON=""; SHOWTL=""; LANGUAGES=""; SCORE_FULL_USERS=""; BACKUP=""; PRINT=""; MANUAL_VERDICT=""; SECRET=""; CONTEST_JUDGES=""; BALLOONS_DURING_FREEZE=""; SCORE_BALLOON_STYLE=""
+  FREEZE_TIME=""; LOCALE=""; SHOWLOG=""; SHOWEDITOR=""; LOGIN_UA_SUBSTRING=""; SCORE_ANON=""; SHOWTL=""; LANGUAGES=""; SCORE_FULL_USERS=""; BACKUP=""; PRINT=""; MANUAL_VERDICT=""; SECRET=""; CONTEST_JUDGES=""; BALLOONS_DURING_FREEZE=""; SCORE_BALLOON_STYLE=""; VERDICT_RULE=""
   PENALTY_MINUTES=""; PENALTY_VERDICTS="__unset"; GUEST_NUMBERING=""; STATEMENT_LANGS=""; CONTEST_PRIORITY=""
   load_contest_conf "$contest"
   source "$_LIBDIR/contest-statement.sh"
@@ -29,7 +29,7 @@ if [[ "${REQUEST_METHOD:-GET}" == GET ]]; then
             show_log:$sl, show_editor:$se, login_ua_substring:$ua, score_anon:$sa,
             show_tl:$stl, languages:$langs, judges:$jdg, score_full_users:$sfu, allow_backup:$ab, allow_print:$ap, manual_verdict:$mv,
             secret:$sec, mode:$mode, penalty_minutes:$pm, penalty_verdicts:$pvd, review_judges:$rj,
-            balloons_during_freeze:$bdf, balloons_frozen:$bfz, balloon_style:$bsty, modules:$mods,
+            balloons_during_freeze:$bdf, balloons_frozen:$bfz, balloon_style:$bsty, verdict_rule:$vrule, modules:$mods,
             freeze_release_at:$fra, guest_numbering:$gnum, statement_langs:$slangs, statement_langs_mode:$smode, default_statement_lang:$sdef,
             priority:(if $prio == "" then "lista-publica" else $prio end), priority_set:($prio != ""), priority_locked:($prio == "super")}' \
     --arg prio "$CONTEST_PRIORITY" \
@@ -40,6 +40,7 @@ if [[ "${REQUEST_METHOD:-GET}" == GET ]]; then
     --argjson fra "$(freeze_release_at "$contest")" \
     --argjson mods "$(mod_list_json "$contest")" \
     --arg bsty "$([[ "$SCORE_BALLOON_STYLE" == fill ]] && echo fill || echo icon)" \
+    --arg vrule "$([[ "$VERDICT_RULE" == first ]] && echo first || echo worst)" \
     --argjson bdf "$([[ "$BALLOONS_DURING_FREEZE" == 1 ]] && echo true || echo false)" \
     --argjson bfz "$BLN_FROZEN" \
     --arg mode "$(contest_score_mode "$contest")" \
@@ -99,6 +100,7 @@ done
 if has locale; then v="$(jq -r '.locale // ""' <<<"$body")"; [[ -z "$v" ]] || contest_locale_ok "$v" || fail 422 "locale inválido (pt, en ou es)" "locale_invalid"; fi
 if has tz; then v="$(jq -r '.tz // ""' <<<"$body")"; [[ -z "$v" || "$v" == null ]] || tz_canon "$v" >/dev/null || fail 422 "fuso horário desconhecido (ex.: America/Santiago)" "tz_invalid"; fi
 if has balloon_style; then [[ "$(jq -r '.balloon_style' <<<"$body")" =~ ^(icon|fill)$ ]] || fail 422 "balloon_style inválido (icon|fill)" "balloon_style_invalid"; fi
+if has verdict_rule; then [[ "$(jq -r '.verdict_rule' <<<"$body")" =~ ^(first|worst)$ ]] || fail 422 "verdict_rule inválido (first|worst)" "verdict_rule_invalid"; fi
 if has login_ua_substring; then v="$(jq -r '.login_ua_substring' <<<"$body")"; (( ${#v} <= 200 )) || fail 422 "substring muito longa" "ua_long"; fi
 if has judges; then [[ "$(jq -r '(.judges // []) | map(select(type=="string") | select(test("^[A-Za-z0-9._-]+$"))) | join(" ")' <<<"$body")" == *..* ]] && fail 422 "hostname inválido" "judges_invalid"; fi
 if has penalty_minutes; then v="$(jq -r '.penalty_minutes' <<<"$body")"; { [[ "$v" =~ ^[0-9]+$ ]] && (( v <= 100000 )); } || fail 422 "penalty_minutes inválido" "penalty_minutes_invalid"; fi
@@ -208,6 +210,14 @@ if has balloon_style; then
   v="$(jq -r '.balloon_style' <<<"$body")"
   [[ "$v" =~ ^(icon|fill)$ ]] || fail 422 "balloon_style inválido (icon|fill)" "balloon_style_invalid"
   if [[ "$v" == fill ]]; then setvar SCORE_BALLOON_STYLE fill; else delvar SCORE_BALLOON_STYLE; fi
+fi
+# REGRA DO VEREDICTO (09/11/2026): first = o do 1º teste que falhou (exemplos primeiro; o padrão dos contests NOVOS) ·
+# worst = o do teste mais grave (o de sempre; a linha sai do conf). Vai no job ao enfileirar (judged/spool-drain) e o
+# juiz a aplica — vale para os julgamentos e rejulgamentos DAQUI em diante.
+if has verdict_rule; then
+  v="$(jq -r '.verdict_rule' <<<"$body")"
+  [[ "$v" =~ ^(first|worst)$ ]] || fail 422 "verdict_rule inválido (first|worst)" "verdict_rule_invalid"
+  if [[ "$v" == first ]]; then setvar VERDICT_RULE first; else delvar VERDICT_RULE; fi
 fi
 
 if has login_ua_substring; then

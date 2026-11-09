@@ -230,6 +230,11 @@ Logo abaixo da lista de problemas há um filtro por problema e uma tabela com as
 
 Você vê **sempre o veredicto canônico** (sem o placar embutido), com uma linha de resumo conforme o modo do contest. Enquanto houver alguma submissão pendente, a lista se atualiza sozinha.
 
+Quando a submissão erra em mais de um teste, a organização escolhe qual erro vale. Na maioria dos contests vale o
+**1º teste que falhou**: os exemplos do enunciado são julgados primeiro, depois os outros testes. Se o seu programa
+erra o exemplo, você recebe o erro do exemplo. Em contests antigos pode valer o **erro mais grave** entre todos os
+testes. O caderno de informações da prova diz a regra.
+
 A coluna (ou link) **Log** abre o relatório do julgamento. Em provas no modo **ICPC** o log costuma vir oculto por padrão, para evitar vazamento dos testes, e a organização pode ligar ou desligar essa opção.
 
 ## 5. Placar (`/contest/score/?c=<id>`)
