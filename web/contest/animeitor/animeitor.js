@@ -35,7 +35,9 @@ let NOWRITE = false;
 // quem falta foto OU música, que é a fila de trabalho inteira de quem opera o telão.
 // `mode` é exclusivo: ou vale o recorte de pendências (um OU entre as duas famílias, que os chips
 // por família não conseguem expressar), ou vale a combinação foto×música. Nunca os dois.
-const F = { mode: 'pending', photo: 'all', music: 'all', q: '', cohort: '', univ: '', region: '' };
+// q = o texto NORMALIZADO (o que o filtro compara); qRaw = o que a pessoa digitou (o que a caixa mostra: devolver o
+// normalizado cortava o espaço e tirava os acentos no meio da digitação)
+const F = { mode: 'pending', photo: 'all', music: 'all', q: '', qRaw: '', cohort: '', univ: '', region: '' };
 let PAGE_I = 0;
 const PAGE = 48;     // 48 cartões = a grade cheia; o DOM fica pequeno e só estas fotos baixam
 const MUSIC_MAX_MB = 15;   // o mesmo teto do handler (contest/animeitor/music.sh)
@@ -254,9 +256,10 @@ function photosBar(box) {
 
   const q = el('input', { id: 'fQ', class: 'filter', type: 'search',
     placeholder: T('buscar time, login, universidade…', 'search team, login, university…', 'buscar equipo, usuario, universidad…') });
-  q.value = F.q;
-  // debounce: com 1000 times o re-render a cada tecla seria perceptível
-  q.addEventListener('input', debounce(() => { F.q = norm(q.value.trim()); PAGE_I = 0; renderPhotos(); }, 150));
+  q.value = F.qRaw;
+  // debounce: com 1000 times o re-render a cada tecla seria perceptível. O re-render recria esta caixa: o
+  // renderPhotos devolve o foco e o cursor a ela
+  q.addEventListener('input', debounce(() => { F.qRaw = q.value; F.q = norm(q.value.trim()); PAGE_I = 0; renderPhotos(); }, 150));
 
   return el('div', { class: 'fbar' },
     // a FILA DE TRABALHO inteira num clique: falta foto, falta música, ou faltam as duas
@@ -279,7 +282,7 @@ function photosBar(box) {
     // limpar é limpar: mostra TODOS (não volta a ligar o recorte de pendências)
     el('button', { id: 'fClear', class: 'btn ghost', onclick: () => {
       F.mode = 'family'; F.photo = 'all'; F.music = 'all';
-      F.q = ''; F.cohort = ''; F.univ = ''; F.region = '';
+      F.q = ''; F.qRaw = ''; F.cohort = ''; F.univ = ''; F.region = '';
       PAGE_I = 0; renderPhotos();
     } }, T('limpar', 'clear', 'limpiar')),
     el('span', { class: 'fcount', id: 'fCount' }, ''),
@@ -372,6 +375,10 @@ function placeholderCard(box) {
 function renderPhotos() {
   const host = document.getElementById('photosSec');
   if (!host) return;
+  // a busca está DENTRO da seção recriada: quem digitava perdia o foco a cada pausa. Guarda foco e cursor e os
+  // devolve à caixa nova no fim
+  const act = document.activeElement;
+  const typing = act && act.id === 'fQ' ? [act.selectionStart, act.selectionEnd] : null;
   const box = el('div', { class: 'small muted', id: 'phMsg' });
   const prev = document.getElementById('phMsg');
   if (prev) box.append(...prev.childNodes);           // preserva a mensagem do último upload
@@ -412,6 +419,10 @@ function renderPhotos() {
                 : el('p', { class: 'muted' }, T('Nenhum time casa com o filtro.', 'No team matches the filter.', 'Ningún equipo coincide con el filtro.')),
     pager(pages),
   );
+  if (typing) {
+    const q = document.getElementById('fQ');
+    if (q) { q.focus(); try { q.setSelectionRange(typing[0], typing[1]); } catch (e) { /* tipo sem seleção */ } }
+  }
   syncPlay();                                        // o cartão que estava tocando continua ⏸
   const c = document.getElementById('fCount');
   if (c) c.textContent = (rows.length === teamsAll().length)
