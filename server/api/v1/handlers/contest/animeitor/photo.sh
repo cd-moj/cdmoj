@@ -28,8 +28,8 @@ case "$login" in *.admin|*.judge|*.cjudge|*.staff|*.cstaff|*.mon|*.animeitor)
   fail 422 "Conta de papel não tem foto de time" "role_account";; esac
 # CHEFE DE SEDE só mexe em quem ele enxerga (staff-filters.json). Autoriza o login RESOLVIDO —
 # o corpo pode mandar nome de arquivo, então resolver primeiro e só depois autorizar.
-is_cstaff && ! staff_can_see "$contest" "$SESSION_LOGIN" "$login" \
-  && fail 403 "Time fora da sua sede" "staff_scope"
+is_cstaff && ! staff_can_act "$contest" "$SESSION_LOGIN" "$login" \
+  && fail 403 "Time fora da sua sede (o chefe de sede só altera os times da sede definida para ele em Operação › Staff)" "staff_scope"
 
 if [[ "$(jq -r '.action // empty' <<<"$body")" == delete ]]; then
   tp_remove "$contest" "$login"

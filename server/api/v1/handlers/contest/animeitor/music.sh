@@ -27,8 +27,8 @@ login="$(user_resolve_name "$contest" "$want")" || fail 404 "Nenhum time casa co
 case "$login" in *.admin|*.judge|*.cjudge|*.staff|*.cstaff|*.mon|*.animeitor)
   fail 422 "Conta de papel não tem música de time" "role_account";; esac
 # CHEFE DE SEDE só mexe em quem ele enxerga (mesma regra da foto)
-is_cstaff && ! staff_can_see "$contest" "$SESSION_LOGIN" "$login" \
-  && fail 403 "Time fora da sua sede" "staff_scope"
+is_cstaff && ! staff_can_act "$contest" "$SESSION_LOGIN" "$login" \
+  && fail 403 "Time fora da sua sede (o chefe de sede só altera os times da sede definida para ele em Operação › Staff)" "staff_scope"
 
 if [[ "$(jq -r '.action // empty' < "$bodyf")" == delete ]]; then
   tm_remove "$contest" "$login"

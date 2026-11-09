@@ -574,9 +574,9 @@ else
       "Staff scope per site" "$scoped staff account(s) with a defined scope" \
       "Alcance del staff por sede" "$scoped cuenta(s) de staff con alcance definido"
   else
-    add3 staff_filters warn "Staff sem escopo de sede" "$(( cstaff_n + staff_n - scoped )) de $(( cstaff_n + staff_n )) conta(s) .staff/.cstaff sem filtro: veem a fila e as ETIQUETAS COM SENHA de todos os times (Operação › Staff)" \
-      "Staff without a site scope" "$(( cstaff_n + staff_n - scoped )) of $(( cstaff_n + staff_n )) .staff/.cstaff account(s) without a filter: they see the queue and the LABELS WITH PASSWORDS of every team (Operations › Staff)" \
-      "Staff sin alcance de sede" "$(( cstaff_n + staff_n - scoped )) de $(( cstaff_n + staff_n )) cuenta(s) .staff/.cstaff sin filtro: ven la cola y las ETIQUETAS CON CONTRASEÑA de todos los equipos (Operación › Staff)"
+    add3 staff_filters warn "Staff sem escopo de sede" "$(( cstaff_n + staff_n - scoped )) de $(( cstaff_n + staff_n )) conta(s) .staff/.cstaff sem filtro: veem a fila e as ETIQUETAS COM SENHA de todos os times; o .cstaff sem filtro não troca foto nem música de time (Operação › Staff)" \
+      "Staff without a site scope" "$(( cstaff_n + staff_n - scoped )) of $(( cstaff_n + staff_n )) .staff/.cstaff account(s) without a filter: they see the queue and the LABELS WITH PASSWORDS of every team; a .cstaff without a filter cannot change any team's photo or music (Operations › Staff)" \
+      "Staff sin alcance de sede" "$(( cstaff_n + staff_n - scoped )) de $(( cstaff_n + staff_n )) cuenta(s) .staff/.cstaff sin filtro: ven la cola y las ETIQUETAS CON CONTRASEÑA de todos los equipos; el .cstaff sin filtro no cambia la foto ni la música de ningún equipo (Operación › Staff)"
   fi
 fi
 fi   # módulo sedes

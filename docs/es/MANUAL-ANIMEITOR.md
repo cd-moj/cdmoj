@@ -1,4 +1,4 @@
-<!-- i18n-source: MANUAL-ANIMEITOR.md blob:683e095b4d33ed3f92a48c9e5b0d4bac0812fa56 -->
+<!-- i18n-source: MANUAL-ANIMEITOR.md blob:66962ad185b0f2a0523aba31e1b7b717d8c73c05 -->
 # MOJ: Manual de la pantalla (`.animeitor`)
 
 > **Nota de traducción.** Este manual es una traducción del original en portugués. Las herramientas de línea de comandos (`moj`, `moj-contest`, `moj-comp`) muestran sus mensajes en portugués, y los ejemplos de comandos son idénticos al original.
@@ -108,6 +108,8 @@ galería se abre en el filtro **⚠ Pendientes** — exactamente los equipos que
   a quien opera el visualizador.
 - Los **jefes de sede** (`.cstaff`) suben las fotos **de su sede**. En una competencia con varias sedes,
   deja que ellos las recojan localmente y tú solo revisas la lista de pendientes.
+- La sede de cada jefe de sede es su filtro en **Operación › Staff**. Sin filtro definido, el jefe de
+  sede no cambia la foto ni la música de ningún equipo.
 
 ### La foto/música PREDETERMINADA
 

@@ -360,7 +360,8 @@ servidor commita no repo git LOCAL de cada problema (`MOJ_PROBLEMS_DIR/<org>/<pr
 > A **sede** entra **recortada pelo `staff-filters.json`** (o mesmo da fila/etiquetas/cerimônia):
 > a listagem vem só com os times dela (`scoped:true`). O **`.cstaff`** usa `photos`, `photo`,
 > `music`, `photos-zip` e o **GET** de `placeholder` — escrever em time de fora dá **403
-> `staff_scope`**. O **`.staff`** é **somente leitura**: só `photos` e o GET de `placeholder`
+> `staff_scope`**, e escrever exige o escopo DEFINIDO (`.cstaff` sem entrada ou com lista vazia no
+> `staff-filters.json` = 403 `staff_scope` para qualquer time; a leitura segue sem recorte). O **`.staff`** é **somente leitura**: só `photos` e o GET de `placeholder`
 > (`photo`/`music`/`photos-zip` → 403). Nenhum dos dois troca o padrão (POST 403) nem vê as
 > chaves do webcast (403).
 | Rota | Método | I/O |

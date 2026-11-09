@@ -1,4 +1,4 @@
-<!-- i18n-source: MANUAL-ANIMEITOR.md blob:683e095b4d33ed3f92a48c9e5b0d4bac0812fa56 -->
+<!-- i18n-source: MANUAL-ANIMEITOR.md blob:66962ad185b0f2a0523aba31e1b7b717d8c73c05 -->
 # MOJ: Big-screen manual (`.animeitor`)
 
 > **Translation note.** This manual is a translation of the Portuguese original. The command-line tools (`moj`, `moj-contest`, `moj-comp`) print their messages in Portuguese, and the command examples below are identical to the original.
@@ -115,6 +115,8 @@ or no music.
   this file to the person who operates the display.
 - The **site chiefs** (`.cstaff`) upload the photos **of their own site**. In a contest with many sites,
   let them collect the photos locally. Then you only check the to-do list.
+- The site of each site chief is their filter in **Operations › Staff**. Without a filter, the site
+  chief cannot change the photo or the music of any team.
 
 ### The DEFAULT photo and music
 

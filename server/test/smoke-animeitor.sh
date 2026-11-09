@@ -40,6 +40,7 @@ touch "$C/var/.score-dirty"
 mktok(){ printf 'CONTEST=%q\nLOGIN=%q\nUSERFULLNAME=%q\nLOGINAT=%q\n' an "$1" "$1" "$NOW" > "$SESS/$2"; }
 mktok an.admin adm; mktok telao.animeitor ani; mktok an.staff stf; mktok time-b tb
 mktok norte.cstaff cst
+fx_user "$C" sul.cstaff p "Chefe de Sede Sul"; mktok sul.cstaff cs2   # sem entrada no staff-filters
 
 call(){ OUT="$(PATH_INFO="$1" REQUEST_METHOD="${2:-GET}" QUERY_STRING="${4:-}" \
     HTTP_AUTHORIZATION="${3:+Bearer $3}" REMOTE_ADDR=127.0.0.9 \
@@ -330,6 +331,23 @@ call /contest/animeitor/music POST cst 'contest=an' '{"action":"delete","login":
 ck "delete fora da sede → 403"    'grep -q "staff_scope" <<<"$BODY"'
 call /contest/animeitor/music POST cst 'contest=an' "{\"login\":\"time-a\",\"file_b64\":\"$MP3\"}"
 ck "música da sede: pode"         'grep -q "\"saved\":true" <<<"$BODY"'
+# a ação que muda um time exige a sede DEFINIDA para o chefe de sede (falha fechado); a leitura segue aberta
+call /contest/animeitor/photo POST cs2 'contest=an' "{\"login\":\"time-b\",\"file_b64\":\"$PNG1\"}"
+ck "cstaff sem escopo: foto → 403"   'grep -q "staff_scope" <<<"$BODY"'
+call /contest/animeitor/music POST cs2 'contest=an' '{"action":"delete","login":"time-a"}'
+ck "cstaff sem escopo: apagar → 403" 'grep -q "staff_scope" <<<"$BODY" && [[ -e "$C/users/time-a/music.mp3" ]]'
+cp "$C/print-requests/staff-filters.json" "$TMP/sf.bak"
+printf '%s' '{"norte.cstaff":["region:Norte"],"sul.cstaff":[]}' > "$C/print-requests/staff-filters.json"
+call /contest/animeitor/photo POST cs2 'contest=an' "{\"login\":\"time-b\",\"file_b64\":\"$PNG1\"}"
+ck "cstaff com lista vazia → 403"    'grep -q "staff_scope" <<<"$BODY"'
+rm -f "$C/print-requests/staff-filters.json"
+call /contest/animeitor/music POST cst 'contest=an' "{\"login\":\"time-a\",\"file_b64\":\"$MP3\"}"
+ck "sem staff-filters.json → 403"    'grep -q "staff_scope" <<<"$BODY"'
+call /contest/animeitor/photo POST ani 'contest=an' "{\"login\":\"time-a\",\"file_b64\":\"$PNG1\"}"
+ck "o .animeitor não depende de escopo" 'grep -q "\"saved\":true" <<<"$BODY"'
+call /contest/animeitor/photos GET cs2 'contest=an'
+ck "a leitura segue aberta sem escopo" '[[ "$(jq -r .total <<<"$BODY")" == 2 ]]'
+cp "$TMP/sf.bak" "$C/print-requests/staff-filters.json"
 call /contest/animeitor/placeholder GET cst 'contest=an'
 ck "cstaff VÊ o padrão"           'grep -q "\"custom\"" <<<"$BODY" && grep -q "\"music\"" <<<"$BODY"'
 call /contest/animeitor/placeholder POST cst 'contest=an' "{\"file_b64\":\"$PNG1\"}"

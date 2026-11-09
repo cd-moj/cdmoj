@@ -139,6 +139,19 @@ staff_can_see() {  # <c> <staff_login> <student_login>
   ' "$f" >/dev/null 2>&1
 }
 
+# staff_can_act <c> <staff_login> <student_login> — pode MEXER neste time (gravar/apagar a foto, a música)? A
+# MESMA regra do staff_can_see, mas FALHA FECHADO: sem escopo configurado para <staff_login> (arquivo ausente,
+# entrada ausente ou lista vazia) a resposta é NÃO. A leitura segue no staff_can_see (sem escopo = vê tudo); a
+# ação que muda o time de alguém exige a sede definida. Admin pode sempre.
+staff_can_act() {
+  local f
+  is_admin && return 0
+  f="$(pr_dir "$1")/staff-filters.json"
+  [[ -s "$f" ]] || return 1
+  jq -e --arg s "$2" '(.[$s] // []) | type == "array" and length > 0' "$f" >/dev/null 2>&1 || return 1
+  staff_can_see "$@"
+}
+
 # staff_visible_logins <c> <login> — ecoa (1/linha) os logins de aluno que <login> enxerga,
 # pela MESMA semântica de staff_can_see, materializada numa ÚNICA passada (contas por
 # find|xargs jq — sem N execuções de jq nem --argjson gigante; filtros por --slurpfile).

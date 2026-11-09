@@ -105,6 +105,8 @@ galeria abre no filtro **⚠ Pendências** — exatamente quem ainda está sem f
   para quem opera o exibidor.
 - Os **chefes de sede** (`.cstaff`) sobem as fotos **da sede deles**. Numa prova com várias sedes,
   deixe-os recolher localmente e você só confere a lista de pendências.
+- A sede de cada chefe de sede é o filtro dele em **Operação › Staff**. Sem filtro definido, o chefe
+  de sede não troca a foto nem a música de nenhum time.
 
 ### A foto/música PADRÃO
 
