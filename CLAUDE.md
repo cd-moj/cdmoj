@@ -921,7 +921,9 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   A página (`web/contest/clarification/`) separa abertas × respondidas, atualiza EM LUGAR a cada
   30 s (cartão por id, adia se há resposta sendo digitada) e usa `white-space:pre-wrap` — o
   relatório (`report-gen.sh`) já preservava a quebra de linha. Sempre auditar (`audit_log_to`)
-  toda ação de juiz/chefe. Teste: `smoke-contest-clar.sh`.
+  toda ação de juiz/chefe. **Respostas prontas** (09/11/2026, Roberto): `/contest/clarification-canned` (lista em
+  `clarification-canned.json`; sem ela, as 4 do ICPC no `LOCALE`; edita admin/chefe) e botões no editor de resposta
+  que respondem em PRIVADO pelo `clarification-answer` de sempre. Teste: `smoke-contest-clar.sh`.
 - **FIRST-TO-SOLVE SÓ COM CERTEZA** (2026-08-25), no placar E no balão. O `*` do ICPC era o mínimo
   puro dos `first_ac_epoch` e ignorava run pendente: nascia no time errado e MIGRAVA quando o AC
   mais antigo era julgado. Hoje o `updatescore-icpc.sh` retira a estrela do problema enquanto

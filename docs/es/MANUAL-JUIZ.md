@@ -1,4 +1,4 @@
-<!-- i18n-source: MANUAL-JUIZ.md blob:7efd993bfb10e0e5bedee6b21cc38fd6ec30be67 -->
+<!-- i18n-source: MANUAL-JUIZ.md blob:6971a0e50ef6e7ad6b72154a0b396162ca4d6289 -->
 # MOJ: Manual de los jueces (.judge y .cjudge)
 
 > **Nota de traducción.** Este manual es una traducción del original en portugués. Las herramientas de línea de comandos (`moj`, `moj-contest`, `moj-comp`) muestran sus mensajes en portugués, y los ejemplos de comandos son idénticos al original.
@@ -161,6 +161,7 @@ La franja de aviso de la Parte 1 también avisa al juez principal de cada **conf
 
 - Ver **Todos los envíos** con usuario y equipo (el juez común la ve anónima), con el veredicto crudo.
 - Responder **aclaraciones**. Reserva la pregunta antes de responder. Ves quién preguntó: el usuario y el nombre (el juez común no lo ve). Nadie reserva una pregunta que otro juez ya reservó. Los saltos de línea en la pregunta y en la respuesta se conservan.
+- Editar las **respuestas rápidas** (la caja **✎ Respuestas rápidas** en la pestaña Aclaraciones; el admin también). Son los botones que todo juez ve al reservar una pregunta: un clic responde solo al equipo que preguntó. Lo predeterminado son 4, en el idioma de la competencia: "Sin comentarios.", "Lee el enunciado.", "Sí." y "No.". Escribe una por línea (hasta 20); una lista vacía vuelve a lo predeterminado.
 - Editar las **respuestas y noticias** de la competencia.
 
 ### Calentamiento: lo que solo el juez principal comprueba

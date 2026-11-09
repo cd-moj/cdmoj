@@ -5976,6 +5976,56 @@
         }
       }
     },
+    "/contest/clarification-canned": {
+      "get": {
+        "tags": [
+          "contest"
+        ],
+        "summary": "Respostas prontas de clarification (admin/judge/mon): {answers, custom}; sem lista = as 4 do ICPC no LOCALE",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{answers:[texto], custom}"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "contest"
+        ],
+        "summary": "Grava a lista (admin ou juiz-chefe): {answers:[1..20 textos, até 200]} ou {reset:true}",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{answers, custom}"
+          },
+          "403": {
+            "description": "chief_required"
+          },
+          "422": {
+            "description": "answers_invalid | answers_count | answer_long"
+          }
+        }
+      }
+    },
     "/contest/clarification-answer": {
       "post": {
         "tags": [

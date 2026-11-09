@@ -134,4 +134,19 @@ ck "regular não cria notícia 403" '[[ "$OUT" == *"Status: 403"* ]]'
 call /contest/news GET '' bob 'contest=cl'
 ck "notícia aparece p/ todos"  '[[ "$(jq -r ".items[0].title" <<<"$BODY")" == "Início em 5min" ]]'
 
+echo "== respostas prontas (09/11/2026): padrão no idioma do contest; admin e chefe editam =="
+call /contest/clarification-canned GET '' jdg 'contest=cl'
+ck "juiz lê as 4 padrão (pt)"          '[[ "$(jq -r ".answers | join(\"|\")" <<<"$BODY")" == "Sem comentários.|Leia o enunciado.|Sim.|Não." && "$(jq -r .custom <<<"$BODY")" == false ]]'
+call /contest/clarification-canned GET '' mon 'contest=cl';   ck ".mon lê"                '[[ "$(jq -r ".answers | length" <<<"$BODY")" == 4 ]]'
+call /contest/clarification-canned GET '' alice 'contest=cl'; ck "time: 403"              '[[ "$OUT" == *"Status: 403"* ]]'
+call /contest/clarification-canned POST '{"answers":["x"]}' jdg 'contest=cl'; ck "juiz não edita (403)" '[[ "$(jq -r .error.code <<<"$BODY")" == chief_required ]]'
+call /contest/clarification-canned POST '{"answers":["Sem comentários.","  Confira o exemplo 2.  ",""]}' ch 'contest=cl'
+ck "chefe grava (aparado, vazio fora)" '[[ "$(jq -r ".answers | join(\"|\")" <<<"$BODY")" == "Sem comentários.|Confira o exemplo 2." && "$(jq -r .custom <<<"$BODY")" == true ]]'
+call /contest/clarification-canned GET '' jdg 'contest=cl';   ck "juiz vê a lista do contest" '[[ "$(jq -r ".answers[1]" <<<"$BODY")" == "Confira o exemplo 2." ]]'
+LONG="$(printf 'a%.0s' $(seq 1 201))"
+call /contest/clarification-canned POST "{\"answers\":[\"$LONG\"]}" adm 'contest=cl'; ck "201 caracteres: 422" '[[ "$(jq -r .error.code <<<"$BODY")" == answer_long ]]'
+call /contest/clarification-canned POST '{"reset":true}' adm 'contest=cl'; ck "admin volta ao padrão" '[[ "$(jq -r .custom <<<"$BODY")" == false && ! -e "$C/clarification-canned.json" ]]'
+sed -i '1a LOCALE=es' "$C/conf"
+call /contest/clarification-canned GET '' jdg 'contest=cl';   ck "contest es: as 4 em espanhol" '[[ "$(jq -r ".answers[0]" <<<"$BODY")" == "Sin comentarios." ]]'
+
 echo ""; echo "RESULT: $pass passed, $fail failed"; exit $(( fail>0?1:0 ))

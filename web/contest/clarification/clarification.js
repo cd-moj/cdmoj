@@ -28,6 +28,8 @@ const G = { contest: CONTEST, auth: true };
 const REFRESH_MS = 30000;
 let canAnswer = false, canEdit = false, myLogin = '', problems = [];
 let CLARS = [];                                 // último GET
+// RESPOSTAS PRONTAS (/contest/clarification-canned; pedido do Roberto, 09/11/2026): um clique responde em PRIVADO
+let CANNED = [];
 let filterProb = '';                            // '' = todos
 
 // reservar/responder/avisar atualiza o alerta global na hora (o banner não espera o próximo poll)
@@ -86,8 +88,45 @@ function answerEditor(c, isEdit) {
     try { await post('clarification-answer', { id: c.id, answer: ans.value.trim(), public: pub.checked }); refresh(); }
     catch (e) { sb.disabled = false; msg.className = 'small error-box'; msg.textContent = e.message || T('falha', 'failed', 'fallido'); }
   });
-  return el('div', { class: 'editor', style: 'margin-top:.4rem' }, ans,
+  // respostas prontas: um clique responde SÓ ao time que perguntou (privada), sem digitar
+  const quick = (!isEdit && CANNED.length) ? el('div', { class: 'row', style: 'gap:.35rem;flex-wrap:wrap;margin-bottom:.3rem' },
+    el('span', { class: 'small muted' }, T('Resposta pronta (privada): ', 'Quick answer (private): ', 'Respuesta rápida (privada): ')),
+    ...CANNED.map((txt) => {
+      const b = el('button', { class: 'btn ghost small', title: T('responde só ao time, com este texto', 'answers only the team, with this text', 'responde solo al equipo, con este texto') }, txt);
+      b.addEventListener('click', async () => {
+        b.disabled = true; msg.textContent = '';
+        try { await post('clarification-answer', { id: c.id, answer: txt, public: false }); refresh(); }
+        catch (e) { b.disabled = false; msg.className = 'small error-box'; msg.textContent = e.message || T('falha', 'failed', 'fallido'); }
+      });
+      return b;
+    })) : null;
+  return el('div', { class: 'editor', style: 'margin-top:.4rem' }, quick, ans,
     el('div', { class: 'row' }, el('label', { class: 'small' }, pub, T(' pública (todo o contest vê)', ' public (whole contest sees)', ' pública (toda la competencia la ve)')), sb, msg));
+}
+
+// lista de respostas prontas: juiz-chefe e admin editam (uma por linha); vazia = volta às 4 padrão
+function cannedEditor(custom) {
+  const ta = el('textarea', { rows: '5', style: 'width:100%' }); ta.value = CANNED.join('\n');
+  const msg = el('span', { class: 'small' });
+  const save = el('button', { class: 'btn' }, T('Salvar', 'Save', 'Guardar'));
+  const reset = el('button', { class: 'btn ghost' }, T('Voltar ao padrão', 'Back to the default', 'Volver al predeterminado'));
+  const done = (r) => { CANNED = r.answers || []; ta.value = CANNED.join('\n'); msg.className = 'small'; msg.textContent = T('salvo', 'saved', 'guardado'); render(); };
+  save.addEventListener('click', async () => {
+    const answers = ta.value.split('\n').map((x) => x.trim()).filter(Boolean);
+    try { done(await post('clarification-canned', answers.length ? { answers } : { reset: true })); }
+    catch (e) { msg.className = 'small error-box'; msg.textContent = e.message || T('falha', 'failed', 'fallido'); }
+  });
+  reset.addEventListener('click', async () => {
+    try { done(await post('clarification-canned', { reset: true })); }
+    catch (e) { msg.className = 'small error-box'; msg.textContent = e.message || T('falha', 'failed', 'fallido'); }
+  });
+  return el('details', { class: 'section' },
+    el('summary', {}, el('b', {}, T('✎ Respostas prontas', '✎ Quick answers', '✎ Respuestas rápidas')),
+      el('span', { class: 'small muted' }, custom ? T(' · lista do contest', ' · contest list', ' · lista de la competencia') : T(' · padrão', ' · default', ' · predeterminada'))),
+    el('p', { class: 'small muted' }, T('Uma resposta por linha (até 20, 200 caracteres cada). Um clique no botão responde só ao time que perguntou. Lista vazia volta às 4 padrão.',
+      'One answer per line (up to 20, 200 characters each). One click on the button answers only the team that asked. An empty list goes back to the 4 defaults.',
+      'Una respuesta por línea (hasta 20, 200 caracteres cada una). Un clic en el botón responde solo al equipo que preguntó. Una lista vacía vuelve a las 4 predeterminadas.')),
+    ta, el('div', { class: 'row', style: 'gap:.5rem;margin-top:.3rem' }, save, reset, msg));
 }
 
 async function claimAction(body, confirmMsg) {
@@ -311,7 +350,14 @@ async function boot() {
   listBody.append(el('p', { class: 'muted small' }, T('carregando…', 'loading…', 'cargando…')));
   app.append(formSlot, listBox); listBox.append(listBody);
   await refresh();
-  if (canAnswer) { formSlot.append(broadcastForm()); app.append(newsSection()); }
+  if (canAnswer) {
+    let custom = false;
+    try { const r = await apiGet('/contest/clarification-canned?contest=' + enc(CONTEST), G); CANNED = r.answers || []; custom = !!r.custom; render(); }
+    catch { /* servidor antigo: sem respostas prontas */ }
+    formSlot.append(broadcastForm());
+    if (canEdit) formSlot.append(cannedEditor(custom));
+    app.append(newsSection());
+  }
   else { formSlot.append(askForm()); }
   if (stopTimer) stopTimer();
   stopTimer = everyVisible(app, REFRESH_MS, refresh);

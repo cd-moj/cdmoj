@@ -1,4 +1,4 @@
-<!-- i18n-source: MANUAL-JUIZ.md blob:7efd993bfb10e0e5bedee6b21cc38fd6ec30be67 -->
+<!-- i18n-source: MANUAL-JUIZ.md blob:6971a0e50ef6e7ad6b72154a0b396162ca4d6289 -->
 # MOJ: Manual for judges (.judge and .cjudge)
 
 > **Translation note.** This manual is a translation of the Portuguese original. The command-line tools (`moj`, `moj-contest`, `moj-comp`) print their messages in Portuguese, and the command examples below are identical to the original.
@@ -162,6 +162,7 @@ The alert bar from Part 1 also tells the chief judge about each new **conflict**
 
 - See **All Submissions** with user and team (the regular judge sees it anonymous), with the raw verdict.
 - Answer **clarifications**. Reserve the question before you answer it. You see who asked: the login and the name (the regular judge does not see them). Nobody can reserve a question that another judge reserved. Line breaks in the question and in the answer stay as they are.
+- Edit the **quick answers** (the **✎ Quick answers** box on the Clarification tab; the admin can too). They are the buttons that every judge sees after claiming a question: one click answers only the team that asked. The default is 4, in the language of the contest: "No comment.", "Read the problem statement.", "Yes." and "No.". Write one per line (up to 20); an empty list goes back to the default.
 - Edit the **answers and news** of the contest.
 
 ### Warm-up: what only the chief checks

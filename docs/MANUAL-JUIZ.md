@@ -158,6 +158,7 @@ A faixa de aviso da Parte 1 também avisa o juiz-chefe de cada **conflito** novo
 
 - Ver **Todas as Submissões** com usuário e time (o juiz comum a vê anônima), com o veredicto cru.
 - Responder **clarifications**. Reserve a pergunta antes de responder. Você vê quem perguntou: o login e o nome (o juiz comum não vê). Ninguém reserva uma pergunta que outro juiz já reservou. Quebras de linha na pergunta e na resposta são preservadas.
+- Editar as **respostas prontas** (caixa **✎ Respostas prontas** na aba Clarification; o admin também). São os botões que todo juiz vê ao reservar uma pergunta: um clique responde só ao time que perguntou. O padrão são 4, no idioma da prova: "Sem comentários.", "Leia o enunciado.", "Sim." e "Não.". Escreva uma por linha (até 20); a lista vazia volta ao padrão.
 - Editar **respostas e notícias** da prova.
 
 ### Aquecimento: o que só o chefe confere
