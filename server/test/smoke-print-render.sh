@@ -194,5 +194,11 @@ ck "balão: folha gerada no idioma do contest"   '[[ $brc -eq 0 && -s "$bout" &&
 m1="$(stat -c %Y "$bout")"; sleep 1
 sed -i 's/^LOCALE=es$/LOCALE=en/' "$C/conf"; pr_build_balloon pr blnx >/dev/null
 ck "balão: trocou o LOCALE, a folha se refaz"   '[[ "$(stat -c %Y "$bout")" -gt "$m1" && "$(jq -r .sheet_lang "$C/print-requests/blnx.json")" == en ]]'
+m1="$(stat -c %Y "$bout")"; sleep 1; pr_build_balloon pr blnx >/dev/null
+ck "balão: no mesmo idioma, fica em cache"      '[[ "$(stat -c %Y "$bout")" == "$m1" ]]'
+# deploy = o print.sh mais novo que o cache: a folha de balão se refaz com o layout novo (antes só o idioma contava)
+touch -d "@$(( $(stat -c %Y "$bout") - 60 ))" "$bout"; m1="$(stat -c %Y "$bout")"
+pr_build_balloon pr blnx >/dev/null
+ck "balão: cache mais velho que o print.sh (deploy) se refaz" '[[ "$(stat -c %Y "$bout")" -gt "$m1" ]]'
 
 echo ""; echo "RESULT: $pass passed, $fail failed"; exit $(( fail>0?1:0 ))

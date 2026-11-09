@@ -837,9 +837,11 @@ _pr_render_balloon() {
 }
 
 # pr_build_balloon <c> <id> : ecoa o combined.pdf da folha do balão (build-once; conteúdo imutável —
-# salvo o IDIOMA: trocou o LOCALE do contest, a folha se refaz no idioma novo).
+# salvo o IDIOMA: trocou o LOCALE do contest, a folha se refaz no idioma novo — e o LAYOUT: o cache mais velho
+# que este arquivo (um deploy) se refaz, como a folha de rosto do _pr_cache_ok. A meta do balão não serve de
+# referência: ela é regravada a cada mudança de estado — pego, impresso, entregue).
 _pr_balloon_cache_ok() {  # <cache> <meta> <lang>
-  [[ -f "$1" ]] || return 1
+  [[ -f "$1" && "$1" -nt "${BASH_SOURCE[0]}" ]] || return 1
   jq -e --arg l "$3" '(.sheet_lang // "pt") == $l' "$2" >/dev/null 2>&1
 }
 pr_build_balloon() {
