@@ -1,6 +1,7 @@
 // shared/languages.js — linguagens aceitas pelo MOJ (espelha mojtools/lang/*).
 // id == extensão enviada (FILETYPE = id em maiúsculas, casa com o dir do juiz).
-// cm = modo do CodeMirror (null = sem realce, mas funciona como template).
+// cm = modo do CodeMirror (null = sem realce, mas funciona como template). Os modos legacy (haskell, ocaml, pascal,
+// prolog, csharp, shell, apl, gas) vêm do shared/editor.js — a tabela só faltava ligar (09/11/2026).
 // optIn: true = linguagem EXÓTICA/custom (PDDL, grepe do curso de compiladores, …). NÃO aparece
 // no dropdown de submissão por padrão — SÓ quando o problema a declara no seu campo `languages`.
 // As normais (sem optIn) formam DEFAULT_SUBMIT_LANGUAGES, oferecidas p/ todo problema irrestrito.
@@ -13,16 +14,16 @@ export const LANGUAGES = [
   { id: 'rs',    label: 'Rust',         cm: 'rust',       template: 'use std::io::*;\n\nfn main() {\n    \n}\n' },
   { id: 'go',    label: 'Go',           cm: 'go',         template: 'package main\n\nimport (\n    "bufio"\n    "fmt"\n    "os"\n)\n\nfunc main() {\n    r := bufio.NewReader(os.Stdin)\n    _ = r; _ = fmt.Sprint\n}\n' },
   { id: 'js',    label: 'JavaScript',   cm: 'javascript', template: 'const data = require("fs").readFileSync(0, "utf8");\nconst lines = data.split("\\n");\n\n' },
-  { id: 'hs',    label: 'Haskell',      cm: null,         template: 'main :: IO ()\nmain = do\n    return ()\n' },
-  { id: 'ml',    label: 'OCaml',        cm: null,         template: 'let () =\n  ()\n' },
-  { id: 'pas',   label: 'Pascal',       cm: null,         template: 'program Main;\nbegin\nend.\n' },
-  { id: 'pl',    label: 'Prolog',       cm: null,         template: 'main :-\n    read_line_to_string(user_input, Linha),\n    % resolva aqui e escreva o resultado com writeln/1\n    writeln(Linha).\n' },
+  { id: 'hs',    label: 'Haskell',      cm: 'haskell',    template: 'main :: IO ()\nmain = do\n    return ()\n' },
+  { id: 'ml',    label: 'OCaml',        cm: 'ocaml',      template: 'let () =\n  ()\n' },
+  { id: 'pas',   label: 'Pascal',       cm: 'pascal',     template: 'program Main;\nbegin\nend.\n' },
+  { id: 'pl',    label: 'Prolog',       cm: 'prolog',     template: 'main :-\n    read_line_to_string(user_input, Linha),\n    % resolva aqui e escreva o resultado com writeln/1\n    writeln(Linha).\n' },
   // C#: a classe NÃO pode se chamar Main (erro CS0542: o método Main colide com o nome da classe).
-  { id: 'cs',    label: 'C#',           cm: null,         template: 'using System;\n\nclass Program {\n    static void Main() {\n        \n    }\n}\n' },
-  { id: 'sh',    label: 'Shell (bash)', cm: null,         template: '#!/bin/bash\n\n' },
-  { id: 'apl',   label: 'APL',          cm: null,         template: '' },
-  { id: 'spim',  label: 'MIPS (spim)',  cm: null,         template: '.data\n\n.text\n.globl main\nmain:\n    \n' },
-  { id: 'riscv', label: 'RISC-V',       cm: null,         template: '.text\n.globl main\nmain:\n    \n' },
+  { id: 'cs',    label: 'C#',           cm: 'csharp',     template: 'using System;\n\nclass Program {\n    static void Main() {\n        \n    }\n}\n' },
+  { id: 'sh',    label: 'Shell (bash)', cm: 'shell',      template: '#!/bin/bash\n\n' },
+  { id: 'apl',   label: 'APL',          cm: 'apl',        template: '' },
+  { id: 'spim',  label: 'MIPS (spim)',  cm: 'gas',        template: '.data\n\n.text\n.globl main\nmain:\n    \n' },
+  { id: 'riscv', label: 'RISC-V',       cm: 'gas',        template: '.text\n.globl main\nmain:\n    \n' },
   // ---- exóticas / custom (opt-in: só no dropdown quando o problema declara) ----
   { id: 'pddl',     label: 'PDDL',                    cm: null, template: '', optIn: true },
   { id: 'grepe',    label: 'grepe (regex)',           cm: null, template: '', optIn: true },
