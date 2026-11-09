@@ -1,4 +1,4 @@
-<!-- i18n-source: MANUAL-STAFF.md blob:6a99b75004c337adc9866f28a2ed6661f947bb50 -->
+<!-- i18n-source: MANUAL-STAFF.md blob:833c253005591bb809e3ce90357e612197f79f8f -->
 # MOJ: Room staff manual (.staff and .cstaff)
 
 > **Translation note.** This manual is a translation of the Portuguese original. The command-line tools (`moj`, `moj-contest`, `moj-comp`) print their messages in Portuguese, and the command examples below are identical to the original.
@@ -56,6 +56,14 @@ The print screen is a table with **two kinds of items in the same queue**:
 > page shows the freeze time in a 🧊 bar (before and during the freeze), so nobody thinks that the queue is stuck.
 >
 > **Print requests do not change**: the team can print at any time, with or without the freeze.
+
+> **Balloons waiting for the first at the site ⏳.** When a team solves a problem, MOJ must know if it
+> was the **first at its site** on that problem (the balloon then has the ★ "first to solve" star). If
+> another team of the site submitted earlier and that submission has no verdict yet (it is being judged
+> or reviewed by the judges), **all the balloons of that problem at the site wait** for it. The
+> **Printing** page shows a ⏳ notice with how many balloons wait and for which problems. They come out
+> on their own, with the right star, when the submission is judged. If the wait is long, tell the
+> `.admin`: the admin can release the balloons, and then they come out without the star.
 
 You see only the queue of **your site**. Requests and balloons of other sites do not show for you.
 

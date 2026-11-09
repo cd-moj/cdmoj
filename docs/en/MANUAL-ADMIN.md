@@ -1,4 +1,4 @@
-<!-- i18n-source: MANUAL-ADMIN.md blob:b57d0da3579eca955bd2a183816e520ce3e11970 -->
+<!-- i18n-source: MANUAL-ADMIN.md blob:c79570632cf80673c1822e3657e4332b6db1b5ca -->
 # MOJ: Organizer manual (the contest .admin panel)
 
 > **Translation note.** This manual is a translation of the Portuguese original. The command-line tools (`moj`, `moj-contest`, `moj-comp`) print their messages in Portuguese, and the command examples below are identical to the original.
@@ -143,6 +143,15 @@ contest offers it). If the problem has no title in that language, MOJ uses the P
 > check **Deliver balloons during the freeze** in **Home › Rules**. This also **releases the
 > balloons that were already held**. The pre-contest checklist shows which policy applies, and
 > **Operations › Status** shows how many balloons are held.
+
+> **Balloons waiting for the first at the site.** A balloon has the first-at-the-site star only when
+> this is certain: if another team of the site submitted earlier and that submission has no verdict yet
+> (being judged or in manual review), **all the balloons of the problem at that site wait**, with no
+> time limit. **Operations › Staff** lists the held pairs (site, problem, how many, for how long and the
+> submission that holds them), with an alert after 10 minutes. Usually you decide the submission in the
+> judge queue (it has a 🎈 mark). If it cannot be decided now, click **Release without band** (twice, to
+> confirm): the balloons come out without the star. The chief judge can also release them, in the judge
+> queue.
 
 > **How the scoreboard marks who solved a problem.** By default, the cell of a team that solved a
 > problem is **always the same** (green), and the balloon color is in a **dot** next to it. This is

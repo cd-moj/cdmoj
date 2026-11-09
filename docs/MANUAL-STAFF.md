@@ -54,6 +54,14 @@ A tela de impressão é uma tabela com **duas coisas na mesma fila**:
 >
 > **Pedido de impressão não muda**: o time continua imprimindo a qualquer momento, freeze ou não.
 
+> **Balão esperando o 1º da sede ⏳.** Quando um time resolve um problema, o MOJ precisa saber se ele
+> foi o **primeiro da sua sede** naquele problema (o balão sai com a estrela ★ "first to solve"). Se outro
+> time da sede enviou antes e essa submissão ainda não tem veredicto (está sendo julgada ou revisada
+> pelos juízes), **todos os balões daquele problema na sede esperam** por ela. A página de **Impressão**
+> mostra uma faixa ⏳ com quantos balões esperam e de quais problemas. Eles saem sozinhos, com a estrela
+> certa, assim que a submissão for julgada. Se a espera demorar, avise o `.admin`: ele pode liberar os
+> balões, e aí eles saem sem a estrela.
+
 Você só vê a fila da **sua sede**. Pedidos e balões de outras sedes não aparecem para você.
 
 ### Como tratar uma tarefa

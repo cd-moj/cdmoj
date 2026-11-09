@@ -34,6 +34,19 @@ list="$(rv_scan "$dir" "$(rv_expire_filter)
   --argjson now "$now" --arg me "$me" --argjson chief "$chief" --argjson q "$Q" \
   | jq -cs 'sort_by(.created_at, .id)')"
 [[ -n "$list" ]] || list='[]'
+# SEGURA BALÃO: esta run é a mais antiga sem veredicto de um par sede×problema e, enquanto não decide, os balões
+# do problema naquela sede esperam (lib/print.sh, `.balloon-hold`, campo pend = sub_epoch dela). Marca p/ o juiz
+# priorizar. Par (problema, sub_epoch); a sede (balloon_region, p/ a válvula de liberar) só p/ chefe/admin.
+hf="$CONTESTSDIR/$contest/print-requests/.balloon-hold"
+if [[ -s "$hf" && "$list" != '[]' ]]; then
+  # falha aqui nunca esvazia a fila: só troca a lista quando o jq devolve algo
+  _ml="$(jq -c --slurpfile H "$hf" --argjson chief "$chief" '
+      ($H | map({(((.problem // "") + "|" + ((.pend // 0)|tostring))): (.region // "")}) | add // {}) as $K
+      | map(((.problem_id // "") + "|" + ((.sub_epoch // 0)|tostring)) as $k
+            | . + (if $K | has($k) then {blocks_balloon:true} + (if $chief then {balloon_region:$K[$k]} else {} end) else {} end))' \
+      <<<"$list" 2>/dev/null)"
+  [[ -n "$_ml" ]] && list="$_ml"
+fi
 # awaiting_second (nome mantido p/ compat): com voto(s) mas AINDA abaixo do quórum $Q
 counts="$(jq -c --argjson q "$Q" '{
   not_evaluated:   ([.[]|select((.claimants|length)==0 and ((.votes_n//0)==0))]|length),

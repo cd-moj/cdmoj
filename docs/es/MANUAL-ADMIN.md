@@ -1,4 +1,4 @@
-<!-- i18n-source: MANUAL-ADMIN.md blob:b57d0da3579eca955bd2a183816e520ce3e11970 -->
+<!-- i18n-source: MANUAL-ADMIN.md blob:c79570632cf80673c1822e3657e4332b6db1b5ca -->
 # MOJ: Manual del organizador (el panel .admin de la competencia)
 
 > **Nota de traducción.** Este manual es una traducción del original en portugués. Las herramientas de línea de comandos (`moj`, `moj-contest`, `moj-comp`) muestran sus mensajes en portugués, y los ejemplos de comandos son idénticos al original.
@@ -142,6 +142,14 @@ portugués.
 > **Central › Reglas**; marcarlo también **libera los que ya quedaron retenidos**. El checklist previo a la competencia
 > muestra qué política está vigente, y **Operación › Situación** muestra cuántos globos están
 > retenidos.
+
+> **Globos esperando al 1º de la sede.** El globo sale con la estrella de primero de la sede solo con
+> certeza: si otro equipo de la sede envió antes y ese envío todavía no tiene veredicto (en juzgamiento o
+> en revisión manual), **todos los globos del problema en esa sede esperan**, sin límite de tiempo.
+> **Operación › Staff** lista los pares retenidos (sede, problema, cuántos, desde cuándo y el envío que
+> los retiene), con alerta después de 10 minutos. Lo normal es decidir el envío en la cola del juez
+> (aparece marcado con 🎈). Si no se puede decidir ahora, haz clic en **Liberar sin franja** (dos veces,
+> para confirmar): los globos salen sin la estrella. El juez principal también puede liberarlos, en su cola.
 
 > **Cómo marca el marcador a quien resolvió.** Por defecto la celda de quien resolvió **siempre se ve igual**
 > (verde) y el color del globo va en un **puntito** al lado. Es a propósito: la paleta ICPC le da al

@@ -40,6 +40,18 @@ fi
 # linha fantasma na fila do admin (data 1969, tudo vazio)
 PICK='select((.id // "") != "") | {id,seq,test:(.test==true),login,fullname,team,univ,kind:(.kind//"print"),short,color_hex,color_name,first_site:(.first_site==true),filename,mime,size,time,status,pages,build_ok,claimed_by,claimed_at,processed_by,processed_at,delivered_by,delivered_at}'
 RANK='def rank: if .status=="pending" then 0 elif .status=="printed" then 1 else 2 end;'
+# BALÕES ESPERANDO a certeza do 1º da sede (lib/print.sh, `.balloon-hold`): a sala vê quantos e por quê, no mesmo
+# escopo das tarefas; o admin vê também o problema e a run que segura (pend = sub_epoch dela, p/ liberar). Teto de 300 linhas (vai por --argjson).
+HELD='[]'
+if [[ -s "$dir/.balloon-hold" ]]; then
+  HELD="$(jq -cs --rawfile vis "${VIS_FILE:-/dev/null}" --argjson scoped "$([[ -n "$VIS_FILE" ]] && echo true || echo false)" \
+    --argjson adm "$(is_admin && echo true || echo false)" '
+      (($vis|split("\n")|map(select(length>0))|map({(.):true})|add) // {}) as $V
+      | map(select(($scoped | not) or $V[(.login // "")] == true))
+      | sort_by(.since) | .[0:300]
+      | map({login, short, region, since} + (if $adm then {problem, pend, sub_epoch} else {} end))' "$dir/.balloon-hold" 2>/dev/null)"
+  [[ -n "$HELD" ]] || HELD='[]'
+fi
 if [[ -n "$VIS_FILE" ]]; then
   SEL='(($vis|split("\n")|map(select(length>0))|map({(.):true})|add) // {}) as $V
        | (($tv|split("\n")|map(select(length>0))|map({(.):true})|add) // {}) as $TV
@@ -61,4 +73,4 @@ if is_admin; then bfz="$(pr_balloons_frozen_count "$contest")"; bfz="${bfz//[^0-
 # a lista INTEIRA não pode ir por --argjson: são 128 KiB por argumento do jq, e com alguns
 # milhares de tarefas (contest grande) isso estoura em "Argument list too long" -> 500
 # build_fail. É a mesma classe do incidente de 2026-08-19; o helper existe para isso.
-ok_json_slurp '{requests:$r[0], balloons_frozen:$bfz}' r "$out" --argjson bfz "$bfz"
+ok_json_slurp '{requests:$r[0], balloons_frozen:$bfz, held:$held}' r "$out" --argjson bfz "$bfz" --argjson held "$HELD"

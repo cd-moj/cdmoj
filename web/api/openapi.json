@@ -2323,7 +2323,7 @@
         "tags": [
           "contest"
         ],
-        "summary": "Fila de tarefas do staff (impressão + balões; escopo por staff-filters; .cstaff SÓ LÊ — ações/PDF 403). Reconcilia balões pendentes (1ª-AC) ao carregar. Cada balão traz first_site: é o primeiro daquela cor NA SEDE do time (★ na fila e na folha) — só sai decidido; havendo run mais antiga da sede por julgar, a tarefa espera até BALLOON_FIRST_WAIT_S e depois sai sem estrela",
+        "summary": "Fila de tarefas do staff (impressão + balões; escopo por staff-filters; .cstaff SÓ LÊ — ações/PDF 403). Reconcilia balões pendentes (1ª-AC) ao carregar. Cada balão traz first_site: é o primeiro daquela cor NA SEDE do time (★ na fila e na folha) — só sai decidido; havendo run mais antiga da sede por julgar, TODOS os balões do par (sede × problema) esperam, sem teto por padrão (válvula: /contest/admin/balloon-release, sai sem estrela; BALLOON_FIRST_WAIT_S=N no conf põe teto). held = os que esperam, no escopo do staff (o admin recebe problem/pend/sub_epoch)",
         "description": "FREEZE: acerto com sub_epoch >= FREEZE_TIME NÃO vira tarefa de balão (o balão andando pela sala conta o que o placar congelado esconde) e a supressão é registrada em print-requests/.balloon-frozen — permanente, para que encerrar o evento (FREEZE_TIME=0) não a desfaça. Só o admin desfaz, ligando balloons_during_freeze no settings. Pedido de impressão NÃO é afetado pelo freeze. balloons_frozen (contagem dos suprimidos) só vai para o admin.",
         "security": [
           {
@@ -2337,7 +2337,7 @@
         ],
         "responses": {
           "200": {
-            "description": "{requests:[{id,seq,kind,login,team,univ,short,color_hex,color_name,filename,status,…}], balloons_frozen}"
+            "description": "{requests:[{id,seq,kind,login,team,univ,short,color_hex,color_name,first_site,filename,status,…}], balloons_frozen, held:[{login,short,region,since,(admin) problem,pend,sub_epoch}]}"
           }
         }
       }
@@ -2464,6 +2464,81 @@
           },
           "403": {
             "description": "cstaff_required | staff_scope"
+          }
+        }
+      }
+    },
+    "/contest/admin/balloon-release": {
+      "get": {
+        "tags": [
+          "contest-admin"
+        ],
+        "summary": "Balões esperando a certeza do 1º da sede e os pares já liberados (admin ou juiz-chefe)",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{held:[{login,problem,short,region,sub_epoch,since,pend}], released:[{region,problem,at,by}]}"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "contest-admin"
+        ],
+        "summary": "Libera um par sede × problema: os balões retidos saem SEM a faixa de primeiro no próximo reconcile (auditado balloon-release)",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "region",
+                  "problem"
+                ],
+                "properties": {
+                  "region": {
+                    "type": "string"
+                  },
+                  "problem": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "{success:true}"
+          },
+          "403": {
+            "description": "chief_required"
+          },
+          "404": {
+            "description": "not_held — o par não está esperando"
+          },
+          "422": {
+            "description": "pair_invalid"
           }
         }
       }
@@ -3262,7 +3337,7 @@
         "tags": [
           "contest"
         ],
-        "summary": "Fila de revisão de veredicto manual (judge; votos detalhados e login do competidor só p/ admin/chief — anti-anchoring/anonimato)",
+        "summary": "Fila de revisão de veredicto manual (judge; votos detalhados e login do competidor só p/ admin/chief — anti-anchoring/anonimato). blocks_balloon = a run segura o 1º balão de uma sede (balloon_region só p/ admin/chief)",
         "security": [
           {
             "bearerAuth": []

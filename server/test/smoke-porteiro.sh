@@ -188,6 +188,16 @@ printf 'eq1\n' > "$C/print-requests/.scope-cache/s1.staff"
 touch "$C/print-requests/staff-filters.json" -d "-1 hour"   # cache mais novo que filters
 r="$(req /contest/staff/queue contest=fx "Bearer tk-stf")"
 [[ "$r" == *'"id":"t1"'* && "$r" != *'"id":"t3"'* ]] && ok "escopo recorta (vê eq1, não vê outro)" || bad "escopo: ${r:0:200}"
+# balões esperando o 1º da sede (.balloon-hold): o MESMO recorte e os mesmos campos do queue.sh
+printf '%s\n' '{"login":"outro","problem":"apc#p1","short":"A","region":"Sede 02","sub_epoch":20,"since":200,"pend":10}' \
+  '{"login":"eq1","problem":"apc#p1","short":"A","region":"Sede 01","sub_epoch":30,"since":100,"pend":10}' > "$C/print-requests/.balloon-hold"
+r="$(req /contest/staff/queue contest=fx "Bearer tk-stf")"
+h="$(printf '%s' "$r" | sed -n '/^{/,$p' | jq -c '.held' 2>/dev/null)"
+[[ "$h" == '[{"login":"eq1","short":"A","region":"Sede 01","since":100}]' ]] && ok "held do staff: só o escopo, sem problem/pend" || bad "held stf: $h"
+r="$(req /contest/staff/queue contest=fx "Bearer tk-adm")"
+h="$(printf '%s' "$r" | sed -n '/^{/,$p' | jq -c '[.held[] | [.login, .problem, .pend]]' 2>/dev/null)"
+[[ "$h" == '[["eq1","apc#p1",10],["outro","apc#p1",10]]' ]] && ok "held do admin: tudo, por since, com problem/pend" || bad "held adm: $h"
+rm -f "$C/print-requests/.balloon-hold"
 echo "== staff/queue: o memo POR WORKER relê só o que mudou — TODA consulta vê a mudança (2 workers: 4 consultas)"
 P="$C/print-requests"
 st_of(){ printf '%s' "$1" | sed -n '/^{/,$p' | jq -r --arg i "$2" '[.requests[] | select(.id == $i) | .status] | first // "AUSENTE"' 2>/dev/null; }

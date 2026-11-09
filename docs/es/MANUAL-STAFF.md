@@ -1,4 +1,4 @@
-<!-- i18n-source: MANUAL-STAFF.md blob:6a99b75004c337adc9866f28a2ed6661f947bb50 -->
+<!-- i18n-source: MANUAL-STAFF.md blob:833c253005591bb809e3ce90357e612197f79f8f -->
 # MOJ: Manual del personal de sala (.staff y .cstaff)
 
 > **Nota de traducción.** Este manual es una traducción del original en portugués. Las herramientas de línea de comandos (`moj`, `moj-contest`, `moj-comp`) muestran sus mensajes en portugués, y los ejemplos de comandos son idénticos al original.
@@ -56,6 +56,14 @@ La pantalla de impresión es una tabla con **dos cosas en la misma cola**:
 > **Impresión** avisa la hora del congelamiento en una franja 🧊 (antes y durante), para que nadie piense que la cola se trabó.
 >
 > **Las solicitudes de impresión no cambian**: el equipo sigue imprimiendo en cualquier momento, con freeze o sin él.
+
+> **Globos esperando al 1º de la sede ⏳.** Cuando un equipo resuelve un problema, el MOJ tiene que saber
+> si fue el **primero de su sede** en ese problema (el globo sale con la estrella ★ "first to solve"). Si
+> otro equipo de la sede envió antes y ese envío todavía no tiene veredicto (lo están juzgando o lo revisan
+> los jueces), **todos los globos de ese problema en la sede esperan** por él. La página de **Impresión**
+> muestra un aviso ⏳ con cuántos globos esperan y de qué problemas. Salen solos, con la estrella
+> correcta, en cuanto el envío sea juzgado. Si la espera se alarga, avisa al `.admin`: puede liberar los
+> globos, y entonces salen sin la estrella.
 
 Solo ves la cola de **tu sede**. Las solicitudes y los globos de otras sedes no aparecen para ti.
 

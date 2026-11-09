@@ -756,7 +756,34 @@ def r_staff_queue(contest, q, params):
                     bfz = sum(1 for ln in fh if '"id"' in ln)
             except OSError:
                 bfz = 0
-    body = json.dumps({"success": True, "requests": rows, "balloons_frozen": bfz},
+    # balões esperando a certeza do 1º da sede (espelho do queue.sh: mesmo escopo, mesmos campos, teto 300)
+    held = []
+    hf = os.path.join(pdir, ".balloon-hold")
+    if os.path.isfile(hf):
+        try:
+            with open(hf, errors="replace") as fh:
+                for ln in fh:
+                    ln = ln.strip()
+                    if not ln:
+                        continue
+                    h = json.loads(ln)
+                    if vis is not None and (h.get("login") or "") not in vis:
+                        continue
+                    held.append(h)
+        except (OSError, ValueError):
+            raise Decline("balloon-hold ilegível (bash)")
+        held.sort(key=lambda h: (h.get("since") if isinstance(h.get("since"), (int, float)) else 0))
+        held = held[:300]
+        out = []
+        for h in held:
+            o = {"login": h.get("login"), "short": h.get("short"), "region": h.get("region"), "since": h.get("since")}
+            if admin:
+                o["problem"] = h.get("problem")
+                o["pend"] = h.get("pend")
+                o["sub_epoch"] = h.get("sub_epoch")
+            out.append(o)
+        held = out
+    body = json.dumps({"success": True, "requests": rows, "balloons_frozen": bfz, "held": held},
                       separators=(",", ":")) + "\n"
     return cgi(body.encode())
 

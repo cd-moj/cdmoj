@@ -961,11 +961,17 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   "first to solve" na fila e numa faixa da folha A4). A sede sai do `.team.region`; o mapa
   `(sede × problema)` é **uma varredura** (`pr_site_first_map`: `find|xargs jq` sobre account+metrics)
   e só roda quando há candidato. ⚠ A decisão é DIFERIDA: se existe run mais antiga da mesma sede,
-  no mesmo problema, ainda não julgada, a tarefa **espera** (`print-requests/.balloon-hold`, JSONL
-  no molde da lápide do freeze — a varredura do history é incremental, então sem o arquivo o
-  segurado sumiria) por até `BALLOON_FIRST_WAIT_S` (90s) e depois sai **sem** estrela. Nunca se
-  anuncia um primeiro lugar não apurado, e nunca se atrasa um balão por causa de uma run travada
-  de outro time. Por que não "promover depois": no **modo automático** o `autoTick` imprime a
+  no mesmo problema, ainda não julgada (julgando ou na REVISÃO manual), **TODOS os balões do par
+  (sede × problema) esperam** (`print-requests/.balloon-hold`, JSONL no molde da lápide do freeze — a
+  varredura do history é incremental, então sem o arquivo o segurado sumiria; o registro leva `short`,
+  `region` e `pend` = sub_epoch da run que segura). **Sem teto por padrão (09/11/2026, LATAM: 2 de 159
+  pares saíram sem a faixa porque a run antiga estava na revisão).** A VÁLVULA é humana:
+  `/contest/admin/balloon-release` (admin/juiz-chefe) grava o par em `.balloon-release` e os retidos saem
+  **sem** estrela no próximo reconcile (o AC antigo, se vier, ganha a dele — é verdade). `BALLOON_FIRST_WAIT_S=N`
+  no conf volta a pôr teto de N s (`0` = não espera). A espera aparece: `staff/queue` traz `held` (escopo do
+  staff; o admin recebe `problem`/`pend`) — aviso na página do staff, lista com "Liberar sem faixa" em
+  Operação › Staff (alerta > 10 min) — e o `review/list` marca `blocks_balloon` na run que segura (o
+  chefe libera dali). O porteiro espelha o `held`. Nunca se anuncia um primeiro lugar não apurado. Por que não "promover depois": no **modo automático** o `autoTick` imprime a
   folha segundos depois de a tarefa nascer e o `pr_build_balloon` **cacheia o PDF para sempre** —
   a estrela tardia mudaria a tela e nunca o papel. ⚠ Na folha a estrela é **desenhada** (polígono,
   como o balão), nunca o caractere `★`: fonte sem o glifo o imprime como NADA.

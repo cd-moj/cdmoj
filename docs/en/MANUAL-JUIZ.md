@@ -1,4 +1,4 @@
-<!-- i18n-source: MANUAL-JUIZ.md blob:6971a0e50ef6e7ad6b72154a0b396162ca4d6289 -->
+<!-- i18n-source: MANUAL-JUIZ.md blob:80430ed3d50df7a15b6538109129c92dbe266ff4 -->
 # MOJ: Manual for judges (.judge and .cjudge)
 
 > **Translation note.** This manual is a translation of the Portuguese original. The command-line tools (`moj`, `moj-contest`, `moj-comp`) print their messages in Portuguese, and the command examples below are identical to the original.
@@ -55,6 +55,10 @@ Below the counters, you see the list of the submissions that are held for review
 - **Who evaluates it** (if a person has it).
 - **Log and source links** (the execution log and the submitted code).
 - The available **Action** (for example, claim it for evaluation).
+- **🎈 holding a balloon — evaluate first**: this submission is the oldest one, without a verdict, from a
+  site on that problem. Until it is decided, the balloons of that problem at that site wait (MOJ does not
+  know yet who was the first at the site). Evaluate it first. The chief judge also sees the **release
+  without band** button: the balloons come out at once, without the first-to-solve star.
 
 ### Evaluation flow, step by step
 

@@ -1,4 +1,4 @@
-<!-- i18n-source: MANUAL-JUIZ.md blob:6971a0e50ef6e7ad6b72154a0b396162ca4d6289 -->
+<!-- i18n-source: MANUAL-JUIZ.md blob:80430ed3d50df7a15b6538109129c92dbe266ff4 -->
 # MOJ: Manual de los jueces (.judge y .cjudge)
 
 > **Nota de traducción.** Este manual es una traducción del original en portugués. Las herramientas de línea de comandos (`moj`, `moj-contest`, `moj-comp`) muestran sus mensajes en portugués, y los ejemplos de comandos son idénticos al original.
@@ -55,6 +55,10 @@ Debajo de los contadores está la lista de los envíos retenidos para revisión.
 - **Quién lo está evaluando** (si ya hay alguien).
 - Los **enlaces al registro y a la fuente** (el registro de ejecución y el código enviado).
 - La **acción** disponible (por ejemplo, tomarlo para evaluar).
+- **🎈 retiene un globo — evalúa primero**: este envío es el más antiguo, sin veredicto, de una sede en ese
+  problema. Mientras no se decida, los globos del problema en esa sede esperan (el MOJ todavía no sabe
+  quién fue el primero de la sede). Evalúalo primero. El juez principal ve también el botón **liberar sin
+  franja**: los globos salen enseguida, sin la estrella de primero.
 
 ### Flujo de evaluación, paso a paso
 

@@ -52,6 +52,10 @@ Abaixo dos contadores vem a lista das submissões seguradas para revisão. Para 
 - **Quem está avaliando** (se já houver alguém).
 - **Links de log e de fonte** (o log de execução e o código enviado).
 - A **ação** disponível (por exemplo, pegar para avaliar).
+- **🎈 segura balão — avalie primeiro**: esta submissão é a mais antiga, sem veredicto, de uma sede naquele
+  problema. Enquanto ela não for decidida, os balões do problema naquela sede esperam (o MOJ ainda não
+  sabe quem foi o primeiro da sede). Avalie essa primeiro. O juiz-chefe vê também o botão **liberar sem
+  faixa**: os balões saem na hora, sem a estrela de primeiro.
 
 ### Fluxo de avaliação, passo a passo
 

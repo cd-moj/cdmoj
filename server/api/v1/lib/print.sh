@@ -1082,11 +1082,19 @@ pr_reconcile_balloons() {
     # anuncia. E no MODO AUTOMÁTICO a folha é impressa segundos depois de a tarefa nascer, com o
     # PDF cacheado para sempre: "promover depois" mudaria a tela e nunca o papel.
     # Por isso: quando não dá para decidir, a tarefa ESPERA (no `.balloon-hold`) e é reavaliada no
-    # próximo reconcile — no máximo BALLOON_FIRST_WAIT_S; passado o prazo ela sai SEM estrela, que
-    # é a falha segura (o time recebe o balão; ninguém anuncia um primeiro lugar falso).
+    # próximo reconcile. ESPERA A CERTEZA, SEM TETO, e TODO balão do par (sede × problema) espera junto (09/11/2026,
+    # decisão do Ribas depois da LATAM: o teto de 90 s soltava o primeiro balão sem a faixa enquanto a run mais antiga
+    # estava na revisão manual — 2 casos no sábado — e o primeiro do par tem de chegar à sala antes dos outros).
+    # Válvula: o admin/juiz-chefe libera o par sem a faixa (`.balloon-release`, rota admin/balloon-release); a espera
+    # aparece na fila (`held`). BALLOON_FIRST_WAIT_S no conf: N > 0 = teto de N s (opt-in); 0 = não espera.
     local hold="$dir/.balloon-hold" wait_s _SV=not
     wait_s="$(sed -n 's/^[[:space:]]*BALLOON_FIRST_WAIT_S=//p' "$CONTESTSDIR/$c/conf" 2>/dev/null \
-              | tail -1 | tr -cd '0-9')"; wait_s="${wait_s:-90}"
+              | tail -1 | tr -cd '0-9')"; wait_s="${wait_s:--1}"   # ausente = SEM teto; 0 = não espera; N = teto de N s
+    declare -A SM_REL=()
+    if [[ -s "$dir/.balloon-release" ]]; then
+      while IFS=$'\t' read -r _rk _rat; do [[ -n "$_rk" ]] && SM_REL[$_rk]="$_rat"; done \
+        < <(jq -r '[(.region // "") + "|" + (.problem // ""), (.at // 0)] | @tsv' "$dir/.balloon-release" 2>/dev/null)
+    fi
     declare -A SM_AC=() SM_ACL=() SM_PEND=() SM_REG=()
     declare -a HOLD_KEEP=()
 
@@ -1166,28 +1174,37 @@ pr_reconcile_balloons() {
       key="$reg|$p"
       ac="${SM_AC[$key]:-0}"; acl="${SM_ACL[$key]:-}"; pend="${SM_PEND[$key]:-0}"
       [[ "$ac" =~ ^[0-9]+$ ]] || ac=0; [[ "$pend" =~ ^[0-9]+$ ]] || pend=0
+      # PAR INDEFINIDO: há run da sede, sem veredicto, mais antiga que o melhor AC — ela ainda pode ser o primeiro.
+      # Todo balão do par espera (o primeiro chega à sala antes dos outros); liberado pelo admin = sai sem a faixa
+      if (( pend > 0 && (ac == 0 || pend <= ac) )); then
+        [[ -n "${SM_REL[$key]:-}" ]] && return 0
+        _SV=hold; _SVPEND="$pend"; _SVREG="$reg"; return 0
+      fi
       if (( ac > 0 )); then
         (( ac < e )) && return 0                                          # alguém resolveu antes
         (( ac == e )) && [[ -n "$acl" && "$acl" != "$l" ]] && return 0    # empate: login decide
       fi
-      (( pend > 0 && pend <= e )) && { _SV=hold; return 0; }              # a mais antiga ainda na fila
       _SV=first
     }
 
     # ---- 4. DECIDE (sem processo) e monta o lote: T = tarefa, F = lápide do freeze --------------------------
-    declare -A C_SHORT=() C_HEX=() C_NAME=()
+    declare -A C_SHORT=() C_HEX=() C_NAME=() H_SHORT=()
     local se since fs short nT=0 rf; rf="$(mktemp)"
     local -a MK=()
     for i in "${SURV[@]}"; do
       login="${KL[i]}"; cid="${KP[i]}"; se="${KE[i]}"; since="${KS[i]:-$EPOCHSECONDS}"
       _site_verdict "$login" "$cid" "$se"
       if [[ "$_SV" == hold ]]; then
-        if (( EPOCHSECONDS - since < wait_s )); then
-          HOLD_KEEP+=("$(jq -cn --arg l "$login" --arg p "$cid" --argjson se "$se" \
-                          --argjson since "$since" '{login:$l, problem:$p, sub_epoch:$se, since:$since}')")
+        if (( wait_s < 0 || EPOCHSECONDS - since < wait_s )); then
+          # a letra vai no registro: a fila (bash e porteiro) mostra a espera sem abrir o conf
+          # (cache PRÓPRIO: o C_SHORT preenchido aqui faria o balão seguinte do problema pular o cálculo da cor)
+          if [[ -z "${H_SHORT[$cid]+x}" ]]; then H_SHORT[$cid]="$(pr_short_of "$c" "$cid")"; [[ -n "${H_SHORT[$cid]}" ]] || H_SHORT[$cid]="?"; fi
+          HOLD_KEEP+=("$(jq -cn --arg l "$login" --arg p "$cid" --argjson se "$se" --argjson since "$since" \
+                          --arg reg "$_SVREG" --argjson pend "$_SVPEND" --arg sh "${H_SHORT[$cid]}" \
+                          '{login:$l, problem:$p, short:$sh, region:$reg, sub_epoch:$se, since:$since, pend:$pend}')")
           continue
         fi
-        _SV=not   # prazo vencido: entrega o balão SEM estrela (nunca inventa um primeiro lugar)
+        _SV=not   # teto do conf vencido: entrega o balão SEM estrela (nunca inventa um primeiro lugar)
       fi
       [[ "$_SV" == first ]] && fs=true || fs=false
       if [[ -z "${C_SHORT[$cid]+x}" ]]; then        # letra/cor só dependem do problema: uma vez por problema

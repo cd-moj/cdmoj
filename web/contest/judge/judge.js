@@ -88,6 +88,31 @@ function evalPanel(it) {
     el('p', { class: 'small muted', style: 'margin-top:.4rem' }, T('A página não recarrega enquanto você avalia. Ao votar, sua tarefa encerra e libera você para a próxima.', 'The page does not reload while you evaluate. When you vote, your task ends and releases you for the next one.', 'La página no se recarga mientras evalúas. Al votar, tu tarea termina y quedas libre para la siguiente.')));
 }
 
+// SEGURA BALÃO (review/list blocks_balloon): é a run mais antiga sem veredicto de uma sede naquele problema; ela
+// pode ser a 1ª da sede, então os balões do problema ali esperam por ela (lib/print.sh). Decidir esta primeiro.
+// O juiz-chefe tem a válvula: liberar os balões SEM a faixa de primeiro (2 cliques; confirm() trava quiosque).
+function balloonHoldTag(s) {
+  const box = el('div', { class: 'small', style: 'color:#B45309;font-weight:600' },
+    T('🎈 segura balão — avalie primeiro', '🎈 holding a balloon — evaluate first', '🎈 retiene un globo — evalúa primero'));
+  if (IS_CHIEF && s.balloon_region !== undefined) {
+    let armed = 0;
+    const b = el('button', { class: 'btn ghost', type: 'button', style: 'padding:.05rem .4rem;margin-left:.3rem' }, T('liberar sem faixa', 'release without band', 'liberar sin franja'));
+    b.addEventListener('click', async () => {
+      if (!armed || Date.now() - armed > 8000) {
+        armed = Date.now(); b.textContent = T('confirmar', 'confirm', 'confirmar');
+        const at = armed;   // passada a janela, volta a dizer "liberar" (senão o clique só rearmava)
+        setTimeout(() => { if (armed === at) { armed = 0; if (b.isConnected && !b.disabled) b.textContent = T('liberar sem faixa', 'release without band', 'liberar sin franja'); } }, 8000);
+        return;
+      }
+      b.disabled = true;
+      try { await apiPost('/contest/admin/balloon-release?contest=' + enc(CONTEST), { region: s.balloon_region, problem: s.problem_id }, G); b.textContent = T('✓ liberado', '✓ released', '✓ liberado'); }
+      catch (e) { b.disabled = false; armed = 0; b.textContent = e.message || T('falha', 'failed', 'fallido'); }
+    });
+    box.append(b);
+  }
+  return box;
+}
+
 function renderReview() {
   const box = document.getElementById('judgeContainer'); box.innerHTML = '';
   const items = rv.items || [], c = rv.counts || {};
@@ -119,7 +144,7 @@ function renderReview() {
       ? el('button', { class: 'btn', onclick: () => act('claim', s.id, 'claim') }, T('Pegar p/ avaliar', 'Claim to evaluate', 'Reservar para evaluar'))
       : el('span', { class: 'small muted' }, voted ? T('você já votou', 'you already voted', 'ya votaste') : (full ? T('lotada (', 'full (', 'llena (') + q + ')' : (s.conflict ? T('conflito', 'conflict', 'conflicto') : '—')));
     tb.append(el('tr', {},
-      el('td', {}, el('b', {}, shortOf(s.problem_id))),
+      el('td', {}, el('b', {}, shortOf(s.problem_id)), s.blocks_balloon ? balloonHoldTag(s) : ''),
       el('td', {}, el('span', { class: 'verdict ' + verdictClass(s.computed_verdict) }, s.computed_verdict || '?')),
       el('td', {}, el('span', { class: 'verdict ' + (s.conflict ? 'flag-anom' : '') }, stLabel(s.status) + (s.conflict ? ' ⚠' : ''))),
       el('td', {}, whoCell),

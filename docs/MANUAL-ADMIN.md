@@ -138,6 +138,14 @@ não tem título nesse idioma, o MOJ usa o título em português.
 > mostra qual política está valendo, e **Operação › Situação** mostra quantos balões estão
 > retidos.
 
+> **Balão esperando o 1º da sede.** O balão sai com a estrela de primeiro da sede só com certeza: se
+> outro time da sede enviou antes e essa submissão ainda não tem veredicto (julgando ou na revisão
+> manual), **todos os balões do problema naquela sede esperam**, sem limite de tempo. **Operação ›
+> Staff** lista os pares retidos (sede, problema, quantos, há quanto tempo e a submissão que segura),
+> com alerta depois de 10 minutos. O normal é decidir a submissão na fila do juiz (ela aparece marcada
+> com 🎈). Se ela não puder ser decidida agora, clique **Liberar sem faixa** (duas vezes, para confirmar):
+> os balões saem sem a estrela. O juiz-chefe pode liberar também, na fila dele.
+
 > **Como o placar marca quem resolveu.** Por padrão a célula de quem resolveu é **sempre igual**
 > (verde) e a cor do balão vai numa **bolinha** ao lado. É de propósito: a paleta ICPC dá o
 > problema A **branco**, e branco sobre o fundo branco do placar é o mesmo pixel — quem resolvia

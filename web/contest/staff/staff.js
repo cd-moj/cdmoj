@@ -58,6 +58,26 @@ function syncFreezeNote() {
   freezeNote.style.display = txt ? '' : 'none';
 }
 
+// BALÕES ESPERANDO o 1º da sede (lib/print.sh: o balão do problema só sai quando se sabe quem foi o primeiro
+// naquela sede — uma run mais antiga ainda em julgamento/revisão segura TODOS os balões do par). Sem o aviso,
+// "o time acertou e o balão não veio" parecia defeito. Atualizado EM LUGAR a cada volta da fila.
+const heldNote = el('div', { class: 'notice', style: 'display:none;margin:.3rem 0' });
+function syncHeldNote(held) {
+  const h = Array.isArray(held) ? held : [];
+  let txt = '';
+  if (h.length) {
+    const by = {};
+    for (const x of h) { const k = x.short || '?'; by[k] = (by[k] || 0) + 1; }
+    const list = Object.keys(by).sort().map((k) => k + (by[k] > 1 ? ' ×' + by[k] : '')).join(', ');
+    const oldest = Math.max(0, Math.round((serverNow() - (+h[0].since || serverNow())) / 60));
+    txt = T('⏳ ' + h.length + ' balão(ões) aguardando o julgamento de uma submissão mais antiga, para saber quem foi o 1º da sede (' + list + '). Saem sozinhos, com a estrela certa' + (oldest ? '; o mais antigo espera há ' + oldest + ' min.' : '.'),
+            '⏳ ' + h.length + ' balloon(s) waiting for an older submission to be judged, to know who solved it first at this site (' + list + '). They come out on their own, with the right star' + (oldest ? '; the oldest has waited ' + oldest + ' min.' : '.'),
+            '⏳ ' + h.length + ' globo(s) esperando el juzgamiento de un envío más antiguo, para saber quién fue el 1º de la sede (' + list + '). Salen solos, con la estrella correcta' + (oldest ? '; el más antiguo espera hace ' + oldest + ' min.' : '.'));
+  }
+  if (heldNote.textContent !== txt) heldNote.textContent = txt;
+  heldNote.style.display = txt ? '' : 'none';
+}
+
 // busca o PDF combinado (com Bearer) como blob -> URL temporária (sem token na URL)
 async function pdfBlobUrl(id) {
   const r = await fetch('/api/v1/contest/staff/print-pdf?contest=' + enc(CONTEST) + '&id=' + enc(id),
@@ -207,6 +227,7 @@ async function loadQueue() {
     (RO ? T(' · somente leitura', ' · read-only', ' · solo lectura') : (autoMode ? T(' · modo automático LIGADO', ' · auto mode ON', ' · modo automático ACTIVADO') : ''));
   renderRows();
   syncFreezeNote();
+  syncHeldNote(r.held);
   if (TESTBOX) TESTBOX.refresh();   // o resumo do teste acompanha a fila (só quando a caixa está aberta)
   autoTick();   // dispara o automático se houver pendente
 }
@@ -243,7 +264,7 @@ function render() {
     el('thead', {}, el('tr', {}, el('th', {}, '#'), el('th', {}, T('Time / login', 'Team / login', 'Equipo / login')), el('th', {}, T('Arquivo', 'File', 'Archivo')), el('th', {}, T('Status', 'Status', 'Estado')), el('th', {}, T('Págs / hora', 'Pages / time', 'Páginas / hora')), el('th', {}, T('Ações', 'Actions', 'Acciones')))),
     tbody);
   app.append(
-    el('div', { class: 'section' }, RO ? '' : autoBox, freezeNote,
+    el('div', { class: 'section' }, RO ? '' : autoBox, freezeNote, heldNote,
       el('div', { class: 'row', style: 'margin:.2rem 0' }, statusBar, el('div', { class: 'spacer' }),
         CAN_BADGES ? el('a', { class: 'btn ghost', href: '/contest/badges/?c=' + enc(CONTEST) }, T('🏷️ Etiquetas', '🏷️ Badges', '🏷️ Etiquetas')) : '',
         MLINUX_LINK, // preenchido quando a integração nutellaboot está configurada
