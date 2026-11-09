@@ -12,7 +12,8 @@ import { el } from '/shared/ui.js';
 import { T } from '/shared/i18n.js';
 import { fmtDate, fmtS, toCsv, downloadText, swapIf, sigOf, everyVisible } from '/shared/admin-ui.js';
 import { rgAssign, rgFlatten, rgKey } from '/shared/regions-match.js';
-import { serverNow } from '/shared/server-clock.js';   // contagem pelo relógio do SERVIDOR (shared/server-clock.js)
+import { serverNow } from '/shared/server-clock.js';
+import { makeTestBox } from '/contest/staff/test-box.js';   // 🧪 teste de impressora (o admin escolhe a sede)   // contagem pelo relógio do SERVIDOR (shared/server-clock.js)
 
 const enc = encodeURIComponent;
 const nowE = () => serverNow();
@@ -135,7 +136,10 @@ export function makeTasksTab(CONTEST, opts = {}) {
     return el('tr', {},
       el('td', { class: 'small' }, '#' + (t.seq || '')),
       el('td', {}, tipo),
-      el('td', {}, (t.fullname || t.login || ''), el('div', { class: 'small muted' }, (t.login || '') + (t.univ ? ' · ' + t.univ : ''))),
+      t.test
+        ? el('td', {}, el('div', { style: 'color:#B91C1C;font-weight:700' }, T('🧪 Tarefa de teste', '🧪 Test task', '🧪 Tarea de prueba')),
+            el('div', { class: 'small muted' }, t.univ || ''))
+        : el('td', {}, (t.fullname || t.login || ''), el('div', { class: 'small muted' }, (t.login || '') + (t.univ ? ' · ' + t.univ : ''))),
       el('td', { class: 'small' }, item),
       el('td', {}, el('span', { class: t.status === 'pending' ? 'flag-warn' : '' }, st.t)),
       el('td', { class: 'small' }, age),
@@ -281,9 +285,11 @@ export function makeTasksTab(CONTEST, opts = {}) {
     QUEUE = (q && q.requests) || [];
     if (sf) SF = sf;
     render(); renderConfig();
+    TESTBOX.refresh();   // só quando a caixa está aberta
   }
 
   let built = false;
+  const TESTBOX = makeTestBox(CONTEST, { admin: true, onChange: () => refresh() });
   function skeleton() {
     const dl = el('button', { class: 'btn ghost', title: T('Baixar a fila (CSV)', 'Download the queue (CSV)', 'Descargar la cola (CSV)'), onclick: () => {
       const rows = [[T('seq', 'seq', 'seq'), T('tipo', 'kind', 'tipo'), 'login', T('nome', 'name', 'nombre'), T('univ', 'univ', 'univ'), T('item', 'item', 'item'), 'status', T('criada_em', 'created_at', 'creada_en'), 'claimed_by', 'processed_by', 'delivered_by', 'delivered_at'],
@@ -301,7 +307,7 @@ export function makeTasksTab(CONTEST, opts = {}) {
       el('div', { class: 'row', style: 'margin:.4rem 0' },
         el('span', { class: 'small muted' }, T('Filtrar:', 'Filter:', 'Filtrar:')), fKind, fStatus, fQ,
         el('button', { class: 'btn ghost', onclick: () => refresh() }, '↻'), dl),
-      listBox, perfBox, cfgBox));
+      listBox, perfBox, cfgBox), TESTBOX.el);
     built = true;
   }
 

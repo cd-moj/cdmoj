@@ -86,6 +86,21 @@ Há uma **caixa de seleção** de modo automático, e a sua escolha fica guardad
 
 Para que a janela de impressão do navegador não apareça a cada tarefa, rode o navegador em **modo quiosque**. No Chrome/Chromium, use a opção `--kiosk-printing`.
 
+#### Teste de impressora
+
+Antes da prova, meça as impressoras com tarefas de teste. A caixa **🧪 Teste de impressora** fica embaixo da fila.
+
+1. Deixe cada estação da sede com a página da fila aberta e o **modo automático** ligado.
+2. Abra a caixa e escolha a quantidade (até 200), o tipo (impressão, balão ou misto) e as páginas por impressão.
+3. Clique em **🧪 Gerar**. As tarefas vão para a fila da **sua sede**, e as estações dividem o lote como na prova.
+4. Leia o resumo: tarefas impressas por minuto no total e por estação, e o maior intervalo entre duas impressões.
+5. Clique em **🧹 Apagar testes** no fim.
+
+- A folha de teste sai com a faixa **TESTE — NÃO ENTREGAR** e a numeração própria (T1, T2…). Não entregue essa folha.
+- A numeração da prova não muda, e o teste não entra no relatório da prova.
+- O tempo inclui a geração do PDF no servidor: é o mesmo caminho de uma tarefa da prova.
+- **Durante a prova o teste é proibido.** No início da prova, as tarefas de teste que sobraram são apagadas.
+
 ### Aquecimento: o seu ensaio (e a prova pode ter duas rodadas)
 
 Muita prova roda um **aquecimento** antes da prova oficial — mesma sala, mesmas contas, mesmo

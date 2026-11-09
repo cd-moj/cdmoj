@@ -18,7 +18,7 @@ kind="$(jq -r '.kind // "print"' "$meta" 2>/dev/null)"
 # tarefa de impressão exige o arquivo cru; balão é gerado só a partir do meta (sem .src)
 [[ "$kind" == balloon || -f "$dir/$id.src" ]] || fail 404 "Tarefa não encontrada" "notfound"
 owner="$(jq -r '.login // ""' "$meta" 2>/dev/null)"
-staff_can_see "$contest" "$SESSION_LOGIN" "$owner" || fail 403 "Tarefa fora do seu escopo" "out_of_scope"
+pr_task_can_see "$contest" "$meta" || fail 403 "Tarefa fora do seu escopo" "out_of_scope"   # teste: pela sede de quem criou
 seq="$(jq -r '.seq // 0' "$meta" 2>/dev/null)"
 
 if [[ "$kind" == balloon ]]; then

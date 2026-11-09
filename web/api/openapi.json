@@ -2326,6 +2326,57 @@
         }
       }
     },
+    "/contest/staff/test-tasks": {
+      "get": {
+        "tags": [
+          "contest"
+        ],
+        "summary": "Tarefas de TESTE da impressão: a medida do lote que este staff vê (.staff/admin)",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{blocked, scope, sites, summary:{total,pending,printed,delivered,pages,overall{done,span_s,per_min},max_gap_s,stations[{by,done,span_s,per_min}]}} — sites só p/ o admin (as sedes region: do staff-filters)"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "contest"
+        ],
+        "summary": "Cria (count 1..200, kind print|balloon|mixed, pages 1..20, site? só admin) ou apaga (action delete) tarefas de teste; proibido durante a prova",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          }
+        ],
+        "requestBody": {"content": {"application/json": {"schema": {"type": "object", "required": ["action"], "properties": {"action": {"type": "string", "enum": ["create","delete"]}, "count": {"type": "integer", "minimum": 1, "maximum": 200}, "kind": {"type": "string", "enum": ["print","balloon","mixed"]}, "pages": {"type": "integer", "minimum": 1, "maximum": 20}, "site": {"type": "string", "description": "só o admin: a sede (vazio = todas); o .staff cria para as próprias sedes"}}}}}},
+        "responses": {
+          "200": {
+            "description": "create → {created, range:\"T<a> T<b>\", scope}; delete → {deleted}"
+          },
+          "409": {
+            "description": "test_blocked (durante a prova) | print_disabled | balloons_disabled"
+          },
+          "422": {
+            "description": "count_invalid | pages_invalid | kind_invalid | site_invalid | action_invalid"
+          }
+        }
+      }
+    },
     "/contest/staff/print-pdf": {
       "get": {
         "tags": [

@@ -9,6 +9,7 @@ import { el } from '/shared/ui.js';
 import { initContestShell } from '/shared/contest-shell.js';
 import { T, uiLocale } from '/shared/i18n.js';
 import { serverNow } from '/shared/server-clock.js';   // contagem pelo relógio do SERVIDOR (shared/server-clock.js)
+import { makeTestBox } from './test-box.js';
 
 const qs = new URLSearchParams(location.search);
 const CONTEST = (window.__MOJ_CONTEST || qs.get('c') || '');
@@ -28,6 +29,7 @@ const STATUS = () => ({
 let queue = [];            // último estado da fila
 const MLINUX_LINK = el('span', {});   // vira o link 🖥 quando o nutellaboot está configurado
 let autoMode = false;      // modo automático
+let TESTBOX = null;   // 🧪 teste de impressora (test-box.js)
 let busy = false;          // processando uma tarefa (evita diálogos sobrepostos)
 const seen = new Set();    // ids já auto-processados nesta sessão (não reimprimir)
 let pollT = null;
@@ -174,7 +176,11 @@ function renderRows() {
       : el('td', {}, t.filename, el('div', { class: 'small muted' }, (t.mime || '') + (t.size ? ' · ' + Math.max(1, Math.round(t.size / 1024)) + ' KB' : '')));
     tbody.append(el('tr', {},
       el('td', {}, el('b', {}, '#' + t.seq)),
-      el('td', {}, el('div', {}, t.team || t.fullname || t.login), el('div', { class: 'small muted' }, t.login + (t.univ ? ' · ' + t.univ : ''))),
+      t.test
+        // TAREFA DE TESTE (test-box.js): sem time — diz o que é e a sede para onde foi
+        ? el('td', {}, el('div', { style: 'color:#B91C1C;font-weight:700' }, T('🧪 Tarefa de teste', '🧪 Test task', '🧪 Tarea de prueba')),
+            el('div', { class: 'small muted' }, t.univ || ''))
+        : el('td', {}, el('div', {}, t.team || t.fullname || t.login), el('div', { class: 'small muted' }, t.login + (t.univ ? ' · ' + t.univ : ''))),
       taskCell,
       el('td', {}, el('span', { class: 'pr-badge', style: st.c }, st.t),
         (t.claimed_by ? el('div', { class: 'small muted' }, T('por ', 'by ', 'por ') + t.claimed_by) : '')),
@@ -201,6 +207,7 @@ async function loadQueue() {
     (RO ? T(' · somente leitura', ' · read-only', ' · solo lectura') : (autoMode ? T(' · modo automático LIGADO', ' · auto mode ON', ' · modo automático ACTIVADO') : ''));
   renderRows();
   syncFreezeNote();
+  if (TESTBOX) TESTBOX.refresh();   // o resumo do teste acompanha a fila (só quando a caixa está aberta)
   autoTick();   // dispara o automático se houver pendente
 }
 
@@ -241,7 +248,8 @@ function render() {
         CAN_BADGES ? el('a', { class: 'btn ghost', href: '/contest/badges/?c=' + enc(CONTEST) }, T('🏷️ Etiquetas', '🏷️ Badges', '🏷️ Etiquetas')) : '',
         MLINUX_LINK, // preenchido quando a integração nutellaboot está configurada
         el('button', { class: 'btn ghost', onclick: loadQueue }, T('↻ atualizar', '↻ refresh', '↻ actualizar'))),
-      el('div', { class: 'chart-wrap' }, table)));
+      el('div', { class: 'chart-wrap' }, table)),
+    TESTBOX ? TESTBOX.el : '');
   loadQueue(); schedulePoll();
 }
 
@@ -264,6 +272,8 @@ async function boot() {
   RO = !!st.is_cstaff && !st.is_staff && !st.is_admin;
   CAN_BADGES = !!(st.is_cstaff || st.is_admin);
   autoMode = !RO && localStorage.getItem(AUTOKEY) === '1';
+  // 🧪 teste de impressora: o .staff (a própria sede) e o admin; o .cstaff só acompanha a fila
+  TESTBOX = (st.is_staff || st.is_admin) ? makeTestBox(CONTEST, { admin: !!st.is_admin, onChange: () => loadQueue() }) : null;
   render();
   // link p/ o panorama/comandos das máquinas mlinux — só quando a integração existe
   // (sonda barata; a página avulsa se linka daqui, doutrina do animeitor)

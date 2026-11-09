@@ -2001,7 +2001,7 @@ STEOF
     printf '<div class="tblwrap"><table class="moj" id="stafftb">\n<thead><tr><th class="n">#</th><th>%s</th><th>%s</th><th>%s</th><th>%s</th><th>%s</th><th>%s</th><th>%s</th></tr></thead>\n<tbody>\n' \
       "$(rep_t type)" "$(rep_t hour)" "$(rep_t team)" "$(rep_t univ)" "$(rep_t detail)" "$(rep_t status)" "$(rep_t service)"
     find "$PRD" -maxdepth 1 -name '*.json' ! -name badges.json ! -name staff-filters.json -print0 2>/dev/null \
-      | xargs -0 -r jq -c 'select((.seq? // null) != null)' 2>/dev/null \
+      | xargs -0 -r jq -c 'select((.seq? // null) != null and (.test? != true))' 2>/dev/null \
       | jq -rs --slurpfile rm "$W/regmap.json" --arg t_balloon "$(rep_t balloon)" --arg t_print "$(rep_t printing)" --arg t_pages "$(rep_t pages_sfx)" \
              --arg t_prob "$(rep_t task_prob)" \
              --arg t_deliv "$(rep_t task_deliv)" \

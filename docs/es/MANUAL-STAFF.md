@@ -1,4 +1,4 @@
-<!-- i18n-source: MANUAL-STAFF.md blob:925b645d2465c91a33dbe510315a130be7abb5e0 -->
+<!-- i18n-source: MANUAL-STAFF.md blob:399c1548fe5ab18936345525ee8b920fde793477 -->
 # MOJ: Manual del personal de sala (.staff y .cstaff)
 
 > **Nota de traducción.** Este manual es una traducción del original en portugués. Las herramientas de línea de comandos (`moj`, `moj-contest`, `moj-comp`) muestran sus mensajes en portugués, y los ejemplos de comandos son idénticos al original.
@@ -89,6 +89,21 @@ impresiones apiladas, una hoja que se suelta de la portada sigue diciendo de qui
 Hay una **casilla de verificación** de modo automático, y tu elección queda guardada. Con el modo automático activado y la pestaña abierta, cada nueva tarea se **reserva, imprime y marca** sola, sin que hagas clic.
 
 Para que la ventana de impresión del navegador no aparezca en cada tarea, ejecuta el navegador en **modo quiosco**. En Chrome/Chromium, usa la opción `--kiosk-printing`.
+
+#### Prueba de impresora
+
+Antes de la competencia, mide las impresoras con tareas de prueba. La caja **🧪 Prueba de impresora** está debajo de la cola.
+
+1. Deja cada estación de la sede con la página de la cola abierta y el **modo automático** activado.
+2. Abre la caja y elige la cantidad (hasta 200), el tipo (impresión, globo o mixto) y las páginas por impresión.
+3. Haz clic en **🧪 Generar**. Las tareas van a la cola de **tu sede**, y las estaciones dividen el lote como en la competencia.
+4. Lee el resumen: tareas impresas por minuto en total y por estación, y el mayor intervalo entre dos impresiones.
+5. Haz clic en **🧹 Borrar pruebas** al final.
+
+- La hoja de prueba sale con la franja **PRUEBA — NO ENTREGAR** y numeración propia (T1, T2…). No entregues esa hoja.
+- La numeración de la competencia no cambia, y la prueba no entra en el informe de la competencia.
+- El tiempo incluye la generación del PDF en el servidor: es el mismo camino de una tarea de la competencia.
+- **Durante la competencia la prueba está prohibida.** Al iniciar la competencia, se borran las tareas de prueba que quedaron.
 
 ### Calentamiento: tu ensayo (y la competencia puede tener dos rondas)
 

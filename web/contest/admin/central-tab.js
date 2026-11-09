@@ -34,7 +34,7 @@ const TARGET = {
   users: ['pessoas', 'contas'], shared_users: ['pessoas', 'contas'],
   registration: ['pessoas', 'inscricoes'], reg_invites: ['pessoas', 'inscricoes'], reg_private_link: ['pessoas', 'inscricoes'], reg_source: ['pessoas', 'inscricoes'],
   // `print`: o que resolve "impressão sem staff" é criar a conta .staff (Contas); ligar/desligar a impressão é nas Regras
-  print: ['pessoas', 'contas'], staff_filters: ['operacao', 'staff'],
+  print: ['pessoas', 'contas'], staff_filters: ['operacao', 'staff'], print_tests: ['operacao', 'staff'],
   judges: ['operacao', 'situacao'], judges_cpus: ['operacao', 'situacao'], daemon: ['operacao', 'situacao'], manual: ['operacao', 'juizes'],
   // módulos de evento
   next_round: ['evento', 'rodadas'], reg_warmup: ['evento', 'rodadas'],

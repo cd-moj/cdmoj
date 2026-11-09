@@ -550,6 +550,14 @@ else
     "Impresión sin staff" "PRINT activado pero no existe ninguna cuenta .staff — globos/impresiones quedarán sin operador"
 fi
 
+# --- tarefas de TESTE da impressão (pr_test_*) na fila: somem sozinhas no início da prova, mas a sala precisa saber
+ntst=0; [[ -d "$cdir/print-requests" ]] && ntst="$(find "$cdir/print-requests" -maxdepth 1 -name 'tst*.json' 2>/dev/null | wc -l | tr -d '[:space:]')"
+if (( ${ntst:-0} > 0 )); then
+  add3 print_tests warn "Tarefas de teste na fila" "$ntst tarefa(s) de teste da impressão ainda na fila: apague em Operação › Staff (ou na página do staff). No início da prova elas são apagadas sozinhas" \
+    "Test tasks in the queue" "$ntst printer test task(s) still in the queue: delete them in Operations › Staff (or on the staff page). They are deleted automatically when the contest starts" \
+    "Tareas de prueba en la cola" "$ntst tarea(s) de prueba de impresión aún en la cola: bórralas en Operación › Staff (o en la página del staff). Al iniciar la competencia se borran solas"
+fi
+
 # --- escopo do staff/chefe de sede -------------------------------------------------
 # Sem staff-filters.json (ou com lista vazia), staff_can_see devolve TRUE p/ todo mundo: cada
 # chefe de sede imprime as ETIQUETAS COM SENHA de TODOS os times, não só da sede dele.

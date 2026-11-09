@@ -19,7 +19,7 @@ seq="$(jq -r '.seq // 0' "$meta" 2>/dev/null)"
 if [[ "$owner" != "$SESSION_LOGIN" ]]; then
   # não é o dono: admin sempre, staff só dentro do escopo
   if is_admin; then :
-  elif is_staff && staff_can_see "$contest" "$SESSION_LOGIN" "$owner"; then :
+  elif is_staff && pr_task_can_see "$contest" "$meta"; then :   # tarefa de teste: pela sede de quem a criou
   else fail 403 "Sem permissão para este arquivo" "forbidden"; fi
 fi
 

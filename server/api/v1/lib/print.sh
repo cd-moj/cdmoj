@@ -491,8 +491,33 @@ _pr_t() {
     pt:firstsub)   printf 'primeiro time da sede a resolver este problema' ;;
     en:firstsub)   printf 'first team at this site to solve this problem' ;;
     es:firstsub)   printf 'primer equipo de la sede en resolver este problema' ;;
+    pt:test_team)  printf 'TESTE DE IMPRESSÃO' ;;
+    en:test_team)  printf 'PRINT TEST' ;;
+    es:test_team)  printf 'PRUEBA DE IMPRESIÓN' ;;
+    pt:test_band)  printf 'TESTE — NÃO ENTREGAR' ;;
+    en:test_band)  printf 'TEST — DO NOT DELIVER' ;;
+    es:test_band)  printf 'PRUEBA — NO ENTREGAR' ;;
+    pt:test_sub)   printf 'tarefa de teste da impressora; descarte esta folha' ;;
+    en:test_sub)   printf 'printer test task; discard this sheet' ;;
+    es:test_sub)   printf 'tarea de prueba de la impresora; descarta esta hoja' ;;
+    pt:test_page)  printf 'TESTE DE IMPRESSÃO — NÃO ENTREGAR\ntarefa %s · página %s de %s\nsede: %s · criada por %s · %s' "$3" "$4" "$5" "$6" "$7" "$8" ;;
+    en:test_page)  printf 'PRINT TEST — DO NOT DELIVER\ntask %s · page %s of %s\nsite: %s · created by %s · %s' "$3" "$4" "$5" "$6" "$7" "$8" ;;
+    es:test_page)  printf 'PRUEBA DE IMPRESIÓN — NO ENTREGAR\ntarea %s · página %s de %s\nsede: %s · creada por %s · %s' "$3" "$4" "$5" "$6" "$7" "$8" ;;
+    pt:test_all)   printf 'todas as sedes' ;;
+    en:test_all)   printf 'all sites' ;;
+    es:test_all)   printf 'todas las sedes' ;;
     *)             _pr_t pt "$k" "${3:-}" ;;
   esac
+}
+
+# _pr_test_band <y> — a faixa "TESTE — NÃO ENTREGAR" da tarefa de teste, na folha de rosto e na de balão. Roda DENTRO
+# do _pr_render/_pr_render_balloon (usa o cov, o addcap, o L e as fontes deles). Borda vermelha grossa e texto
+# vermelho: o tile do addcap tem fundo branco, então a faixa é branca (molde da faixa PRIMEIRO DA SEDE).
+_pr_test_band() {
+  local y="$1"
+  cov+=( -fill white -stroke '#B91C1C' -strokewidth 6 -draw "roundrectangle 80,$y 1160,$(( y + 140 )) 14,14" -stroke none )
+  addcap 1040 70 100 $(( y + 14 )) '#B91C1C' "$FB" 800 center "$(_pr_t "$L" test_band)"
+  addcap 1040 36 100 $(( y + 92 )) '#B91C1C' "$FR" ''  center "$(_pr_t "$L" test_sub)"
 }
 
 # --- render interno: produz <id>.combined.pdf (chamado SOB flock) ---------
@@ -555,6 +580,9 @@ _pr_render() {  # <c> <id> <src> <meta> <cache>
   team="$(jq -r '.team // ""' "$meta" 2>/dev/null)"; [[ -n "$team" ]] || team="$(_pr_t "$L" noteam)"
   univ="$(jq -r '.univ // ""' "$meta" 2>/dev/null)"
   login="$(jq -r '.login // ""' "$meta" 2>/dev/null)"
+  # TAREFA DE TESTE (pr_test_create): sem time; o lugar do time diz TESTE DE IMPRESSÃO e a folha leva a faixa
+  local istest; istest="$(jq -r '.test == true' "$meta" 2>/dev/null)"
+  [[ "$istest" == true ]] && { team="$(_pr_t "$L" test_team)"; login="-"; }
   # caption faz expansão de %; neutraliza e evita leitura de @arquivo (dados do passwd)
   cap_esc(){ local s="${1//%/%%}"; [[ "$s" == @* ]] && s=" $s"; printf '%s' "$s"; }
   team="$(cap_esc "$team")"; univ="$(cap_esc "$univ")"; login="$(cap_esc "$login")"
@@ -576,6 +604,7 @@ _pr_render() {  # <c> <id> <src> <meta> <cache>
   addcap 1080 220  80  724 black  "$FB" 800  center "$seq"
   addcap 1080  74  80  966 black  "$FR" ''   center "$pagesline"
   cov+=( -fill none -stroke '#999' -strokewidth 2 -draw "line 80,1080 1160,1080" -stroke none )
+  [[ "$istest" == true ]] && _pr_test_band 1150
   addcap  600  46  80 1500 black  "$FR" ''   west   "$(_pr_t "$L" sign)"
   cov+=( -fill none -stroke black -strokewidth 2 -draw "line 80,1600 700,1600" -stroke none )
   addcap  320  46 760 1500 black  "$FR" ''   west   "$(_pr_t "$L" when)"
@@ -778,6 +807,8 @@ _pr_render_balloon() {
   team="$(jq -r '.team // ""' "$meta")"; [[ -n "$team" ]] || team="$(_pr_t "$L" noteam)"
   univ="$(jq -r '.univ // ""' "$meta")"
   login="$(jq -r '.login // ""' "$meta")"
+  local istest; istest="$(jq -r '.test == true' "$meta" 2>/dev/null)"
+  [[ "$istest" == true ]] && { team="$(_pr_t "$L" test_team)"; login="-"; }
   short="$(jq -r '.short // "?"' "$meta")"
   colorhex="$(jq -r '.color_hex // "CCCCCC"' "$meta")"
   # o nome foi gravado na criação, no idioma do contest daquele momento (`color_lang`; ausente =
@@ -817,6 +848,7 @@ _pr_render_balloon() {
   # logo acima, e não depende de glifo nenhum.
   # ⚠ O `addcap` compõe um tile de fundo BRANCO, então a faixa é branca com borda forte: fundo
   # colorido seria coberto pelo tile do texto.
+  [[ "$istest" == true ]] && _pr_test_band 1330
   if [[ "$(jq -r '.first_site == true' "$meta" 2>/dev/null)" == true ]]; then
     cov+=( -fill white -stroke '#B8860B' -strokewidth 4 -draw "roundrectangle 80,1330 1160,1452 14,14" )
     cov+=( -fill '#B8860B' -stroke '#7A5C00' -strokewidth 1
@@ -1288,4 +1320,170 @@ staff_regions(){
     return 0
   fi
   return 1
+}
+
+# ==== TAREFAS DE TESTE (09/11/2026; pedido do Fernando: testar a velocidade e o paralelismo das impressoras) =======
+# Um lote de tarefas FALSAS (impressão de N páginas e/ou balão) que passa pela MESMA cadeia das reais — geração do
+# PDF, fila, claim, modo automático — para a sala medir as impressoras antes da prova.
+# - `test:true`, id `tst…`; numeração À PARTE: `seq` = "T<n>" (texto), contador `.test-seq`. O nº real que a sala
+#   confere com o sistema não pula.
+# - Folha com a faixa "TESTE — NÃO ENTREGAR"; páginas de impressão que dizem tarefa, página, sede e hora.
+# - Visível pela SEDE de quem criou: `test_scope` = as sedes do staff_regions do criador ([] = todas; o admin escolhe).
+#   Quem vê: admin; staff sem escopo (vê tudo, a regra da leitura); staff cuja sede está no test_scope.
+# - PROIBIDAS durante a prova (decisão do Ribas): a criação recusa, e a fila apaga as que sobraram na primeira
+#   consulta depois do início. Fora do relatório da prova. O porteiro não serve fila com teste (cai no bash).
+
+# pr_test_blocked <c> — 0 = prova em andamento (início definido e já passou, fim de TODAS as sedes ainda não):
+# tarefa de teste proibida. Contest sem início definido (START=0) não bloqueia: não há "durante a prova".
+pr_test_blocked() {
+  local st en
+  st="$(conf_value "$1" CONTEST_START)"; st="${st//[^0-9]/}"; st="${st:-0}"
+  (( st > 0 && EPOCHSECONDS >= st )) || return 1
+  declare -F contest_end_all >/dev/null || source "${_LIBDIR:-${BASH_SOURCE[0]%/*}}/contest-gate.sh"
+  en="$(contest_end_all "$1")"; en="${en//[^0-9]/}"; en="${en:-0}"
+  (( en == 0 || EPOCHSECONDS <= en ))
+}
+
+# pr_test_ids <c> — os ids das tarefas de teste (1/linha); vazio = nenhuma. Glob no nome, sem abrir arquivo.
+pr_test_ids() {
+  local d f; d="$(pr_dir "$1")"
+  ( set +o noglob; shopt -s nullglob
+    for f in "$d"/tst*.json; do f="${f##*/}"; printf '%s\n' "${f%.json}"; done )
+}
+
+# pr_test_my_sites — as sedes do staff da sessão (1/linha, minúsculas), rc 1 = sem escopo (vê tudo). Admin: rc 1.
+pr_test_my_sites() {
+  is_admin && return 1
+  local out; out="$(staff_regions "$1")" || return 1
+  printf '%s\n' "$out" | awk 'NF { print tolower($0) }'
+}
+
+# pr_task_can_see <c> <meta> — o staff da sessão pode ver/agir nesta tarefa? Teste: pela sede de quem a criou;
+# as demais: o staff_can_see do dono (a regra de sempre). Usado na fila, no claim/processed/delivered, no PDF e no
+# arquivo cru — a mesma decisão nos quatro lugares.
+pr_task_can_see() {
+  local c="$1" meta="$2" mine
+  if [[ "$(jq -r '.test == true' "$meta" 2>/dev/null)" == true ]]; then
+    mine="$(pr_test_my_sites "$c")" || return 0
+    jq -e --rawfile m <(printf '%s\n' "$mine") '
+      ($m | split("\n") | map(select(length > 0))) as $M
+      | (.test_scope // []) as $S
+      | ($S | length) == 0 or any($S[]; ascii_downcase as $x | ($M | index($x)) != null)' "$meta" >/dev/null 2>&1
+    return
+  fi
+  staff_can_see "$c" "$SESSION_LOGIN" "$(jq -r '.login // ""' "$meta" 2>/dev/null)"
+}
+
+# pr_test_visible_ids <c> — os ids de teste que o staff da sessão vê (1/linha). Um jq para o lote.
+pr_test_visible_ids() {
+  local c="$1" d mine ids; d="$(pr_dir "$c")"
+  ids="$(pr_test_ids "$c")"; [[ -n "$ids" ]] || return 0
+  if ! mine="$(pr_test_my_sites "$c")"; then printf '%s\n' "$ids"; return 0; fi
+  printf '%s\n' "$ids" | while IFS= read -r i; do printf '%s\0' "$d/$i.json"; done \
+    | xargs -0 -r jq -r --rawfile m <(printf '%s\n' "$mine") '
+        ($m | split("\n") | map(select(length > 0))) as $M
+        | (.test_scope // []) as $S
+        | select(($S | length) == 0 or any($S[]; ascii_downcase as $x | ($M | index($x)) != null)) | .id' 2>/dev/null
+}
+
+# pr_test_remove <c> <id…> — apaga as tarefas (json, fonte, PDF em cache, trava, log de erro). Ecoa quantas.
+pr_test_remove() {
+  local c="$1" d n=0 i; d="$(pr_dir "$c")"; shift
+  for i in "$@"; do
+    [[ "$i" =~ ^tst[0-9a-f]{20}$ ]] || continue
+    rm -f "$d/$i.json" "$d/$i.src" "$d/$i.combined.pdf" "$d/$i.lock" "$d/$i.err" && n=$(( n + 1 ))
+  done
+  printf '%s' "$n"
+}
+
+# pr_test_purge_if_running <c> — durante a prova, as tarefas de teste que sobraram são APAGADAS (a criação já recusa;
+# isto pega o lote esquecido antes do início). Audita. Barato quando não há nenhuma: um glob.
+pr_test_purge_if_running() {
+  local c="$1" ids n
+  ids="$(pr_test_ids "$c")"; [[ -n "$ids" ]] || return 0
+  pr_test_blocked "$c" || return 0
+  mapfile -t _tids <<<"$ids"
+  n="$(pr_test_remove "$c" "${_tids[@]}")"
+  audit_log_to "$c" staff-test "purge-at-start n=$n" 2>/dev/null || true
+}
+
+# pr_test_next_block <c> <k> — reserva k números de teste seguidos (contador .test-seq, a trava do seq); ecoa o 1º.
+pr_test_next_block() {
+  local c="$1" k="$2" dir; dir="$(pr_dir "$c")"; mkdir -p "$dir"
+  ( flock 9
+    local n=0; [[ -r "$dir/.test-seq" ]] && read -r n < "$dir/.test-seq"
+    [[ "$n" =~ ^[0-9]+$ ]] || n=0
+    printf '%s' "$(( n + k ))" > "$dir/.test-seq"; printf '%s' "$(( n + 1 ))"
+  ) 9>"$dir/.seqlock"
+}
+
+# pr_test_create <c> <count> <kind:print|balloon|mixed> <pages> <scope-json> <by> — cria o lote; ecoa "T<a> T<b>".
+# Impressão: um .txt de <pages> páginas (\f separa as páginas no paps), cada página dizendo o que é — linhas CURTAS:
+# com a numeração do _pr_text2pdf, linha longa quebra e cada página de teste viraria duas. Balão: as letras
+# A, B, C… com as cores do contest (balloons.json ou a paleta ICPC). mixed = alterna impressão e balão.
+pr_test_create() {
+  local c="$1" n="$2" kind="$3" pages="$4" scope="$5" by="$6" dir L t0 i k sq id site now hhmm
+  dir="$(pr_dir "$c")"; mkdir -p "$dir"; L="$(pr_lang "$c")"
+  t0="$(pr_test_next_block "$c" "$n")"
+  site="$(jq -r 'if length == 0 then "" else join(", ") end' <<<"$scope" 2>/dev/null)"
+  [[ -n "$site" ]] || site="$(_pr_t "$L" test_all)"
+  now="$EPOCHSECONDS"; hhmm="$(date -d "@$now" '+%d/%m %H:%M:%S' 2>/dev/null)"
+  local letters=(A B C D E F G H I J K L M N O)
+  for (( i = 0; i < n; i++ )); do
+    sq="T$(( t0 + i ))"
+    id="tst$(printf '%s%s%s%s' "$now" "$RANDOM" "$i" "$by" | md5sum | cut -c1-20)"
+    k="$kind"; [[ "$kind" == mixed ]] && { (( i % 2 == 0 )) && k=print || k=balloon; }
+    if [[ "$k" == print ]]; then
+      local p
+      { for (( p = 1; p <= pages; p++ )); do
+          (( p > 1 )) && printf '\f'
+          _pr_t "$L" test_page "$sq" "$p" "$pages" "$site" "$by" "$hhmm"; printf '\n\n'
+          local ln; for (( ln = 1; ln <= 40; ln++ )); do
+            printf '%s  %02d  ........................................\n' "$sq" "$ln"
+          done
+        done; } > "$dir/$id.src"
+      jq -cn --arg id "$id" --arg seq "$sq" --arg by "$by" --argjson sc "$scope" --arg univ "$site" \
+        --arg fn "teste-$sq.txt" --argjson size "$(stat -c%s "$dir/$id.src")" --argjson t "$now" '{
+          id:$id, seq:$seq, test:true, test_by:$by, test_scope:$sc, kind:"print", login:"", fullname:"", team:"",
+          univ:$univ, filename:$fn, mime:"text/plain", size:$size, time:$t, status:"pending", pages:0,
+          claimed_by:"", claimed_at:0, processed_by:"", processed_at:0, delivered_by:"", delivered_at:0 }' > "$dir/$id.json"
+    else
+      local sh hex cn; sh="${letters[$(( i % 15 ))]}"
+      hex="$(pr_balloon_color "$c" "$sh")"; cn="$(pr_color_name "$hex" "$L")"
+      jq -cn --arg id "$id" --arg seq "$sq" --arg by "$by" --argjson sc "$scope" --arg univ "$site" \
+        --arg sh "$sh" --arg hex "$hex" --arg cn "$cn" --arg l "$L" --argjson t "$now" '{
+          id:$id, seq:$seq, test:true, test_by:$by, test_scope:$sc, kind:"balloon", login:"", fullname:"", team:"",
+          univ:$univ, problem:"", short:$sh, color_hex:$hex, color_name:$cn, color_lang:$l, first_site:false,
+          time:$t, status:"pending",
+          claimed_by:"", claimed_at:0, processed_by:"", processed_at:0, delivered_by:"", delivered_at:0 }' > "$dir/$id.json"
+    fi
+  done
+  printf 'T%s T%s' "$t0" "$(( t0 + n - 1 ))"
+}
+
+# pr_test_summary <c> — a MEDIDA do lote que o staff da sessão vê: contagem por estado, vazão (tarefas impressas por
+# minuto, do 1º claim ao último processed) e por estação (processed_by), e o maior intervalo entre duas impressões
+# seguidas. O tempo inclui a geração do PDF no servidor (o 1º pedido de cada tarefa a gera): é o caminho real.
+pr_test_summary() {
+  local c="$1" d ids; d="$(pr_dir "$c")"
+  ids="$(pr_test_visible_ids "$c")"
+  if [[ -z "$ids" ]]; then printf '{"total":0,"pending":0,"printed":0,"delivered":0,"stations":[]}'; return 0; fi
+  printf '%s\n' "$ids" | while IFS= read -r i; do printf '%s\0' "$d/$i.json"; done \
+    | xargs -0 -r jq -c '{seq, kind, status, claimed_by, claimed_at, processed_by, processed_at, pages}' 2>/dev/null \
+    | jq -cs '
+        def rate(xs): (xs | map(select(.processed_at > 0))) as $p
+          | if ($p | length) == 0 then null
+            else (($p | map(.claimed_at // .processed_at) | min) as $a | ($p | map(.processed_at) | max) as $b
+                  | {done: ($p | length), first_claim: $a, last_done: $b, span_s: ($b - $a),
+                     per_min: (if $b > $a then ((($p | length) * 600 / ($b - $a)) | round / 10) else null end)}) end;
+        { total: length,
+          pending: (map(select(.status == "pending")) | length),
+          printed: (map(select(.status == "printed")) | length),
+          delivered: (map(select(.status == "delivered")) | length),
+          pages: (map(select(.kind == "print") | .pages // 0) | add // 0),
+          overall: rate(.),
+          max_gap_s: ([ map(select(.processed_at > 0) | .processed_at) | sort | . as $t
+                        | range(1; length) | $t[.] - $t[. - 1] ] | max),
+          stations: (map(select((.processed_by // "") != "")) | group_by(.processed_by)
+                     | map({by: .[0].processed_by} + rate(.)) | sort_by(.by)) }'
 }

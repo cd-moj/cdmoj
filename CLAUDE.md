@@ -960,6 +960,18 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   folha segundos depois de a tarefa nascer e o `pr_build_balloon` **cacheia o PDF para sempre** —
   a estrela tardia mudaria a tela e nunca o papel. ⚠ Na folha a estrela é **desenhada** (polígono,
   como o balão), nunca o caractere `★`: fonte sem o glifo o imprime como NADA.
+  **TAREFAS DE TESTE (09/11/2026, pedido do Fernando; `lib/print.sh` `pr_test_*`, rota `/contest/staff/test-tasks`,
+  caixa `web/contest/staff/test-box.js` na página do staff e no painel Operação › Staff):** lote falso (impressão de N
+  páginas e/ou balão) pela MESMA cadeia das reais, para medir as impressoras. Id `tst…`, `test:true`, `seq` = `"T<n>"`
+  TEXTO (contador `.test-seq` — o seq real não pula; todo uso de `seq` é textual, menos o `sort_by(-.seq)` do
+  `contest/print.sh`, que só vê tarefa de time), `test_scope` = as sedes do criador (`staff_regions`; [] = todas). Uma
+  regra só de visibilidade, `pr_task_can_see`, na fila, no claim/processed/delivered, no PDF e no arquivo cru.
+  PROIBIDO durante a prova (`pr_test_blocked`: START definido e passado, fim de todas as sedes não; START=0 não
+  bloqueia): o create dá 409 `test_blocked` e a fila APAGA as sobras na 1ª consulta depois do início. O PORTEIRO não
+  serve fila com teste (Decline → bash; o campo `test` está no PICK dos dois). Faixa "TESTE — NÃO ENTREGAR" nas
+  duas folhas (`_pr_test_band`); fora do relatório (`report-gen` staff-tasks); a Central avisa (`print_tests`).
+  Decisões do Ribas: o .staff só a própria sede, o admin qualquer; bloqueado na prova; numeração T. Teste:
+  `smoke-staff-test-tasks.sh`.
   ⚠ **BALÃO × FREEZE (2026-08-20)**: AC com **`sub_epoch >= FREEZE_TIME`** NÃO vira tarefa — o balão
   atravessando a sala conta o que o placar congelado esconde (o vazamento é **físico**, não de rota:
   o competidor nunca recebe balão por API, então não adianta gate de handler). Três invariantes ao

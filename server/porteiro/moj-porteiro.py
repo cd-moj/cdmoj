@@ -630,7 +630,7 @@ def _pick_task(t):
     g = t.get
     kind = g("kind")
     return {
-        "id": g("id"), "seq": g("seq"), "login": g("login"), "fullname": g("fullname"),
+        "id": g("id"), "seq": g("seq"), "test": g("test") is True, "login": g("login"), "fullname": g("fullname"),
         "team": g("team"), "univ": g("univ"),
         "kind": kind if kind not in (None, False) else "print",
         "short": g("short"), "color_hex": g("color_hex"), "color_name": g("color_name"),
@@ -729,7 +729,13 @@ def r_staff_queue(contest, q, params):
                     vis = {ln for ln in fh.read().split("\n") if ln}
         # filters inválido/sem entrada => vê tudo (mesmo rc!=0 do bash)
 
-    rows = [r for r in _task_rows(pdir) if vis is None or (r["login"] or "") in vis]
+    allrows = _task_rows(pdir)
+    # TAREFA DE TESTE (id tst…, lib/print.sh pr_test_*): a visibilidade é pela SEDE de quem criou e, durante a
+    # prova, a fila do bash as apaga — regras que não vivem aqui. Só existem fora da prova (pouco tráfego): o bash
+    # responde.
+    if any((r.get("id") or "").startswith("tst") for r in allrows):
+        raise Decline("tarefa de teste na fila (bash)")
+    rows = [r for r in allrows if vis is None or (r["login"] or "") in vis]
 
     def _key(r):
         st = r["status"]

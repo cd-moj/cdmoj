@@ -1,4 +1,4 @@
-<!-- i18n-source: MANUAL-STAFF.md blob:925b645d2465c91a33dbe510315a130be7abb5e0 -->
+<!-- i18n-source: MANUAL-STAFF.md blob:399c1548fe5ab18936345525ee8b920fde793477 -->
 # MOJ: Room staff manual (.staff and .cstaff)
 
 > **Translation note.** This manual is a translation of the Portuguese original. The command-line tools (`moj`, `moj-contest`, `moj-comp`) print their messages in Portuguese, and the command examples below are identical to the original.
@@ -89,6 +89,21 @@ printouts in a stack, a sheet that comes loose from its cover still tells whose 
 There is a **checkbox** for automatic mode, and the system keeps your choice. When automatic mode is on and the tab is open, the system **claims, prints and marks** each new task. You do not click.
 
 To stop the browser print window from opening for each task, run the browser in **kiosk mode**. In Chrome/Chromium, use the option `--kiosk-printing`.
+
+#### Printer test
+
+Before the contest, measure the printers with test tasks. The **🧪 Printer test** box is below the queue.
+
+1. Keep the queue page open on each station of the site, with **automatic mode** on.
+2. Open the box and choose how many tasks (up to 200), the kind (print, balloon or mixed) and the pages per print.
+3. Click **🧪 Create**. The tasks go to the queue of **your site**, and the stations split the batch as in the contest.
+4. Read the summary: tasks printed per minute in total and per station, and the longest gap between two prints.
+5. Click **🧹 Delete tests** at the end.
+
+- The test sheet carries the band **TEST — DO NOT DELIVER** and its own numbering (T1, T2…). Do not deliver this sheet.
+- The contest numbering does not change, and the test is not in the contest report.
+- The time includes the PDF generation on the server: it is the same path as a contest task.
+- **The test is not allowed during the contest.** When the contest starts, the system deletes the test tasks that are left.
 
 ### Warm-up: your rehearsal (and the contest can have two rounds)
 
