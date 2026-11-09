@@ -236,6 +236,11 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   MIME — `file --mime-type` = `audio/mpeg` — e o corpo vai por `read_body_file`, 15 MB) e as
   CHAVES do **webcast**, o pacote de placar que alimenta o sistema Animeitor pela rota **sem
   sessão** `/contest/webcast?key=…` (formato do BOCA, separador `0x1C`). Ver `docs/WEBCAST.md`.
+  O **lote** aceita fotos, MP3 e **pacotes `.zip`** (09/11/2026, pedido do Emílio): o zip é aberto NO NAVEGADOR
+  (`web/shared/zip-read.js`: deflate pelo `DecompressionStream`, sem cifrado/ZIP64, tetos de 5000 arquivos e 20 MB
+  por arquivo, tamanho declarado conferido depois de descompactar) e cada arquivo segue pela rota de sempre, um POST
+  por arquivo — o servidor NUNCA descompacta (zip bomb, `../`). Antes de subir, uma conferência (dry-run) por
+  arquivo: time achado pelo nome, novo × troca, sem time / formato / repetido. Teste: `smoke-zip-read.sh`.
   O **admin entra na mesma página com os mesmos poderes** (as rotas gatam `is_animeitor ||
   is_admin`), mas **sem botão na nav**: página avulsa se LINKA do painel (doutrina do
   `admin.js`) — cartão na *Central › Gerar* e link no painel *Pessoas › Times*, que em contest

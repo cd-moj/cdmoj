@@ -99,6 +99,11 @@ galeria abre no filtro **⚠ Pendências** — exatamente quem ainda está sem f
 
 - **Enviar em lote** é o caminho rápido: arraste dezenas de arquivos; o **nome do arquivo é o
   login** do time (`time-alfa.jpg`, `time-alfa.mp3`). Fotos e músicas podem ir juntas.
+- O lote aceita também **pacotes `.zip`** com as fotos e as músicas, em qualquer pasta dentro do zip.
+  O navegador abre o pacote, e nada sobe sem a sua confirmação. Antes de enviar, a tela mostra uma
+  **conferência**: cada arquivo, o time que ele achou pelo nome, se é novo ou se troca o atual, e o que
+  fica de fora (nome sem time, arquivo que não é foto nem MP3, o mesmo time repetido — vale o último).
+  Confira e clique em **Enviar**. O zip não pode ter senha, e cada arquivo vai até 20 MB.
 - A **foto** é convertida e redimensionada pelo servidor (webp + miniatura). A **música** vai como
   veio e precisa ser **mp3 de verdade** (até 15 MB) — o servidor confere o arquivo, não a extensão.
 - **Baixar pacote (.zip)**: tudo num arquivo (fotos, músicas e um CSV dos times) — é o que se passa

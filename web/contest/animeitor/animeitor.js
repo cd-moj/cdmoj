@@ -408,9 +408,9 @@ function renderPhotos() {
     // lote e pacote são ESCRITA/exportação: o .staff não tem nenhum dos dois
     NOWRITE ? '' : el('div', { class: 'row', style: 'gap:.5rem; margin-bottom:.4rem; flex-wrap:wrap' }, bulkInput(box),
       el('button', { class: 'btn', onclick: () => document.getElementById('phBulk').click() },
-        T('⬆ Enviar em lote — fotos e músicas (nome do arquivo = login)',
-          '⬆ Bulk upload — photos and music (file name = login)',
-          '⬆ Subir en lote — fotos y música (nombre del archivo = usuario)')),
+        T('⬆ Enviar em lote — fotos, músicas ou .zip (nome do arquivo = login)',
+          '⬆ Bulk upload — photos, music or .zip (file name = login)',
+          '⬆ Subir en lote — fotos, música o .zip (nombre del archivo = usuario)')),
       el('button', { class: 'btn ghost', onclick: () => downloadAuthed(CONTEST,
           '/contest/animeitor/photos-zip?contest=' + enc(CONTEST), 'fotos-' + CONTEST + '.zip') },
         T('⬇ Baixar pacote (.zip)', '⬇ Download package (.zip)', '⬇ Descargar paquete (.zip)'))),
@@ -430,36 +430,111 @@ function renderPhotos() {
     : T(`Mostrando ${rows.length} de ${teamsAll().length} times`, `Showing ${rows.length} of ${teamsAll().length} teams`, `Mostrando ${rows.length} de ${teamsAll().length} equipos`);
 }
 
-// o lote aceita FOTO e MÚSICA no mesmo arrastar: cada arquivo vai para a rota certa pelo tipo
-// (o MP3 é reconhecido pelo mime ou pela extensão — o Firefox não sabe o mime de todo .mp3)
-const isMusicFile = (f) => /^audio\//.test(f.type || '') || /\.mp3$/i.test(f.name || '');
 
+const isPhotoName = (n) => /\.(png|jpe?g|webp|gif|bmp)$/i.test(n || '');
+
+// O LOTE (09/11/2026, pedido do Emílio): fotos, músicas e PACOTES .zip no mesmo seletor. O zip é aberto AQUI
+// (shared/zip-read.js) e cada arquivo segue pela rota de sempre, um POST por arquivo — o servidor nunca descompacta.
+// Antes de enviar, uma CONFERÊNCIA (dry-run): cada arquivo, o time que ele achou pelo nome (login), se é novo ou
+// troca, e o que fica de fora (sem time, formato que não é foto/MP3, repetido). Nada sobe sem o "Enviar".
 function bulkInput(box) {
-  const bulk = el('input', { id: 'phBulk', type: 'file', accept: 'image/*,audio/mpeg,.mp3',
+  const bulk = el('input', { id: 'phBulk', type: 'file', accept: 'image/*,audio/mpeg,.mp3,.zip,application/zip',
     multiple: true, style: 'display:none' });
   bulk.addEventListener('change', async () => {
     const fs = [...(bulk.files || [])];
+    bulk.value = '';                                       // escolher o mesmo arquivo de novo dispara de novo
     if (!fs.length) return;
-    let okP = 0; let okM = 0; const bad = [];
-    for (let i = 0; i < fs.length; i++) {
-      msg(box, T('Enviando ', 'Uploading ', 'Subiendo ') + (i + 1) + '/' + fs.length + '…');
-      // o LOGIN vem do nome do arquivo (fulano.jpg / fulano.mp3 -> fulano), como no painel de Times
-      const mus = isMusicFile(fs[i]);
-      try {
-        await apiPost('/contest/animeitor/' + (mus ? 'music' : 'photo') + '?contest=' + enc(CONTEST),
-          { login: fs[i].name, file_b64: await fileToBase64(fs[i]) }, G);
-        if (mus) okM++; else okP++;
-      } catch { bad.push(fs[i].name); }
-    }
-    await loadPhotos(); renderPhotos();
-    const b = document.getElementById('phMsg');
-    if (b) msg(b, T(`${okP} foto(s) e ${okM} música(s) enviada(s).`, `${okP} photo(s) and ${okM} music file(s) uploaded.`, `${okP} foto(s) y ${okM} archivo(s) de música subido(s).`)
-      + (bad.length ? T(' Falharam (time inexistente ou formato recusado): ',
-                        ' Failed (no such team or format rejected): ',
-                        ' Fallaron (equipo inexistente o formato rechazado): ') + bad.join(', ') : ''),
-      bad.length ? 'error-box' : 'small');
+    const items = [];
+    try {
+      for (const f of fs) {
+        if (/\.zip$/i.test(f.name) || f.type === 'application/zip' || f.type === 'application/x-zip-compressed') {
+          msg(box, T('Abrindo ', 'Opening ', 'Abriendo ') + f.name + '…');
+          const { readZip } = await import('/shared/zip-read.js');
+          for (const e of await readZip(f)) items.push({ name: e.base, from: f.name + ' › ' + e.name, blob: e.blob, size: e.size });
+        } else items.push({ name: f.name, from: '', blob: async () => f, size: f.size });
+      }
+    } catch (e) { msg(box, T('Falha ao abrir o pacote: ', 'Failed to open the package: ', 'No se pudo abrir el paquete: ') + (e.message || e), 'error-box'); return; }
+    showBulkPlan(box, bulkPlan(items));
   });
   return bulk;
+}
+
+// bulkPlan(items) → [{item, kind:'photo'|'music'|null, team, status}]  status: new | replace | no_team | format | dup
+function bulkPlan(items) {
+  const byLogin = new Map(teamsAll().map((t) => [String(t.login || '').toLowerCase(), t]));
+  const seen = new Map();
+  const plan = items.map((it) => {
+    const kind = /\.mp3$/i.test(it.name) ? 'music' : (isPhotoName(it.name) ? 'photo' : null);
+    const login = it.name.replace(/\.[^.]+$/, '').toLowerCase();
+    const team = byLogin.get(login) || null;
+    let status = !kind ? 'format' : (!team ? 'no_team' : ((kind === 'music' ? team.has_music : team.has_photo) ? 'replace' : 'new'));
+    const r = { item: it, kind, team, login, status };
+    if (kind && team) {                                   // o MESMO time e tipo duas vezes: vale o último
+      const k = kind + '|' + login;
+      if (seen.has(k)) seen.get(k).status = 'dup';
+      seen.set(k, r);
+    }
+    return r;
+  });
+  return plan;
+}
+
+const BULK_ST = {
+  new: () => T('novo', 'new', 'nuevo'),
+  replace: () => T('troca o atual', 'replaces the current one', 'reemplaza el actual'),
+  no_team: () => T('nenhum time com esse login', 'no team with this login', 'ningún equipo con ese usuario'),
+  format: () => T('não é foto nem MP3', 'not a photo or MP3', 'no es foto ni MP3'),
+  dup: () => T('repetido (vale o último)', 'repeated (the last one counts)', 'repetido (vale el último)'),
+};
+
+function showBulkPlan(box, plan) {
+  const go = plan.filter((r) => r.status === 'new' || r.status === 'replace');
+  const cnt = (st) => plan.filter((r) => r.status === st).length;
+  const nP = go.filter((r) => r.kind === 'photo').length, nM = go.length - nP;
+  box.innerHTML = '';
+  const rows = plan.slice().sort((a, b) => (a.status === b.status ? a.item.name.localeCompare(b.item.name) : (['no_team', 'format', 'dup', 'replace', 'new'].indexOf(a.status) - ['no_team', 'format', 'dup', 'replace', 'new'].indexOf(b.status))));
+  const LIM = 300;
+  const tb = el('tbody', {}, ...rows.slice(0, LIM).map((r) => el('tr', {},
+    el('td', {}, r.item.name, r.item.from ? el('div', { class: 'small muted' }, r.item.from) : ''),
+    el('td', {}, r.kind === 'music' ? T('🎵 música', '🎵 music', '🎵 música') : r.kind === 'photo' ? T('📷 foto', '📷 photo', '📷 foto') : '—'),
+    el('td', {}, r.team ? (r.team.login + (r.team.team || r.team.name ? ' — ' + (r.team.team || r.team.name) : '')) : '—'),
+    el('td', { style: (r.status === 'new' || r.status === 'replace') ? '' : 'color:#B91C1C' }, BULK_ST[r.status]()))));
+  const sendBtn = el('button', { class: 'btn' }, T(`⬆ Enviar ${go.length} arquivo(s)`, `⬆ Upload ${go.length} file(s)`, `⬆ Subir ${go.length} archivo(s)`));
+  sendBtn.disabled = !go.length;
+  const cancel = el('button', { class: 'btn ghost', onclick: () => msg(box, '') }, T('Cancelar', 'Cancel', 'Cancelar'));
+  sendBtn.addEventListener('click', () => runBulk(box, go));
+  box.append(el('div', { class: 'section', style: 'margin:.4rem 0' },
+    el('h3', { style: 'margin:.1rem 0 .3rem' }, T('Conferência antes de enviar', 'Check before uploading', 'Revisión antes de subir')),
+    el('p', { class: 'small' },
+      T(`${nP} foto(s) e ${nM} música(s) vão subir (${cnt('replace')} troca(m) a atual). Fica de fora: ${cnt('no_team')} sem time, ${cnt('format')} em outro formato, ${cnt('dup')} repetido(s). O nome do arquivo (sem a extensão) é o login do time.`,
+        `${nP} photo(s) and ${nM} music file(s) will be uploaded (${cnt('replace')} replace the current one). Left out: ${cnt('no_team')} without a team, ${cnt('format')} in another format, ${cnt('dup')} repeated. The file name (without the extension) is the team login.`,
+        `Se subirán ${nP} foto(s) y ${nM} música(s) (${cnt('replace')} reemplaza(n) la actual). Quedan fuera: ${cnt('no_team')} sin equipo, ${cnt('format')} en otro formato, ${cnt('dup')} repetido(s). El nombre del archivo (sin la extensión) es el usuario del equipo.`)),
+    el('div', { class: 'row', style: 'gap:.5rem; margin:.3rem 0' }, sendBtn, cancel),
+    el('div', { class: 'chart-wrap' }, el('table', { class: 'moj' },
+      el('thead', {}, el('tr', {}, el('th', {}, T('Arquivo', 'File', 'Archivo')), el('th', {}, T('Tipo', 'Type', 'Tipo')),
+        el('th', {}, T('Time', 'Team', 'Equipo')), el('th', {}, T('Situação', 'Status', 'Estado')))), tb)),
+    plan.length > LIM ? el('p', { class: 'small muted' }, T(`… e mais ${plan.length - LIM}.`, `… and ${plan.length - LIM} more.`, `… y ${plan.length - LIM} más.`)) : ''));
+}
+
+async function runBulk(box, go) {
+  let okP = 0; let okM = 0; const bad = [];
+  for (let i = 0; i < go.length; i++) {
+    const r = go[i];
+    msg(box, T('Enviando ', 'Uploading ', 'Subiendo ') + (i + 1) + '/' + go.length + '…');
+    try {
+      const blob = await r.item.blob();
+      await apiPost('/contest/animeitor/' + (r.kind === 'music' ? 'music' : 'photo') + '?contest=' + enc(CONTEST),
+        { login: r.item.name, file_b64: await fileToBase64(blob) }, G);
+      if (r.kind === 'music') okM++; else okP++;
+    } catch { bad.push(r.item.name); }
+  }
+  await loadPhotos(); renderPhotos();
+  const b = document.getElementById('phMsg');
+  if (b) msg(b, T(`${okP} foto(s) e ${okM} música(s) enviada(s).`, `${okP} photo(s) and ${okM} music file(s) uploaded.`, `${okP} foto(s) y ${okM} archivo(s) de música subido(s).`)
+    + (bad.length ? T(' Falharam (formato recusado pelo servidor): ',
+                      ' Failed (format rejected by the server): ',
+                      ' Fallaron (formato rechazado por el servidor): ') + bad.join(', ') : ''),
+    bad.length ? 'error-box' : 'small');
 }
 
 // ---------- 🎥 streaming ------------------------------------------------------

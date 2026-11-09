@@ -1,4 +1,4 @@
-<!-- i18n-source: MANUAL-ANIMEITOR.md blob:66962ad185b0f2a0523aba31e1b7b717d8c73c05 -->
+<!-- i18n-source: MANUAL-ANIMEITOR.md blob:bb80841a491f6e81afd805f21b162a694686d0dd -->
 # MOJ: Big-screen manual (`.animeitor`)
 
 > **Translation note.** This manual is a translation of the Portuguese original. The command-line tools (`moj`, `moj-contest`, `moj-comp`) print their messages in Portuguese, and the command examples below are identical to the original.
@@ -109,6 +109,12 @@ or no music.
 
 - **⬆ Bulk upload** is the fast way: drag dozens of files. The **file name is the team
   login** (`time-alfa.jpg`, `time-alfa.mp3`). You can send photos and music together.
+- The bulk upload also accepts **`.zip` packages** with the photos and the music, in any folder of the
+  zip. The browser opens the package, and nothing is uploaded until you confirm. Before the upload, the
+  screen shows a **check**: each file, the team that its name matches, if it is new or replaces the
+  current one, and what is left out (a name without a team, a file that is not a photo or an MP3, the
+  same team twice — the last one counts). Check the list and click **Upload**. The zip cannot have a
+  password, and each file can have up to 20 MB.
 - The server converts and resizes the **photo** (webp + thumbnail). The **music** stays as it
   was sent and must be a **real mp3** (up to 15 MB). The server checks the file, not the extension.
 - **⬇ Download package (.zip)**: everything in one file (photos, music and a CSV of the teams). Give

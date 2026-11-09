@@ -1,4 +1,4 @@
-<!-- i18n-source: MANUAL-ANIMEITOR.md blob:66962ad185b0f2a0523aba31e1b7b717d8c73c05 -->
+<!-- i18n-source: MANUAL-ANIMEITOR.md blob:bb80841a491f6e81afd805f21b162a694686d0dd -->
 # MOJ: Manual de la pantalla (`.animeitor`)
 
 > **Nota de traducción.** Este manual es una traducción del original en portugués. Las herramientas de línea de comandos (`moj`, `moj-contest`, `moj-comp`) muestran sus mensajes en portugués, y los ejemplos de comandos son idénticos al original.
@@ -102,6 +102,12 @@ galería se abre en el filtro **⚠ Pendientes** — exactamente los equipos que
 
 - **⬆ Subir en lote** es el camino rápido: arrastra decenas de archivos; el **nombre del archivo es el
   usuario** del equipo (`time-alfa.jpg`, `time-alfa.mp3`). Las fotos y la música pueden ir juntas.
+- El lote acepta también **paquetes `.zip`** con las fotos y la música, en cualquier carpeta del zip.
+  El navegador abre el paquete, y nada se sube sin tu confirmación. Antes de subir, la pantalla muestra
+  una **revisión**: cada archivo, el equipo que encontró por el nombre, si es nuevo o reemplaza el
+  actual, y lo que queda fuera (nombre sin equipo, archivo que no es foto ni MP3, el mismo equipo
+  repetido — vale el último). Revisa y haz clic en **Subir**. El zip no puede tener contraseña, y cada
+  archivo puede tener hasta 20 MB.
 - La **foto** la convierte y la redimensiona el servidor (webp + miniatura). La **música** va tal como
   llegó y tiene que ser un **mp3 de verdad** (hasta 15 MB) — el servidor revisa el archivo, no la extensión.
 - **⬇ Descargar paquete (.zip)**: todo en un archivo (fotos, música y un CSV de los equipos) — es lo que se le entrega
