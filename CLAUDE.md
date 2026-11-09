@@ -1416,6 +1416,7 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   `manual` (`classify-manual.sh`, seletiva: o painel mostra o placar e cada promoção é um `add` com motivo opcional, até
   `slots` — 409 `slots_full`; o `add` aceita também as vias do catálogo (menos `comite`) e as da `config.labels` do estágio,
   e `relabel {id, via}` troca só a via de um `add` — a regra é o `_via_ok` do handler, espelhado no `viaOptions` do painel;
+  `config.via_order` opcional ordena as seções; o formulário do painel só mexe em `slots` e preserva o resto da config;
   `smoke-classify-manual.sh`).
   Testes: `smoke-contest-modules.sh` (57), `smoke-preflight.sh`, `smoke-contest-create.sh`.
 - **MÓDULO `esqueletos` (esqueleto de código no editor do time, issue #40 do Alex Orozco, 30/09/2026)**:

@@ -91,6 +91,15 @@ for bad in '{"p1":"x"}' '{"comite":"x"}' '{"Maiusc":"x"}' '{"z":null}' '{"z":{"p
   jq --argjson l "$bad" '. + {labels:$l}' "$FIX/cfg.json" > "$FIX/k3.json"
   bash "$ENG" --check "$FIX/k3.json" 2>/dev/null; eqk "$?" 2 "--check recusa labels $bad"
 done
+# via_order (opcional): a ordem das seções; o que ficar de fora vem depois, sem repetir
+jq --argjson l "$LBL" '. + {labels:$l, via_order:["p2","country-part"]}' "$FIX/cfg.json" > "$FIX/c4.json"; bash "$ENG" sel "$FIX/c4.json" "$FIX/o4.json"
+eqk "$(jq -c '.via_order' "$FIX/o4.json")" '["p2","country-part","manual","pend"]' "via_order da config vem primeiro; o resto depois, sem repetir"
+for bad in '"p1"' '["comite"]' '["zzz"]' '["p1","p1"]' '[1]'; do
+  jq --argjson l "$LBL" --argjson o "$bad" '. + {labels:$l, via_order:$o}' "$FIX/cfg.json" > "$FIX/k4.json"
+  bash "$ENG" --check "$FIX/k4.json" 2>/dev/null; eqk "$?" 2 "--check recusa via_order $bad"
+done
+jq --argjson l "$LBL" '. + {labels:$l, via_order:["manual","lista","reserva","fem-latam","pend"]}' "$FIX/cfg.json" > "$FIX/k4.json"
+bash "$ENG" --check "$FIX/k4.json"; eqk "$?" 0 "--check aceita via_order com manual_vias, catálogo e labels"
 # handler: num estágio do motor manual o add aceita manual_vias + vias do catálogo (sem comite) + as da config.labels
 calla POST "$(jq -cn --argjson l "$LBL" '{action:"apply", stage:"vagas", config:{algorithm:"manual", slots:5, labels:$l}, name:"Final"}')"
 eqk "$(J '.applied')" "true" "apply com labels"
@@ -119,10 +128,19 @@ calla POST '{"action":"add","stage":"brx","login":"gama","via":"p1","reason":"x"
 calla POST '{"action":"publish","stage":"vagas"}'
 PUB2="$(PATH_INFO=/contest/classification REQUEST_METHOD=GET QUERY_STRING="contest=sel" CONTESTSDIR="$FIX" SESSIONDIR="$SESS" bash "$ROUTER" 2>/dev/null | awk 'f{print} /^\r?$/{f=1}')"
 eqk "$(jq -r 'first(.stages[] | select(.id=="vagas")) | "\(.teams.alfa.via)|\(.labels.p2.short.pt != null)|\(.labels["country-part"].short.en)"' <<<"$PUB2")" "p2|true|country" "público: vias e rótulos do catálogo e da config"
+# via_order no apply (com o estágio já publicado e os overrides): a ordem do estágio segue a da config
+calla POST "$(jq -cn --argjson l "$LBL" '{action:"apply", stage:"vagas", config:{algorithm:"manual", slots:5, labels:$l, via_order:["p2","country-part"]}}')"
+eqk "$(J '.applied')" "true" "apply com via_order"
+eqk "$(vst '"\(.via_order[0:4] | join(","))|\(.overrides | length)|\(.teams.alfa.via)"')" "p2,country-part,manual,pend|3|p2" "estágio: via_order da config + overrides mantidos"
+calla POST "$(jq -cn --argjson l "$LBL" '{action:"apply", stage:"vagas", config:{algorithm:"manual", slots:5, labels:$l, via_order:["zzz"]}}')"
+eqk "$(J '.error.code')" "config_invalid" "apply com via_order inválida = 422 config_invalid"
 # relatório (classificados.html): o short certo de cada time
 if ( cd "$ROOT/score" && CONTESTSDIR="$FIX" bash report-gen.sh sel "$FIX/rep" >/dev/null 2>&1 ) && [[ -s "$FIX/rep/classificados.html" ]]; then
   grep -q "país" "$FIX/rep/classificados.html" && grep -qF "$(jq -r '.vias.p2.short.pt' "$ROOT/score/classify-catalog.json")" "$FIX/rep/classificados.html" && ok \
     || bad "classificados.html sem o rótulo da via (config/catálogo)"
+  P2="$(grep -bo "$(jq -r '.vias.p2.pt' "$ROOT/score/classify-catalog.json")" "$FIX/rep/classificados.html" | head -1 | cut -d: -f1)"
+  CP="$(grep -bo "Participação do país" "$FIX/rep/classificados.html" | head -1 | cut -d: -f1)"
+  [[ -n "$P2" && -n "$CP" ]] && (( P2 < CP )) && ok || bad "classificados.html fora da via_order (p2=$P2 country-part=$CP)"
 else bad "report-gen não gerou classificados.html no fixture"; fi
 
 echo "smoke-classify-manual: PASS=$PASS FAIL=$FAIL"

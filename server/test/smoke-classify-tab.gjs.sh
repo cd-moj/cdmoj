@@ -145,6 +145,12 @@ const val = (n) => (n._v != null ? n.value : (n.attrs.value || ''));   // el() g
   POSTS.length = 0; if (rs) { rs.value = 'country-part'; rs.onchange(); for (let k = 0; k < 4; k++) await null; }
   print('post_relabel=' + JSON.stringify(POSTS[0]));
   print('man_form=' + m.find('label').map(txt).some((t) => t.startsWith('Quantos times serão promovidos')) + ',' + m.find('label').map(txt).some((t) => t.startsWith('Próxima fase')));
+  // o formulário do motor manual só edita slots: labels/via_order da config seguem no ✔ Salvar (antes: montava do zero)
+  POSTS.length = 0;
+  const slotsIn = m.find('label', (l) => txt(l).startsWith('Quantos times serão promovidos'))[0].find('input')[0];
+  slotsIn.value = '3';
+  m.find('button', (b) => txt(b).startsWith('✔ Salvar'))[0].ev.click(); for (let k = 0; k < 6; k++) await null;
+  print('man_cfg_kept=' + JSON.stringify((POSTS.find((x) => x.action === 'apply') || {}).config));
   // cheio: 2 de 2 ⇒ sem botão de promover
   GET = { stages:[mstage([{login:'beta', via:'manual', manual:true, override:'ov-1'}, {login:'alfa', via:'manual', manual:true, override:'ov-2'}])], algorithms:[BR, MAN], vias:L, manual_vias:['manual'] };
   const tab5 = makeClassifyTab('sel'); await tab5.load();
@@ -187,6 +193,7 @@ check "$(kv post_man)" '{"stage":"seletiva","action":"add","login":"alfa","reaso
 check "$(kv man_vias)" "manual,lista,reserva,regra1,regra2,country-part" "manual: via do add = manual_vias + catálogo (sem comite) + config.labels"
 check "$(kv relabel_init)" "manual" "relação: a promoção mostra a via atual num seletor"
 check "$(kv post_relabel)" '{"stage":"seletiva","action":"relabel","id":"ov-1","via":"country-part"}' "relação: trocar a via = relabel (sem desfazer)"
+check "$(kv man_cfg_kept)" '{"algorithm":"manual","slots":3,"labels":{"country-part":{"pt":"Participação do país","short":{"pt":"país"}}}}' "manual: salvar o formulário mantém as labels da config"
 check "$(kv post_man_via)" '{"stage":"seletiva","action":"add","login":"alfa","reason":"campeã da seletiva","via":"country-part"}' "manual: a via escolhida vai no add"
 check "$(kv man_form)" "true,true" "manual: formulário com o nº de vagas e a próxima fase"
 check "$(kv full_btns)" "0,true" "manual: vagas cheias = sem botão, com o aviso"

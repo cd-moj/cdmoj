@@ -9,16 +9,19 @@
 #   classify-manual.sh <contest> <config.json> [out]
 #   classify-manual.sh --check <config.json>          (rc 0 | rc 2 + {errors})
 # config: {slots: N (≥ 0), ranking_limit?: 500, exclude?: [login], preassigned?: [{login}],
-#          labels?: {"<via>": {pt, en, es, short:{pt, en, es}} | "texto"}}
+#          labels?: {"<via>": {pt, en, es, short:{pt, en, es}} | "texto"}, via_order?: ["<via>", …]}
 # saída:  {classified:[] (nada é automático), ranking:[{place, login, team, univ, total, penalty, flag}] (o placar
 #          OFICIAL, sem convidados e sem os excluídos, até ranking_limit linhas), slots, pre:[…], blocks, warnings,
 #          labels (a via `manual` aqui é "promovido pela organização", não "comitê") + os `labels` da config,
-#          via_order = ["manual"] + as vias da config, na ordem}
+#          via_order = a `via_order` da config (se houver) e depois ["manual"] + as vias da `labels`, na ordem, sem repetir}
 # VIAS COM RÓTULO (09/11/2026, finais LATAM: o motivo PÚBLICO das 80 vagas da pda era "organizers' choice" em todas):
 # `labels` define vias NOVAS (id ^[a-z0-9-]{1,32}$, rótulo pela regra do label_ok do classify-pda.sh) que o `add` do
 # handler aceita num estágio deste motor, junto das manual_vias e das vias do CATÁLOGO (p1–p4, fem-*…). Não redefine
 # as reservadas (manual|lista|reserva|comite) nem as do catálogo — o rótulo delas vem de lá (lidas do catálogo aqui,
 # nunca uma lista à mão).
+# `via_order` (opcional, 09/11/2026: as seções do relatório na ordem do PDF da LATAM) = a ORDEM das vias na relação,
+# no chip e no classificados.html. Cada via tem de ser aceita pelo `add` deste estágio (manual_vias, catálogo menos
+# `comite`, chaves da `labels`), sem repetir, até 100. O que ficar de fora vem depois, como sem ela.
 set -u
 HERE="$(cd "$(dirname "$(readlink -f "$0")")" && pwd)"
 mn_check(){
@@ -37,6 +40,16 @@ mn_check(){
                 | if (.key | test("^[a-z0-9-]{1,32}$")) | not then "labels.\(.key): id de via = minúsculas, dígitos e -, até 32"
                   elif ($reserved | index($k)) != null then "labels.\(.key): via reservada ou do catálogo (o rótulo vem de lá)"
                   elif .value == null or ((.value | label_ok) | not) then "labels.\(.key): rótulo = texto ou {pt,en,es,short}"
+                  else empty end) end)
+       else empty end),
+      (if has("via_order") then
+         (if (.via_order | type) != "array" then "via_order: lista de vias"
+          elif (.via_order | length) > 100 then "via_order: no máximo 100 vias"
+          elif (.via_order | length) != (.via_order | unique | length) then "via_order: via repetida"
+          else ((($cat[0].manual_vias // []) + ((($cat[0].vias // {}) | keys) - ["comite"])
+                 + ((.labels // {}) | if type == "object" then keys else [] end)) as $ok
+                | .via_order[] | . as $v
+                | if (type != "string") or (($ok | index($v)) == null) then "via_order: \(tostring) não é uma via aceita no add (manual_vias, catálogo sem comite ou config.labels)"
                   else empty end) end)
        else empty end)
     ] end' "$1" 2>/dev/null || printf '["config não é JSON válido"]'
@@ -72,7 +85,8 @@ jq -Rn --arg contest "$C" --slurpfile cfg "$CFG" --rawfile rk "$W/rank.tsv" --ra
      classified:[], total:0, ranking:$R[0:$lim],
      pre:[ $P[] | select($byl[.] != null) | $byl[.] | {login, place, total, team, univ} ],
      blocks:[{id:"manual", type:"manual", slots:$cfg[0].slots, used:($P | length)}],
-     via_order:(["manual"] + (($cfg[0].labels // {}) | keys_unsorted)),
+     via_order:((($cfg[0].via_order // []) + ["manual"] + (($cfg[0].labels // {}) | keys_unsorted))
+                | reduce .[] as $v ([]; if any(.[]; . == $v) then . else . + [$v] end)),
      labels:({manual:{pt:"Promovido pela organização", en:"Promoted by the organizers", es:"Promovido por la organización",
                       short:{pt:"escolha da organização", en:"organizers\u0027 choice", es:"elección de la organización"}}}
              + ($cfg[0].labels // {})),

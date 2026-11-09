@@ -75,6 +75,11 @@ escolhe quem sobe.
     `lista`, `reserva` ou `comite` (o `--check` recusa: o rótulo delas é o do catálogo).
 - O motor põe os rótulos da config no `labels` do estágio e as vias no `via_order`, depois de `manual`, na ordem da
   config. Sem `labels`, a saída é a de antes.
+- **`config.via_order`** (opcional): a ordem das seções na relação, no chip e no `classificados.html` (ex.: a do PDF
+  da LATAM: P1–P4, femininas, blocos da edição, reservas). Cada via tem de ser aceita pelo `add` deste estágio, sem
+  repetir, até 100. Fora disso, o `--check` recusa (422 `config_invalid`). O que ficar de fora vem depois, na ordem de
+  sempre.
+- O formulário do painel só edita `slots`: o resto da config (`labels`, `via_order`…) segue junto ao salvar.
 - Via errada numa promoção: `relabel {id, via}` troca só a via (ver a tabela de overrides). No painel, o seletor na
   linha do time promovido faz isso.
 

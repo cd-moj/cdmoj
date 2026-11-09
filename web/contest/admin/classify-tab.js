@@ -392,7 +392,9 @@ export function makeClassifyTab(CONTEST) {
       getCfg = () => {
         const v = fSlots.value.trim();
         if (!/^[0-9]+$/.test(v)) throw new Error(T('Informe quantos times serão promovidos.', 'Enter how many teams will be promoted.', 'Indica cuántos equipos serán promovidos.'));
-        return { algorithm: algId, slots: Number(v) };
+        // o formulário só edita `slots`: o resto da config do estágio (labels, via_order, ranking_limit…) segue junto —
+        // montar do zero apagava as vias com rótulo ao salvar (09/11/2026)
+        return Object.assign({}, cur || {}, { algorithm: algId, slots: Number(v) });
       };
       formBox.append(el('div', { class: 'row', style: 'gap:.6rem;flex-wrap:wrap;align-items:center;margin:.4rem 0' },
         el('label', {}, T('Quantos times serão promovidos: ', 'How many teams will be promoted: ', 'Cuántos equipos serán promovidos: '), fSlots)));
