@@ -360,6 +360,13 @@ sed -i '/^LOGIN_START_TIME=/d' "$C/conf"; printf 'LOGIN_START_TIME=%s\n' "$((NOW
 check "abre DEPOIS do fim (o caso do warmup) => fail"           '[[ "$(lvl login_open)" == fail && "$(det login_open)" == *"NENHUM time entra"* ]]'
 printf 'LOGIN_ENABLED=n\n' >> "$C/conf"; run
 check "login desligado em Regras => warn (vence a abertura)"   '[[ "$(lvl login_open)" == warn && "$(det login_open)" == *"nenhum time entra"* ]]'
+sed -i '/^LOGIN_START_TIME=/d' "$C/conf"; run
+check "fechado à mão com a prova no ar => FAIL (LATAM 07/11)"  '[[ "$(lvl login_open)" == fail && "$(det login_open)" == *"NÃO reabre"* ]]'
+cp "$C/conf" "$FIX/conf.bk2"; sed -i "s/^CONTEST_START=.*/CONTEST_START=$((NOW+1800))/; s/^CONTEST_END=.*/CONTEST_END=$((NOW+9000))/" "$C/conf"; run
+check "fechado, abre em 30 min => FAIL"                        '[[ "$(lvl login_open)" == fail ]]'
+sed -i "s/^CONTEST_START=.*/CONTEST_START=$((NOW+7200))/" "$C/conf"; run
+check "fechado, abre em 2 h => warn (ainda dá tempo)"          '[[ "$(lvl login_open)" == warn && "$(det login_open)" == *"não reabre"* ]]'
+cp "$FIX/conf.bk2" "$C/conf"
 sed -i '/^LOGIN_START_TIME=/d; /^LOGIN_ENABLED=/d' "$C/conf"
 cp "$C/conf" "$FIX/conf.bak"; sed -i "s/^CONTEST_START=.*/CONTEST_START=$((NOW-7200))/; s/^CONTEST_END=.*/CONTEST_END=$((NOW-3600))/" "$C/conf"
 printf 'LOGIN_START_TIME=%s\n' "$((NOW+4200))" >> "$C/conf"; run

@@ -65,6 +65,9 @@ mkses st1 s1.staff "Moz"; mkses cs1 cs.cstaff "Moz"; mkses tv1 tv.animeitor "Moz
 mkses a4 alice "Moz"; mkses d2 dave "Moz"
 call /contest/admin/logout-all GET '' adm 'contest=uc'
 ck "GET: login aberto, contagens por classe" '[[ "$(jq -r .login_enabled <<<"$BODY")" == true && "$(jq -r .sessions.staff <<<"$BODY")" == 2 && "$(jq -r .sessions.competitors <<<"$BODY")" -ge 2 ]]'
+printf 'CONTEST_START=1790000000\n' >> "$C/conf"; call /contest/admin/logout-all GET '' adm 'contest=uc'
+ck "GET: start = o CONTEST_START (o aviso do login fechado à mão)" '[[ "$(jq -r .start <<<"$BODY")" == 1790000000 ]]'
+sed -i '/^CONTEST_START=/d' "$C/conf"
 call /contest/admin/logout-all POST '{"scope":"competitors","close_login":true}' adm 'contest=uc'
 ck "competidores fora, staff e privilegiados FICAM, login fechado" '[[ "$(jq -r .competitors <<<"$BODY")" -ge 2 && "$(jq -r .staff <<<"$BODY")" == 0 && "$(jq -r .login_enabled <<<"$BODY")" == false && ! -f "$SESS/a4" && ! -f "$SESS/d2" && -f "$SESS/st1" && -f "$SESS/cs1" && -f "$SESS/tv1" && -f "$SESS/mo1" && -f "$SESS/jx1" && -f "$SESS/cj1" && -f "$SESS/adm" ]]'
 ck "LOGIN_ENABLED=n no conf; audit logout-all" 'grep -q "^LOGIN_ENABLED=n$" "$C/conf" && grep -q "	logout-all	scope=competitors competitors=" "$C/var/admin-audit.log" && grep -q "login=closed" "$C/var/admin-audit.log"'

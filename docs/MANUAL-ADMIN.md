@@ -792,7 +792,10 @@ identificada o painel avisa e mostra só as sessões e o log de acessos.
   (competidor recebe 403 `login_disabled`; a organização entra), **deslogar competidores**, **staff e
   chefes de sede** ou os dois (nunca admin, juízes, chefe, monitor nem telão), promover a rodada em
   Evento › Rodadas, e **reabrir o login** quando os times puderem entrar. Cada sessão derrubada vira
-  evento na linha do tempo; a ação vai ao audit (`logout-all`).
+  evento na linha do tempo; a ação vai ao audit (`logout-all`). Atenção: o login fechado aqui só volta
+  quando alguém clicar em **Reabrir login**. A abertura programada (a do login ou o início da rodada)
+  **não** o reabre. Com o login fechado, a tela mostra a hora da abertura num aviso, e o checklist
+  pré-prova fica vermelho a 1 h dela (LATAM 2026: 408 logins recusados até alguém reabrir).
 - **🔒 Trava de sede**: os IPs presos a esta prova (logins, bloqueios, até quando), os bloqueios
   registrados (quando, IP, alvo, rota, sessão) e os botões **soltar** e **prender IPs já vistos**.
   O cartão "bloqueios da trava" e os eventos 🔒 da linha do tempo vêm do audit. A seção 7 explica.

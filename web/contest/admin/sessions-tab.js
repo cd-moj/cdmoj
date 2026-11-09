@@ -12,6 +12,7 @@ import { apiGet, apiPost } from '/shared/api.js';
 import { fmtDate, todayStr, stamp, toCsv, downloadText, swapIf, sigOf, everyVisible } from '/shared/admin-ui.js';
 import { T, uiLocale } from '/shared/i18n.js';
 import { REFRESH_MS, mk, makeLogoutUser } from './sessions-common.js';
+import { serverNow } from '/shared/server-clock.js';   // a hora da abertura × o relógio do SERVIDOR
 
 const enc = encodeURIComponent;
 
@@ -47,6 +48,18 @@ export function makeSessionsTab(CONTEST, opts = {}) {
     const waitsStart = st.login_enabled !== false && !open;
     const msg = el('span', { class: 'small' });
     const closeChk = el('input', { type: 'checkbox', checked: true });
+    // FECHADO À MÃO: a abertura programada (login_start, ou o início) NÃO reabre — LATAM 07/11/2026
+    const openAt = Number(st.login_start) > 0 ? Number(st.login_start) : (Number(st.start) || 0);
+    const fmtAt = (e) => new Date(e * 1000).toLocaleString(uiLocale());
+    const closedNote = (st.login_enabled === false && openAt > 0 && openAt > serverNow() - 6 * 3600)
+      ? el('div', { class: 'alert', style: 'margin:.3rem 0' },
+          T(`⚠ O login está FECHADO à mão. A abertura das ${fmtAt(openAt)} NÃO o reabre: clique em 🔓 Reabrir login quando os times puderem entrar.`,
+            `⚠ The login is CLOSED by hand. The opening at ${fmtAt(openAt)} does NOT reopen it: click 🔓 Reopen login when the teams may enter.`,
+            `⚠ El login está CERRADO a mano. La apertura de las ${fmtAt(openAt)} NO lo reabre: haz clic en 🔓 Reabrir login cuando los equipos puedan entrar.`))
+      : '';
+    const closeWarn = T(' Atenção: o login só volta quando alguém clicar em Reabrir login — a abertura programada não o reabre.',
+      ' Warning: the login comes back only when someone clicks Reopen login — the scheduled opening does not reopen it.',
+      ' Atención: el login vuelve solo cuando alguien haga clic en Reabrir login — la apertura programada no lo reabre.');
     const run = async (body, label) => {
       if (!confirm(label)) return;
       msg.textContent = '…';
@@ -62,7 +75,7 @@ export function makeSessionsTab(CONTEST, opts = {}) {
       Object.assign({ scope }, closeChk.checked ? { close_login: true } : {}),
       T(`Deslogar ${label} agora${closeChk.checked ? ' e FECHAR o login' : ''}? Eles voltam só quando o login estiver aberto.`,
         `Log out ${label} now${closeChk.checked ? ' and CLOSE login' : ''}? They come back only once login is open.`,
-        `¿Desconectar a ${label} ahora${closeChk.checked ? ' y CERRAR login' : ''}? Vuelven solo cuando el login esté abierto.`)) }, label);
+        `¿Desconectar a ${label} ahora${closeChk.checked ? ' y CERRAR login' : ''}? Vuelven solo cuando el login esté abierto.`) + (closeChk.checked ? closeWarn : '')) }, label);
     const s = st.sessions || {};
     box.append(
       el('p', { class: 'small muted', style: 'margin:.1rem 0 .4rem' },
@@ -76,14 +89,15 @@ export function makeSessionsTab(CONTEST, opts = {}) {
         el('span', { class: 'small muted' }, T(`sessões: ${s.competitors || 0} competidores · ${s.staff || 0} staff/cstaff · ${s.privileged || 0} organização`,
           `sessions: ${s.competitors || 0} competitors · ${s.staff || 0} staff/cstaff · ${s.privileged || 0} organization`,
           `sesiones: ${s.competitors || 0} competidores · ${s.staff || 0} staff/cstaff · ${s.privileged || 0} organización`)),
-        open ? el('button', { class: 'btn ghost', onclick: () => run({ close_login: true }, T('Fechar o login (sem derrubar ninguém)?', 'Close login (without logging anyone out)?', '¿Cerrar login (sin desconectar a nadie)?')) }, T('🔒 Fechar login', '🔒 Close login', '🔒 Cerrar login'))
+        open ? el('button', { class: 'btn ghost', onclick: () => run({ close_login: true }, T('Fechar o login (sem derrubar ninguém)?', 'Close login (without logging anyone out)?', '¿Cerrar login (sin desconectar a nadie)?') + closeWarn) }, T('🔒 Fechar login', '🔒 Close login', '🔒 Cerrar login'))
           : el('button', { class: 'btn', onclick: () => run({ open_login: true }, T('Reabrir o login para os times?', 'Reopen login for the teams?', '¿Reabrir login para los equipos?')) }, T('🔓 Reabrir login', '🔓 Reopen login', '🔓 Reabrir login'))),
       el('div', { class: 'row', style: 'gap:.6rem;align-items:center;flex-wrap:wrap;margin-top:.4rem' },
         scopeBtn('competitors', T('competidores', 'competitors', 'competidores'), T('toda conta que não é de papel', 'every non-role account', 'toda cuenta que no es de rol')),
         scopeBtn('staff', T('staff e chefes de sede', 'staff and site chiefs', 'staff y jefes de sede'), '.staff + .cstaff'),
         scopeBtn('all', T('competidores + staff', 'competitors + staff', 'competidores + staff'), ''),
         el('label', { class: 'small', style: 'display:inline-flex;gap:.3rem;align-items:center' }, closeChk, T('e fechar o login junto', 'and close login as well', 'y cerrar login también')),
-        msg));
+        msg),
+      closedNote);
     return box;
   }
 

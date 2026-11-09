@@ -6869,7 +6869,7 @@
         "tags": ["contest"],
         "summary": "Sair em massa + trava de login (admin): estado do login e sessões por classe",
         "parameters": [{"name": "contest", "in": "query", "required": true, "schema": {"type": "string"}}],
-        "responses": {"200": {"description": "{login_enabled, sessions:{competitors,staff,privileged}}"}, "403": {"description": "admin_required"}}
+        "responses": {"200": {"description": "{login_enabled, login_start, start, login_open_now, sessions:{competitors,staff,privileged}} — start = CONTEST_START: com o login fechado à mão a abertura NÃO o reabre"}, "403": {"description": "admin_required"}}
       },
       "post": {
         "tags": ["contest"],

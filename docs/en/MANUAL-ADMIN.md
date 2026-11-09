@@ -1,4 +1,4 @@
-<!-- i18n-source: MANUAL-ADMIN.md blob:9c0e93f3945eb01d6098a41b97ca4ca3e0cf4fc9 -->
+<!-- i18n-source: MANUAL-ADMIN.md blob:97147a182b2944e3758375791bff972aef57dd86 -->
 # MOJ: Organizer manual (the contest .admin panel)
 
 > **Translation note.** This manual is a translation of the Portuguese original. The command-line tools (`moj`, `moj-contest`, `moj-comp`) print their messages in Portuguese, and the command examples below are identical to the original.
@@ -842,7 +842,11 @@ a warning and shows only the sessions and the access log.
   competitor gets 403 `login_disabled`; the organization gets in). **Log out competitors**, **staff
   and site chiefs** or both (never admin, judges, chief judge, monitor or big screen). Promote the
   round in Event › Rounds. Then **reopen login** when the teams can get in. Each ended session
-  becomes an event in the timeline; the action goes to the audit (`logout-all`).
+  becomes an event in the timeline; the action goes to the audit (`logout-all`). Warning: a login
+  closed here comes back only when someone clicks **Reopen login**. The scheduled opening (the login
+  opening or the start of the round) does **not** reopen it. While the login is closed, the screen
+  shows the opening time in a warning, and the pre-contest checklist turns red 1 h before it (LATAM
+  2026: 408 logins were refused until someone reopened it).
 - **🔒 Site lock**: the IPs pinned to this contest (logins, blocks, until when), the recorded
   blocks (when, IP, target, route, session) and the **release** and **🔒 Pin IPs already seen**
   buttons. The "lock blocks" card and the 🔒 events of the timeline come from the audit. Section 7

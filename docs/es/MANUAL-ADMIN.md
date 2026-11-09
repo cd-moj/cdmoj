@@ -1,4 +1,4 @@
-<!-- i18n-source: MANUAL-ADMIN.md blob:9c0e93f3945eb01d6098a41b97ca4ca3e0cf4fc9 -->
+<!-- i18n-source: MANUAL-ADMIN.md blob:97147a182b2944e3758375791bff972aef57dd86 -->
 # MOJ: Manual del organizador (el panel .admin de la competencia)
 
 > **Nota de traducción.** Este manual es una traducción del original en portugués. Las herramientas de línea de comandos (`moj`, `moj-contest`, `moj-comp`) muestran sus mensajes en portugués, y los ejemplos de comandos son idénticos al original.
@@ -807,7 +807,11 @@ panel avisa y muestra solo las sesiones y el registro de accesos.
   (el competidor recibe 403 `login_disabled`; la organización entra), **desconectar a los competidores**, al **staff y
   jefes de sede** o a los dos (nunca al admin, los jueces, el juez principal, el monitor ni la pantalla), promover la ronda en
   Evento › Rondas, y **reabrir el login** cuando los equipos puedan entrar. Cada sesión cerrada se convierte en
-  un evento en la línea de tiempo; la acción va a la auditoría (`logout-all`).
+  un evento en la línea de tiempo; la acción va a la auditoría (`logout-all`). Atención: el login cerrado
+  aquí vuelve solo cuando alguien hace clic en **Reabrir login**. La apertura programada (la del login o
+  el inicio de la ronda) **no** lo reabre. Con el login cerrado, la pantalla muestra la hora de la apertura
+  en un aviso, y el checklist previo a la competencia se pone rojo 1 h antes (LATAM 2026: 408 inicios de
+  sesión rechazados hasta que alguien lo reabrió).
 - **🔒 Bloqueo de sede**: los IP fijados a esta competencia (inicios de sesión, bloqueos, hasta cuándo), los bloqueos
   registrados (cuándo, IP, destino, ruta, sesión) y los botones **soltar** y **🔒 Fijar IPs ya vistos**.
   La tarjeta "bloqueos del bloqueo de sede" y los eventos 🔒 de la línea de tiempo vienen de la auditoría. La sección 7 lo explica.

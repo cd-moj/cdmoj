@@ -129,13 +129,25 @@ if [[ "$CONTEST_START" =~ ^[0-9]+$ && "$CONTEST_END" =~ ^[0-9]+$ ]] \
    && (( CONTEST_START > 0 && CONTEST_END > CONTEST_START && EPOCHSECONDS < CONTEST_END )); then
   _ls_s="$(fmt_epoch "$_ls" '%d/%m %H:%M' "$contest")"
   _st_s="$(fmt_epoch "$CONTEST_START" '%d/%m %H:%M' "$contest")"; _en_s="$(fmt_epoch "$CONTEST_END" '%d/%m %H:%M' "$contest")"
-  if [[ "${LOGIN_ENABLED:-}" == n ]]; then
+  # LOGIN FECHADO À MÃO perto da abertura = FAIL (LATAM 07/11/2026: o "sair de todos + fechar login" das 15:03 seguia
+  # valendo às 16:50 e 408 logins foram recusados até alguém reabrir). A abertura programada NÃO reabre um login fechado
+  # à mão (LOGIN_ENABLED=n é absoluto) — o aviso tem de dizer isso com a hora, e virar vermelho a 1 h dela.
+  _open_at=$(( _ls > 0 ? _ls : CONTEST_START ))
+  if [[ "${LOGIN_ENABLED:-}" == n ]] && (( _open_at <= EPOCHSECONDS + 3600 )); then
+    _oa_s="$(fmt_epoch "$_open_at" '%d/%m %H:%M' "$contest")"
+    add3 login_open fail "Login dos times FECHADO à mão" \
+      "o login está fechado (Regras › Login habilitado, ou o \"fechar o login\" de Pessoas › Sessões) e a abertura é $_oa_s: a abertura NÃO reabre um login fechado à mão. Nenhum time entra até alguém clicar em Reabrir login" \
+      "Team login CLOSED by hand" \
+      "the login is closed (Rules › Login enabled, or the \"close login\" of People › Sessions) and the opening is $_oa_s: the opening does NOT reopen a login closed by hand. No team can log in until someone clicks Reopen login" \
+      "Inicio de sesión de los equipos CERRADO a mano" \
+      "el login está cerrado (Reglas › Inicio de sesión habilitado, o el \"cerrar login\" de Personas › Sesiones) y la apertura es $_oa_s: la apertura NO reabre un login cerrado a mano. Ningún equipo entra hasta que alguien haga clic en Reabrir login"
+  elif [[ "${LOGIN_ENABLED:-}" == n ]]; then
     add3 login_open warn "Login dos times fechado" \
-      "\"Login habilitado\" está desligado em Regras: nenhum time entra (quem já entrou continua; contas de organização entram)" \
+      "\"Login habilitado\" está desligado em Regras: nenhum time entra (quem já entrou continua; contas de organização entram). A abertura programada não reabre: reabra à mão antes dela" \
       "Team login closed" \
-      "\"Login enabled\" is off in Rules: no team can log in (teams already in stay; organization accounts can log in)" \
+      "\"Login enabled\" is off in Rules: no team can log in (teams already in stay; organization accounts can log in). The scheduled opening does not reopen it: reopen it by hand before then" \
       "Inicio de sesión de los equipos cerrado" \
-      "\"Inicio de sesión habilitado\" está desactivado en Reglas: ningún equipo entra (quien ya entró sigue; las cuentas de la organización entran)"
+      "\"Inicio de sesión habilitado\" está desactivado en Reglas: ningún equipo entra (quien ya entró sigue; las cuentas de la organización entran). La apertura programada no lo reabre: reábrelo a mano antes de ella"
   elif (( _ls == 0 )); then
     add3 login_open ok "Abertura do login" "sem horário próprio: os times entram a partir do início ($_st_s)" \
       "Login opening" "no time of its own: teams can log in from the start ($_st_s)" \

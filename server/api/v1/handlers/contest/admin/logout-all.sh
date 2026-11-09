@@ -48,8 +48,11 @@ if [[ "$REQUEST_METHOD" == GET ]]; then
   le=false; _login_enabled && le=true
   # a abertura do login (LOGIN_START_TIME) também fecha a porta p/ os times — a pílula dizia "ABERTO" antes dela
   ls_at="$(conf_value "$contest" LOGIN_START_TIME)"; ls_at="${ls_at//[^0-9]/}"; ls_at="${ls_at:-0}"
-  ok_json '{login_enabled:$le, login_start:$ls, login_open_now:($le and ($ls == 0 or $ls <= now)), sessions:{competitors:$c, staff:$s, privileged:$p}}' \
-    --argjson le "$le" --argjson c "$nc" --argjson s "$ns" --argjson p "$np" --argjson ls "$ls_at"
+  # `start` (o início da rodada ativa): com o login FECHADO à mão, a tela diz que a abertura (login_start ou start) NÃO
+  # o reabre — LATAM 07/11/2026, 408 logins recusados na abertura até alguém reabrir
+  st_at="$(conf_value "$contest" CONTEST_START)"; st_at="${st_at//[^0-9]/}"; st_at="${st_at:-0}"
+  ok_json '{login_enabled:$le, login_start:$ls, start:$st, login_open_now:($le and ($ls == 0 or $ls <= now)), sessions:{competitors:$c, staff:$s, privileged:$p}}' \
+    --argjson le "$le" --argjson c "$nc" --argjson s "$ns" --argjson p "$np" --argjson ls "$ls_at" --argjson st "$st_at"
   exit 0
 fi
 
