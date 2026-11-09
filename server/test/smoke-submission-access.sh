@@ -49,4 +49,20 @@ ck "POST com allow_late: 200, ignorado, e a linha ALLOWLATEUSER legada SAIU do c
 call outro /submission/source "id=$SID";   ck "…e continua fechado depois do POST" '[[ "$OUT" == *"Status: 403"* ]]'
 call dona /contest/userinfo "";            ck "userinfo sem show_code" '[[ "$OUT" == *"Status: 200"* && "$(jq -r "has(\"show_code\")" <<<"$BODY")" == false ]]'
 call sa.admin /contest/admin/preflight ""; ck "preflight sem a checagem show_code" '[[ "$OUT" == *"Status: 200"* && "$(jq -r "[.checks[]?.id]|index(\"show_code\")" <<<"$BODY")" == null ]]'
+
+echo "== envio de RODADA ARQUIVADA (a promoção move o aquecimento p/ rounds/<slug>/users) =="
+SID2=fedcba9876543210fedcba9876543210; A="$C/rounds/aq1/users/dona"
+mkdir -p "$A/submissions" "$A/mojlog" "$A/results"
+printf 'int main(){/*AQUECIMENTO_DA_DONA*/}\n' > "$A/submissions/$SID2.c"
+printf '<h1>REPORT_AQUECIMENTO</h1>' | gzip -c > "$A/mojlog/$SID2.html.gz"
+printf '{"verdict":"Wrong Answer","verdict_canon":"Wrong Answer","score":0,"score_max":100,"correct":0,"total_tests":5}' > "$A/results/$SID2.json"
+printf '%s:col#pa:C:Wrong Answer:%s:%s\n' "$NOW" "$NOW" "$SID2" > "$C/rounds/aq1/users/dona/history"
+call sa.judge /submission/source "id=$SID2";  ck "juiz: fonte do aquecimento arquivado"  '[[ "$OUT" == *AQUECIMENTO_DA_DONA* ]]'
+call sa.judge /submission/log "id=$SID2";     ck "juiz: report do aquecimento arquivado" '[[ "$OUT" == *"Status: 200"* ]]'
+call sa.judge /submission/summary "ids=$SID2"; ck "juiz: resumo do aquecimento arquivado" '[[ "$(jq -r ".[\"$SID2\"].verdict_canon // .[\"$SID2\"].verdict" <<<"$BODY")" == "Wrong Answer" ]]'
+call dona /submission/source "id=$SID2";      ck "dona: o próprio fonte arquivado"       '[[ "$OUT" == *AQUECIMENTO_DA_DONA* ]]'
+call outro /submission/source "id=$SID2";     ck "outro time: fonte arquivado 403"       '[[ "$OUT" == *"Status: 403"* && "$OUT" != *AQUECIMENTO_DA_DONA* ]]'
+call outro /submission/log "id=$SID2";        ck "outro time: report arquivado 403"      '[[ "$OUT" == *"Status: 403"* && "$OUT" != *REPORT_AQUECIMENTO* ]]'
+call sa.admin /contest/rejudge "" POST "{\"ids\":[\"$SID2\"]}"
+ck "rejulgar NÃO alcança a rodada arquivada (pulado)" '[[ "$OUT" == *"$SID2:sem_history"* ]]'
 echo; echo "RESULT: $pass passed, $fail failed"; (( fail == 0 ))

@@ -16,7 +16,7 @@ sid="$(param id)"
   || fail 400 "Invalid submission id" "id_invalid"
 
 set +o noglob; shopt -s nullglob
-resolve_submission "$contest" "$sid"     # store-v2 (users/<owner>/...) ou legado (flat)
+resolve_submission "$contest" "$sid" rounds   # store-v2 (users/<owner>/...) ou legado; também o aquecimento arquivado
 shopt -u nullglob
 [[ -n "$SUB_SRC" && -f "$SUB_SRC" ]] || fail 404 "Submission source not found" "source_notfound"
 src="$SUB_SRC"; owner="$SUB_OWNER"

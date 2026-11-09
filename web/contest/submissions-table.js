@@ -11,7 +11,7 @@
 // `onLoaded(submissions)` avisa quem precisa da lista (a página principal re-tinge os problemas).
 import { apiGet, apiGetText, getToken } from '/shared/api.js';
 import { el, verdictClass, isPending, fmtDate, resumoText } from '/shared/ui.js';
-import { openHtmlReport } from '/shared/submission-links.js';
+import { openReportAuthed as openReportFor } from '/shared/submission-links.js';
 import { swapIf, sigOf } from '/shared/admin-ui.js';
 import { T } from '/shared/i18n.js';
 import { serverNow, serverNowMs } from '/shared/server-clock.js';   // contagem pelo relógio do SERVIDOR (shared/server-clock.js)
@@ -49,12 +49,8 @@ export function makeSubmissionsTable({ contest, basic, problems, userinfo, filte
       document.body.append(a); a.click(); a.remove();
     } catch { alert(T('Falha ao baixar arquivo/log.', 'Failed to download file/log.', 'No se pudo descargar el archivo/registro.')); }
   }
-  async function openReportAuthed(path) {
-    try {
-      const r = await fetch('/api/v1' + path, { headers: { Authorization: 'Bearer ' + getToken(contest) } });
-      openHtmlReport(await r.text());
-    } catch { alert(T('Falha ao abrir o report.', 'Failed to open the report.', 'No se pudo abrir el informe.')); }
-  }
+  // a janela abre NO CLIQUE e o erro da API aparece nela (shared/submission-links.js)
+  const openReportAuthed = (path) => openReportFor(contest, path);
 
   // EM LUGAR (regra da casa): o poll (5–10 s com pendente) só troca o DOM quando a ASSINATURA
   // do que aparece muda — filtro/ordenação/linhas — senão o clique do time no chip ou no

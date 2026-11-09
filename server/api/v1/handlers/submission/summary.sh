@@ -48,7 +48,7 @@ for sid in "${IDS[@]}"; do
     rf="$cdir/users/$SESSION_LOGIN/results/$sid.json"
     [[ -f "$rf" ]] || continue
   else
-    resolve_submission "$contest" "$sid"   # juiz/admin: o dono pode ser qualquer conta
+    resolve_submission "$contest" "$sid" rounds   # juiz/admin: o dono pode ser qualquer conta (e a rodada arquivada)
     rf="$SUB_RESULT"
     [[ -n "$rf" && -f "$rf" ]] || continue
   fi

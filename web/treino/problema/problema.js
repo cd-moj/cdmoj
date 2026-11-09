@@ -5,7 +5,7 @@ import { el, verdictClass, isPending, fmtDate, renderAuthArea, resumoText } from
 import { createEditor } from '/shared/editor.js';
 import { skeletonFor, isSkeleton, docOnLangChange } from '/shared/editor-skeleton.js';
 import { DEFAULT_SUBMIT_LANGUAGES, langById, extCanon } from '/shared/languages.js';
-import { openHtmlReport } from '/shared/submission-links.js';
+import { openReportAuthed as openReportFor } from '/shared/submission-links.js';
 import { T } from '/shared/i18n.js';
 import { tlClockBadge } from '/shared/tl-clock.js';
 import { makeSubmitFlow, attachSubmitButton, lastSubKey } from '/shared/submit-ux.js';
@@ -189,12 +189,8 @@ async function downloadAuthed(path, filename) {
 
 // abre o report.html do julgamento numa aba nova (openHtmlReport: blob, nunca srcdoc — ver
 // shared/submission-links.js; é o que faz as âncoras dos casos de teste rolarem).
-async function openReportAuthed(path) {
-  try {
-    const r = await fetch('/api/v1' + path, { headers: { 'Authorization': 'Bearer ' + getToken(CONTEST) } });
-    openHtmlReport(await r.text());
-  } catch { alert(T('Falha ao abrir o report.', 'Failed to open the report.', 'No se pudo abrir el informe.')); }
-}
+// a janela abre NO CLIQUE e o erro da API aparece nela
+const openReportAuthed = (path) => openReportFor(CONTEST, path);
 
 async function openSubmissionInEditor(subid, time, langField) {
   let txt;

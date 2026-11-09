@@ -8,7 +8,7 @@ import { status } from '/shared/auth.js';
 import { el, verdictClass, isPending, fmtDate } from '/shared/ui.js';
 import { T } from '/shared/i18n.js';
 import { mountChrome } from '/lib/contest-chrome.js';
-import { openHtmlReport } from '/shared/submission-links.js';
+import { openReportAuthed as openReportFor, openTextAuthed } from '/shared/submission-links.js';
 import { langLabel } from '/shared/languages.js';
 
 const qs = new URLSearchParams(location.search);
@@ -40,22 +40,9 @@ async function downloadAuthed(path, filename) {
     document.body.append(a); a.click(); a.remove();
   } catch { alert(T('Falha ao baixar.', 'Download failed.', 'Error al descargar.')); }
 }
-async function openLogAuthed(path) {
-  try {
-    const r = await fetch('/api/v1' + path, { headers: { 'Authorization': 'Bearer ' + getToken(CONTEST) } });
-    const w = window.open(); const pre = w.document.createElement('pre');
-    pre.style.cssText = 'font-family:monospace;white-space:pre-wrap;padding:1rem'; pre.textContent = await r.text();
-    w.document.body.append(pre); w.document.close();
-  } catch { alert(T('Falha ao abrir o log.', 'Failed to open the log.', 'Error al abrir el registro.')); }
-}
-// abre o report.html do julgamento numa aba nova (openHtmlReport: blob, nunca srcdoc — é o que
-// faz as âncoras dos casos de teste rolarem em vez de navegar; ver shared/submission-links.js).
-async function openReportAuthed(path) {
-  try {
-    const r = await fetch('/api/v1' + path, { headers: { 'Authorization': 'Bearer ' + getToken(CONTEST) } });
-    openHtmlReport(await r.text());
-  } catch { alert(T('Falha ao abrir o report.', 'Failed to open the report.', 'No se pudo abrir el informe.')); }
-}
+// código/log cru e report.html: a janela abre NO CLIQUE e o erro da API aparece nela (shared/submission-links.js)
+const openLogAuthed = (path) => openTextAuthed(CONTEST, path);
+const openReportAuthed = (path) => openReportFor(CONTEST, path);
 
 function filteredSubs() {
   const fuEl = document.getElementById('fUser'); // removido no modo anônimo

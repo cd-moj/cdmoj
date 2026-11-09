@@ -606,19 +606,32 @@ user_queue_pending(){
   echo "$n"
 }
 
-# resolve_submission <c> <sid> — popula SUB_OWNER, SUB_SRC, SUB_LOG, SUB_RESULT (vazios se
+# resolve_submission <c> <sid> [rounds] — popula SUB_OWNER, SUB_SRC, SUB_LOG, SUB_RESULT (vazios se
 # ausentes), resolvendo por id em users/<owner>/{submissions,mojlog,results}/<sid>.*.
+# Com `rounds` (SÓ rotas de LEITURA: log, código, resumo — 09/11/2026), o id que não está no store atual é procurado
+# também nas rodadas ARQUIVADAS (`rounds/<slug>/users/…`, para onde a promoção move o aquecimento): antes o report e o
+# código de um envio do aquecimento davam "indisponível"/404 depois da promoção. SUB_ROUND = o slug quando veio de lá.
+# Ação que escreve (rejulgar) NUNCA passa `rounds`.
 # PRÉ-REQUISITO: o caller já fez `set +o noglob; shopt -s nullglob` (padrão dos handlers).
-resolve_submission(){
-  local c="$1" sid="$2" d f any
-  SUB_OWNER=""; SUB_SRC=""; SUB_LOG=""; SUB_RESULT=""
-  d="$(users_dir "$c")"
+_resolve_sub_in(){   # <dir de users> <sid>
+  local d="$1" sid="$2" f any
   for f in "$d"/*/submissions/"$sid".*;   do SUB_SRC="$f"; break; done
   # .html.gz é o formato atual (2026-09-16); .html e sem extensão = legado
   for f in "$d"/*/mojlog/"$sid".html.gz "$d"/*/mojlog/"$sid".html "$d"/*/mojlog/"$sid"; do SUB_LOG="$f"; break; done
   for f in "$d"/*/results/"$sid".json;    do SUB_RESULT="$f"; break; done
   any="${SUB_SRC:-${SUB_RESULT:-$SUB_LOG}}"
   if [[ -n "$any" ]]; then any="${any%/submissions/*}"; any="${any%/mojlog/*}"; any="${any%/results/*}"; SUB_OWNER="${any##*/}"; fi
+}
+resolve_submission(){
+  local c="$1" sid="$2" r
+  SUB_OWNER=""; SUB_SRC=""; SUB_LOG=""; SUB_RESULT=""; SUB_ROUND=""
+  _resolve_sub_in "$(users_dir "$c")" "$sid"
+  [[ "${3:-}" == rounds && -z "$SUB_OWNER" ]] || return 0
+  for r in "$CONTESTSDIR/$c/rounds"/*/users; do
+    [[ -d "$r" ]] || continue
+    _resolve_sub_in "$r" "$sid"
+    if [[ -n "$SUB_OWNER" ]]; then r="${r%/users}"; SUB_ROUND="${r##*/}"; return 0; fi
+  done
 }
 
 # --- listagem -------------------------------------------------------------

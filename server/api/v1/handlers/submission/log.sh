@@ -13,7 +13,7 @@ sid="$(param id)"
   || fail 400 "Invalid submission id" "id_invalid"
 
 set +o noglob; shopt -s nullglob
-resolve_submission "$contest" "$sid"     # store-v2 ou legado
+resolve_submission "$contest" "$sid" rounds   # store-v2 ou legado; também o aquecimento arquivado
 owner="$SUB_OWNER"
 # juiz/admin sempre veem; dono vê conforme o SHOWLOG efetivo (showlog_effective em
 # lib/verdict.sh: explícito manda; ausente = oculto em modo icpc — o report expõe os testes).

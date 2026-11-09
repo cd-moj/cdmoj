@@ -13,7 +13,7 @@ import { makeSubmissionsTable } from '/contest/submissions-table.js';
 import { makeSubmitFlow, attachSubmitButton, lastSubKey, submitChannel } from '/shared/submit-ux.js';
 import { mountSiteFooter } from '/shared/site-footer.js';
 import { baseOrigin, contestOrigin } from '/shared/contest-host.js';
-import { openHtmlReport } from '/shared/submission-links.js';
+import { openReportAuthed as openReportFor, openTextAuthed } from '/shared/submission-links.js';
 import { balloonColorHex, balloonSVG, balloonEdge, balloonTint } from '/contest/score/score-colors.js';
 import { pickStmtLang, makeStmtLangChips, setChipsActive, rememberStmtLang, stmtHtmlLang } from '/shared/statement-langs.js';
 import { decorateSamples, downloadSamplesZip, SAMPLES_TAB_SCRIPT } from '/shared/statement-samples.js';
@@ -138,27 +138,9 @@ async function downloadAuthed(path, filename) {
     document.body.append(a); a.click(); a.remove();
   } catch { alert(T('Falha ao baixar arquivo/log.', 'Failed to download file/log.', 'No se pudo descargar el archivo/registro.')); }
 }
-async function openLogAuthed(path) {
-  try {
-    const r = await fetch('/api/v1' + path, { headers: { 'Authorization': 'Bearer ' + getToken(CONTEST) } });
-    const txt = await r.text();
-    const w = window.open();
-    const pre = w.document.createElement('pre');
-    pre.style.cssText = 'font-family:monospace;white-space:pre-wrap;padding:1rem';
-    pre.textContent = txt;
-    w.document.body.append(pre);
-    w.document.close();
-  } catch { alert(T('Falha ao abrir o log.', 'Failed to open log.', 'No se pudo abrir el registro.')); }
-}
-
-// abre o report.html do julgamento numa aba nova (openHtmlReport: blob, nunca srcdoc — é o que
-// faz as âncoras dos casos de teste rolarem em vez de navegar; ver shared/submission-links.js).
-async function openReportAuthed(path) {
-  try {
-    const r = await fetch('/api/v1' + path, { headers: { 'Authorization': 'Bearer ' + getToken(CONTEST) } });
-    openHtmlReport(await r.text());
-  } catch { alert(T('Falha ao abrir o report.', 'Failed to open the report.', 'No se pudo abrir el informe.')); }
-}
+// log cru e report.html do julgamento: a janela abre NO CLIQUE e o erro da API aparece nela (shared/submission-links.js)
+const openLogAuthed = (path) => openTextAuthed(CONTEST, path);
+const openReportAuthed = (path) => openReportFor(CONTEST, path);
 
 // ============================================================================
 // LOGIN FULL-SCREEN
