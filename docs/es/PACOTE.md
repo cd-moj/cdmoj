@@ -1,4 +1,4 @@
-<!-- i18n-source: PACOTE.md blob:cd8f642b7d2797f060613138d6998ff68e54bf31 -->
+<!-- i18n-source: PACOTE.md blob:f6cd03a902c012399d247cfcf1d2abd81ea7b899 -->
 # MOJ: el paquete de problema (formato canónico)
 
 > **Nota de traducción.** Este manual es una traducción del original en portugués. Las herramientas de línea de comandos (`moj`, `moj-contest`, `moj-comp`) muestran sus mensajes en portugués, y los ejemplos de comandos son idénticos al original.
@@ -466,7 +466,8 @@ Todas las claves que entiende `build-and-test.sh`:
 | `STOPWHEN_WA` | no se detiene | `y` interrumpe en el primer Wrong Answer | 0 |
 | `STOPWHEN_TLE` | no se detiene | `y` interrumpe en el primer Time Limit Exceeded | 0 |
 | `STOPWHEN_RE` | no se detiene | `y` interrumpe en el primer Runtime Error o Memory Limit Exceeded | 0 |
-| `TLERERUN` | `y` | repite la prueba una vez antes de confirmar un TLE (evita TLE por ruido de la máquina) | 0 |
+| `TLERERUN` | `y` | repite la prueba una vez antes de confirmar un TLE **cerca del TL** (evita TLE por ruido de la máquina — vecinos pesados en memoria inflan el tiempo hasta ~1,6×). Vale el resultado de la repetición; la 1.ª repetición que confirma el TLE desactiva las siguientes | 0 |
+| `TLERERUN_BAND` | `2.0` | qué es "cerca": el TLE con tiempo hasta `TLERERUN_BAND` × (TL + tolerancia) se repite; por encima (bucle infinito, muerte por el tope de pared) no se repite. Número mayor que 1; la validación rechaza otro valor | 0 |
 | `CALIBRATIONTL` | `5` | tiempo límite usado **durante** la calibración, antes de que exista un TL real | 0 |
 | `ALLOWTLEDURINGCALIBRATION` | desactivado | `y` acepta una solución `good` con TLE como "calibró" (el lenguaje obtiene TL aunque exceda el `CALIBRATIONTL` — casos raros de good deliberadamente en el límite) | 0 |
 | `SAMPLE` | ejemplos = `tests/input/sample*` | `no` declara que el problema **no tiene ejemplos** (sección 4, "Problema sin ejemplo"): el enunciado sale sin el recuadro y no se ofrece nada para descargar. El juez no lo lee y no entra en el tl-checksum (no pide recalibración) | 0 |
