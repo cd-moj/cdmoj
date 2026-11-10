@@ -35,9 +35,28 @@ ch_file(){ printf '%s/%s/cohorts.json' "$CONTESTSDIR" "$1"; }
 # processos por requisição, dos quais ~18 eram esta cascata. Vale p/ todo consumidor da lib
 # (placar, teams, basic), não só p/ quem chamou primeiro.
 declare -gA _CH_J=() _CH_EN=() _CH_OF=() _CH_VW=()
+# UM jq só (10/11/2026; eram três antes de qualquer cache — conferir + normalizar + o ch_enabled, ~33 ms em toda rota com
+# coorte): o _ch_load devolve o JSON normalizado E o "ligado" numa chamada; contest sem cohorts.json (ou com o módulo
+# desligado) não abre processo nenhum.
 ch_get(){
-  [[ -v _CH_J[$1] ]] && { printf '%s' "${_CH_J[$1]}"; return 0; }
-  _CH_J[$1]="$(_ch_get_raw "$1")"; printf '%s' "${_CH_J[$1]}"
+  [[ -v _CH_J[$1] ]] || _ch_load "$1"
+  printf '%s' "${_CH_J[$1]}"
+}
+_ch_load(){
+  local f out=""; f="$(ch_file "$1")"
+  if [[ -s "$f" ]] && _ch_mod_on "$1"; then
+    out="$(jq -r 'if .cohorts then
+        {version:(.version // 1), results_released:(.results_released == true),
+         cohorts:[ (.cohorts // [])[] | {
+           id:(.id // ""), name:(.name // .id // ""), regex:(.regex // ""),
+           public:(.public != false), unranked:(.unranked == true),
+           ranking:(.ranking == true),
+           default:(.default == true), sees:(.sees // []) } | select(.id != "") ]}
+        | (tojson), (if [.cohorts[] | select(.public == false or .ranking)] | length > 0 then "1" else "0" end)
+      else empty end' "$f" 2>/dev/null)"
+  fi
+  if [[ "$out" == *$'\n'[01] ]]; then _CH_J[$1]="${out%$'\n'*}"; _CH_EN[$1]="${out##*$'\n'}"
+  else _CH_J[$1]='{"version":1,"results_released":false,"cohorts":[]}'; _CH_EN[$1]=0; fi
 }
 # _ch_mod_on <c> — as coortes só valem com o módulo `coortes` LIGADO (desligar desliga a regra, 03/10/2026). A lib
 # também roda fora da API (score/build.sh), sem o common.sh: aí lê o CONTEST_MODULES do conf por sed.
@@ -46,30 +65,16 @@ _ch_mod_on(){
   local v; v="$(sed -n 's/^CONTEST_MODULES=//p' "$CONTESTSDIR/$1/conf" 2>/dev/null | tail -n 1)"; v="${v//[\\\'\"]/}"
   [[ ",$v," == *",coortes,"* ]]
 }
-_ch_get_raw(){
-  local f; f="$(ch_file "$1")"
-  if [[ -s "$f" ]] && _ch_mod_on "$1" && jq -e '.cohorts' "$f" >/dev/null 2>&1; then
-    jq -c '{version:(.version // 1), results_released:(.results_released == true),
-            cohorts:[ (.cohorts // [])[] | {
-              id:(.id // ""), name:(.name // .id // ""), regex:(.regex // ""),
-              public:(.public != false), unranked:(.unranked == true),
-              ranking:(.ranking == true),
-              default:(.default == true), sees:(.sees // []) } | select(.id != "") ]}' "$f" 2>/dev/null \
-      || printf '{"version":1,"results_released":false,"cohorts":[]}'
-  else printf '{"version":1,"results_released":false,"cohorts":[]}'; fi
-}
-ch_save(){ local f; f="$(ch_file "$1")"; printf '%s\n' "$2" > "$f.tmp" && mv -f "$f.tmp" "$f"; }
+_ch_get_raw(){ _ch_load "$1"; printf '%s' "${_CH_J[$1]}"; }   # sem memo (quem precisa do arquivo de AGORA)
+# gravar invalida o memo da requisição (a mesma requisição pode reler depois de salvar)
+ch_save(){ local f; f="$(ch_file "$1")"; printf '%s\n' "$2" > "$f.tmp" && mv -f "$f.tmp" "$f"; unset '_CH_J[$1]' '_CH_EN[$1]'; }
 
 # ch_enabled <c> — 0 (true) quando há coorte NÃO-pública (visão recortada: convidados/CCL) OU
 # coorte PÚBLICA com `ranking:true` (placar próprio, ex.: times × individual num contest com
 # inscrição). Enquanto não houver nenhuma das duas, o resto do sistema segue o caminho de
 # sempre (um placar, um /contest/teams inteiro) — custo novo ZERO.
 ch_enabled(){
-  if [[ ! -v _CH_EN[$1] ]]; then
-    local j; j="$(ch_get "$1")"
-    if jq -e '[.cohorts[] | select(.public == false or .ranking)] | length > 0' <<<"$j" >/dev/null 2>&1
-    then _CH_EN[$1]=1; else _CH_EN[$1]=0; fi
-  fi
+  [[ -v _CH_EN[$1] ]] || _ch_load "$1"   # o mesmo jq do ch_get (zero processo sem cohorts.json)
   (( _CH_EN[$1] ))
 }
 

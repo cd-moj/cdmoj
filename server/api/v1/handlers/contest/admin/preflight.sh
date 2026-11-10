@@ -22,14 +22,14 @@ source "$_LIBDIR/langs.sh"          # lang_canon_ext (cc/cxx/c++ = cpp, py3 = py
 
 now="$EPOCHSECONDS"
 cdir="$CONTESTSDIR/$contest"
-CHECKS='[]'
 # add3 <id> <level> <label_pt> <detail_pt> <label_en> <detail_en> <label_es> <detail_es> [action]
-# — item TRILÍNGUE (+ botão). Texto só por --arg, nunca interpolado no programa jq.
+# — item TRILÍNGUE (+ botão). Os campos vão a um BUFFER (\x1f entre campos, \x1e entre itens, tirados do texto) e UM
+# jq monta a lista no fim (10/11/2026: era um jq por item, ~30 por abertura da Central). Texto nunca entra no programa.
+CKBUF=""
 add3(){
-  CHECKS="$(jq -c --arg i "$1" --arg lv "$2" --arg lb "$3" --arg d "$4" --arg le "$5" --arg de "$6" \
-    --arg ls "$7" --arg ds "$8" --arg a "${9:-}" \
-    '. + [{id:$i, level:$lv, label:$lb, detail:$d, label_en:$le, detail_en:$de, label_es:$ls, detail_es:$ds}
-          + (if $a == "" then {} else {action:$a} end)]' <<<"$CHECKS")"
+  local f r=""
+  for f in "$1" "$2" "$3" "$4" "$5" "$6" "$7" "$8" "${9:-}"; do r+="${f//[$'\x1e\x1f']/}"$'\x1f'; done
+  CKBUF+="$r"$'\x1e'
 }
 
 # conf num subshell-safe: só os campos que precisamos
@@ -300,11 +300,38 @@ fi
 # Um problema que pede k CPUs por teste só é julgado por juiz NOVO (manda slot_cpus) com
 # total_slots×slot_cpus ≥ k (com SAMENUMA, o maior nó); sem um, o job espera e vira Judge Error.
 declare -F cs_bank_json >/dev/null 2>&1 || source "$_DIR/lib/contest-statement.sh" 2>/dev/null
+# O JSON SERVÍVEL de cada problema lido UMA vez (10/11/2026): três laços (paralelos, parar no 1º erro, relógio do TL)
+# faziam um `$(cs_bank_json)` + um jq por problema cada — o arquivo traz o enunciado em base64. Um jq sobre todos;
+# arquivo ilegível derruba o lote do jq a partir dele, então quem faltou é relido um a um (o ilegível fica vazio, o
+# mesmo resultado de antes: sem par, stop_when desconhecido, relógio de parede).
+declare -A BK_HAS=() BK_K=() BK_N=() BK_SW=() BK_TC=() _bk_pid=()
+_bk_files=()
+for ((i=0; i+4<${#PROBS[@]}; i+=5)); do
+  _p="${PROBS[i+4]}"; _f="$CONTESTSDIR/treino/var/jsons/$_p.json"
+  [[ -f "$_f" ]] || _f="$CONTESTSDIR/treino/var/jsons-private/$_p.json"
+  [[ -f "$_f" ]] || continue
+  BK_HAS[$_p]=1; _bk_pid[$_f]="$_p"; _bk_files+=("$_f")
+done
+_BK_JQ='input_filename as $f | [$f, ((.cpu_needed // 1) | tostring), ((.same_numa // false) | tostring),
+  (if (.stop_when | type) != "object" then "?"
+   else ([ (if .stop_when.tle == true then empty else "TLE" end), (if .stop_when.wa == true then empty else "WA" end),
+           (if .stop_when.re == true then empty else "RE" end) ] | join("/")) + "\u0002" + ((.tests // 0) | tostring) end),
+  ((.tl_clock // "wall") | tostring)] | join("\u0001")'
+_bk_read(){ local f k n sw tc; while IFS=$'\x01' read -r f k n sw tc; do
+    [[ -n "${_bk_pid[$f]:-}" ]] || continue
+    BK_K[${_bk_pid[$f]}]="$k"; BK_N[${_bk_pid[$f]}]="$n"; BK_SW[${_bk_pid[$f]}]="${sw/$'\x02'/$'\x01'}"; BK_TC[${_bk_pid[$f]}]="$tc"
+  done; }
+if (( ${#_bk_files[@]} )); then
+  _bk_read < <(jq -r "$_BK_JQ" "${_bk_files[@]}" 2>/dev/null)
+  for _f in "${_bk_files[@]}"; do
+    [[ -v BK_K[${_bk_pid[$_f]}] ]] || _bk_read < <(jq -r "$_BK_JQ" "$_f" 2>/dev/null)
+  done
+fi
 par_probs=""; par_bad=""
 pjm0='{}'; [[ -f "$cdir/problem-judges.json" ]] && pjm0="$(jq -c . "$cdir/problem-judges.json" 2>/dev/null)"; jq -e . >/dev/null 2>&1 <<<"$pjm0" || pjm0='{}'
 for ((i=0; i+4<${#PROBS[@]}; i+=5)); do
-  pid="${PROBS[i+4]}"; bj="$(cs_bank_json "$pid" 2>/dev/null)" || continue
-  IFS=$'\x01' read -r pk pn < <(jq -j '[((.cpu_needed // 1)|tostring), ((.same_numa // false)|tostring)] | join("\u0001")' "$bj" 2>/dev/null)
+  pid="${PROBS[i+4]}"; [[ -n "${BK_HAS[$pid]:-}" ]] || continue
+  pk="${BK_K[$pid]:-}"; pn="${BK_N[$pid]:-}"
   [[ "$pk" =~ ^[0-9]+$ && "$pk" -gt 1 ]] || continue
   par_probs+=" ${PROBS[i+3]}"
   # pool efetivo do problema: override → CONTEST_JUDGES → todos os online
@@ -336,10 +363,8 @@ fi
 if [[ "${CONTEST_TYPE:-icpc}" == icpc ]]; then
   sw_bad=""; sw_n=0; sw_unk=0
   for ((i=0; i+4<${#PROBS[@]}; i+=5)); do
-    pid="${PROBS[i+4]}"; bj="$(cs_bank_json "$pid" 2>/dev/null)" || continue
-    sw="$(jq -r 'if (.stop_when | type) != "object" then "?"
-                 else ([ (if .stop_when.tle == true then empty else "TLE" end), (if .stop_when.wa == true then empty else "WA" end),
-                         (if .stop_when.re == true then empty else "RE" end) ] | join("/")) + "\u0001" + ((.tests // 0) | tostring) end' "$bj" 2>/dev/null)"
+    pid="${PROBS[i+4]}"; [[ -n "${BK_HAS[$pid]:-}" ]] || continue
+    sw="${BK_SW[$pid]:-}"
     [[ "$sw" == "?" || -z "$sw" ]] && { sw_unk=$((sw_unk + 1)); continue; }
     sw_n=$((sw_n + 1))
     IFS=$'\x01' read -r sw_k sw_t <<<"$sw"
@@ -410,9 +435,9 @@ fi
 # prova os marca com †. Escolha do AUTOR do problema, nunca aviso. Do json servível (tl_clock), sem abrir pacote.
 tc_cpu=""; tc_n=0
 for ((i=0; i+4<${#PROBS[@]}; i+=5)); do
-  pid="${PROBS[i+4]}"; bj="$(cs_bank_json "$pid" 2>/dev/null)" || continue
+  pid="${PROBS[i+4]}"; [[ -n "${BK_HAS[$pid]:-}" ]] || continue
   tc_n=$((tc_n + 1))
-  [[ "$(jq -r '.tl_clock // "wall"' "$bj" 2>/dev/null)" == cpu ]] && tc_cpu+=" ${PROBS[i+3]}"
+  [[ "${BK_TC[$pid]:-}" == cpu ]] && tc_cpu+=" ${PROBS[i+3]}"
 done
 if [[ -n "$tc_cpu" ]]; then
   add3 tl_clock ok "Tempo-limite por tempo de CPU" \
@@ -519,15 +544,20 @@ fi
 # refaz ao re-registrar, e bastava UM juiz ter o problema. Quem responde "este juiz vai calibrar na 1ª
 # submissão?" é o item judges_warm, logo abaixo, juiz por juiz.
 noTL=""; noPool=""; nprob=0
+# o pool de cada problema e os juízes vivos em mapas do bash, UM jq cada (eram dois jq por problema por abertura)
+declare -A PJPOOL=() JLIVE=()
+while IFS=$'\t' read -r _k _v; do [[ -n "$_k" ]] && PJPOOL[$_k]="$_v"; done \
+  < <(jq -r 'to_entries[] | [.key, ((.value // []) | if type == "array" then join(" ") else "" end)] | @tsv' <<<"$pjm" 2>/dev/null)
+while IFS= read -r _h; do [[ -n "$_h" ]] && JLIVE[$_h]=1; done < <(jq -r '.[].host // empty' <<<"$judges" 2>/dev/null)
 for ((i=0; i+4<${#PROBS[@]}; i+=5)); do
   id="${PROBS[i+4]}"; (( nprob++ ))
   # pool efetivo do problema: override (problem-judges.json) -> pool do contest -> todos
-  ppool="$(jq -r --arg id "$id" '(.[$id] // []) | join(" ")' <<<"$pjm" 2>/dev/null)"
+  ppool="${PJPOOL[$id]:-}"
   [[ -n "$ppool" ]] || ppool="${CONTEST_JUDGES:-}"
   if [[ -n "$ppool" ]]; then
     live=0
     for h in $ppool; do
-      jq -e --arg h "$h" 'any(.[]; .host == $h)' >/dev/null 2>&1 <<<"$judges" && { live=1; break; }
+      [[ -n "${JLIVE[$h]:-}" ]] && { live=1; break; }
     done
     (( live == 0 )) && noPool+=" $id"
     # calibrado = algum host DO POOL reportou TL p/ o problema — no MÉTODO do problema: com TLMETHOD=kattis
@@ -1358,6 +1388,10 @@ if mod_on "$contest" telao; then
   fi
 fi
 
+CHECKS="$(printf '%s' "$CKBUF" | jq -cRs 'split("\u001e") | map(select(length > 0) | split("\u001f")
+  | {id:.[0], level:.[1], label:.[2], detail:.[3], label_en:.[4], detail_en:.[5], label_es:.[6], detail_es:.[7]}
+    + (if (.[8] // "") == "" then {} else {action:.[8]} end))')"
+[[ -n "$CHECKS" ]] || CHECKS='[]'
 ok_json '{checks:$c, summary:{ok:($c|map(select(.level=="ok"))|length),
                               warn:($c|map(select(.level=="warn"))|length),
                               fail:($c|map(select(.level=="fail"))|length)}}' \

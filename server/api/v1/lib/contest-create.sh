@@ -1138,14 +1138,16 @@ cc_set_probs(){
 }
 
 # cc_probs_json <contest> -> [{source,problem_id,name,letter,statement_key}] do PROBS atual
+# UM jq p/ todos os problemas (10/11/2026: era um por problema — a Central o chama a cada abertura). Campos separados
+# por \x1f e problemas por \x1e (tirados do texto: o conf é gravado pela API, mas nunca confie no separador).
 cc_probs_json(){
   ( CONTEST_TYPE=""; PROBS=(); . "$CONTESTSDIR/$1/conf" 2>/dev/null
     for ((i=0; i+4 < ${#PROBS[@]}; i+=5)); do
-      jq -cn --arg s "${PROBS[$i]:-}" --arg p "${PROBS[$((i+1))]:-}" --arg n "${PROBS[$((i+2))]:-}" \
-         --arg l "${PROBS[$((i+3))]:-}" --arg k "${PROBS[$((i+4))]:-}" \
-         '{source:$s, problem_id:$p, name:$n, letter:$l, statement_key:$k}'
+      for ((k=i; k<i+5; k++)); do v="${PROBS[$k]:-}"; printf '%s\x1f' "${v//[$'\x1e\x1f']/}"; done
+      printf '\x1e'
     done
-  ) | jq -cs '.'
+  ) | jq -cRs 'split("\u001e") | map(select(length > 0) | split("\u001f")
+        | {source:.[0], problem_id:.[1], name:.[2], letter:.[3], statement_key:.[4]})'
 }
 
 # cc_audit_summary <id> -> "contas=N problemas=M rodadas=R modulos=a,b[ users_from=x]": o que a criação de fato

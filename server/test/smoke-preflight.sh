@@ -284,6 +284,11 @@ check "regra worst: avisa que o resto ainda muda o veredicto" '[[ "$(det stop_fi
 printf 'VERDICT_RULE=first\n' >> "$C/conf"; run
 check "regra first: o resto é só espera"                '[[ "$(lvl stop_first)" == warn && "$(det stop_first)" == *"nada depois dele muda o resultado"* ]]'
 sed -i '/^VERDICT_RULE=/d' "$C/conf"
+printf 'nao é json' > "$FIX/treino/var/jsons/col#p0.json"
+printf '{"id":"col#p1","title":"P1","public":true,"stop_when":{"wa":true,"tle":false,"re":true},"tests":7}' > "$FIX/treino/var/jsons/col#p1.json"
+run
+check "json ILEGÍVEL no meio do lote: o seguinte ainda é lido (B avisa)" '[[ "$(lvl stop_first)" == warn && "$(det stop_first)" == *"B(7 testes, segue após TLE)"* && "$(det stop_first)" != *"A("* ]]'
+rm -f "$FIX/treino/var/jsons/col#p1.json"
 printf '{"id":"col#p0","title":"P0","public":true,"stop_when":{"wa":true,"tle":true,"re":true},"tests":214}' > "$FIX/treino/var/jsons/col#p0.json"
 run
 check "para no 1º erro => ok"                           '[[ "$(lvl stop_first)" == ok ]]'
