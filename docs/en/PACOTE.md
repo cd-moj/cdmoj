@@ -1,4 +1,4 @@
-<!-- i18n-source: PACOTE.md blob:f6cd03a902c012399d247cfcf1d2abd81ea7b899 -->
+<!-- i18n-source: PACOTE.md blob:c316fc70bfaca58b078f6bd211ba462e7f7d2b16 -->
 # MOJ: the problem package (canonical format)
 
 > **Translation note.** This manual is a translation of the Portuguese original. The command-line tools (`moj`, `moj-contest`, `moj-comp`) print their messages in Portuguese, and the command examples below are identical to the original.
@@ -476,7 +476,7 @@ All the keys that `build-and-test.sh` understands:
 | `STOPWHEN_TLE` | does not stop | `y` stops at the first Time Limit Exceeded | 0 |
 | `STOPWHEN_RE` | does not stop | `y` stops at the first Runtime Error or Memory Limit Exceeded | 0 |
 | `TLERERUN` | `y` | runs the test one more time before it confirms a TLE **near the TL** (prevents TLE from machine noise — neighbours heavy on memory inflate the time by up to ~1.6×). The rerun result is the one that counts; the 1st rerun that confirms the TLE turns off the following ones | 0 |
-| `TLERERUN_BAND` | `2.0` | what "near" means: a TLE with time up to `TLERERUN_BAND` × (TL + tolerance) is rerun; above that (infinite loop, killed at the wall cap) it is not. A number greater than 1; validation rejects any other value | 0 |
+| `TLERERUN_BAND` | `2.0` | what "near" means: a TLE with time up to `TLERERUN_BAND` × (TL + tolerance) is rerun; above that (infinite loop, killed at the wall cap) it is not. A number greater than 1; validation rejects any other value. **Changing it recalibrates** (it is inside the tl-checksum) | 0 |
 | `CALIBRATIONTL` | `5` | time limit used **during** calibration, before a real TL exists | 0 |
 | `ALLOWTLEDURINGCALIBRATION` | off | `y` accepts a `good` solution with TLE as "calibrated" (the language gets a TL even when it goes over `CALIBRATIONTL` — rare cases of a `good` solution that is deliberately at the limit) | 0 |
 | `SAMPLE` | samples = `tests/input/sample*` | `no` declares that the problem **has no samples** (section 4, "Problem without samples"): the statement has no box and nothing is offered for download. The judge does not read it, and it is not part of the tl-checksum (no recalibration) | 0 |

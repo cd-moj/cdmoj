@@ -1178,7 +1178,9 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   terminando problema da prova não leva o 429 do treino), mas com `limit_conn moj_problems_key 6` (por sessão = o
   `Authorization`; sem ele, o IP) e `limit_conn moj_problems 12` (total). Zonas no bloco "AUTORIA", IGUAL nos dois
   `moj-prod*.conf.in`. O editor abre com ≤5 pedidos em paralelo; a CLI (`_api_retry_429`, moj-cli `lib/core.sh`) repete o
-  429 do NGINX (corpo não-JSON) em 1, 2, 4, 8 s — o 429 da API (JSON) nunca. Teste: `smoke-problems-limit.sh` (nginx de
+  429 do NGINX (corpo não-JSON) em 1, 2, 4, 8 s — o 429 da API (JSON) nunca — e a WEB também, só na autoria
+  (`timedFetch` do `web/shared/api.js`: `/api/v1/problems/*`, 0,5/1/2/4 s; duas abas do editor abrindo juntas passam de 6;
+  fora da autoria o 429 é o quebra-circuito do contest e quem pola já espera sozinho; teste `smoke-api-retry.gjs.sh`). Teste: `smoke-problems-limit.sh` (nginx de
   teste com upstream lento); os outros smokes de nginx incluem o bloco.
 - **`/robots.txt` POR HOST** (30/10/2026; robôs eram ~11% dos pedidos, 84% deles nos subdomínios de contest): o `web/`
   é o mesmo em todo host, então a `location = /robots.txt` do `moj-app.conf.in` entrega `web/robots-contest.txt`

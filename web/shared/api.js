@@ -34,11 +34,22 @@ async function unwrap(r) {
 // GET JSON (envelope desempacotado)
 // toda resposta da API traz o cabeçalho `Date`: é com ele que a página conhece o relógio do SERVIDOR (shared/server-clock.js)
 // — as contagens de início/fim/freeze contam por ele, nunca pelo relógio do computador (relato de 18/10/2026)
+// BALDE DA AUTORIA (10/11/2026): o nginx limita o /api/v1/problems/* a 6 pedidos em voo por sessão e 12 no total. O 429
+// DELE (corpo HTML, não JSON) quer dizer que o pedido nem chegou à API — repetir é seguro, POST inclusive: 0,5, 1, 2 e
+// 4 s (+ dispersão). Duas abas do editor abrindo juntas passam de 6 e, sem isto, uma delas caía em "Falha ao carregar".
+// Só na autoria: no resto da API o 429 é o quebra-circuito do contest e quem pola já espera sozinho (score.js, judge.js).
+// O 429 da PRÓPRIA API (JSON, ex.: test-run ocupado) não repete. Mesma regra da CLI (moj-cli `_api_retry_429`).
+const AUTHORING_RETRY_MS = [500, 1000, 2000, 4000];
+const isAuthoring = (url) => String(url).startsWith(API_BASE + '/problems/');
 async function timedFetch(url, opts) {
-  const t0 = Date.now();
-  const r = await fetch(url, opts);
-  try { noteServerDate(r.headers.get('Date'), t0, Date.now()); } catch { /* sem Date: segue o relógio local */ }
-  return r;
+  for (let n = 0; ; n++) {
+    const t0 = Date.now();
+    const r = await fetch(url, opts);
+    try { noteServerDate(r.headers.get('Date'), t0, Date.now()); } catch { /* sem Date: segue o relógio local */ }
+    if (r.status !== 429 || n >= AUTHORING_RETRY_MS.length || !isAuthoring(url)
+        || /json/i.test(r.headers.get('Content-Type') || '')) return r;
+    await new Promise((res) => setTimeout(res, AUTHORING_RETRY_MS[n] + Math.floor(Math.random() * 250)));
+  }
 }
 export async function apiGet(path, { contest, auth = false } = {}) {
   const r = await timedFetch(API_BASE + path, { headers: auth ? authHeaders(contest) : {} });

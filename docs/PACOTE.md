@@ -458,7 +458,7 @@ Todas as chaves que o `build-and-test.sh` entende:
 | `STOPWHEN_TLE` | não para | `y` interrompe no primeiro Time Limit Exceeded | 0 |
 | `STOPWHEN_RE` | não para | `y` interrompe no primeiro Runtime Error ou Memory Limit Exceeded | 0 |
 | `TLERERUN` | `y` | repete o teste uma vez antes de confirmar um TLE **perto do TL** (evita TLE por ruído da máquina — vizinhos pesados em memória inflam o tempo em até ~1,6×). O resultado do rerun é o que vale; o 1º rerun que confirma o TLE desliga os seguintes | 0 |
-| `TLERERUN_BAND` | `2.0` | o que é "perto": o TLE com tempo até `TLERERUN_BAND` × (TL + tolerância) repete; acima disso (laço infinito, morte pela parede) não repete. Número maior que 1; a validação reprova outro valor | 0 |
+| `TLERERUN_BAND` | `2.0` | o que é "perto": o TLE com tempo até `TLERERUN_BAND` × (TL + tolerância) repete; acima disso (laço infinito, morte pela parede) não repete. Número maior que 1; a validação reprova outro valor. **Mudar recalibra** (fica dentro do tl-checksum) | 0 |
 | `CALIBRATIONTL` | `5` | tempo-limite usado **durante** a calibração, antes de existir um TL real | 0 |
 | `ALLOWTLEDURINGCALIBRATION` | desligado | `y` aceita solução `good` com TLE como "calibrou" (a linguagem ganha TL mesmo estourando o `CALIBRATIONTL` — casos raros de good deliberadamente no limite) | 0 |
 | `SAMPLE` | exemplos = `tests/input/sample*` | `no` declara que o problema **não tem exemplos** (seção 4, "Problema sem exemplo"): o enunciado sai sem a caixa e nada é oferecido para baixar. Não é lido pelo juiz e não entra no tl-checksum (não pede recalibração) | 0 |
