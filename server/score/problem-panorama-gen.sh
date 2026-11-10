@@ -53,7 +53,7 @@ norm_awk='
   FILENAME==MAPF { split($0,a,"\t"); R[a[1]]=a[2]; next }   # arquivo-mapa campo3->oid (TAB; sem ":")
                                                             # (por NOME, não NR==FNR: mapa vazio não some com o history)
   {
-    if($2 ~ /\.(admin|judge|cjudge|staff|mon)$/) next;
+    if($2 ~ re_role) next;   # conta de papel (registro; antes faltavam .cstaff e .animeitor)
     f3=$3;
     oid = (f3 in R ? R[f3] : (KEEP ? f3 : ""));
     if(oid=="") next;
@@ -67,7 +67,7 @@ for cdir in "$CONTESTSDIR"/*/; do
   [[ -f "$cdir/conf" ]] || continue
   # campo-3 já é o id canônico -> resolve pelo ALIAS; sem dono, mantém.
   _HT="$(mktemp)"; emit_history_stream "$c" > "$_HT" 2>/dev/null
-  awk -F: -v KEEP=1 -v CID="$c" -v MAPF="$ALIAS" "$norm_awk" "$ALIAS" "$_HT" 2>/dev/null >> "$NORM"
+  awk -F: -v re_role="$ROLE_RE" -v KEEP=1 -v CID="$c" -v MAPF="$ALIAS" "$norm_awk" "$ALIAS" "$_HT" 2>/dev/null >> "$NORM"
   rm -f "$_HT"; _HT=""
 done
 shopt -u nullglob

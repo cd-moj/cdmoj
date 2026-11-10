@@ -10,6 +10,7 @@ source "$_DIR/lib/modules.sh"        # módulos ligáveis do contest (catálogo 
 source "$_DIR/lib/esqueletos.sh"     # módulo esqueletos: esq_effective (userinfo) + leitura/escrita do esqueletos.json
 source "$_DIR/lib/spool-shard.sh"
 source "$_DIR/lib/params.sh"
+source "$_DIR/lib/roles.sh"         # o REGISTRO dos papéis (server/etc/roles.tsv) — antes do auth.sh
 source "$_DIR/lib/auth.sh"
 source "$_DIR/lib/cli-version.sh"     # X-Moj-Cli-Status/Latest + dica p/ CLI antiga (aviso de CLI desatualizada)
 source "$_DIR/lib/session-index.sh"   # índice por login + chave de máquina + sessão única

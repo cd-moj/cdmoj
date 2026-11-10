@@ -26,7 +26,9 @@ require_auth_contest "$contest"
 source "$_LIBDIR/contest-gate.sh"
 if ! can_see_problems "$contest"; then
   emit_json 200 OK
-  jq -cn --arg s "$( { is_staff || is_cstaff; } && echo staff || echo not_started)" '{success:true, problems:[], locked:$s}'
+  # conta de papel fora da prova (staff, cstaff, animeitor, foto, musica, sistemas, diretor) = `staff` (antes o
+  # .animeitor recebia not_started, o rótulo do time antes do início)
+  jq -cn --arg s "$(_role_off_contest && echo staff || echo not_started)" '{success:true, problems:[], locked:$s}'
   exit 0
 fi
 

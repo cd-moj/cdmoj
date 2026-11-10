@@ -96,7 +96,7 @@ if [[ -s "$CONTESTSDIR/$C/cohorts.json" && ",${CONTEST_MODULES:-}," == *",coorte
   UNRX="$(jq -r '[(.cohorts // [])[] | select(.unranked == true) | .regex | select(. != "")] | join("|")' \
     "$CONTESTSDIR/$C/cohorts.json" 2>/dev/null)"
 fi
-awk -F: -v START="$START_VAL" -v MF="$MAPF" -v RF="$RGF" -v VF="$VWF" -v PEN="${PENALTY_MINUTES:-20}" -v UNRX="$UNRX" '
+awk -F: -v re_role="$ROLE_RE" -v START="$START_VAL" -v MF="$MAPF" -v RF="$RGF" -v VF="$VWF" -v PEN="${PENALTY_MINUTES:-20}" -v UNRX="$UNRX" '
 # R2: cada submissão alimenta N ESCOPOS — g (global), r=<sede/nó da árvore>, c=<país> — e o
 # END emite as mesmas linhas de sempre prefixadas por "<kind>\t<val>\t". O escopo vira ID
 # inteiro (sid): a chave composta id SUBSEP x é separável no END mesmo com sede livre.
@@ -147,14 +147,14 @@ BEGIN{
   # escopo dele; o END soma os ausentes (enr-nu) no bucket 0 e emite enrolled no G.
   for (u_ in reg) {
     if (u_ in dsq) continue
-    if (u_ ~ /\.(admin|judge|cjudge|staff|cstaff|mon|animeitor)$/) continue
+    if (u_ ~ re_role) continue          # conta de papel (registro server/etc/roles.tsv)
     calc_scopes(u_)
     for (si_ = 1; si_ <= uscn[u_]; si_++) enr[us_[u_, si_]]++
   }
 }
 {
-  # estatísticas só de usuários normais: descarta privilegiados (.admin/.judge/.cjudge/.staff/.cstaff/.mon)
-  if($2 ~ /\.(admin|judge|cjudge|staff|cstaff|mon|animeitor)$/) next;
+  # estatísticas só de usuários normais: descarta as contas de papel (ROLE_RE do registro)
+  if($2 ~ re_role) next;
   if($2 in dsq) next;   # desclassificado: submissões fora da estatística (mesma população do placar)
   # tempo RELATIVO ao início: usa o sub_epoch (penúltimo campo, sempre EPOCH absoluto) menos
   # CONTEST_START. mn = minutos relativos; secs = segundos (p/ desempate do 1º a resolver).

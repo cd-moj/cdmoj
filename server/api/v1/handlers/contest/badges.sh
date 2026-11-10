@@ -110,7 +110,7 @@ _badges_accounts "$d/users" "$([[ -n "$shared_src" ]] && echo true || echo false
   # alunos: sem contas de papel. A sede é a da regra única (gravada, senão a regex mais funda); o
   # recorte do view (vazio/ausente = tudo) entende "region:<nome>" (o aluno está num nó com esse nome)
   # além de regex no login.
-  | ( map(select(.login | test("\\.(admin|judge|cjudge|staff|cstaff|mon|animeitor)$") | not))
+  | ( map(select(.login | test("'"$ROLE_RE"'") | not))
       | map(. as $u | . + {region: ($S[0][$u.login] // (if ($u.region // "") != "" then $u.region else null end))})
       | ($filters[$view] // []) as $scope
       | (if ($view == "") or (($scope|length) == 0) then .

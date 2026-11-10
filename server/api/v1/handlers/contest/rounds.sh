@@ -11,7 +11,7 @@ source "$_DIR/lib/users.sh"; source "$_DIR/lib/contest-create.sh"
 source "$_DIR/lib/contest-rounds.sh"
 
 priv=false
-{ is_admin || is_judge || is_chief || is_staff || is_cstaff || is_mon; } && priv=true
+role_can rodadas_privadas && priv=true      # registro dos papéis (server/etc/roles.tsv)
 
 # CACHE por (contest, privilegiado). Esta rota entra em TODO carregamento de página e era a
 # mais cara do lote de boot (275 req/s contra ~900 das outras): o rd_sync_active relê o

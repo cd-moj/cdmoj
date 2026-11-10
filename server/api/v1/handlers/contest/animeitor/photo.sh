@@ -13,9 +13,9 @@ contest="$(param contest)"
 [[ -n "$contest" ]] || fail 400 "Missing contest" "contest_missing"
 require_contest "$contest"
 require_auth_contest "$contest"
-{ is_animeitor || is_admin || is_cstaff; } || fail 403 "Apenas a conta de placar (.animeitor), o chefe de sede (.cstaff) ou o admin" "animeitor_required"
+role_can foto || fail 403 "Apenas a conta de placar (.animeitor), o chefe de sede (.cstaff), a conta .foto ou o admin" "animeitor_required"   # capacidade `foto` do registro (server/etc/roles.tsv)
 source "$_LIBDIR/team-photo.sh"
-is_cstaff && source "$_LIBDIR/print.sh"
+role_scoped "$SESSION_LOGIN" && source "$_LIBDIR/print.sh"
 
 body="$(read_body)"
 jq -e . >/dev/null 2>&1 <<<"$body" || fail 400 "JSON inválido" "bad_json"
@@ -24,11 +24,10 @@ want="$(jq -r '.login // .filename // empty' <<<"$body")"
 [[ -n "$want" ]] || fail 400 "Informe login" "login_missing"
 # nome-de-arquivo|login -> login (lib/users.sh; a mesma resolução que a música usa)
 login="$(user_resolve_name "$contest" "$want")" || fail 404 "Nenhum time casa com '$want'" "user_not_found"
-case "$login" in *.admin|*.judge|*.cjudge|*.staff|*.cstaff|*.mon|*.animeitor)
-  fail 422 "Conta de papel não tem foto de time" "role_account";; esac
+is_reserved_role_login "$login" && fail 422 "Conta de papel não tem foto de time" "role_account"
 # CHEFE DE SEDE só mexe em quem ele enxerga (staff-filters.json). Autoriza o login RESOLVIDO —
 # o corpo pode mandar nome de arquivo, então resolver primeiro e só depois autorizar.
-is_cstaff && ! staff_can_act "$contest" "$SESSION_LOGIN" "$login" \
+role_scoped "$SESSION_LOGIN" && ! staff_can_act "$contest" "$SESSION_LOGIN" "$login" \
   && fail 403 "Time fora da sua sede (o chefe de sede só altera os times da sede definida para ele em Operação › Staff)" "staff_scope"
 
 if [[ "$(jq -r '.action // empty' <<<"$body")" == delete ]]; then

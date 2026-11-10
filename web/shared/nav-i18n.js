@@ -21,6 +21,7 @@ const MAP = {
   '/contest/badges/':           ['Etiquetas', 'Badges', 'Etiquetas'],
   '/contest/docs/':             ['Documentos', 'Documents', 'Documentos'],
   '/contest/print/':            ['Impressão', 'Printing', 'Impresión'],
+  '/contest/mlinux/':           ['Máquinas', 'Machines', 'Máquinas'],
   '/':                          ['Contest', 'Contest', 'Competencia'],
   '/contest/score/':            ['Score', 'Score', 'Marcador'],
   '/contest/clarification/':    ['Clarification', 'Clarification', 'Aclaraciones'],

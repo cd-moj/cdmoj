@@ -31,6 +31,7 @@
 # marcada `source:"binding"` (um roster oficial enviado depois a sobrescreve). Opt-in: o `user_id` nasce de
 # um User-Agent, entrada do cliente. 429 respeita o `Retry-After` do serviço. O UA pode ser forjado — quem barra isso é o gate de UA
 # por sede; o binding é informação p/ o staff, não controle de acesso.
+declare -F role_suffix_to >/dev/null || source "${BASH_SOURCE[0]%/*}/roles.sh"   # o registro dos papéis (ROLE_RE)
 NB_BIND_EVERY="${NB_BIND_EVERY:-10}"
 NB_BIND_UA_RE='MLinux/([A-Za-z0-9._-]{1,64})/[0-9a-f]{32}/([0-9]{1,20})/([0-9a-f]{2}([-:][0-9a-f]{2}){5})([^0-9a-f:-]|$)'
 
@@ -46,7 +47,7 @@ nb_bind_replay_lines(){
   jq -Rrn '
     [ inputs | split("\t") | select(length >= 4)
       | (.[0] | tonumber? // 0) as $t | .[1] as $lg
-      | select(($lg | test("\\.(admin|judge|cjudge|staff|cstaff|mon|animeitor)$")) | not)
+      | select(($lg | test("'"$ROLE_RE"'")) | not)
       | ((.[3] | try @base64d catch "")
          | capture("MLinux/(?<img>[A-Za-z0-9._-]{1,64})/[0-9a-f]{32}/(?<boot>[0-9]{1,20})/(?<mac>[0-9a-f]{2}([-:][0-9a-f]{2}){5})")? // null) as $m
       | select($m != null) | {t: $t, lg: $lg, img: $m.img, boot: $m.boot, mac: ($m.mac | gsub(":"; "-"))} ]

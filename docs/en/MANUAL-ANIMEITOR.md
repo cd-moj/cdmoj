@@ -1,4 +1,4 @@
-<!-- i18n-source: MANUAL-ANIMEITOR.md blob:bb80841a491f6e81afd805f21b162a694686d0dd -->
+<!-- i18n-source: MANUAL-ANIMEITOR.md blob:49cd0f5e5f242eaade411140af7dfa496129fcf2 -->
 # MOJ: Big-screen manual (`.animeitor`)
 
 > **Translation note.** This manual is a translation of the Portuguese original. The command-line tools (`moj`, `moj-contest`, `moj-comp`) print their messages in Portuguese, and the command examples below are identical to the original.
@@ -199,6 +199,11 @@ The checklist for the day before, in order:
 | See/create/revoke **webcast keys** (legacy) | **Yes** | No | No |
 | Scoreboard | Always unfrozen | Frozen | Frozen |
 | Statistics | Yes | No | No |
+
+**`.foto` and `.musica`** (roles with a scope, 2026-11-09): they open this same page and see the gallery **of their
+scope only** (Operations › Staff). `.foto` only uploads, replaces or removes **photos**; `.musica`, only **music** —
+the button of the other type does not appear, and the batch rejects what the account cannot upload. Without a
+scope, they see no team. They do not change the contest default, publish to the Animeitor or see the webcast keys.
 
 ## Pointers
 

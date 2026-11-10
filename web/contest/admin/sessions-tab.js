@@ -86,14 +86,14 @@ export function makeSessionsTab(CONTEST, opts = {}) {
         el('span', { class: 'pill ' + (open ? 'ok' : 'bad') }, open ? T('login ABERTO', 'login OPEN', 'login ABIERTO')
           : waitsStart ? T('login abre ', 'login opens ', 'el login abre ') + new Date(st.login_start * 1000).toLocaleString(uiLocale())
           : T('login FECHADO', 'login CLOSED', 'login CERRADO')),
-        el('span', { class: 'small muted' }, T(`sessões: ${s.competitors || 0} competidores · ${s.staff || 0} staff/cstaff · ${s.privileged || 0} organização`,
-          `sessions: ${s.competitors || 0} competitors · ${s.staff || 0} staff/cstaff · ${s.privileged || 0} organization`,
-          `sesiones: ${s.competitors || 0} competidores · ${s.staff || 0} staff/cstaff · ${s.privileged || 0} organización`)),
+        el('span', { class: 'small muted' }, T(`sessões: ${s.competitors || 0} competidores · ${s.staff || 0} equipe da sala · ${s.privileged || 0} organização`,
+          `sessions: ${s.competitors || 0} competitors · ${s.staff || 0} room team · ${s.privileged || 0} organization`,
+          `sesiones: ${s.competitors || 0} competidores · ${s.staff || 0} equipo de sala · ${s.privileged || 0} organización`)),
         open ? el('button', { class: 'btn ghost', onclick: () => run({ close_login: true }, T('Fechar o login (sem derrubar ninguém)?', 'Close login (without logging anyone out)?', '¿Cerrar login (sin desconectar a nadie)?') + closeWarn) }, T('🔒 Fechar login', '🔒 Close login', '🔒 Cerrar login'))
           : el('button', { class: 'btn', onclick: () => run({ open_login: true }, T('Reabrir o login para os times?', 'Reopen login for the teams?', '¿Reabrir login para los equipos?')) }, T('🔓 Reabrir login', '🔓 Reopen login', '🔓 Reabrir login'))),
       el('div', { class: 'row', style: 'gap:.6rem;align-items:center;flex-wrap:wrap;margin-top:.4rem' },
         scopeBtn('competitors', T('competidores', 'competitors', 'competidores'), T('toda conta que não é de papel', 'every non-role account', 'toda cuenta que no es de rol')),
-        scopeBtn('staff', T('staff e chefes de sede', 'staff and site chiefs', 'staff y jefes de sede'), '.staff + .cstaff'),
+        scopeBtn('staff', T('equipe da sala', 'room team', 'equipo de sala'), '.staff .cstaff .foto .musica .sistemas'),
         scopeBtn('all', T('competidores + staff', 'competitors + staff', 'competidores + staff'), ''),
         el('label', { class: 'small', style: 'display:inline-flex;gap:.3rem;align-items:center' }, closeChk, T('e fechar o login junto', 'and close login as well', 'y cerrar login también')),
         msg),

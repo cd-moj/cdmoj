@@ -1,4 +1,4 @@
-<!-- i18n-source: MANUAL-ANIMEITOR.md blob:bb80841a491f6e81afd805f21b162a694686d0dd -->
+<!-- i18n-source: MANUAL-ANIMEITOR.md blob:49cd0f5e5f242eaade411140af7dfa496129fcf2 -->
 # MOJ: Manual de la pantalla (`.animeitor`)
 
 > **Nota de traducción.** Este manual es una traducción del original en portugués. Las herramientas de línea de comandos (`moj`, `moj-contest`, `moj-comp`) muestran sus mensajes en portugués, y los ejemplos de comandos son idénticos al original.
@@ -191,6 +191,11 @@ La lista de la víspera, en orden:
 | Ver/crear/revocar **claves de webcast** (legado) | **Sí** | No | No |
 | Marcador | Siempre descongelado | Congelado | Congelado |
 | Estadísticas | Sí | No | No |
+
+**`.foto` y `.musica`** (roles con alcance, 09/11/2026): entran en esta misma página y ven la galería **solo de su
+alcance** (Operación › Staff). El `.foto` solo sube, reemplaza o quita **fotos**; el `.musica`, solo **música** — el
+botón del otro tipo ni aparece, y el lote rechaza lo que la cuenta no sube. Sin alcance definido, no ven ningún
+equipo. No cambian el valor por defecto de la competencia, no publican en el Animeitor ni ven las claves del webcast.
 
 ## Referencias
 

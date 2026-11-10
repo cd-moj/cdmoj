@@ -327,7 +327,7 @@ should_hold() {
   done < "$CONTESTSDIR/$contest/conf" 2>/dev/null
   mv="${mv//\'/}"; mv="${mv//\"/}"
   [[ "$mv" == 1 ]] || return 1
-  case "$login" in *.admin|*.judge|*.cjudge|*.staff|*.cstaff|*.mon|*.animeitor) return 1;; esac
+  is_reserved_role_login "$login" && return 1   # conta de papel (registro server/etc/roles.tsv)
   # transientes não viram item de revisão. ERROS de juiz (Judge Error/No_Servers) AGORA são
   # SEGURADOS no modo manual: não vazam p/ o competidor (ele vê só 'Not Answered Yet') — o juiz
   # vê o erro no painel e re-julga. O auto-veredicto casa pelo CANÔNICO (sem o sufixo de score).

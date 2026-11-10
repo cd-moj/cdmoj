@@ -172,7 +172,7 @@ if [[ -s "$CDIR/var/access.log" ]]; then
     [ inputs | split("\t") | select(length >= 4)
       | (.[0] | tonumber? // 0) as $t | select($t <= $b)
       | .[1] as $lg
-      | select(($lg | test("\\.(admin|judge|cjudge|staff|cstaff|mon|animeitor)$")) | not)
+      | select(($lg | test("'"$ROLE_RE"'")) | not)
       | ((.[3] | try @base64d catch "") | capture("MLinux/(?<img>[A-Za-z0-9._-]+)/[0-9a-f]{32}/")? // null) as $m
       | select($m != null) | {t: $t, lg: $lg, img: $m.img} ]
     | sort_by(.t) | reduce .[] as $e ({}; .[$e.lg] = $e.img)
@@ -295,7 +295,7 @@ if [[ -s "$CDIR/var/access.log" ]]; then
       | (.[0] | tonumber? // 0) as $t
       | select($t <= $b)
       | .[1] as $lg
-      | select(($lg | test("\\.(admin|judge|cjudge|staff|cstaff|mon|animeitor)$")) | not)
+      | select(($lg | test("'"$ROLE_RE"'")) | not)
       | ((.[3] | try @base64d catch "") | capture("MLinux/[^/]+/(?<mid>[0-9a-f]{32})/(?<boot>[0-9]+)(/(?<mac>[0-9a-f]{2}([-:][0-9a-f]{2}){5}))?")? // null) as $m
       | select($m != null)
       | {t: $t, lg: $lg, mid: $m.mid, boot: $m.boot, mac: (($m.mac // "") | gsub(":"; "-"))} ]

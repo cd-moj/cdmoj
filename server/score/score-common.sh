@@ -108,14 +108,13 @@ sc_cells() {
 }
 
 # sc_is_real_user <login>  -> 0 if it's a contestant row we should score.
-# Skips passwd comments, admin/judge/staff/cstaff/mon roles and the literal "admin".
+# Skips passwd comments, role accounts (the registry, server/etc/roles.tsv) and the literal "admin".
+declare -F role_suffix_to >/dev/null || source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../api/v1/lib/roles.sh"
 sc_is_real_user() {
   local u="$1"
   [[ -z "$u" ]] && return 1
-  [[ "$u" == \#* ]] && return 1
-  case "$u" in
-    *.admin|*.judge|*.cjudge|*.staff|*.cstaff|*.mon|*.animeitor|admin) return 1 ;;
-  esac
+  [[ "$u" == \#* || "$u" == admin ]] && return 1
+  is_reserved_role_login "$u" && return 1
   return 0
 }
 

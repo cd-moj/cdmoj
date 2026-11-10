@@ -145,9 +145,12 @@ contest_phase() {
 }
 
 # can_see_problems <contest> : 0 se o usuário logado pode ver os enunciados AGORA.
+# _role_off_contest — conta de papel que NÃO participa da prova: nem julga, nem é `como_time` (o .mon). Pelo registro
+# (server/etc/roles.tsv): staff, cstaff, animeitor e os papéis de 09/11 (foto, musica, sistemas, diretor).
+_role_off_contest() { is_reserved_role_login "${SESSION_LOGIN:-}" && ! role_can julgar && ! role_can como_time; }
 can_see_problems() {
   is_judge && return 0                       # .admin/.judge: sempre
-  { is_staff || is_cstaff || is_animeitor; } && return 1   # staff/sede/telão: nunca
+  _role_off_contest && return 1              # sala/telão/papéis com escopo: nunca
   [[ "$(contest_phase "$1")" != before ]]   # demais: só após o início
 }
 
@@ -158,7 +161,7 @@ can_see_problems() {
 # 403 contest_not_started, depois 403 contest_ended. Mesmos códigos do /submit.
 competitor_write_guard() {
   can_submit "$1" && return 0
-  { is_staff || is_cstaff || is_animeitor; } && fail 403 "Conta de sala/telão não ${2:-escreve} neste contest" "role_forbidden"
+  _role_off_contest && fail 403 "Conta de sala/telão não ${2:-escreve} neste contest" "role_forbidden"
   [[ "$(contest_phase "$1")" == before ]] && fail 403 "A competição ainda não começou — ${2:-a operação} só vale durante a prova" "contest_not_started"
   fail 403 "A competição já terminou — ${2:-a operação} só vale durante a prova" "contest_ended"
 }
@@ -166,6 +169,6 @@ competitor_write_guard() {
 # can_submit <contest> : 0 se o usuário logado pode submeter AGORA.
 can_submit() {
   is_judge && return 0                       # .admin/.judge: sempre
-  { is_staff || is_cstaff || is_animeitor; } && return 1   # staff/sede/telão: nunca
+  _role_off_contest && return 1              # sala/telão/papéis com escopo: nunca
   [[ "$(contest_phase "$1")" == running ]]   # normal/.mon: só durante a janela
 }

@@ -86,7 +86,9 @@ require_auth_contest() {  # require_auth_contest <contest>
   [[ "$SESSION_CONTEST" == "$1" ]] || fail 403 "Not logged into this contest" "auth_contest"
 }
 
-# papéis por substring no username (convenção do MOJ)
+# PAPÉIS = o SUFIXO do login, pelo REGISTRO ÚNICO (server/etc/roles.tsv → lib/roles.sh: role_of, role_can, ROLE_RE,
+# is_reserved_role_login). Os is_* abaixo são embrulhos de uma linha sobre ele — os chamadores não mudaram.
+declare -F role_suffix_to >/dev/null || source "${BASH_SOURCE[0]%/*}/roles.sh"
 is_admin(){ [[ "$SESSION_LOGIN" == *.admin ]]; }
 # is_platform_admin — ".admin DO TREINO" (metadados/visibilidade do acervo: ver orgs/get.sh,
 # orgs/members.sh GET, judge/list.sh). `is_admin` sozinho é só o sufixo e vale p/ o `<criador>.admin` LOCAL de
@@ -138,8 +140,8 @@ treino_role_write_ok(){
     || return 0
   is_platform_superadmin
 }
-# .cjudge (juiz-chefe) HERDA os poderes de juiz; .admin também é juiz.
-is_judge(){ [[ "$SESSION_LOGIN" == *.judge || "$SESSION_LOGIN" == *.cjudge || "$SESSION_LOGIN" == *.admin ]]; }
+# .cjudge (juiz-chefe) HERDA os poderes de juiz; .admin também é juiz (o `julgar` do registro).
+is_judge(){ role_can julgar; }
 is_chief(){ [[ "$SESSION_LOGIN" == *.cjudge ]]; }
 is_admin_or_chief(){ is_admin || is_chief; }
 is_staff(){ [[ "$SESSION_LOGIN" == *.staff ]]; }
@@ -151,13 +153,15 @@ is_mon(){ [[ "$SESSION_LOGIN" == *.mon ]]; }
 # (é ele quem conduz a revelação), gere as FOTOS dos times e as chaves do webcast que alimenta
 # o sistema Animeitor. Não herda nada e nada herda dele — handlers testam is_animeitor.
 is_animeitor(){ [[ "$SESSION_LOGIN" == *.animeitor ]]; }
-# is_reserved_role_login <login> — 0 se o login termina num SUFIXO DE PAPEL reservado. Helper
-# central p/ (a) o auto-cadastro NUNCA criar papel por sufixo (signup web/bot) e (b) os handlers
-# de admin de contest NÃO tratarem conta privilegiada como aluno (disable/troca de senha em massa/
-# logout em massa). NÃO trava o /admin/adduser (admin autenticado cria .judge/.staff de um contest
-# legitimamente). Mantém a lista em UM lugar (awk não enxerga a função — ao replicar em regex,
-# lembre do .cjudge/.cstaff/.animeitor: \.(admin|judge|cjudge|staff|cstaff|mon|animeitor)$).
-is_reserved_role_login(){ case "$1" in *.admin|*.judge|*.cjudge|*.staff|*.cstaff|*.mon|*.animeitor) return 0;; *) return 1;; esac; }
+# os papéis de 09/11/2026 (todos com ESCOPO por sede/país/região, no staff-filters.json — ver roles.tsv):
+is_foto(){ [[ "$SESSION_LOGIN" == *.foto ]]; }            # sobe/troca a FOTO dos times do escopo
+is_musica(){ [[ "$SESSION_LOGIN" == *.musica ]]; }        # sobe/troca a MÚSICA dos times do escopo
+is_sistemas(){ [[ "$SESSION_LOGIN" == *.sistemas ]]; }    # Máquinas das sedes do escopo (leitura + comandos)
+is_diretor(){ [[ "$SESSION_LOGIN" == *.diretor ]]; }      # placar SEM freeze só do recorte (posição/★ do recorte)
+# is_reserved_role_login <login> (lib/roles.sh) — 0 se o login termina num SUFIXO DE PAPEL do registro. Usos:
+# (a) o auto-cadastro NUNCA cria papel por sufixo (signup web/bot) e (b) os handlers de admin de contest NÃO tratam
+# conta privilegiada como aluno (disable/troca de senha em massa/logout em massa). NÃO trava o /admin/adduser.
+# Em awk/jq/grep use "$ROLE_RE" — nunca a lista escrita à mão (smoke-roles-registry.sh reprova).
 # require_admin = SÓ o sufixo `.admin`, de QUALQUER contest: serve às rotas /contest/admin/*, em que o contest
 # alvo é o da própria sessão. Rota de PLATAFORMA (juízes, fila geral, /ops) NUNCA usa isto — todo criador de
 # contest ganha um `<criador>.admin` LOCAL, e até 16/10/2026 esse admin local configurava/desligava juízes,

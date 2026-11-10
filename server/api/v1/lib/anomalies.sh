@@ -40,6 +40,7 @@
 # lib/contest-rounds.sh (rd_round/rd_active) já sourceados pelo handler.
 
 # an_build <contest> <round-slug|""> <outfile> -> escreve o JSON (sem envelope) em <outfile>
+declare -F role_suffix_to >/dev/null || source "${BASH_SOURCE[0]%/*}/roles.sh"   # o registro dos papéis (ROLE_RE)
 an_build(){
   local c="$1" s="${2:-}" out="$3" cdir="$CONTESTSDIR/$1"
   local r cs ce ws
@@ -185,8 +186,7 @@ an_build(){
         --argjson cs "$cs" --argjson ce "$ce" --argjson ws "$ws" --argjson now "$EPOCHSECONDS" '
     # sem regex nos caminhos quentes: jq recompila a regex a CADA chamada (test ≈ 6 µs, capture
     # ≈ 17 µs; eram ~30 mil chamadas por apuração na LATAM = metade do jq final)
-    def role($l): ($l | (endswith(".admin") or endswith(".judge") or endswith(".cjudge") or endswith(".staff")
-                         or endswith(".cstaff") or endswith(".mon") or endswith(".animeitor")));
+    def role($l): ($l | '"$ROLE_JQ"');   # conta de papel (registro server/etc/roles.tsv, sem regex)
     # chave de máquina do UA (null se não é mlinux); o fallback "ip:<ip>" é do mk() abaixo
     def mkey($ua):
       ((($ua | capture("MLinux/[^/]+/(?<mid>[0-9a-f]{32})/(?<boot>[0-9]+)")) // null) as $m
@@ -319,8 +319,8 @@ an_build(){
         # sessões por CLASSE (todas as do contest, papéis inclusos): é o que a caixa "sair em
         # massa" mostra — sem varrer o diretório global de sessões (20 mil arquivos na produção)
         session_classes: { competitors: ([ $sess[] | select(role(.login) | not) ] | length),
-                           staff: ([ $sess[] | select(.login | (endswith(".staff") or endswith(".cstaff"))) ] | length),
-                           privileged: ([ $sess[] | select(.login | (endswith(".admin") or endswith(".judge") or endswith(".cjudge") or endswith(".mon") or endswith(".animeitor"))) ] | length) },
+                           staff: ([ $sess[] | select(.login | '"$ROLE_JQ_SALA"') ] | length),       # classe sala
+                           privileged: ([ $sess[] | select(.login | '"$ROLE_JQ_ORG"') ] | length) },  # classe org
         counts: { sessions: ($S | length), teams_live: ($SESS | length),
                   multi_session: ([ $AN[] | select(.kind == "multi_session") ] | length),
                   machine_shared: ([ $AN[] | select(.kind == "machine_shared") ] | length),

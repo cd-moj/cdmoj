@@ -3,7 +3,7 @@
 # promover, reabrir quando os times puderem entrar.
 #   GET  → {login_enabled, sessions:{competitors, staff, privileged}}
 #   POST {scope:"competitors"|"staff"|"all", close_login?:true, open_login?:true}
-#      scope competitors = toda conta que NÃO é de papel; staff = .staff + .cstaff; all = os dois.
+#      scope competitors = toda conta que NÃO é de papel; staff = a classe `sala` do registro (server/etc/roles.tsv: .staff .cstaff .foto .musica .sistemas); all = os dois.
 #      NUNCA derruba .admin/.judge/.cjudge/.mon/.animeitor (quem opera a prova). Cada sessão
 #      removida vira linha `logout` em var/session-events.log (com quem mandou); a ação vai ao
 #      audit (`logout-all scope= competitors= staff= login=`). close_login grava LOGIN_ENABLED=n
@@ -16,7 +16,8 @@ require_auth_contest "$contest"
 is_admin || fail 403 "Apenas o admin do contest" "admin_required"
 
 _cls(){ # <login> -> competitor | staff | privileged
-  case "$1" in *.admin|*.judge|*.cjudge|*.mon|*.animeitor) printf privileged;; *.staff|*.cstaff) printf staff;; *) printf competitor;; esac; }
+  # a CLASSE do registro (server/etc/roles.tsv): org = organização (nunca sai em massa), sala = a equipe da sala
+  case "$(role_class "$1")" in org) printf privileged;; sala) printf staff;; *) printf competitor;; esac; }
 _login_enabled(){ [[ "$(conf_value "$contest" LOGIN_ENABLED)" != n ]]; }
 
 if [[ "$REQUEST_METHOD" == GET ]]; then

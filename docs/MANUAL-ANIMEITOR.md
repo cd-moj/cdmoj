@@ -188,6 +188,11 @@ A lista da véspera, em ordem:
 | Placar | Sempre descongelado | Congelado | Congelado |
 | Estatísticas | Sim | Não | Não |
 
+**`.foto` e `.musica`** (papéis com escopo, 09/11/2026): entram nesta mesma página e veem a galeria **só do seu
+escopo** (Operação › Staff). O `.foto` só envia, troca ou remove **fotos**; o `.musica`, só **músicas** — o botão do
+outro tipo nem aparece, e o lote recusa o que a conta não envia. Sem escopo definido, eles não veem nenhum time.
+Não trocam o padrão do contest, não publicam no Animeitor e não veem as chaves do webcast.
+
 ## Ponteiros
 
 - **[ANIMEITOR.md](ANIMEITOR.md)**: a integração pela API (chave do MOJ, placares/sedes, alimentador,

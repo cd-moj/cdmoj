@@ -61,11 +61,11 @@ _tsrc="$_DIR/handlers/contest/teams.sh"; _tlib="$_LIBDIR/cohorts.sh"
 _teams_fresh(){ [[ -s "$_tcf.json" && -s "$_tcf.sig" && ! "$_tsrc" -nt "$_tcf.json" && ! "$_tlib" -nt "$_tcf.json" ]] \
                   && [[ "$(<"$_tcf.sig")" == "$_tsig" ]]; }
 _teams_build(){
-awk -F'\t' -v amap="$TD/assets.json" -v alst="$TD/accts.lst" '
+awk -F'\t' -v re_role="$ROLE_RE" -v amap="$TD/assets.json" -v alst="$TD/accts.lst" '
       function esc(s){ gsub(/\\/,"\\\\",s); gsub(/"/,"\\\"",s); return s }
       { n=split($1,p,"/"); l=p[n]
         if (l ~ /^\./) next                                  # .removed-users e afins
-        if (l ~ /\.(admin|judge|cjudge|staff|cstaff|mon|animeitor)$/) next
+        if (l ~ re_role) next                                # conta de papel (registro)
         seen[l]=1
         if ($2 == "account.json") { acct[l]=1; print $1 "/account.json" > alst }
         else if ($2 ~ /^photo\./)  hp[l]=1

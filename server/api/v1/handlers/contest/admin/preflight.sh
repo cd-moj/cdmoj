@@ -632,9 +632,9 @@ else
 fi
 
 # --- contas ------------------------------------------------------------------------
-# (o `cstaff` PRECISA estar na lista: sem ele o chefe de sede era contado como competidor)
+# conta de papel (registro server/etc/roles.tsv) não é competidor: o diretório é o login, então tira o `$` do ROLE_RE
 users_n="$(find "$cdir/users" -maxdepth 2 -name account.json 2>/dev/null \
-  | grep -vcE '\.(admin|judge|cjudge|staff|cstaff|mon|animeitor)/account\.json$')"
+  | grep -vcE "${ROLE_RE%\$}/account\\.json\$")"
 users_n="${users_n//[^0-9]/}"; users_n="${users_n:-0}"
 src_users="$(_users_source "$contest")"
 if [[ "$src_users" != "$contest" ]]; then
@@ -948,7 +948,7 @@ else
   # quem está DENTRO do gate e quem ficou sem regra: o time sem esperado entra de qualquer
   # navegador — se isso não foi escolha (lista de isentos), é buraco no gate.
   logins="$(find "$cdir/users" -maxdepth 1 -mindepth 1 -type d -printf '%f\n' 2>/dev/null \
-    | grep -vE '\.(admin|judge|cjudge|staff|cstaff|mon|animeitor)$' | jq -R . | jq -cs .)"
+    | grep -vE "$ROLE_RE" | jq -R . | jq -cs .)"
   [[ -n "$logins" ]] || logins='[]'
   ugmap="$(ug_expected_map "$contest" "$logins")"
   [[ -n "$ugmap" ]] || ugmap='{}'

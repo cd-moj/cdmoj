@@ -54,7 +54,8 @@
 #   rg_site_of <c> <login>     -> nome da sede (vazio = sem sede)
 #   rg_members <c> <i>         -> logins no nó i (um por linha)
 
-RG_ROLE_RE='\.(admin|judge|cjudge|staff|cstaff|mon|animeitor)$'
+declare -F role_suffix_to >/dev/null || source "${BASH_SOURCE[0]%/*}/roles.sh"   # o registro dos papéis (ROLE_RE)
+RG_ROLE_RE="$ROLE_RE"      # conta de papel (registro server/etc/roles.tsv)
 
 # o normalizador (jq). Espelho exato: rgNorm em web/shared/regions-match.js.
 rg_norm_jq(){ cat <<'JQ'

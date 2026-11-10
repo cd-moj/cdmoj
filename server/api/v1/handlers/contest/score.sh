@@ -161,6 +161,14 @@ if [[ "$(param view)" != public && -f "$ff" && "$sess" == 1 ]]; then
   fi
   [[ "$priv" == 1 ]] && f="$ff"
 fi
+# DIRETOR (.diretor, 09/11/2026; registro server/etc/roles.tsv, capacidade placar_recorte): o placar SEM freeze, a prova
+# inteira, mas SÓ do recorte dele (staff-filters: região/país/sede), com a ★ recalculada dentro do recorte — o corte é
+# AQUI (pr_filter_board_subset, falha fechado), nunca no navegador. `view=public` dá o congelado, recortado igual.
+DIRETOR=0
+if [[ "$sess" == 1 ]] && role_can placar_recorte && ! is_admin; then
+  DIRETOR=1
+  [[ "$(param view)" != public && -f "$ff" ]] && f="$ff"
+fi
 
 # CONGELADO? A resposta é do SERVIDOR, não da tela: só ele sabe qual dos dois arquivos acabou de
 # escolher. O front usa isto p/ avisar o competidor que está vendo o placar congelado — quem
@@ -178,6 +186,7 @@ fi
 # e sai cru. E o .gz só é servido quando NÃO é mais velho que o .txt.
 FILTRA=0
 [[ "$sess" == 1 && "$(param scope)" == mine ]] && is_cstaff && FILTRA=1
+(( DIRETOR )) && FILTRA=2
 if (( ! FILTRA )) && [[ -f "$f" && -s "$f.gz" && ! "$f" -nt "$f.gz" && "${HTTP_ACCEPT_ENCODING:-}" == *gzip* ]]; then
   printf 'Status: 200 OK\r\nContent-Type: text/plain; charset=utf-8\r\n'
   printf 'X-MOJ-Frozen: %s\r\nContent-Encoding: gzip\r\nVary: Accept-Encoding\r\n\r\n' "$FROZEN"
@@ -187,7 +196,10 @@ fi
 
 printf 'Status: 200 OK\r\nContent-Type: text/plain; charset=utf-8\r\nX-MOJ-Frozen: %s\r\n\r\n' "$FROZEN"
 if [[ -f "$f" ]]; then
-  if (( FILTRA )); then
+  if (( FILTRA == 2 )); then
+    source "$_LIBDIR/print.sh"
+    pr_filter_board_subset "$contest" "$SESSION_LOGIN" < "$f"
+  elif (( FILTRA )); then
     source "$_LIBDIR/print.sh"
     pr_filter_board "$contest" "$SESSION_LOGIN" < "$f"
   else

@@ -1,0 +1,30 @@
+# server/etc/roles.tsv — O REGISTRO ÚNICO DOS PAPÉIS (09/11/2026, decisão do Ribas: "checks de permissão simples de
+# manter e eficazes"). Um papel é um SUFIXO de login: `fulano.staff`, `prova.admin`. Login sem sufixo daqui = TIME.
+# Quem lê: lib/roles.sh (bash: role_*, ROLE_RE, os is_* do auth.sh), o porteiro (Python, na largada) e o
+# web/shared/roles.js, que é GERADO deste arquivo (server/bin/roles-gen.sh). server/test/smoke-roles-registry.sh
+# reprova lista de sufixos escrita à mão fora daqui — papel novo entra SÓ aqui (+ o que ele pode, nas rotas).
+#
+# Colunas (TAB):
+#   sufixo  — o que vem depois do último ponto do login;
+#   nav     — o nome do papel no cache da navegação (navbuttons.sh / porteiro role_of; `chief` é o .cjudge);
+#   classe  — org (organização: nunca sai no "sair em massa", conta como organização na estatística/sessões) |
+#             sala (a equipe da sala: sai junto com o staff no "sair em massa");
+#   escopo  — sim = o papel tem recorte por sede/país/região (staff-filters.json, editor em Operação › Staff);
+#   pode    — capacidades (role_can): o que o papel pode além do que o predicado dele (is_*) já diz. `*` = tudo.
+#             julgar (is_judge) · chefe · placar_full (placar sem freeze) · placar_recorte (sem freeze, só o escopo)
+#             · rodadas_privadas (vê rodada arquivada não publicada) · fila / fila_leitura (staff) · etiquetas ·
+#             cerimonia · foto · musica (telão) · telao · maquinas · monitorar · como_time (vê enunciado e escreve como
+#             time, na janela — o .mon). Conta de papel SEM `julgar` nem `como_time` não vê enunciado nem submete.
+#
+# sufixo	nav	classe	escopo	pode
+admin	admin	org	nao	*
+judge	judge	org	nao	julgar placar_full rodadas_privadas
+cjudge	chief	org	nao	julgar chefe placar_full rodadas_privadas
+mon	mon	org	nao	monitorar como_time placar_full rodadas_privadas
+animeitor	animeitor	org	nao	telao foto musica placar_full
+staff	staff	sala	sim	fila rodadas_privadas
+cstaff	cstaff	sala	sim	fila_leitura etiquetas cerimonia foto musica rodadas_privadas
+foto	foto	sala	sim	foto
+musica	musica	sala	sim	musica
+sistemas	sistemas	sala	sim	maquinas
+diretor	diretor	org	sim	placar_recorte

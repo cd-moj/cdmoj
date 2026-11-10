@@ -13,6 +13,7 @@
 #                        (vazio/ausente = vê tudo; escopa fila, etiquetas e cerimônia)
 
 # --- localização / flags --------------------------------------------------
+declare -F role_suffix_to >/dev/null || source "${BASH_SOURCE[0]%/*}/roles.sh"   # o registro dos papéis (ROLE_RE)
 pr_dir() { printf '%s' "$CONTESTSDIR/$1/print-requests"; }
 
 # _pr_role_accounts <usersdir> <glob> — TSV "login\tfullname\tdisabled" das contas de papel
@@ -73,14 +74,14 @@ print_enabled() {
   [[ "$( . "$CONTESTSDIR/$1/conf" 2>/dev/null; printf '%s' "${PRINT:-}")" != 0 ]]
 }
 
-# logins .staff ∪ .cstaff (únicos), um por linha: "login\tfullname\tdisabled(true|false)".
-# É a lista de CHAVES válidas do staff-filters — o admin escopa os dois papéis por aqui.
+# logins dos papéis COM ESCOPO (registro server/etc/roles.tsv, coluna escopo=sim: .staff .cstaff .foto .musica .sistemas
+# .diretor), únicos, um por linha: "login\tfullname\tdisabled(true|false)". É a lista de CHAVES válidas do
+# staff-filters — o admin escopa todos eles no mesmo editor (Operação › Staff).
 # Só contas LOCAIS (28/09/2026): num contest compartilhado, conta de papel do treino não entra mais
 # (lib/auth.sh _shared_role_ok) — listá-las aqui mostraria chefes de sede fantasmas no escopo e nas etiquetas.
 pr_staff_logins() {
-  local c="$1"
-  { _pr_role_accounts "$CONTESTSDIR/$c/users" '*.staff'
-    _pr_role_accounts "$CONTESTSDIR/$c/users" '*.cstaff'
+  local c="$1" g
+  { while IFS= read -r g; do _pr_role_accounts "$CONTESTSDIR/$c/users" "$g"; done < <(role_glob_scoped)
   } | awk -F'\t' '!seen[$1]++'
 }
 
@@ -227,6 +228,51 @@ pr_filter_board() {
             while ((getline l < VF) > 0) if (l != "") V[l]=1
             close(VF); next }
     { u=$ucol; if (ucol==0 || (u in V)) print }'
+  rm -f "$vis"
+}
+
+# pr_filter_board_subset <c> <login> — o placar (stdin, TXT) do .DIRETOR (09/11/2026): SÓ as linhas do escopo dele,
+# FALHA FECHADO (sem escopo, ou escopo que não casa ninguém = só o modo e o cabeçalho, nunca o placar inteiro), com a
+# ★ de first-to-solve RECALCULADA dentro do recorte (menor tempo de AC entre as linhas que ficam; empate = as duas). A
+# posição sai certa sozinha: o TXT não tem coluna de posição, o front numera na ordem — e a ordem se mantém.
+# CERTEZA (docs/SCOREBOARD.md "A estrela só pinta com CERTEZA"): o TXT não diz qual run ainda está pendente; se o
+# placar completo RETEVE a ★ de um problema (há AC e nenhuma ★ na coluna — uma run mais antiga em julgamento), o
+# recorte também retém. Conservador: nunca pinta um primeiro lugar que o placar inteiro ainda não afirmou.
+# Só o modo icpc tem ★ (célula `tent/tempo*`); outro modo só recorta.
+pr_filter_board_subset() {
+  local c="$1" who="$2" vis
+  vis="$(mktemp)" || return 1
+  staff_visible_logins "$c" "$who" > "$vis" 2>/dev/null || : > "$vis"      # sem escopo = NINGUÉM (falha fechado)
+  awk -F: -v VF="$vis" '
+    NR==1 { print; split($0, md, " "); icpc = (md[1] == "icpc"); next }
+    NR==2 { print
+            m=0; while (m<NF && (tolower($(m+1))=="desc" || tolower($(m+1))=="asc")) m++
+            ucol=0; tcol=0
+            # as colunas `desc`/`asc` do cabeçalho NÃO existem nas linhas (docs/SCOREBOARD.md): índice da linha = i - m
+            for (i=m+1; i<=NF; i++) { h=tolower($i); if (h=="username") ucol=i-m; if (h=="total") { tcol=i-m; break } }
+            # colunas de problema: entre o cabeçalho de identificação e o Total (as que não são campo conhecido)
+            for (i=m+1; i<m+tcol; i++) { h=tolower($i)
+              if (h!="flag" && h!="username" && h!="univ short" && h!="team name" && h!="univ full") P[i-m]=1 }
+            while ((getline l < VF) > 0) if (l != "") V[l]=1
+            close(VF); next }
+    ucol && ($ucol in V) {
+      n++; L[n]=$0
+      if (icpc) for (i in P) { cell=$i
+        if (cell ~ /\*$/) had[i]=1
+        sub(/\*$/, "", cell)
+        if (cell ~ /^[0-9]+\/[0-9]+$/) { t=substr(cell, index(cell, "/")+1)+0; if (!(i in best) || t < best[i]) best[i]=t }
+      }
+      next }
+    ucol && $0 != "" { for (i in P) if ($i ~ /\*$/) had[i]=1 }      # ★ fora do recorte também conta como "afirmada"
+    END {
+      for (k=1; k<=n; k++) {
+        if (!icpc) { print L[k]; continue }
+        nf = split(L[k], f, ":"); out=""
+        for (i=1; i<=nf; i++) { cell=f[i]
+          if (i in P) { sub(/\*$/, "", cell)
+            if ((i in had) && cell ~ /^[0-9]+\/[0-9]+$/ && substr(cell, index(cell, "/")+1)+0 == best[i]) cell = cell "*" }
+          out = out (i>1 ? ":" : "") cell }
+        print out } }'
   rm -f "$vis"
 }
 
@@ -1068,7 +1114,7 @@ pr_site_first_map() {   # <c> [<arquivo com logins>]
                    then (.value.pending_min_epoch // 0) else -1 end)}' 2>/dev/null
     true
   } | jq -rs '
-      def isrole: test("\\.(admin|judge|cjudge|staff|cstaff|mon|animeitor)$");
+      def isrole: test("'"$ROLE_RE"'");
       (map(select(.k == "d") | {(.login): true}) | add // {}) as $DQ
       | (map(select(.k == "r")) | map(select((.login|isrole)|not) | select(.region != ""))) as $R
       | ($R | map({(.login): .region}) | add // {}) as $REG
@@ -1223,7 +1269,7 @@ pr_reconcile_balloons() {
       # conter "Accepted" ("Not Accepted") — o awk abaixo já cortou o `¦…`
       case "$verdict" in Accepted*) ;; *) continue;; esac
       case "$verdict" in *" (Ignored)") continue;; esac   # ignorada não conta no placar nem ganha balão
-      case "$login" in *.admin|*.judge|*.cjudge|*.staff|*.cstaff|*.mon|*.animeitor) continue;; esac
+      is_reserved_role_login "$login" && continue
       KL+=("$login"); KP+=("$cid"); KE+=("$sub_epoch"); KS+=("")
     done < <(emit_history_stream_since "$c" "$prev" \
                | awk -F: 'NF>=7{ v=$5; for(i=6;i<=NF-2;i++) v=v ":" $i; sub(/¦.*$/, "", v);

@@ -18,12 +18,8 @@ profile_limits                       # limites de troca do conf do treino (lib/p
 (( UNAME_CHANGE_LIMIT <= 0 )) && fail 403 "A troca de nome de usuário está desativada." "uname_disabled"
 [[ "$new" =~ ^[A-Za-z0-9._-]{2,32}$ ]] && valid_login "$new" \
   || fail 400 "Nome de usuário inválido (2–32 caracteres: letras, números, . _ -; não começa com . nem -; sem ..)" "uname_invalid"
-# réplica da lista canônica de sufixos de papel (ver lib/auth.sh is_reserved_role_login)
-_role_suffix(){ case "$1" in
-  *.admin) echo admin;; *.cjudge) echo cjudge;; *.judge) echo judge;;
-  *.cstaff) echo cstaff;; *.staff) echo staff;; *.mon) echo mon;;
-  *.animeitor) echo animeitor;; *) echo "";; esac; }
-oldsuf="$(_role_suffix "$old")"; newsuf="$(_role_suffix "$new")"
+# o sufixo de papel pelo REGISTRO (server/etc/roles.tsv; role_of em lib/roles.sh)
+oldsuf="$(role_of "$old")"; newsuf="$(role_of "$new")"
 if [[ "$newsuf" != "$oldsuf" ]]; then
   if [[ -n "$newsuf" ]]; then fail 400 "Sufixo reservado não permitido" "uname_reserved"
   else fail 400 "Conta de papel troca o handle preservando o sufixo: escolha um nome terminado em .$oldsuf" "uname_role_suffix"; fi

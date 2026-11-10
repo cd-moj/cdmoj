@@ -22,9 +22,10 @@ code_templates=false; esq_effective "$contest" && code_templates=true
 
 # sessão de TIME: `actor` é a pessoa que autenticou (a UI mostra "fulano · competindo por X")
 ok_json '{login:$l, name:$n, contest:$c, is_admin:$a, is_judge:$j, is_staff:$s, is_cstaff:$cs, is_mon:$m, is_chief:$ch,
-          is_animeitor:$an, show_log:$sl, show_editor:$se, code_templates:$ct}
+          is_animeitor:$an, role:$role, show_log:$sl, show_editor:$se, code_templates:$ct}
          + (if $ac == "" then {} else {actor:$ac, is_team:true} end)' \
   --arg l "$SESSION_LOGIN" --arg n "$NAME" --arg c "$contest" --arg ac "${SESSION_ACTOR:-}" \
+  --arg role "$(role_of "$SESSION_LOGIN")" \
   --argjson a "$(is_admin && echo true || echo false)" \
   --argjson j "$(is_judge && echo true || echo false)" \
   --argjson s "$(is_staff && echo true || echo false)" \

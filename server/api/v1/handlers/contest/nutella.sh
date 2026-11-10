@@ -40,7 +40,8 @@ contest="$(param contest)"
 [[ -n "$contest" ]] || fail 400 "Missing contest" "contest_missing"
 require_contest "$contest"
 require_auth_contest "$contest"
-{ is_admin_or_chief || is_cstaff || is_staff; } || fail 403 "Apenas organização/staff do contest" "role_required"
+# .sistemas (09/11/2026, registro server/etc/roles.tsv): as máquinas das sedes do ESCOPO dele — leitura e comandos
+{ is_admin_or_chief || is_cstaff || is_staff || is_sistemas; } || fail 403 "Apenas organização/staff do contest" "role_required"
 
 source "$_LIBDIR/nutella.sh"
 cdir="$CONTESTSDIR/$contest"
@@ -53,6 +54,8 @@ _nb_scope_json(){   # ecoa array JSON de nomes de sede (minúsculos) ou "null" (
   if is_admin_or_chief; then printf 'null'; return 0; fi
   if regs="$(nb_staff_regions "$contest")"; then
     printf '%s\n' "$regs" | jq -Rcs 'split("\n") | map(select(length > 0) | ascii_downcase)'
+  elif is_sistemas; then
+    printf '[]'          # papel de 09/11/2026: sem escopo definido = nenhuma sede (falha FECHADA também na leitura)
   else
     printf 'null'
   fi

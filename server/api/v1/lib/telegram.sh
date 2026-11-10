@@ -7,6 +7,7 @@
 # Verificações pendentes (efêmeras) em run/telegram/{pending,done}/<nonce>.json.
 # 1 Telegram = no máx 1 conta (anti-duplicata). telegram_id imutável (troca de @username não duplica).
 
+declare -F role_suffix_to >/dev/null || source "${BASH_SOURCE[0]%/*}/roles.sh"   # o registro dos papéis (ROLE_RE)
 : "${RUNDIR:=/home/ribas/moj/run}"
 : "${TG_NONCE_TTL:=900}"   # 15 min
 
@@ -138,5 +139,5 @@ tg_unique_login(){
 # central de lib/auth.sh; fallback local se sourced isolado).
 tg_reserved_login(){
   if declare -F is_reserved_role_login >/dev/null 2>&1; then is_reserved_role_login "$1"
-  else case "$1" in *.admin|*.judge|*.cjudge|*.staff|*.cstaff|*.mon|*.animeitor) return 0;; *) return 1;; esac; fi
+  else is_reserved_role_login "$1"; fi
 }

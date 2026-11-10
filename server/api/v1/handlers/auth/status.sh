@@ -18,13 +18,14 @@ if load_session; then
   _hp=false
   if [[ "$SESSION_CONTEST" == treino ]]; then [[ -f "$(photo_file treino "$SESSION_LOGIN")" ]] && _hp=true
   else _ud="$CONTESTSDIR/$SESSION_CONTEST/users/$SESSION_LOGIN"; [[ -s "$_ud/photo.webp" || -s "$_ud/photo.png" ]] && _hp=true; fi
-  ok_json '{logged_in:true, login:$l, name:$n, contest:$c, is_admin:$a, is_judge:$j, is_staff:$s, is_cstaff:$cs, is_chief:$ch, is_animeitor:$an, is_mon:$mn, has_photo:$hp}
+  ok_json '{logged_in:true, login:$l, name:$n, contest:$c, is_admin:$a, is_judge:$j, is_staff:$s, is_cstaff:$cs, is_chief:$ch, is_animeitor:$an, is_mon:$mn, role:$role, has_photo:$hp}
            + (if $hp then {photo_url: (if $c == "treino" then "/api/v1/treino/profile/photo?user=" + ($l | @uri)
                                        else "/api/v1/contest/team-photo?contest=" + ($c | @uri) + "&user=" + ($l | @uri) + "&thumb=1" end)}
               else {} end)
            + (if $ac == "" then {} else {actor:$ac, is_team:true} end)' \
     --arg l "$SESSION_LOGIN" --arg n "$SESSION_NAME" --arg c "$SESSION_CONTEST" \
     --arg ac "${SESSION_ACTOR:-}" \
+    --arg role "$(role_of "$SESSION_LOGIN")" \
     --argjson hp "$_hp" \
     --argjson a "$(is_admin && echo true || echo false)" \
     --argjson j "$(is_judge && echo true || echo false)" \

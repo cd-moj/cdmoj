@@ -21,8 +21,8 @@ require_auth_contest "$contest"
 source "$_LIBDIR/contest-gate.sh"
 source "$_LIBDIR/contest-offline.sh"
 source "$_LIBDIR/langs.sh"
-{ is_staff || is_cstaff; } && fail 403 "Usuário staff não submete soluções" "submit_forbidden"
-is_animeitor && fail 403 "Conta de placar (.animeitor) não submete soluções" "submit_forbidden"
+# conta de papel fora da prova (registro server/etc/roles.tsv: staff, cstaff, animeitor, foto, musica, sistemas, diretor)
+_role_off_contest && fail 403 "Conta de papel ($(role_of "$SESSION_LOGIN")) não submete soluções" "submit_forbidden"
 
 body="$(read_body)"
 jq -e '.packets | type == "array" and length > 0' >/dev/null 2>&1 <<<"$body" \

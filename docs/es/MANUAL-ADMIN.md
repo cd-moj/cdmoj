@@ -1,4 +1,4 @@
-<!-- i18n-source: MANUAL-ADMIN.md blob:1fa056613cdce9142a23f923266156d312b952bf -->
+<!-- i18n-source: MANUAL-ADMIN.md blob:93cacc99edd6b0559863239bb9bd34b91660fb49 -->
 # MOJ: Manual del organizador (el panel .admin de la competencia)
 
 > **Nota de traducción.** Este manual es una traducción del original en portugués. Las herramientas de línea de comandos (`moj`, `moj-contest`, `moj-comp`) muestran sus mensajes en portugués, y los ejemplos de comandos son idénticos al original.
@@ -322,6 +322,15 @@ operaciones en masa (restablecer contraseña, deshabilitar) **se saltan** las cu
 | **Staff (personal de sala)** | `.staff` | Cola de **🖨️ impresión y globos** (reservar/imprimir/entregar, modo automático de quiosco). | Ver problemas o enviar (nunca); etiquetas; marcador sin congelamiento. |
 | **Jefe de sede** | `.cstaff` | Observar la cola del staff de su sede (solo lectura), **Etiquetas** de credenciales de los competidores y del **`.staff`** de su sede (con contraseña, excepto en una competencia que usa cuentas del entrenamiento, donde la contraseña es personal y no sale en la etiqueta; la credencial del propio jefe tampoco sale en etiqueta), la **🎥 pantalla** de la sede y la **🏆 revelación por sede** después del fin. | Actuar en la cola de impresión; ver problemas/enviar; no hereda `.staff`. |
 | **Monitor** | `.mon` | Enviar DURANTE la competencia (sin aparecer en el marcador), **responder aclaraciones**, Todos los envíos y Estadísticas. | Ver problemas antes del inicio; corrección manual. |
+| **Fotos** | `.foto` | En la página de la **🎥 pantalla**, subir y reemplazar la **foto** de los equipos de su alcance (un archivo, en lote o en un `.zip`). | Música; claves del webcast; ver problemas o enviar; marcador sin congelamiento. |
+| **Música** | `.musica` | Lo mismo, para la **música** de los equipos de su alcance. | Fotos; lo demás, como el `.foto`. |
+| **Sistemas** | `.sistemas` | **🖥 Máquinas** de las sedes de su alcance: el panorama, los comandos, bloquear y desbloquear pantallas, y **soltar** un IP fijado por el bloqueo de sede. | Máquinas de otra sede; activar o apagar el bloqueo; ver problemas o enviar. |
+| **Director** | `.diretor` | El **marcador SIN congelamiento**, durante toda la competencia, **solo de su recorte** (región, país o sede), con la posición y la ★ de primero recalculadas dentro del recorte. | Ver los otros equipos; ver problemas o enviar; etiquetas, cola, estadísticas. |
+
+Los cuatro roles de arriba tienen **alcance**: en **Operación › Staff › Alcance de las cuentas de rol**, indica qué
+sedes, países o regiones ve cada login (`region:<nombre>`, uno por línea). **Sin alcance, no ven a nadie** — al
+contrario del `.staff` y del `.cstaff`, que sin alcance ven a todos. El corte siempre lo hace el servidor.
+Los roles vienen de un registro único (`server/etc/roles.tsv`): sufijo, clase y lo que cada uno puede.
 
 Regla de oro: **ninguna cuenta con sufijo de rol entra en el marcador ni en las estadísticas**:
 crea todas las que necesites sin miedo de ensuciar el resultado.

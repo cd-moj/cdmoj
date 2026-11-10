@@ -262,17 +262,25 @@ export function makeTasksTab(CONTEST, opts = {}) {
   }
   function buildConfig() {
     const box = el('div', {});
-    box.append(el('h3', { style: 'margin:1.2rem 0 .3rem' }, T('⚙️ Escopo dos staffs/chefes de sede', '⚙️ Scope of staff/site chiefs', '⚙️ Alcance de staff/jefes de sede')));
+    box.append(el('h3', { style: 'margin:1.2rem 0 .3rem' }, T('⚙️ Escopo das contas de papel', '⚙️ Scope of the role accounts', '⚙️ Alcance de las cuentas de rol')));
     const staff = (SF && SF.staff) || [], regions = (SF && SF.regions) || [], filters = (SF && SF.filters) || {};
     blocks = {};
+    // os papéis COM escopo (registro server/etc/roles.tsv): o que cada um faz no recorte dele
+    const ROLE_HELP = [
+      ['.staff', T('fila de impressão e balões', 'print and balloon queue', 'cola de impresión y globos')],
+      ['.cstaff', T('chefe de sede: etiquetas com senha, fila em leitura, cerimônia da sede, fotos e músicas', 'site chief: badges with password, read-only queue, site ceremony, photos and music', 'jefe de sede: etiquetas con contraseña, cola de solo lectura, ceremonia de la sede, fotos y música')],
+      ['.foto', T('sobe e troca a foto dos times', 'uploads and replaces the team photos', 'sube y reemplaza la foto de los equipos')],
+      ['.musica', T('sobe e troca a música dos times', 'uploads and replaces the team music', 'sube y reemplaza la música de los equipos')],
+      ['.sistemas', T('máquinas da sede: painel, travar e destravar, soltar IP', 'site machines: panel, lock and unlock, release IP', 'máquinas de la sede: panel, bloquear y desbloquear, soltar IP')],
+      ['.diretor', T('placar SEM freeze só do recorte, com posição e ★ do recorte', 'scoreboard WITHOUT freeze of the subset only, with subset position and ★', 'marcador SIN congelamiento solo del recorte, con posición y ★ del recorte')]];
+    const roleList = el('ul', { class: 'small', style: 'margin:.2rem 0 .4rem' }, ...ROLE_HELP.map(([s, d]) => el('li', {}, el('b', {}, s), ' — ', d)));
     if (!staff.length) {
-      box.append(el('div', { class: 'muted' }, T('Nenhum usuário .staff/.cstaff neste contest. Crie um login terminando em ', 'No .staff/.cstaff user in this contest. Create a login ending in ', 'Ningún usuario .staff/.cstaff en esta competencia. Crea un login que termine en '),
-        el('b', {}, '.staff'), T(' (fila de impressão/balões) ou ', ' (print/balloon queue) or ', ' (cola de impresión/globos) o '), el('b', {}, '.cstaff'),
-        T(' (chefe de sede: etiquetas com senha, fila em leitura, cerimônia da sede) em Pessoas › Contas.', ' (site chief: badges with password, read-only queue, site ceremony) in People › Accounts.', ' (jefe de sede: etiquetas con contraseña, cola de solo lectura, ceremonia de la sede) en Personas › Cuentas.')));
+      box.append(el('div', { class: 'muted' }, T('Nenhuma conta de papel com escopo neste contest. Crie em Pessoas › Contas um login terminando em:', 'No role account with scope in this contest. In People › Accounts, create a login ending in:', 'Ninguna cuenta de rol con alcance en esta competencia. En Personas › Cuentas, crea un usuario que termine en:')), roleList);
       return box;
     }
+    box.append(roleList);
     box.append(el('p', { class: 'muted small' }, T('Cada login vê os alunos que casam com uma das entradas (uma por linha): ', 'Each login sees the students matching one of the entries (one per line): ', 'Cada login ve a los estudiantes que coinciden con una de las entradas (una por línea): '),
-      el('code', {}, T('region:<nome>', 'region:<name>', 'region:<name>')), T(' cobre os times daquele nó de Evento › Sedes (a sede e, num grupo/país, todas as sedes abaixo dele), qualquer outra é regex no login. Lista vazia = vê TODOS. ', ' covers the teams of that node of Event › Sites (the site and, for a group/country, all the sites below it), anything else is a regex on the login. Empty list = sees ALL. ', ' cubre los equipos de ese nodo de Evento › Sedes (la sede y, en un grupo/país, todas las sedes debajo de él), cualquier otra cosa es un regex sobre el login. Lista vacía = ve TODO. '),
+      el('code', {}, T('region:<nome>', 'region:<name>', 'region:<name>')), T(' cobre os times daquele nó de Evento › Sedes (a sede e, num grupo/país, todas as sedes abaixo dele), qualquer outra é regex no login. Lista vazia: o .staff e o .cstaff veem TODOS; o .foto, o .musica, o .sistemas e o .diretor NÃO veem ninguém. ', ' covers the teams of that node of Event › Sites (the site and, for a group/country, all the sites below it), anything else is a regex on the login. Empty list: .staff and .cstaff see ALL; .foto, .musica, .sistemas and .diretor see NOBODY. ', ' cubre los equipos de ese nodo de Evento › Sedes (la sede y, en un grupo/país, todas las sedes debajo de él), cualquier otra cosa es un regex sobre el login. Lista vacía: .staff y .cstaff ven TODO; .foto, .musica, .sistemas y .diretor NO ven a nadie. '),
       T('No .staff o escopo governa a fila/ações; no .cstaff governa a fila (leitura), as ETIQUETAS de credenciais e a CERIMÔNIA de revelação da sede — configure-o sempre. Os botões de sede semeiam ', 'For .staff the scope governs the queue/actions; for .cstaff it governs the queue (read-only), the credential BADGES and the site REVEAL ceremony — always configure it. The site buttons seed ', 'Para .staff el alcance gobierna la cola/acciones; para .cstaff gobierna la cola (solo lectura), las ETIQUETAS de credenciales y la ceremonia de REVELACIÓN de la sede — configúralo siempre. Los botones de sede siembran '),
       el('code', {}, T('region:<nome>', 'region:<name>', 'region:<name>')), '.'));
     staff.forEach((s) => {

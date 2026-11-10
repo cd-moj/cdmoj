@@ -29,7 +29,8 @@
 #   uc_report  <c> <work>                 -> JSON da prévia (contagens, amostras, avisos em códigos)
 #   uc_apply   <c> <work> <logout 0|1>    -> grava; credenciais em <work>/creds.jsonl; ecoa "sessões\tarquivo"
 
-UC_ROLE_RE='\.(admin|judge|cjudge|staff|cstaff|mon|animeitor)$'
+declare -F role_suffix_to >/dev/null || source "${BASH_SOURCE[0]%/*}/roles.sh"   # o registro dos papéis (ROLE_RE)
+UC_ROLE_RE="$ROLE_RE"      # conta de papel (registro server/etc/roles.tsv)
 
 _uc_genpass_n(){  # <n> — N senhas legíveis (palavra + 4 dígitos), um shuf só
   local n="$1" wl="${PASSWORD_WORDLIST:-}"

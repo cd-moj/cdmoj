@@ -32,6 +32,7 @@
 # sessão única não vale: mostra esperado × visto e as anomalias sem risco — dá p/ ligar no meio da prova.
 # Quem decide BARRAR é `ug_enforcing` (o login), nunca o esperado sozinho.
 
+declare -F role_suffix_to >/dev/null || source "${BASH_SOURCE[0]%/*}/roles.sh"   # o registro dos papéis (ROLE_RE)
 ug_file(){ printf '%s/%s/ua-gate.json' "$CONTESTSDIR" "$1"; }
 
 # ug_get <c> -> o JSON normalizado (defaults coerentes quando não existe)
@@ -94,7 +95,7 @@ ug_expected(){
   g="$(ug_get "$c")"
   [[ "$(jq -r '.mode' <<<"$g")" == off ]] && return 0
   # conta de papel: sempre entra (é quem configura o gate) — sai antes de procurar a sede
-  case "$l" in *.admin|*.judge|*.cjudge|*.staff|*.cstaff|*.mon|*.animeitor) return 0;; esac
+  is_reserved_role_login "$l" && return 0      # conta de papel (registro server/etc/roles.tsv)
   reg="$(ug_region_of "$c" "$l")"
   # o fallback já resolvido com o legado do conf, como no lote
   jq -r --arg l "$l" --arg r "$reg" --arg lg "$(ug_legacy "$c")" "$UG_JQ"'
@@ -121,7 +122,7 @@ UG_JQ='
   def ug_expect($g; $l; $reg):
     if ($g.mode == "off") then ""
     elif any($g.exempt[]; . as $rr | (try ($l|test($rr;"i")) catch false)) then ""
-    elif ($l | test("\\.(admin|judge|cjudge|staff|cstaff|mon|animeitor)$")) then ""
+    elif ($l | test("'"$ROLE_RE"'")) then ""
     else
       (((first($g.by_regex[] | .regex as $rr
                 | select(try ($l|test($rr;"i")) catch false) | .expect)) // null) as $byrx

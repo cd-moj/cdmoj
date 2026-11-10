@@ -4,6 +4,8 @@
 # do audit), claims_audit:[…]}. POST {action:"set", enabled, grace?} liga/desliga (conf
 # SITE_LOCK/SITE_LOCK_GRACE); {action:"release", ip} solta um IP; {action:"claim-seen"} prende
 # desde já todos os IPs que logaram na janela da rodada (aquecimento incluso). Tudo auditado.
+# .sistemas (09/11/2026, registro server/etc/roles.tsv): GET e o `release` SÓ dos IPs da SEDE dele — IP reivindicado
+# (auditoria site-lock-claim) por um login do escopo (staff_visible_logins). Falha FECHADA: sem escopo, nenhum IP.
 contest="$(param contest)"
 [[ -n "$contest" ]] || fail 400 "Missing contest" "contest_missing"
 require_contest "$contest"
@@ -20,11 +22,28 @@ _sl_audit_json(){ # <action-prefix> [n] -> últimas linhas do audit com aquela a
            login:($d.login // ""), until:($d.until // "")} ] | reverse' 2>/dev/null || printf '[]'
 }
 
+# _sl_scope_ips <arq-saída> — (só .sistemas) os IPs reivindicados por logins do escopo, um por linha
+_sl_scope_ips(){
+  local vis="$1.vis"
+  source "$_LIBDIR/print.sh"
+  staff_visible_logins "$contest" "$SESSION_LOGIN" > "$vis" 2>/dev/null || : > "$vis"     # sem escopo = nada
+  _sl_audit_json site-lock-claim 5000 | jq -r --rawfile v "$vis" '
+    ($v | split("\n") | map(select(length > 0)) | map({(.): true}) | add // {}) as $V
+    | .[] | select($V[.login] == true) | .ip' 2>/dev/null | sort -u > "$1"
+  rm -f "$vis"
+}
+
 if [[ "$REQUEST_METHOD" == GET ]]; then
-  is_admin_or_chief || fail 403 "Apenas o admin ou o juiz-chefe" "admin_required"
+  { is_admin_or_chief || is_sistemas; } || fail 403 "Apenas o admin ou o juiz-chefe" "admin_required"
   en=false; sl_enabled "$contest" && en=true
   cl="$(sl_list "$contest")"; [[ -n "$cl" ]] || cl='[]'
   bl="$(_sl_audit_json site-lock-block 200)"; ca="$(_sl_audit_json site-lock-claim 500)"
+  if is_sistemas; then
+    _ips="$(mktemp)"; _sl_scope_ips "$_ips"
+    _f(){ jq -c --rawfile i "$_ips" '($i | split("\n") | map(select(length > 0)) | map({(.): true}) | add // {}) as $I
+                                    | map(select($I[.ip] == true))' <<<"$1" 2>/dev/null || printf '[]'; }
+    cl="$(_f "$cl")"; bl="$(_f "$bl")"; ca="$(_f "$ca")"; rm -f "$_ips"
+  fi
   ok_json '{enabled:$e, grace:$g, claims:$c[0], blocks:$b[0], claims_audit:$a[0]}' \
     --argjson e "$en" --argjson g "$(sl_grace "$contest")" \
     --slurpfile c <(printf '%s' "$cl") --slurpfile b <(printf '%s' "$bl") --slurpfile a <(printf '%s' "$ca")
@@ -32,10 +51,18 @@ if [[ "$REQUEST_METHOD" == GET ]]; then
 fi
 
 require_method POST
-is_admin || fail 403 "Apenas o admin do contest" "admin_required"
+{ is_admin || is_sistemas; } || fail 403 "Apenas o admin do contest" "admin_required"
 body="$(read_body)"
 jq -e . >/dev/null 2>&1 <<<"$body" || fail 400 "JSON inválido" "bad_json"
 action="$(jq -r '.action // "set"' <<<"$body")"
+# .sistemas só SOLTA IP, e só da sede dele (os demais são do admin)
+if is_sistemas; then
+  [[ "$action" == release ]] || fail 403 "Apenas o admin do contest" "admin_required"
+  _ip="$(jq -r '.ip // ""' <<<"$body")"; _ip="${_ip//[^0-9a-fA-F.:]/}"
+  _ips="$(mktemp)"; _sl_scope_ips "$_ips"
+  grep -qxF -- "$_ip" "$_ips" || { rm -f "$_ips"; fail 403 "Este IP não é da sua sede" "site_forbidden"; }
+  rm -f "$_ips"
+fi
 source "$_DIR/lib/users.sh"; source "$_DIR/lib/contest-create.sh"
 case "$action" in
   set)
@@ -66,7 +93,7 @@ case "$action" in
     while IFS=$'\t' read -r _t _lg _ip _rest; do
       [[ "$_t" =~ ^[0-9]+$ ]] && (( _t >= _from )) || continue
       r="$(sl_claim "$contest" "$_ip" "$_lg")"; [[ "$r" == new ]] && ((n++))
-    done < <(awk -F'\t' -v a="$_from" 'NF>=3 && $1+0>=a && $2 !~ /\.(admin|judge|cjudge|staff|cstaff|mon|animeitor)$/ {print $1 "\t" $2 "\t" $3}' \
+    done < <(awk -F'\t' -v a="$_from" -v re_role="$ROLE_RE" 'NF>=3 && $1+0>=a && $2 !~ re_role {print $1 "\t" $2 "\t" $3}' \
                "$cdir/var/access.log" 2>/dev/null | sort -u -t$'\t' -k3,3)
     audit_log_to "$contest" site-lock-claim-seen "new=$n since=$_from"
     ok_json '{claimed:$n}' --argjson n "$n";;

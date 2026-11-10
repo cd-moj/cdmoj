@@ -110,6 +110,10 @@ echo "== declina tudo fora do feliz"
 d(){ [[ -z "$2" ]] && ok "$1" || bad "$1 (respondeu: ${2:0:60})"; }
 d "token inexistente"        "$(req /contest/rounds contest=fx "Bearer NAOEXISTE")"
 d "secreto sem sessão"       "$(req /contest/score contest=sx)"
+# .diretor (placar_recorte, 09/11/2026): o recorte sem freeze e a ★ do recorte são do bash — servir daqui vazaria tudo
+mkdir -p "$C/users/norte.diretor"; printf '{"login":"norte.diretor"}' > "$C/users/norte.diretor/account.json"
+printf 'CONTEST=fx\nLOGIN=norte.diretor\n' > "$SESSIONDIR/tk-dir"
+d "diretor no placar (recorte do bash)" "$(req /contest/score contest=fx "Bearer tk-dir")"
 d "POST"                     "$(req /contest/score contest=fx "" POST)"
 d "traversal"                "$(req /contest/score "contest=../../etc")"
 d "scope=mine"               "$(req /contest/score "contest=fx&scope=mine" "Bearer tk-adm")"

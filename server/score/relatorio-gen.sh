@@ -23,6 +23,9 @@ SINCE="${1:-}"; UNTIL="${2:-}"; OUT="${3:-}"
 [[ "$SINCE" =~ ^[0-9]+$ && "$UNTIL" =~ ^[0-9]+$ && -n "$OUT" ]] \
   || { echo "uso: relatorio-gen.sh <since-epoch> <until-epoch> <outfile>" >&2; exit 1; }
 (( SINCE < UNTIL )) || { echo "relatorio-gen: since >= until" >&2; exit 1; }
+# o registro dos papéis (ROLE_RE): conta de papel fica fora do relatório. Vazio, o `login ~ ""` casaria todo login.
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../api/v1/lib/roles.sh" || exit 1
+[[ -n "${ROLE_RE:-}" ]] || { echo "relatorio-gen: registro de papéis vazio" >&2; exit 1; }
 
 # --- as 4 janelas ------------------------------------------------------------
 # A = [since,until] (relatório); B = A deslocada -1 ano (calendário, não -365d);
@@ -47,9 +50,9 @@ trap 'rm -f "$TMP" "$NORM" "$AGG" "$NAMES"; exit 143' INT TERM
 
 # --- estágio 1: normaliza (contest, login, epoch) na janela envelope ---------
 find "$CONTESTSDIR" -mindepth 4 -maxdepth 4 -type f -path '*/users/*/history' -print0 \
-| xargs -0 -r awk -F: -v MIN="$MIN" -v MAX="$MAX" '
+| xargs -0 -r awk -F: -v re_role="$ROLE_RE" -v MIN="$MIN" -v MAX="$MAX" '
     FNR==1 { n=split(FILENAME,p,"/"); login=p[n-1]; contest=p[n-3];
-             skip=(login ~ /\.(admin|judge|cjudge|staff|cstaff|mon|animeitor)$/) }
+             skip=(login ~ re_role) }   # conta de papel (registro server/etc/roles.tsv)
     skip { next }
     NF>=5 { e=$(NF-1)+0; if (e>=MIN && e<=MAX) printf "%s\t%s\t%d\n", contest, login, e }
   ' > "$NORM"

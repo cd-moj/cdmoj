@@ -1,4 +1,4 @@
-<!-- i18n-source: MANUAL-ADMIN.md blob:1fa056613cdce9142a23f923266156d312b952bf -->
+<!-- i18n-source: MANUAL-ADMIN.md blob:93cacc99edd6b0559863239bb9bd34b91660fb49 -->
 # MOJ: Organizer manual (the contest .admin panel)
 
 > **Translation note.** This manual is a translation of the Portuguese original. The command-line tools (`moj`, `moj-contest`, `moj-comp`) print their messages in Portuguese, and the command examples below are identical to the original.
@@ -328,6 +328,15 @@ privileged accounts on purpose.
 | **Staff (room staff)** | `.staff` | The **🖨️ print and balloons** queue (claim/print/deliver, automatic kiosk mode). | See problems or submit (never); badges; scoreboard without freeze. |
 | **Site chief** | `.cstaff` | Follow the staff queue of the site (read-only). **Badges** with the credentials of the competitors and of the **`.staff`** of the site (with password, except in a contest that uses the training accounts: there the password is personal and does not go on the badge; the credential of the site chief also never goes on a badge). The **🎥 big screen** of the site and the **🏆 reveal by site** after the end. | Act on the print queue; see problems/submit; does not inherit `.staff`. |
 | **Monitor** | `.mon` | Submit DURING the contest (without appearing on the scoreboard), **answer clarifications**, All Submissions and Statistics. | See the problems before the start; manual review. |
+| **Photos** | `.foto` | On the **🎥 big screen** page, upload and replace the **photo** of the teams in its scope (one file, in a batch or in a `.zip`). | Music; webcast keys; see the problems or submit; unfrozen scoreboard. |
+| **Music** | `.musica` | The same, for the **music** of the teams in its scope. | Photos; the rest, as `.foto`. |
+| **Systems** | `.sistemas` | **🖥 Machines** of the sites in its scope: the overview, the commands, lock and unlock screens, and **release** an IP pinned by the site lock. | Machines of another site; turn the lock on or off; see the problems or submit. |
+| **Director** | `.diretor` | The **scoreboard WITHOUT freeze**, during the whole contest, **of its subset only** (region, country or site), with the position and the first-to-solve ★ recomputed inside the subset. | See the other teams; see the problems or submit; badges, queue, statistics. |
+
+The four roles above have a **scope**: in **Operations › Staff › Scope of the role accounts**, tell which sites,
+countries or regions each login sees (`region:<name>`, one per line). **Without a scope, they see nobody** — unlike
+`.staff` and `.cstaff`, which see everybody without a scope. The server always makes the cut.
+The roles come from a single registry (`server/etc/roles.tsv`): suffix, class and what each one can do.
 
 Golden rule: **no account with a role suffix goes to the scoreboard or to the statistics**. Create
 as many as you need: they do not change the result.

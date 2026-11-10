@@ -3,6 +3,7 @@
 import { apiGet, apiGetText, apiGetBlob, apiPost, getToken } from '/shared/api.js';
 import { login, logout, status, fileToBase64, textToBase64 } from '/shared/auth.js';
 import { el, verdictClass, isPending, fmtDate, resumoText, fmtCountdown as fmtLeft } from '/shared/ui.js';
+import { roleCan } from '/shared/roles.js';   // registro dos papéis (GERADO de server/etc/roles.tsv)
 import { createEditor } from '/shared/editor.js';
 import { skeletonFor, isSkeleton, docOnLangChange, contestSkeletonCfg } from '/shared/editor-skeleton.js';
 import { LANGUAGES, DEFAULT_SUBMIT_LANGUAGES, langById, extCanon } from '/shared/languages.js';
@@ -334,8 +335,9 @@ function renderUser() {
   // judge/chief, todas com o mesmo botão no topo). Aqui o papel é o COMPETIDOR — então o botão só
   // aparece p/ quem não tem papel nenhum; organização e juiz já têm o tutorial DELES na página
   // deles. O contest-guard deixa passar porque o caminho começa em /contest/.
-  const plain = !(userinfo.is_admin || userinfo.is_judge || userinfo.is_staff
-    || userinfo.is_cstaff || userinfo.is_animeitor);
+  // sem papel, ou papel que participa como time (o .mon: `como_time` no registro server/etc/roles.tsv)
+  const plain = ('role' in userinfo) ? (!userinfo.role || roleCan(userinfo.login, 'como_time'))
+    : !(userinfo.is_admin || userinfo.is_judge || userinfo.is_staff || userinfo.is_cstaff || userinfo.is_animeitor);
   if (plain) {
     box.append(el('a', { class: 'btn ghost', href: '/contest/ajuda/competidor.html', target: '_blank',
       rel: 'noopener', style: 'float:right;margin:.2rem 0 0',

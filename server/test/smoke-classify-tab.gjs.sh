@@ -31,7 +31,7 @@ async function apiGet(){ return JSON.parse(JSON.stringify(GET)); }
 let PREVIEW = null;
 async function apiPost(p, body){ POSTS.push(body); return body.action === 'preview' && PREVIEW ? JSON.parse(JSON.stringify(PREVIEW)) : {}; }
 JS
-  strip "$W/shared/dom.js"; strip "$W/shared/admin-ui.js"; strip "$W/contest/score/score-classified.js"
+  strip "$W/shared/dom.js"; strip "$W/shared/roles.js"; strip "$W/shared/admin-ui.js"; strip "$W/contest/score/score-classified.js"
   strip "$W/contest/admin/classify-result.js"; strip "$W/contest/admin/classify-tab.js"
   cat <<'JS'
 const L = { regra1:{pt:'Regra 1 — melhores gerais', short:{pt:'regra 1'}}, regra2:{pt:'Regra 2 — vagas por sede'}, manual:{pt:'Promoção manual (comitê)'} };

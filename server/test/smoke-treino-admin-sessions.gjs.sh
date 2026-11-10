@@ -50,7 +50,7 @@ const apiPost=async(path,body)=>{ POSTS.push({path, body}); if (NEXT) { const f=
   return {logged_out:true, users_count:(body.logins||[1]).length, sessions_removed:1}; };
 JS
   strip "$W/shared/dom.js"
-  strip "$W/shared/admin-ui.js"
+  strip "$W/shared/roles.js"; strip "$W/shared/admin-ui.js"
   strip "$W/treino/admin/sessions-tab.js"
   cat <<'JS'
 const tick = async () => { for (let i = 0; i < 30; i++) await Promise.resolve(); };

@@ -4,6 +4,7 @@ import { status, fileToBase64 } from '/shared/auth.js';
 import { el, renderAuthArea, fmtDate } from '/shared/ui.js';
 import { EDITORS } from '/shared/editors.js';
 import { T, uiLocale } from '/shared/i18n.js';
+import { roleOf } from '/shared/roles.js';
 
 const CONTEST = 'treino';
 const msgBox = () => el('div', { class: 'small', style: 'margin-top:.5rem' });
@@ -235,10 +236,10 @@ function render(p, st) {
     el('p', { class: 'small muted' }, T('Seu login atual é ', 'Your current login is ', 'Tu usuario actual es '), el('b', {}, p.login),
       T('. Trocar o handle atualiza todo o seu histórico do Treino Livre (submissões, estatísticas, etc.) e vale em todos os dispositivos onde você está conectado — inclusive na CLI: ninguém é deslogado.', '. Changing the handle updates all your Free Training history (submissions, statistics, etc.) and applies to every device you are logged in on — the CLI included: nobody gets logged out.', '. Cambiar el handle actualiza todo tu historial de Entrenamiento libre (envíos, estadísticas, etc.) y vale en todos los dispositivos donde tienes sesión iniciada — incluida la CLI: a nadie se le cierra la sesión.')),
     (() => {
-      const m = /\.(admin|cjudge|judge|cstaff|staff|mon)$/.exec(p.login);
-      return m ? el('p', { class: 'small notice', style: 'margin:.3rem 0' },
-        T('Sua conta tem papel pelo sufixo ', 'Your account carries its role in the suffix ', 'Tu cuenta lleva su rol en el sufijo '), el('b', {}, '.' + m[1]),
-        T(': a troca precisa MANTER o sufixo (ex.: novo_nome.', ': the change must KEEP the suffix (e.g., new_name.', ': el cambio debe MANTENER el sufijo (ej.: nuevo_nombre.'), m[1] + ').') : '';
+      const r = roleOf(p.login);   // o registro dos papéis (o mesmo do servidor, treino/profile/username.sh)
+      return r ? el('p', { class: 'small notice', style: 'margin:.3rem 0' },
+        T('Sua conta tem papel pelo sufixo ', 'Your account carries its role in the suffix ', 'Tu cuenta lleva su rol en el sufijo '), el('b', {}, '.' + r),
+        T(': a troca precisa MANTER o sufixo (ex.: novo_nome.', ': the change must KEEP the suffix (e.g., new_name.', ': el cambio debe MANTENER el sufijo (ej.: nuevo_nombre.'), r + ').') : '';
     })(),
     note,
     disabled ? '' : el('div', { class: 'field' }, el('label', {}, T('Novo nome de usuário', 'New username', 'Nuevo nombre de usuario')), uI),

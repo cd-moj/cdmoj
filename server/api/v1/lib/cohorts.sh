@@ -25,6 +25,7 @@
 # (`FTSMIN` em updatescore-icpc.sh, sobre a saída de sc_users). Filtrar só no TXT deixaria o
 # placar público exibindo a estrela de um problema que, para ele, ninguém resolveu primeiro.
 
+declare -F role_suffix_to >/dev/null || source "${BASH_SOURCE[0]%/*}/roles.sh"   # o registro dos papéis (ROLE_RE)
 ch_file(){ printf '%s/%s/cohorts.json' "$CONTESTSDIR" "$1"; }
 
 # ch_get <c> -> cohorts.json normalizado (default coerente quando não existe)
@@ -161,7 +162,7 @@ ch_ctx(){
              // first($C.cohorts[] | select(.default) | .id) // ($C.cohorts[0].id) // "") end) as $co
     | (if ($en|not) then "public"
        elif $C.released then "all"
-       elif ($l|test("\\.(admin|judge|cjudge|staff|cstaff|mon|animeitor)$")) then "all"
+       elif ($l|test("'"$ROLE_RE"'")) then "all"
        elif ($co != "" and any($C.cohorts[]; .id == $co and (.public|not))) then $co
        else "public" end) as $vw
     | [(if $en then "1" else "0" end), $co, $vw] | join("\u0001")' 2>/dev/null \
@@ -179,7 +180,7 @@ _ch_view_raw(){
   local c="$1" l="$2" co
   ch_enabled "$c" || { printf 'public'; return 0; }
   ch_released "$c" && { printf 'all'; return 0; }
-  case "$l" in *.admin|*.judge|*.cjudge|*.staff|*.cstaff|*.mon|*.animeitor) printf 'all'; return 0;; esac
+  is_reserved_role_login "$l" && { printf 'all'; return 0; }
   co="$(ch_of "$c" "$l")"
   # membro de coorte pública vê a visão pública; de coorte privada, a visão dela
   if [[ -n "$co" ]] && jq -e --arg i "$co" 'any(.cohorts[]; .id == $i and .public == false)' \

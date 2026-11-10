@@ -30,8 +30,7 @@ while (( $# )); do
   esac; shift
 done
 [[ -n "$OLD" && -n "$NEW" ]] || { echo "uso: $0 <login> <login-com-papel> [--apply] [--message-file <arq>]" >&2; exit 2; }
-_role(){ case "$1" in *.admin) echo admin;; *.cjudge) echo cjudge;; *.judge) echo judge;; *.cstaff) echo cstaff;;
-  *.staff) echo staff;; *.mon) echo mon;; *.animeitor) echo animeitor;; *) echo "";; esac; }
+_role(){ role_of "$1"; }   # o sufixo de papel do registro (server/etc/roles.tsv); "" = sem papel
 [[ "$NEW" =~ ^[A-Za-z0-9._-]{2,40}$ ]] && valid_id "$NEW" || { echo "RECUSADO: login novo inválido: $NEW" >&2; exit 2; }
 [[ -n "$(_role "$NEW")" ]] || { echo "RECUSADO: '$NEW' não tem sufixo de papel (.admin, .judge, …) — troca comum de handle é pelo perfil" >&2; exit 2; }
 [[ "$(_role "$NEW")" != "$(_role "$OLD")" ]] || { echo "RECUSADO: '$OLD' já tem o papel $(_role "$OLD")" >&2; exit 2; }

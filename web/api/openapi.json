@@ -312,7 +312,7 @@
         "tags": [
           "auth"
         ],
-        "summary": "Status da sessão",
+        "summary": "Status da sessão role = o sufixo de papel (vazio = time; registro server/etc/roles.tsv).",
         "security": [
           {
             "bearerAuth": []
@@ -3204,7 +3204,7 @@
         "tags": [
           "contest"
         ],
-        "summary": "Placar (TXT, 1ª linha = modo); antes do início serve a VITRINE (times sem colunas de problema — o placar nunca revela a quantidade de problemas antes de a competição começar; is_judge vê o completo); privilegiado recebe o completo — view=public força o congelado (usado pela cerimônia de revelação); scope=mine (só .cstaff) recorta à sede — com SCORE_ANON=1, quem não é da organização (admin/chefe/juiz/.mon/.animeitor) recebe só o agregado JSON {anon, mode, n, guests, frozen, supported, problems, per_problem, dist, q} com X-MOJ-Anon: 1 (nem SCORE_FULL_USERS, coorte ou scope=mine furam)",
+        "summary": "Placar (TXT, 1ª linha = modo); antes do início serve a VITRINE (times sem colunas de problema — o placar nunca revela a quantidade de problemas antes de a competição começar; is_judge vê o completo); privilegiado recebe o completo — view=public força o congelado (usado pela cerimônia de revelação); scope=mine (só .cstaff) recorta à sede — com SCORE_ANON=1, quem não é da organização (admin/chefe/juiz/.mon/.animeitor) recebe só o agregado JSON {anon, mode, n, guests, frozen, supported, problems, per_problem, dist, q} com X-MOJ-Anon: 1 (nem SCORE_FULL_USERS, coorte ou scope=mine furam) .diretor (09/11/2026): SEM freeze, só o escopo, ★ recalculada no recorte (o porteiro declina).",
         "parameters": [
           {
             "$ref": "#/components/parameters/contest"
@@ -5648,7 +5648,7 @@
     "/contest/admin/site-lock": {
       "get": {
         "tags": ["contest"],
-        "summary": "Trava de sede por IP (admin/chefe): IPs presos a este contest, bloqueios e reivindicações auditadas",
+        "summary": "Trava de sede por IP (admin/chefe): IPs presos a este contest, bloqueios e reivindicações auditadas .sistemas: GET recortado à sede e POST só release de IP da sede (403 site_forbidden).",
         "parameters": [{"name": "contest", "in": "query", "required": true, "schema": {"type": "string"}}],
         "responses": {"200": {"description": "{enabled, grace, claims[], blocks[], claims_audit[]}"}, "403": {"description": "admin_required"}}
       },

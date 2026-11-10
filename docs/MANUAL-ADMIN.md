@@ -315,6 +315,15 @@ operações em massa (reset de senha, desabilitar) **pulam** contas privilegiada
 | **Staff** | `.staff` | Fila de **🖨️ impressão e balões** (pegar/imprimir/entregar, modo automático de quiosque). | Ver problemas ou submeter (nunca); etiquetas; placar sem freeze. |
 | **Chefe de sede** | `.cstaff` | Observar a fila do staff da sua sede (somente leitura), **Etiquetas** de credenciais dos competidores e do **`.staff`** da sua sede (com senha — exceto em contest que usa contas do treino, onde a senha é pessoal e não sai na etiqueta; a credencial do próprio chefe também não sai em etiqueta), o **🎥 telão** da sede e a **🏆 revelação por sede** depois do fim. | Agir na fila de impressão; ver problemas/submeter; não herda `.staff`. |
 | **Monitor** | `.mon` | Submeter DURANTE a prova (sem aparecer no placar), **responder clarifications**, Todas as Submissões e Estatísticas. | Ver problemas antes da largada; correção manual. |
+| **Fotos** | `.foto` | Na página do **🎥 telão**, subir e trocar a **foto** dos times do seu escopo (um arquivo, em lote ou num `.zip`). | Música; chaves do webcast; ver problemas ou submeter; placar sem freeze. |
+| **Músicas** | `.musica` | O mesmo, para a **música** dos times do seu escopo. | Foto; o resto, como o `.foto`. |
+| **Sistemas** | `.sistemas` | **🖥 Máquinas** das sedes do seu escopo: o panorama, os comandos, travar e destravar telas, e **soltar** um IP preso pela trava de sede. | Máquinas de outra sede; ligar ou desligar a trava; ver problemas ou submeter. |
+| **Diretor** | `.diretor` | O **placar SEM freeze**, durante a prova toda, **só do seu recorte** (região, país ou sede), com a posição e a ★ de primeiro recalculadas dentro do recorte. | Ver os outros times; ver problemas ou submeter; etiquetas, fila, estatísticas. |
+
+Os quatro papéis de baixo têm **escopo**: em **Operação › Staff › Escopo das contas de papel**, diga quais
+sedes, países ou regiões cada login vê (`region:<nome>`, um por linha). **Sem escopo, eles não veem ninguém** — ao
+contrário do `.staff` e do `.cstaff`, que sem escopo veem todos. O corte é sempre do servidor.
+Os papéis vêm de um registro único (`server/etc/roles.tsv`): sufixo, classe e o que cada um pode.
 
 Regra de ouro: **nenhuma conta com sufixo de papel entra no placar ou nas estatísticas** —
 crie quantas precisar sem medo de sujar o resultado.

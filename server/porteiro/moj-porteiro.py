@@ -69,7 +69,25 @@ TTL_PROBLEMS = _env_int("PROBLEMS_CACHE_TTL", 900)
 HANDLERS = os.path.join(MOJ_HOME, "server/api/v1/handlers")
 
 VALID_ID = re.compile(r"^[A-Za-z0-9._@#+-]+$")
-ROLE_SUFFIX = re.compile(r"\.(admin|judge|cjudge|staff|cstaff|mon|animeitor)$")
+# PAPÉIS = o REGISTRO ÚNICO server/etc/roles.tsv (o mesmo do lib/roles.sh do bash e do web/shared/roles.js), lido na
+# largada. Papel novo entra lá, nunca numa lista aqui (smoke-roles-registry.sh confere).
+def _roles_load(path):
+    roles = []
+    with open(path, encoding="utf-8") as fh:
+        for ln in fh:
+            if not ln.strip() or ln.startswith("#"):
+                continue
+            f = (ln.rstrip("\n").split("\t") + [""] * 5)[:5]
+            if re.fullmatch(r"[a-z]+", f[0]):
+                roles.append({"suffix": f[0], "nav": f[1], "cls": f[2], "scoped": f[3] == "sim", "can": f[4].split()})
+    return roles
+
+
+# relativo a ESTE arquivo (server/porteiro → server/etc): vale no checkout, na imagem e nos testes, sem depender do MOJ_HOME
+ROLES = _roles_load(os.environ.get("MOJ_ROLES_TSV") or
+                    os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "etc", "roles.tsv"))
+ROLE_BY = {r["suffix"]: r for r in ROLES}
+ROLE_SUFFIX = re.compile(r"[.](" + "|".join(r["suffix"] for r in ROLES) + r")$")
 CH_ID_OK = re.compile(r"^[a-z0-9][a-z0-9_-]{0,23}$")
 
 
@@ -205,22 +223,29 @@ def load_session(params):
     return contest, login
 
 
+def role_suffix(login):
+    m = ROLE_SUFFIX.search(login or "")
+    return m.group(1) if m else ""
+
+
 def role_of(login):
-    """A cadeia do navbuttons.sh, NA MESMA ORDEM."""
-    for suf, role in ((".animeitor", "animeitor"), (".cstaff", "cstaff"), (".staff", "staff"),
-                      (".admin", "admin"), (".cjudge", "chief"), (".judge", "judge"),
-                      (".mon", "mon")):
-        if login.endswith(suf):
-            return role
-    return "time"
+    """O nome do papel na navegação (a coluna `nav` do registro; o navbuttons.sh usa a mesma) ou "time"."""
+    s = role_suffix(login)
+    return ROLE_BY[s]["nav"] if s else "time"
 
 
-def is_judge(login):    # .judge | .cjudge | .admin (lib/auth.sh)
-    return login.endswith((".judge", ".cjudge", ".admin"))
+def role_can(login, cap):
+    """lib/roles.sh role_can: a capacidade está na coluna `pode` do papel (admin = *)."""
+    s = role_suffix(login)
+    return bool(s) and ("*" in ROLE_BY[s]["can"] or cap in ROLE_BY[s]["can"])
 
 
-def is_priv_rounds(login):  # rounds.sh: admin|judge|chief|staff|cstaff|mon
-    return login.endswith((".admin", ".judge", ".cjudge", ".staff", ".cstaff", ".mon"))
+def is_judge(login):    # lib/auth.sh is_judge = role_can julgar (.judge | .cjudge | .admin)
+    return role_can(login, "julgar")
+
+
+def is_priv_rounds(login):  # rounds.sh: role_can rodadas_privadas
+    return role_can(login, "rodadas_privadas")
 
 
 # ---------------------------------------------------------------- gates de contest
@@ -384,6 +409,10 @@ def r_score(contest, q, params):
     sess = load_session(params)
     secret_gate(contest, sess)
     slogin = sess[1] if (sess and sess[0] == contest) else ""
+    # .diretor (placar_recorte): o placar SEM freeze recortado pela região dele — o corte e a ★ do recorte são do bash
+    # (score.sh / pr_filter_board_subset). Servir daqui daria o placar inteiro (memória score-recorte: o bloqueador).
+    if slogin and role_suffix(slogin) != "admin" and role_can(slogin, "placar_recorte"):
+        raise Decline("diretor: recorte do bash")
     var = os.path.join(CONTESTSDIR, contest, "var")
 
     start = conf_int(contest, "CONTEST_START")
@@ -546,7 +575,7 @@ def r_problems(contest, q, params):
     login = sess[1]
     # can_see_problems: staff/cstaff/animeitor e pré-início são respostas do BASH (locked)
     if not is_judge(login):
-        if login.endswith((".staff", ".cstaff", ".animeitor")):
+        if role_suffix(login) and not role_can(login, "como_time"):     # contest-gate.sh _role_off_contest
             raise Decline("papel sem enunciado (locked é do bash)")
         start = conf_int(contest, "CONTEST_START")
         if start > 0 and time.time() < start:
@@ -594,7 +623,7 @@ def r_updates(contest, q, params):
         # arquivo presente mas inválido: bash cai no zerado (jq -e falha) — igual aqui
 
     cdir = os.path.join(CONTESTSDIR, contest, "clarifications")
-    priv = login.endswith((".admin", ".judge", ".cjudge", ".mon"))
+    priv = is_judge(login) or role_can(login, "monitorar")      # updates.sh: is_admin || is_judge || is_mon
     vis = []
     try:
         names = sorted(f for f in os.listdir(cdir) if f.endswith(".json"))
@@ -698,7 +727,7 @@ def r_staff_queue(contest, q, params):
     if not (sess and sess[0] == contest):
         raise Decline("queue exige sessão do contest")
     login = sess[1]
-    if not login.endswith((".staff", ".cstaff", ".admin")):
+    if not (role_can(login, "fila") or role_can(login, "fila_leitura")):   # queue.sh: staff, cstaff, admin
         raise Decline("papel sem fila (403 é do bash)")
     pdir = os.path.join(CONTESTSDIR, contest, "print-requests")
 

@@ -20,6 +20,10 @@ elif is_admin;     then NBROLE=admin
 elif is_chief;     then NBROLE=chief
 elif is_judge;     then NBROLE=judge
 elif is_mon;       then NBROLE=mon
+elif is_diretor;   then NBROLE=diretor     # os papéis de 09/11/2026 (registro server/etc/roles.tsv)
+elif is_foto;      then NBROLE=foto
+elif is_musica;    then NBROLE=musica
+elif is_sistemas;  then NBROLE=sistemas
 else                    NBROLE=time; fi
 # O cstaff ganha o botão da cerimônia quando a prova acaba p/ TODAS as sedes (e o .animeitor libera,
 # com o telão em uso), e o competidor perde a impressão quando o staff some: dependem do RELÓGIO/do
@@ -71,6 +75,20 @@ staff)
             {label:"Documentos", url:"/contest/docs/"},
             {label:"Rodadas", url:"/contest/rounds/"}]'
   [[ -e "$CONTESTSDIR/$contest/var/animeitor-reveal.released" ]] && buttons="$buttons + [{label:\"Reveleitor\", url:\"/contest/animeitor/?reveleitor=1\"}]" ;;
+# os papéis de 09/11/2026 (server/etc/roles.tsv), todos com ESCOPO por sede/país/região e sem submeter:
+diretor)
+  # .diretor: o placar SEM freeze só do recorte dele (a API corta e recalcula posição/★ — score.sh)
+  buttons='[{label:"Score", url:"/contest/score/"},
+            {label:"Documentos", url:"/contest/docs/"}]' ;;
+foto|musica)
+  # .foto/.musica: a mesa do telão só p/ subir a foto OU a música dos times do escopo (a API corta)
+  buttons='[{label:"Score", url:"/contest/score/"},
+            {label:"Animeitor", url:"/contest/animeitor/"}]' ;;
+sistemas)
+  # .sistemas: as máquinas das sedes do escopo (leitura + comandos nelas — contest/nutella.sh, admin/machines.sh)
+  buttons='[{label:"Score", url:"/contest/score/"},
+            {label:"Máquinas", url:"/contest/mlinux/"},
+            {label:"Documentos", url:"/contest/docs/"}]' ;;
 *)
   # base comum a usuário/monitor/judge/chefe/admin
   buttons='[{label:"Contest", url:"/"},

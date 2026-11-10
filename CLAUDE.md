@@ -211,7 +211,22 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   19/09/2026) — o "nova senha" das contas geridas levava 38 s e o admin desistia antes de ver a senha
   (relato do Ribas, conta `zan`). A LISTAGEM (`treino/admin/sessions`, 1ª aba do painel) e o deslogar por IP
   seguem o mesmo molde: grep + `source` no mesmo processo + UM jq (a aba levava 69 s). Teste: `smoke-session-remove.sh`.
-  Papéis por sufixo no login (`.admin/.judge/.cjudge/.staff/.cstaff/.mon`).
+  Papéis por sufixo no login, num **REGISTRO ÚNICO: `server/etc/roles.tsv`** (09/11/2026, decisão do Ribas: "checks de
+  permissão simples de manter e eficazes"). Colunas: sufixo · nome na nav · classe (`org`|`sala`) · escopo (`sim` = chave
+  do staff-filters) · capacidades (`role_can`: julgar, chefe, placar_full, placar_recorte, rodadas_privadas, fila,
+  fila_leitura, etiquetas, cerimonia, foto, musica, telao, maquinas, monitorar, como_time; `*` = admin). Leitores:
+  `lib/roles.sh` (bash, ZERO fork: `role_of`, `role_suffix_to`, `is_reserved_role_login`, `role_class`, `role_scoped`,
+  `role_can`, `role_is`, `role_glob_scoped`, `ROLE_RE` = `[.](admin|…)$` p/ grep/awk/jq — `[.]` e não `\.`: o
+  `awk -v` faria do `\.` um curinga —, `ROLE_JQ`/`ROLE_JQ_ORG`/`ROLE_JQ_SALA` = `endswith(...)` p/ jq em caminho quente);
+  o porteiro (lê o TSV relativo ao próprio arquivo); `web/shared/roles.js` (GERADO: `bash server/bin/roles-gen.sh`) e o
+  `ingest-drain.py`. Os `is_*` do auth.sh viraram embrulhos (os ~100 chamadores não mudaram). ⚠ **Lista de sufixos
+  escrita à mão é bug**: `smoke-roles-registry.sh` faz o inventário (3+ sufixos numa linha de código fora do registro =
+  FAIL) — foram 76 cópias com 7 divergências. Papel novo = 1 linha no TSV + o que ele pode nas rotas + nav. "Fora da
+  prova" (`contest-gate.sh _role_off_contest`) = papel sem `julgar` nem `como_time`: sem enunciado, sem submeter (também
+  offline), sem pedir impressão. **Os papéis com escopo de 09/11 falham FECHADO** (sem escopo, ninguém): `.foto`/`.musica`
+  (telão: foto OU música do escopo), `.sistemas` (nutella + `site-lock` recortado, POST só `release` de IP da sede),
+  `.diretor` (`score.sh` → `pr_filter_board_subset`: SEM freeze, só o escopo, ★ recalculada no recorte e retida quando o
+  placar inteiro a retém; o porteiro declina). Teste: `smoke-roles-new.sh`.
   **`.cjudge`** = juiz-chefe: `is_judge` vale p/ ele (herda juiz) + `is_chief`/`is_admin_or_chief`
   p/ os extras escopados (editar notícias/respostas já dadas, Situação, Todas Submissões, resolver
   conflitos, config de auto-veredicto) — **não** é admin pleno. **`.cstaff`** = chefe de staff de

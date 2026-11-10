@@ -13,6 +13,7 @@ import { downloadAuthed, fmtDate, norm, debounce } from '/shared/admin-ui.js';
 import { T, uiLocale } from '/shared/i18n.js';
 import { setMediaSrc, mediaLink, setAudioSrc, releaseMedia } from '/shared/media-auth.js';
 import { makeApiSection } from './api-section.js';
+import { roleCan } from '/shared/roles.js';           // registro dos papéis (GERADO de server/etc/roles.tsv)
 
 const qs = new URLSearchParams(location.search);
 const CONTEST = (window.__MOJ_CONTEST || qs.get('c') || '');
@@ -30,6 +31,11 @@ let REVEAL = null;   // {released, scoped, sites[], links[], verify} — os link
 //   NOWRITE (.staff)           — sem NENHUMA escrita: nada de enviar/trocar/remover, lote ou zip.
 let RO = false;
 let NOWRITE = false;
+// O QUE a conta escreve (09/11/2026: .foto e .musica — registro server/etc/roles.tsv, capacidades `foto`/`musica`):
+// a API corta (role_can + escopo); aqui só não se oferece o botão que daria 403
+let CAN_PHOTO = true;
+let CAN_MUSIC = true;
+let SITE_ORG = false;   // .cstaff/.staff: o cartão do Reveleitor da sede
 
 // ESTADO DA GALERIA (prova de verdade tem 1000+ times): filtro + página. Abre em PENDÊNCIAS —
 // quem falta foto OU música, que é a fila de trabalho inteira de quem opera o telão.
@@ -149,10 +155,10 @@ function musicRow(t, box) {
     el('span', { class: 'lg' }, t.has_music
       ? `${Math.round((t.music_bytes || 0) / 1024)} KB`
       : T('padrão', 'default', 'predeterminado')),
-    NOWRITE ? '' : el('button', { class: 'btn ghost', onclick: () => inp.click(),
+    !CAN_MUSIC ? '' : el('button', { class: 'btn ghost', onclick: () => inp.click(),
       title: t.has_music ? T('trocar a música', 'replace the music', 'reemplazar la música')
                          : T('enviar a música', 'upload the music', 'subir la música') }, '⬆'),
-    (t.has_music && !NOWRITE) ? el('button', { class: 'btn ghost danger',
+    (t.has_music && CAN_MUSIC) ? el('button', { class: 'btn ghost danger',
       title: T('remover a música', 'remove the music', 'quitar la música'), onclick: async () => {
       if (!confirm(T('Remover a música de ', 'Remove the music of ', 'Quitar la música de ') + (t.name || t.login) + '?')) return;
       try {
@@ -185,7 +191,7 @@ function photoCard(t, box) {
     el('div', { class: 'nm' }, t.name || t.login),
     el('div', { class: 'lg' }, (t.univ ? '[' + t.univ + '] ' : '') + t.login),
     el('div', { class: 'lg' }, t.has_photo ? `${t.format} · ${Math.round((t.bytes || 0) / 1024)} KB` : ''),
-    NOWRITE ? '' : el('div', { class: 'acts' }, inp,
+    !CAN_PHOTO ? '' : el('div', { class: 'acts' }, inp,
       el('button', { class: 'btn ghost', onclick: () => inp.click() },
         t.has_photo ? T('trocar', 'replace', 'reemplazar') : T('enviar', 'upload', 'subir')),
       t.has_photo ? el('button', { class: 'btn ghost danger', onclick: async () => {
@@ -467,7 +473,8 @@ function bulkPlan(items) {
     const kind = /\.mp3$/i.test(it.name) ? 'music' : (isPhotoName(it.name) ? 'photo' : null);
     const login = it.name.replace(/\.[^.]+$/, '').toLowerCase();
     const team = byLogin.get(login) || null;
-    let status = !kind ? 'format' : (!team ? 'no_team' : ((kind === 'music' ? team.has_music : team.has_photo) ? 'replace' : 'new'));
+    let status = !kind ? 'format' : (!team ? 'no_team' : ((kind === 'music' ? !CAN_MUSIC : !CAN_PHOTO) ? 'denied'
+      : ((kind === 'music' ? team.has_music : team.has_photo) ? 'replace' : 'new')));
     const r = { item: it, kind, team, login, status };
     if (kind && team) {                                   // o MESMO time e tipo duas vezes: vale o último
       const k = kind + '|' + login;
@@ -485,6 +492,7 @@ const BULK_ST = {
   no_team: () => T('nenhum time com esse login', 'no team with this login', 'ningún equipo con ese usuario'),
   format: () => T('não é foto nem MP3', 'not a photo or MP3', 'no es foto ni MP3'),
   dup: () => T('repetido (vale o último)', 'repeated (the last one counts)', 'repetido (vale el último)'),
+  denied: () => T('sua conta não envia este tipo', 'your account does not upload this type', 'tu cuenta no sube este tipo'),
 };
 
 function showBulkPlan(box, plan) {
@@ -492,7 +500,7 @@ function showBulkPlan(box, plan) {
   const cnt = (st) => plan.filter((r) => r.status === st).length;
   const nP = go.filter((r) => r.kind === 'photo').length, nM = go.length - nP;
   box.innerHTML = '';
-  const rows = plan.slice().sort((a, b) => (a.status === b.status ? a.item.name.localeCompare(b.item.name) : (['no_team', 'format', 'dup', 'replace', 'new'].indexOf(a.status) - ['no_team', 'format', 'dup', 'replace', 'new'].indexOf(b.status))));
+  const rows = plan.slice().sort((a, b) => (a.status === b.status ? a.item.name.localeCompare(b.item.name) : (['no_team', 'format', 'denied', 'dup', 'replace', 'new'].indexOf(a.status) - ['no_team', 'format', 'denied', 'dup', 'replace', 'new'].indexOf(b.status))));
   const LIM = 300;
   const tb = el('tbody', {}, ...rows.slice(0, LIM).map((r) => el('tr', {},
     el('td', {}, r.item.name, r.item.from ? el('div', { class: 'small muted' }, r.item.from) : ''),
@@ -652,7 +660,7 @@ function render() {
   // sem tocar nas chaves do streaming (que o chefe de sede nem vê)
   // o streaming por chave (zip do BOCA) é LEGADO: fica dobrado, abaixo da integração nova. O nó da
   // seção nova é o MESMO a cada render (o estado dela — tabela em edição, timer — não se perde).
-  app.append(RO ? revealCard() : '', RO || !API ? '' : API.node,
+  app.append((RO && SITE_ORG) ? revealCard() : '', RO || !API ? '' : API.node,
     RO ? '' : el('details', { class: 'section', open: (WC && (WC.keys || []).some((k) => !k.revoked_at)) ? true : null },
       el('summary', { style: 'cursor:pointer' }, T('🎥 Webcast BOCA (legado): o pacote .zip que o Animeitor antigo busca por chave', '🎥 BOCA webcast (legacy): the .zip package the old Animeitor polls by key', '🎥 Webcast BOCA (legado): el paquete .zip que el Animeitor antiguo consulta por clave')),
       streamSection()),
@@ -664,21 +672,25 @@ async function boot() {
   if (!CONTEST) { app.innerHTML = '<div class="error-box">' + T('Contest não informado.', 'No contest given.', 'No se indicó ninguna competencia.') + '</div>'; return; }
   const { st } = await initContestShell(CONTEST, { alerts: false });   // a mesa do telão: sem banner
   if (!st || !st.logged_in) { location.replace('/contest/?c=' + enc(CONTEST)); return; }
-  if (!(st.is_animeitor || st.is_admin || st.is_cstaff || st.is_staff)) {
+  const role = st.role || '';
+  if (!(st.is_animeitor || st.is_admin || st.is_cstaff || st.is_staff || role === 'foto' || role === 'musica')) {
     app.innerHTML = '<div class="error-box">' + T('Esta área é da conta de placar (.animeitor).',
       'This area belongs to the scoreboard account (.animeitor).',
       'Esta área es de la cuenta de marcador (.animeitor).') + '</div>';
     return;
   }
-  RO = !!(st.is_cstaff || st.is_staff) && !st.is_admin && !st.is_animeitor;
-  NOWRITE = RO && !st.is_cstaff;                      // .staff puro: só olha e ouve
+  RO = !!(st.is_cstaff || st.is_staff || role === 'foto' || role === 'musica') && !st.is_admin && !st.is_animeitor;
+  CAN_PHOTO = !!st.is_admin || roleCan(st.login, 'foto');
+  CAN_MUSIC = !!st.is_admin || roleCan(st.login, 'musica');
+  NOWRITE = !CAN_PHOTO && !CAN_MUSIC;                 // .staff puro: só olha e ouve
+  SITE_ORG = !!(st.is_cstaff || st.is_staff);         // o cartão do Reveleitor é da organização da sede
   try {
     // o cstaff NÃO pede as chaves (403 na API): pedir aqui derrubaria a página inteira no catch
     // (o reveleitor da sede é opcional: rota ainda não deployada ou telão fora do ar não derruba a galeria)
     [WC, , REVEAL] = await Promise.all([
       RO ? Promise.resolve(null) : apiGet('/contest/animeitor/webcast?contest=' + enc(CONTEST), G),
       loadPhotos(),
-      RO ? apiGet('/contest/animeitor/reveal?contest=' + enc(CONTEST), G).catch(() => null) : Promise.resolve(null)]);
+      (RO && SITE_ORG) ? apiGet('/contest/animeitor/reveal?contest=' + enc(CONTEST), G).catch(() => null) : Promise.resolve(null)]);
   } catch (e) {
     app.innerHTML = '<div class="error-box">' + (e.message || e) + '</div>'; return;
   }

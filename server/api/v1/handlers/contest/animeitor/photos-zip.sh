@@ -15,14 +15,15 @@ contest="$(param contest)"
 [[ -n "$contest" ]] || fail 400 "Missing contest" "contest_missing"
 require_contest "$contest"
 require_auth_contest "$contest"
-{ is_animeitor || is_admin || is_cstaff; } || fail 403 "Apenas a conta de placar (.animeitor), o chefe de sede (.cstaff) ou o admin" "animeitor_required"
+{ is_animeitor || is_admin || is_cstaff || is_foto || is_musica; } || fail 403 "Apenas a conta de placar (.animeitor), a sede (.cstaff/.foto/.musica) ou o admin" "animeitor_required"
 source "$_LIBDIR/team-photo.sh"
 source "$_LIBDIR/team-music.sh"
 
 # CHEFE DE SEDE leva só a sede dele. O conjunto visível é materializado UMA vez (o
 # staff_can_see por time seria um jq por participante — 1000 forks num contest grande).
 declare -A ONLY=(); scoped=0
-if is_cstaff; then
+{ is_foto || is_musica; } && scoped=1        # papéis de 09/11/2026: sem escopo definido = pacote vazio (falha fechado)
+if is_cstaff || is_foto || is_musica; then
   source "$_LIBDIR/print.sh"
   _vis="$(mktemp)"
   # rc=0 com lista vazia = escopo que não casa ninguém (pacote vazio), NÃO "sem filtro"
@@ -49,7 +50,7 @@ MU="$(tm_placeholder "$contest")"
 n=0; nf=0; nph=0; nm=0
 while IFS= read -r d; do
   login="${d##*/}"
-  case "$login" in *.admin|*.judge|*.cjudge|*.staff|*.cstaff|*.mon|*.animeitor|.removed-users) continue;; esac
+  { [[ "$login" == .removed-users ]] || is_reserved_role_login "$login"; } && continue
   (( scoped )) && [[ -z "${ONLY[$login]:-}" ]] && continue
   n=$((n+1))
   f="$(tp_file "$contest" "$login")"

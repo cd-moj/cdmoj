@@ -14,7 +14,7 @@ contest="$(param contest)"
 [[ -n "$contest" ]] || fail 400 "Missing contest" "contest_missing"
 require_contest "$contest"
 require_auth_contest "$contest"
-{ is_animeitor || is_admin || is_cstaff || is_staff; } || fail 403 "Apenas a conta de placar (.animeitor), a sede (.cstaff/.staff) ou o admin" "animeitor_required"
+{ is_animeitor || is_admin || is_cstaff || is_staff || is_foto || is_musica; } || fail 403 "Apenas a conta de placar (.animeitor), a sede (.cstaff/.staff/.foto/.musica) ou o admin" "animeitor_required"
 
 cdir="$CONTESTSDIR/$contest"
 W="$(mktemp -d)" || fail 500 "tmp" "tmp"
@@ -27,9 +27,11 @@ trap 'rm -rf "$W"' EXIT
 # ⚠ quem manda é o rc, NÃO o tamanho da saída: rc=0 com lista VAZIA é "escopo que não casa
 # ninguém" (vê nada), e tratar isso como "sem filtro" abriria o contest inteiro.
 scoped=false
-if is_cstaff || is_staff; then
+if is_cstaff || is_staff || is_foto || is_musica; then
   source "$_LIBDIR/print.sh"
   staff_visible_logins "$contest" "$SESSION_LOGIN" > "$W/vis.txt" && scoped=true
+  # os papéis de 09/11/2026 (.foto/.musica) FALHAM FECHADO: sem escopo definido, nenhum time (não "todos")
+  { is_foto || is_musica; } && { [[ "$scoped" == true ]] || { : > "$W/vis.txt"; scoped=true; }; }
 fi
 jq -R -s '[ split("\n")[] | select(length > 0) ]' "$W/vis.txt" > "$W/vis.json" 2>/dev/null \
   || printf '[]' > "$W/vis.json"
@@ -49,7 +51,7 @@ jq -R -s '[ split("\n")[] | select(length > 0) | split("\t")
 find "$cdir/users" -mindepth 2 -maxdepth 2 -name account.json -print0 2>/dev/null \
   | xargs -0 -r jq -c '
       (input_filename | split("/") | .[-2]) as $l
-      | select($l | test("\\.(admin|judge|cjudge|staff|cstaff|mon|animeitor)$") | not)
+      | select($l | test("'"$ROLE_RE"'") | not)
       | (.team // {}) as $t
       | {login:$l, name:(($t.name // .fullname // $l)), univ:($t.univ_short // ""),
          cohort:($t.cohort // ""), region:($t.region // ""), flag:($t.flag // "")}' \
@@ -66,7 +68,7 @@ jq -cn --slurpfile acc "$W/acc.json" --slurpfile ph "$W/ph.json" \
   | ($acc | map({(.login): true}) | add // {}) as $known
   | ( $acc + ( $P | map(.login) | unique
                | map(select($known[.] == null))
-               | map(select(test("\\.(admin|judge|cjudge|staff|cstaff|mon|animeitor)$") | not))
+               | map(select(test("'"$ROLE_RE"'") | not))
                | map({login:., name:., univ:"", cohort:"", region:"", flag:""}) ) )
   | map( ($byl[.login] // {}) as $p | ($bym[.login] // {}) as $m
          | . + { has_photo: ($p.file != null),
