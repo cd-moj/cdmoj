@@ -125,6 +125,21 @@ def calx_val:
 # Uma solução conta como `bad` se é bad/norun em ALGUM host; `note` se não é bad em nenhum e é note em
 # algum. `missing` = solução do pacote sem resultado em host nenhum (calibração rápida só roda as good).
 # `unmeasured` (sem o juízo pelo método avaliado) fica de fora: a solução conta como sem resultado (`missing`).
+# calx_margin($hs; $eff): a FOLGA do TL (10/11/2026; bancada de 06–07/11: vizinhos pesados em memória no mesmo soquete
+# inflam o tempo em até ~1,6×). Por linguagem: TL efetivo ÷ W, com W = o pior tempo de teste AC das good ACEITAS dessa
+# linguagem, o máx entre os juízes (a conta do tl-sim). Devolve o PIOR caso {min, lang, w, tl} ou null (sem good aceita,
+# sem TL). Abaixo de ~1,6 uma solução intencional pode levar TLE por interferência — a Central (preflight `tl_margin`)
+# avisa nos problemas da prova; o rerun do TLE perto do TL (mojtools TLERERUN_BAND) é a outra metade.
+def calx_margin($hs; $eff):
+  [ $hs[] | (.sols // [])[] | select((.category // "") == "good" and ((.verdict // "") | tostring | startswith("Accepted")))
+    | {lang: (.lang // ""), w: ([ (.tests // [])[] | select(((.code // "") | calx_cls) == "AC") | (.time | calx_num) // empty ] | max)}
+    | select(.w != null and .w > 0) ]
+  | group_by(.lang)
+  | map({lang: .[0].lang, w: (map(.w) | max)}
+        | . + {tl: ((($eff // {})[.lang] // ($eff // {}).default) | calx_num)}
+        | select(.tl != null and .tl > 0)
+        | . + {min: (((.tl / .w) * 100 + 0.000001 | floor) / 100)})   # o épsilon: 1,2/0,8 = 1,4999…
+  | (min_by(.min) // null);
 def calx_sum($hs; $files):
   [ $hs[] | (.sols // [])[] | select((.category // "") | IN("good", "pass", "slow", "wrong"))
     | select((.expect.state // "") != "unmeasured")
@@ -213,7 +228,7 @@ _calx_summary_write_locked(){
         --argjson files "$files" --argjson now "$EPOCHSECONDS" "$CALX_JQ"'
         map(select(.host) | select(($ver == "") or ((.checksum // "") == "") or (.checksum == $ver))
             | {host, sols: ((.sols // []) | map(. + {expect: calx($eff; $allow; $drift; $m; $kp)}))})
-        | calx_sum(.; $files) + {id: $id, version: $ver, at: $now, stale: false, method: $m}' > "$t" 2>/dev/null \
+        | calx_sum(.; $files) + {margin: calx_margin(.; $eff), id: $id, version: $ver, at: $now, stale: false, method: $m}' > "$t" 2>/dev/null \
     && [[ -s "$t" ]] && mv -f "$t" "$out" || { rm -f "$t"; return 1; }
   calx_summary_upsert "$id"
 }

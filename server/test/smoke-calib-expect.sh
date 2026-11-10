@@ -110,6 +110,17 @@ UNMS="$(jq -nc --argjson r "$R_UNM" "$CALX_JQ"'[{host:"h", sols:[$r + {expect: (
        | calx_sum(.; ["slow/x.c"])')"; BODY="$UNMS"
 ck "calx_sum: a unmeasured fica fora (vira solução sem resultado, não divergente)" '[[ "$(jq -r ".bad,.note,.total" <<<"$UNMS" | tr "\n" " ")" == "0 0 0 " ]]'
 
+echo "== 1c. folga do TL (calx_margin, 10/11/2026): TL efetivo ÷ o pior AC das good aceitas, máx entre juízes =="
+MG="$(jq -nc "$CALX_JQ"'[
+  {host:"a", sols:[{category:"good",lang:"c",verdict:"Accepted,100p",tests:[{code:"AC",time:0.5},{code:"AC",time:"0.6"}]},
+                   {category:"good",lang:"py",verdict:"Time Limit Exceeded,0p",tests:[{code:"TLE",time:9}]},
+                   {category:"slow",lang:"c",verdict:"Time Limit Exceeded,0p",tests:[{code:"TLE",time:5}]}]},
+  {host:"b", sols:[{category:"good",lang:"c",verdict:"Accepted,100p",tests:[{code:"AC",time:0.8}]}]}]
+  | calx_margin(.; {"c":"1.2","default":"1.2"})')"
+ck "W = máx entre juízes (0,8); a good que não passou e a slow ficam fora" '[[ "$(jq -c "[.lang,.w,.tl,.min]" <<<"$MG")" == "[\"c\",0.8,1.2,1.5]" ]]'
+ck "sem good aceita = null"                        '[[ "$(jq -nc "$CALX_JQ"'"'"'[{host:"a",sols:[]}] | calx_margin(.; {"c":"1"})'"'"')" == null ]]'
+ck "sem TL servido p/ a linguagem nem default = null" '[[ "$(jq -nc "$CALX_JQ"'"'"'[{host:"a",sols:[{category:"good",lang:"c",verdict:"Accepted",tests:[{code:"AC",time:1}]}]}] | calx_margin(.; {})'"'"')" == null ]]'
+
 echo "== 2. ponta a ponta: calib-report → sumário → /problems/calib e /problems/status =="
 NOW="$EPOCHSECONDS"; T="$FIX/treino"
 printf 'CONTEST_ID=treino\nCONTEST_END=%s\n' "$((NOW+86400))" > "$T/conf"
@@ -150,6 +161,7 @@ ck "sumário gravado em run/calib-sum"             '[[ -s "$SF" ]]'
 ck "sumário: 1 divergente (good .py acima do override)" '[[ "$(jq -c .bad_files "$SF")" == "[\"good/sol.py\"]" ]]'
 ck "sumário: slow com WA e wrong com TLE = note"  '[[ "$(jq -c ".note_files|sort" "$SF")" == "[\"slow/lento.c\",\"wrong/int32.c\"]" ]]'
 ck "sumário: validador inválido"                  '[[ "$(jq -r .validator.state "$SF")" == invalid && "$(jq -r .validator.invalid "$SF")" == 1 ]]'
+ck "sumário: a folga do TL é o pior caso (py: override 0,5 ÷ W 0,9)" '[[ "$(jq -c "[.margin.lang,.margin.min,.margin.w,.margin.tl]" "$SF")" == "[\"py\",0.55,0.9,0.5]" ]]'
 ck "mapa do Painel (run/calib-summary.json) com a chave" '[[ "$(jq -r ".[\"col#pa\"].bad" "$RUN/calib-summary.json")" == 1 ]]'
 ck "msg da testlib passou pela projeção"          '[[ "$(jq -r ".sols[]|select(.category==\"validator\")|.tests[0].msg" "$RUN/calib/col#pa/juiz1.json")" == FAIL* ]]'
 

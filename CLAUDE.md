@@ -783,6 +783,13 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   `TLMOD[<lang>.drift]` › `TLMOD[default.drift]`) — a MESMA conta do `mojtools/build-and-test.sh`; mexeu
   numa, mexa na outra. Na tabela de testes do editor (`testsTable`) e no `report.html`, teste aceito acima
   do TL = amarelo (relato do Daniel Saad, 24/09: saía vermelho, a cor do WA).
+  **FOLGA DO TL (10/11/2026; bancada de 06–07/11: vizinhos pesados em memória inflam o tempo em até ~1,6×)**: o
+  sumário leva `margin` = `calx_margin` (por linguagem, TL efetivo ÷ o pior tempo AC das good ACEITAS, máx entre os
+  juízes da versão atual; o PIOR caso `{min, lang, w, tl}` ou null). A Central (`preflight` item `tl_margin`) lê
+  `run/calib-sum/<id>.json` dos problemas da prova (sem abrir pacote; `stale` não conta) e avisa abaixo de
+  `TL_MARGIN_MIN` (1,6; env). A outra metade é o rerun do TLE perto do TL (mojtools `TLERERUN_BAND`). Sumário antigo
+  ganha a margem na próxima calibração ou com `bin/calib-summary-rebuild.sh --apply` (deploy). Testes:
+  `smoke-calib-expect.sh` (1c), `smoke-preflight.sh`.
   **Issues por problema** (`lib/problem-issues.sh` + `/problems/issues`, aba 🐞 do editor =
   `web/problemas/issues.js`, `moj issues`): loja FORA do pacote em `contests/treino/var/problem-issues/
   <org>/<prob>.json` (dentro do repo a issue mudaria o `pkg_rev` e daria 409 à toa, sumiria no upload e

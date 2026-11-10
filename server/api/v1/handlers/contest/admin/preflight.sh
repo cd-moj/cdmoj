@@ -371,6 +371,40 @@ if [[ "${CONTEST_TYPE:-icpc}" == icpc ]]; then
   fi
 fi
 
+# --- FOLGA DO TL (10/11/2026) -------------------------------------------------------------------------------------
+# Bancada de 06–07/11: vizinhos pesados em memória no mesmo soquete inflam o tempo em até ~1,6× (+64% medido). Com o
+# TL efetivo abaixo de TL_MARGIN_MIN (1,6) × o pior tempo AC das good, uma solução INTENCIONAL pode levar TLE por azar.
+# O rerun do TLE perto do TL (mojtools TLERERUN_BAND) cobre parte; o resto é TL com folga (TLOVERRIDE ou fator maior).
+# Lê a `margin` do sumário da calibração (run/calib-sum/<id>.json, calx_margin — um arquivo por problema, sem abrir
+# pacote); sumário velho (stale) ou sem a margem não conta. Todos ≥ o mínimo = ok; nenhum com o dado = ausente.
+mg_min="${TL_MARGIN_MIN:-1.6}"; [[ "$mg_min" =~ ^[0-9]+\.?[0-9]*$ ]] || mg_min=1.6
+declare -A mg_letter=(); mg_files=()
+for ((i=0; i+4<${#PROBS[@]}; i+=5)); do
+  f="$RUNDIR/calib-sum/${PROBS[i+4]}.json"; [[ -s "$f" ]] || continue
+  mg_letter[$f]="${PROBS[i+3]}"; mg_files+=("$f")
+done
+mg_bad=""; mg_n=0; mg_worst=""
+if (( ${#mg_files[@]} )); then
+  while IFS=$'\t' read -r f m lang; do
+    [[ -n "$f" ]] || continue
+    mg_n=$((mg_n + 1))
+    if LC_ALL=C awk -v m="$m" -v t="$mg_min" 'BEGIN{exit !(m < t)}'; then mg_bad+=" ${mg_letter[$f]}(${m}× ${lang})"; fi
+    [[ -z "$mg_worst" ]] || LC_ALL=C awk -v m="$m" -v w="$mg_worst" 'BEGIN{exit !(m < w)}' && mg_worst="$m"
+  done < <(jq -r 'select(.stale != true and (.margin | type) == "object") | [input_filename, (.margin.min | tostring), (.margin.lang // "")] | @tsv' "${mg_files[@]}" 2>/dev/null)
+fi
+if [[ -n "$mg_bad" ]]; then
+  add3 tl_margin warn "TL com pouca folga" \
+    "TL efetivo abaixo de ${mg_min}× o pior tempo das soluções corretas em:$mg_bad. Vizinhos pesados em memória no juiz podem deixar uma solução correta até ~1,6× mais lenta (medido em 06–07/11); o juiz repete o TLE perto do TL, mas isso não cobre tudo. Para dar folga: TLOVERRIDE ou um TLMOD[calibrafactor] maior no conf (aba Limites do editor)" \
+    "TL with little headroom" \
+    "effective TL below ${mg_min}× the worst time of the correct solutions in:$mg_bad. Memory-heavy neighbours on the judge can make a correct solution up to ~1.6× slower (measured on Nov 6–7); the judge reruns a TLE near the TL, but that does not cover everything. To add headroom: TLOVERRIDE or a larger TLMOD[calibrafactor] in the conf (Limits tab of the editor)" \
+    "TL con poca holgura" \
+    "TL efectivo por debajo de ${mg_min}× el peor tiempo de las soluciones correctas en:$mg_bad. Vecinos pesados en memoria en el juez pueden hacer una solución correcta hasta ~1,6× más lenta (medido el 6–7/11); el juez repite el TLE cerca del TL, pero eso no lo cubre todo. Para dar holgura: TLOVERRIDE o un TLMOD[calibrafactor] mayor en el conf (pestaña Límites del editor)"
+elif (( mg_n > 0 )); then
+  add3 tl_margin ok "TL com folga" "os $mg_n problema(s) calibrados têm TL ≥ ${mg_min}× o pior tempo das soluções corretas (a menor folga: ${mg_worst}×)" \
+    "TL has headroom" "the $mg_n calibrated problem(s) have TL ≥ ${mg_min}× the worst time of the correct solutions (smallest headroom: ${mg_worst}×)" \
+    "TL con holgura" "los $mg_n problema(s) calibrados tienen TL ≥ ${mg_min}× el peor tiempo de las soluciones correctas (la menor holgura: ${mg_worst}×)"
+fi
+
 # --- RELÓGIO DO TL (05/11/2026; TLCLOCK=cpu no pacote, docs/PACOTE.md "Relógio do TL") --------------------------
 # Informativo (ok): quais problemas cobram o TL pelo tempo de CPU, com a parede como teto maior — a folha de TL da
 # prova os marca com †. Escolha do AUTOR do problema, nunca aviso. Do json servível (tl_clock), sem abrir pacote.

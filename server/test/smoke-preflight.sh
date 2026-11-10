@@ -292,6 +292,24 @@ run
 check "modo obi (pontua por teste) => checagem ausente" '[[ "$(lvl stop_first)" == "(ausente)" ]]'
 sed -i 's/^CONTEST_TYPE=.*/CONTEST_TYPE=icpc/' "$C/conf"; rm -f "$FIX/treino/var/jsons/col#p0.json"
 
+echo "== folga do TL (10/11/2026; a margem do sumário da calibração) =="
+run
+check "sem sumário de calibração => checagem ausente" '[[ "$(lvl tl_margin)" == "(ausente)" ]]'
+mkdir -p "$RUN/calib-sum"
+printf '{"stale":false,"margin":{"lang":"c","w":0.8,"tl":2.0,"min":2.5}}' > "$RUN/calib-sum/col#p0.json"
+run
+check "margem 2,5× => ok com a menor folga"           '[[ "$(lvl tl_margin)" == ok && "$(det tl_margin)" == *"2.5×"* ]]'
+printf '{"stale":false,"margin":{"lang":"py","w":1.0,"tl":1.35,"min":1.35}}' > "$RUN/calib-sum/col#p1.json"
+run
+check "margem 1,35× => warn com a letra, a margem e a linguagem" '[[ "$(lvl tl_margin)" == warn && "$(det tl_margin)" == *"B(1.35× py)"* && "$(det tl_margin)" != *"A("* ]]'
+check "e em espanhol"                                  '[[ "$(printf "%s" "$BODY" | jq -r "first(.checks[]|select(.id==\"tl_margin\")|.detail_es)")" == *"B(1.35× py)"* ]]'
+TL_MARGIN_MIN=1.3 run
+check "TL_MARGIN_MIN=1.3 no ambiente => ok"            '[[ "$(lvl tl_margin)" == ok ]]'
+printf '{"stale":true,"margin":{"lang":"py","w":1.0,"tl":1.35,"min":1.35}}' > "$RUN/calib-sum/col#p1.json"
+run
+check "sumário velho (stale) não conta"                '[[ "$(lvl tl_margin)" == ok ]]'
+rm -rf "$RUN/calib-sum"
+
 echo "== relógio do TL (TLCLOCK=cpu, 05/11/2026): informativo =="
 run
 check "sem problema de CPU => checagem ausente" '[[ "$(lvl tl_clock)" == "(ausente)" ]]'
