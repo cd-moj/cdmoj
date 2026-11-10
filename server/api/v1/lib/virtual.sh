@@ -183,6 +183,34 @@ vr_effective(){
   else printf judging; fi
 }
 vr_state(){ local f; f="$(vr_file "$1" "$2")"; [[ -s "$f" ]] && jq -c . "$f" 2>/dev/null; }
+# vr_clock <login> <cid> — o RELÓGIO DA RUN (com vr_load feito), p/ o que o virtual libera no tempo relativo da prova
+# (avisos, clarifications públicas, notícias, documentos; 10/11/2026): VR_ELAPSED = segundos desde a largada (até a
+# duração) e VR_ENDED = 1 quando a run acabou (fim do tempo, "encerrar agora" — judging/finished). rc 1 = não largou
+# (none/scheduled/discarded): quem chama responde 403 `virtual_not_started`. É o SERVIDOR que corta: o cliente nunca
+# recebe o que ainda não "aconteceu" na prova dele.
+vr_clock(){
+  local j eff s
+  VR_ELAPSED=0; VR_ENDED=0
+  if vr_lock "$1"; then vr_refresh "$1" "$2"; vr_unlock; fi
+  j="$(vr_state "$1" "$2")"; eff="$(vr_effective "$j")"
+  case "$eff" in running|judging|finished) ;; *) return 1 ;; esac
+  if [[ "$eff" == running ]]; then
+    s="$(jq -r '.start // 0' <<<"$j")"; [[ "$s" =~ ^[0-9]+$ ]] || return 1
+    VR_ELAPSED=$(( EPOCHSECONDS - s ))
+    (( VR_ELAPSED > VR_DUR )) && VR_ELAPSED=$VR_DUR
+    (( VR_ELAPSED < 0 )) && VR_ELAPSED=0
+  else VR_ELAPSED=$VR_DUR; VR_ENDED=1; fi
+  return 0
+}
+# vr_freeze_rel <cid> -> o instante do FREEZE da prova em segundos desde o início (o "Encerrar evento" o preserva em
+# var/freeze-final.json antes de zerar o FREEZE_TIME), ou nada (sem registro, ou fora da janela)
+vr_freeze_rel(){
+  local f="$CONTESTSDIR/$1/var/freeze-final.json" fz
+  [[ -s "$f" ]] || return 0
+  fz="$(jq -r '.freeze // 0' "$f" 2>/dev/null)"; [[ "$fz" =~ ^[0-9]+$ ]] || return 0
+  (( fz > VR_START && fz < VR_END )) && printf '%s' "$(( fz - VR_START ))"
+  return 0
+}
 
 # vr_can_discard <state-json> <ac> -> rc 0 se o botão Desistir vale AGORA
 # regra (Ribas, 2026-09-18): rodando ∧ não é a largada definitiva ∧ (decorrido ≤ 15 min OU 0 AC)
@@ -243,7 +271,7 @@ vr_feed_fresh(){
   [[ -s "$f" && -s "$f.gz" ]] || return 1
   [[ "$d/conf" -nt "$f" || "$d/var/.score-dirty" -nt "$f" || "$d/var/placar.txt" -nt "$f" ]] && return 1
   # o FORMATO do feed mora nesta lib: deploy que a muda invalida os feeds antigos (e cohorts.json é entrada)
-  [[ "${BASH_SOURCE[0]}" -nt "$f" || "$d/cohorts.json" -nt "$f" ]] && return 1
+  [[ "${BASH_SOURCE[0]}" -nt "$f" || "$d/cohorts.json" -nt "$f" || "$d/var/freeze-final.json" -nt "$f" ]] && return 1
   return 0
 }
 vr_feed_build(){
@@ -299,10 +327,13 @@ vr_feed_build(){
      | ($rows|map(.v)|unique|map({key:., value:(.|vrflag($deny))})|from_entries) as $fl
      | $rows | map([([.e - $st, 0]|max), $ti[.l], $pi[.p], $fl[.v]]) | sort_by(.[0])' "$w/hist" \
     > "$w/runs.json" || { rm -rf "$w"; exec 7>&-; return 1; }
-  jq -cn --arg c "$cid" --arg t "$VR_TITLE" --argjson dur "$VR_DUR" --argjson pen "$VR_PEN" \
+  # freeze_rel (10/11/2026): o placar dos outros congela no mesmo minuto relativo da prova até a run terminar (o
+  # motor virtual-board.js; é tela — o placar final já é público)
+  local fzr; fzr="$(vr_freeze_rel "$cid")"; [[ -n "$fzr" ]] || fzr=null
+  jq -cn --arg c "$cid" --arg t "$VR_TITLE" --argjson dur "$VR_DUR" --argjson pen "$VR_PEN" --argjson fz "$fzr" \
      --slurpfile teams "$w/teams.json" --slurpfile runs "$w/runs.json" --slurpfile probs "$w/problems.json" \
      --slurpfile views "$w/views.json" \
-     '{success:true, version:2, contest:$c, title:$t, duration:$dur, penalty_minutes:$pen,
+     '{success:true, version:2, contest:$c, title:$t, duration:$dur, penalty_minutes:$pen, freeze_rel:$fz,
        problems:($probs[0]|map({letter, name})), views:(if ($views[0]|length) > 1 then $views[0] else [] end),
        teams:$teams[0], runs:$runs[0]}' > "$ft" \
     && gzip -9 -c "$ft" > "$ft.gz" && mv -f "$ft" "$f" && mv -f "$ft.gz" "$f.gz"

@@ -18,7 +18,7 @@ import { openReportAuthed as openReportFor, openTextAuthed } from '/shared/submi
 import { balloonColorHex, balloonSVG, balloonEdge, balloonTint } from '/contest/score/score-colors.js';
 import { pickStmtLang, makeStmtLangChips, setChipsActive, rememberStmtLang, stmtHtmlLang } from '/shared/statement-langs.js';
 import { decorateSamples, downloadSamplesZip, SAMPLES_TAB_SCRIPT } from '/shared/statement-samples.js';
-import { tlClockBadge } from '/shared/tl-clock.js';
+import { tlParts } from '/shared/tl-chips.js';   // chips de TL (fonte única com o treino e o virtual)
 import { serverNow } from '/shared/server-clock.js';   // contagem pelo relógio do SERVIDOR (shared/server-clock.js)
 
 const qs = new URLSearchParams(location.search);
@@ -95,11 +95,6 @@ let preStartTimer = null, preStartPoll = null;
 
 // ---- helpers ---------------------------------------------------------------
 // tempo-limite: segundos (string/num) -> "NNN ms" (<1s) ou "N.NNN s" (espelha o treino)
-function fmtTime(v) {
-  const n = parseFloat(v);
-  if (isNaN(n)) return String(v);
-  return n < 1 ? Math.round(n * 1000) + ' ms' : (Math.round(n * 1000) / 1000) + ' s';
-}
 function show(id) { document.getElementById(id).classList.remove('hidden'); }
 function hide(id) { document.getElementById(id).classList.add('hidden'); }
 
@@ -713,35 +708,13 @@ function toggleDetail(p, item, toggle, submitWrap) {
   if (opened) { detail.classList.add('hidden'); toggle.textContent = '▶'; return; }
   toggle.textContent = '▼';
   if (!detail.dataset.rendered) {
-    // time limits — chips (nome da linguagem expandido, igual ao treino)
-    const tl = p.time_limits || {};
-    // com whitelist (do problema ou do contest): UM chip POR linguagem permitida — o TL
-    // medido dela, senão o `default` — e SEM o chip "padrão" (a lista é fechada, não há
-    // "demais linguagens"). resolveLangs degrada p/ TODAS com tokens exóticos: nesse caso
-    // trata como sem restrição (chips medidos + "padrão" cobrindo as não calibradas).
+    // time limits — chips (shared/tl-chips.js, a regra única com o treino e o virtual). Com whitelist (do problema ou
+    // do contest) UM chip POR linguagem permitida; resolveLangs degrada p/ TODAS com tokens exóticos: aí trata como
+    // sem restrição (chips medidos + "padrão" cobrindo as não calibradas).
     const rl = resolveLangs(p.languages || []);
     const restricted = Array.isArray(p.languages) && p.languages.length > 0 && rl !== LANGUAGES;
-    let chips;   // [{label, time}]
-    // TL ÚNICO (TLUNIFIED=y): o mesmo em toda linguagem — um chip só (se um ajuste por linguagem do conf desfez a
-    // igualdade, os chips de sempre: a tela nunca esconde um TL diferente)
-    if (p.tl_unified && Object.keys(tl).length && new Set(Object.values(tl).map((v) => String(+v))).size === 1) {
-      chips = [{ label: T('todas as linguagens', 'all languages', 'todos los lenguajes'), time: Object.values(tl)[0] }];
-    } else if (restricted) {
-      chips = rl.map((l) => ({ label: l.label, time: tl[l.id] != null ? tl[l.id] : tl.default }))
-        .filter((c) => c.time != null);
-    } else {
-      chips = Object.keys(tl)
-        .sort((a, b) => (a === 'default' ? -1 : b === 'default' ? 1 : a.localeCompare(b)))
-        .map((k) => ({ label: k === 'default' ? T('padrão', 'default', 'predeterminado') : (langById(k).label || k), time: tl[k] }));
-    }
-    if (chips.length) {
-      const tlBlock = el('div', { class: 'tl-block' },
-        el('span', { class: 'tl-label' }, '⏱ ' + T('Tempo limite', 'Time limit', 'Límite de tiempo')));
-      const clk = tlClockBadge(p); if (clk) tlBlock.append(clk);   // TL de CPU (TLCLOCK=cpu no pacote)
-      chips.forEach((c) => tlBlock.append(el('span', { class: 'tl-chip' },
-        el('b', {}, c.label), el('span', { class: 'tl-time' }, fmtTime(c.time)))));
-      detail.append(tlBlock);
-    }
+    const tlp = tlParts(p, restricted ? rl : null);
+    if (tlp.length) detail.append(el('div', { class: 'tl-block' }, ...tlp));
     // enunciado | editor lado a lado — editor embutido só se o admin do contest o habilitou
     const editorOn = !(userinfo && userinfo.show_editor === false);
     // coluna do enunciado (decodifica o b64 só agora, na 1ª abertura)

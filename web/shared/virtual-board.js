@@ -35,6 +35,17 @@ function cellOf(runs, t) {            // runs = [[sec, flag]] de UM (time, probl
   return { fac, tent, pend, pendMin };
 }
 
+// FREEZE (10/11/2026; o placar congela no mesmo minuto relativo da prova até a run terminar): a célula de quem NÃO é
+// você usa só as runs até `fz`; as de depois viram tentativas ESCONDIDAS (`hid`) — a célula sem AC antes do freeze sai
+// "n/-?", a mesma marca da visão congelada do placar oficial (updatescore-icpc.sh). Sem saber o veredicto, toda run
+// depois do freeze conta como escondida.
+function cellFrozen(runs, t, fz) {
+  const c = cellOf(runs, Math.min(t, fz));
+  c.hid = 0;
+  if (c.fac === null) for (const [s] of runs) if (s > fz && s <= t) c.hid++;
+  return c;
+}
+
 function rowOf(cells, pen) {
   let solved = 0, penalty = 0, lastmin = 0;
   for (const c of cells) {
@@ -66,15 +77,19 @@ export function runsUpTo(idx, t) {
 // FORA do cálculo, então posição e ★ saem como no placar próprio daquela visão no servidor
 // (filtrar linha depois daria ★ errada — lib/cohorts.sh). Bandeira/universidade/sede/busca NÃO
 // passam por aqui: são recorte de LINHA no renderizador, que renumera e mostra a posição geral.
+// opts.freeze = segundos (o freeze relativo da prova, feed.freeze_rel) — só enquanto a run roda; null = sem freeze.
+// Vale p/ toda linha menos a SUA (você vê as suas submissões); posição e ★ saem do instante do freeze.
 export function boardAt(feed, idx, virtuals, t, balloons, opts) {
   const teamOk = (opts && opts.teamOk) || null;
+  const fz = (opts && Number.isFinite(opts.freeze) && t > opts.freeze) ? opts.freeze : null;
+  const cellAt = (rs, you) => ((fz !== null && !you) ? cellFrozen(rs, t, fz) : cellOf(rs, t));
   const pen = Number(feed.penalty_minutes) || 20;
   const letters = feed.problems.map((p) => p.letter);
   const rows = [];
 
   feed.teams.forEach((tm, ti) => {
     if (teamOk && !teamOk(tm, ti)) return;
-    const cells = idx.by[ti].map((rs) => cellOf(rs, t));
+    const cells = idx.by[ti].map((rs) => cellAt(rs, false));
     rows.push({ id: tm[0], flag: tm[1] || '', univShort: tm[2] || '', teamName: tm[3] || '', univFull: tm[4] || '',
       guest: !!tm[5], cohort: tm[6] || '', virtual: false, you: false, order: ti, cells, ...rowOf(cells, pen) });
   });
@@ -93,7 +108,7 @@ export function boardAt(feed, idx, virtuals, t, balloons, opts) {
   (virtuals || []).forEach((v, k) => {
     const per = Array.from({ length: idx.np }, () => []);
     for (const r of (v.runs || [])) if (per[r[1]]) per[r[1]].push([r[0], r[2]]);
-    const cells = per.map((rs) => cellOf(rs, t));
+    const cells = per.map((rs) => cellAt(rs, !!v.you));
     rows.push({ id: '#' + v.login, flag: v.flag || '', univShort: v.univ || '', teamName: v.name || v.login, univFull: '',
       guest: true, virtual: true, you: !!v.you, pinned: !!v.pinned, login: v.login, order: feed.teams.length + k, cells, ...rowOf(cells, pen) });
   });
@@ -123,14 +138,15 @@ export function boardAt(feed, idx, virtuals, t, balloons, opts) {
       if (c.fac !== null) {
         const star = (!r.virtual && fts[pi] !== null && c.fac === fts[pi]) ? '*' : '';
         probs[sn] = c.tent + '/' + Math.floor(c.fac / 60) + star; probSecs[sn] = c.fac;
-      } else probs[sn] = (c.tent === 0 && c.pend === 0) ? '' : (c.tent + '/-');
+      } else if (c.hid) probs[sn] = (c.tent + c.hid) + '/-?';
+      else probs[sn] = (c.tent === 0 && c.pend === 0) ? '' : (c.tent + '/-');
     });
     return { flag: r.flag, username: r.id, univShort: r.univShort, teamName: r.teamName, univFull: r.univFull,
       total: String(r.solved), penalty: String(r.penalty), lastac: String(r.lastmin),
       guest: r.guest, cohort: r.cohort || '', virtual: r.virtual, you: r.you, pinned: !!r.pinned, vlogin: r.login || '',
       place: r.place, gplace: r.gplace, probs, probSecs };
   });
-  return { mode: 'icpc', probShorts: letters, teams, balloons: balloons || {}, secs: true, guestNumbering: true };
+  return { mode: 'icpc', probShorts: letters, teams, balloons: balloons || {}, secs: true, guestNumbering: true, frozenAt: fz };
 }
 
 // a linha de quem está olhando (p/ o cabeçalho "você está em Nº")

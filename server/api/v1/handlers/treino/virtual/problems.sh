@@ -1,5 +1,7 @@
 # GET /treino/virtual/problems?contest=<cid>   (Bearer do TREINO)
-# Os problemas da prova — letra, id, nome, linguagens do CONTEST, idiomas do enunciado. Só com a
+# Os problemas da prova — letra, id, nome, linguagens do CONTEST, idiomas do enunciado e o TEMPO-LIMITE que julga a
+# submissão virtual (o do json público, a mesma regra do /treino/problem — relato de 10/11/2026: "não achei os tempos
+# limites"), com o relógio do TL, o TL único e as linguagens de função. Só com a
 # run LARGADA (rodando/terminada): antes disso 403 `virtual_not_started`. O ENUNCIADO não sai daqui:
 # o virtual só existe p/ problema PÚBLICO, então o cliente o busca na rota pública de sempre
 # (`/treino/problem?id=`) — esta feature não cria caminho novo até conteúdo de problema.
@@ -15,7 +17,9 @@ esac
 out="$(for i in "${!VR_CANON[@]}"; do
   id="${VR_CANON[i]}"; wl="$(effective_problem_langs "$cid" "$id")"; [[ -n "$wl" ]] || wl='[]'
   jq -c --arg l "${VR_SHORT[i]}" --arg id "$id" --arg n "${VR_NAME[i]}" --argjson wl "$wl" \
-    '{letter:$l, id:$id, name:$n, languages:$wl, statement_langs:(.statement_langs // ["pt"])}' \
+    '{letter:$l, id:$id, name:$n, languages:$wl, statement_langs:(.statement_langs // ["pt"]),
+      time_limits:(.time_limits // {}), tl_clock:(.tl_clock // "wall"), wall_tl:(.wall_tl // null),
+      tl_unified:(.tl_unified == true), function_langs:(.function_langs // [])}' \
     "$CONTESTSDIR/treino/var/jsons/$id.json"
 done | jq -cs .)"
 [[ -n "$out" ]] || fail 500 "Falha ao montar a lista" "build_fail"

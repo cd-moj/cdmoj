@@ -1470,6 +1470,169 @@
         }
       }
     },
+    "/treino/virtual/clarifications": {
+      "get": {
+        "tags": [
+          "treino"
+        ],
+        "summary": "Avisos e clarifications PÚBLICAS da prova no TEMPO RELATIVO da run (o servidor corta pelo relógio; o que saiu depois do fim só com a run terminada; privada nunca)",
+        "parameters": [
+          {
+            "name": "contest",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{contest,elapsed,ended,items:[{kind:clar|notice|news,id,rel,after,problem,question,answer,title,text,file}]}"
+          },
+          "404": {
+            "description": "virtual_unavailable — contest não elegível; corpo idêntico ao de contest inexistente"
+          },
+          "403": {
+            "description": "virtual_not_started — run não largada (ou desistida)"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/treino/virtual/news-file": {
+      "get": {
+        "tags": [
+          "treino"
+        ],
+        "summary": "Anexo de uma notícia do contest, pela regra de tempo do /treino/virtual/clarifications",
+        "parameters": [
+          {
+            "name": "contest",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "arquivo (octet-stream); fora da janela = 404 notfound"
+          },
+          "404": {
+            "description": "virtual_unavailable — contest não elegível; corpo idêntico ao de contest inexistente"
+          },
+          "403": {
+            "description": "virtual_not_started — run não largada (ou desistida)"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/treino/virtual/docs": {
+      "get": {
+        "tags": [
+          "treino"
+        ],
+        "summary": "Arquivos da prova: documentos publicados com PDF desde a largada; o editorial só com a run terminada (antes, locked); links externos do resources.json",
+        "parameters": [
+          {
+            "name": "contest",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{contest,ended,docs:[{type,langs,locked}],links:[{label,url}]}"
+          },
+          "404": {
+            "description": "virtual_unavailable — contest não elegível; corpo idêntico ao de contest inexistente"
+          },
+          "403": {
+            "description": "virtual_not_started — run não largada (ou desistida)"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/treino/virtual/doc": {
+      "get": {
+        "tags": [
+          "treino"
+        ],
+        "summary": "PDF de um documento publicado, pela regra do /treino/virtual/docs",
+        "parameters": [
+          {
+            "name": "contest",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "type",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "lang",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "application/pdf; não publicado, sem PDF ou editorial antes da hora = 404 not_available"
+          },
+          "404": {
+            "description": "virtual_unavailable — contest não elegível; corpo idêntico ao de contest inexistente"
+          },
+          "403": {
+            "description": "virtual_not_started — run não largada (ou desistida)"
+          },
+          "400": {
+            "description": "type_invalid | lang_invalid"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
     "/treino/virtual/problems": {
       "get": {
         "tags": [
@@ -1488,7 +1651,7 @@
         ],
         "responses": {
           "200": {
-            "description": "{contest,problems:[{letter,id,name,languages,statement_langs}]}"
+            "description": "{contest,problems:[{letter,id,name,languages,statement_langs,time_limits,tl_clock,wall_tl,tl_unified,function_langs}]} — time_limits = o TL que julga a submissão virtual (o do json público)"
           },
           "404": {
             "description": "virtual_unavailable — contest não elegível; corpo idêntico ao de contest inexistente"
@@ -1537,7 +1700,7 @@
         ],
         "responses": {
           "200": {
-            "description": "{version:2,contest,title,duration,penalty_minutes,problems,views:[{id,name,unranked}],teams:[[login,flag,univ_short,nome,univ_full,guest,cohort]],runs} — views/cohort só de coortes PÚBLICAS com time no placar público"
+            "description": "{version:2,contest,title,duration,penalty_minutes,freeze_rel,problems,views:[{id,name,unranked}],teams:[[login,flag,univ_short,nome,univ_full,guest,cohort]],runs} — views/cohort só de coortes PÚBLICAS com time no placar público"
           },
           "404": {
             "description": "virtual_unavailable — contest não elegível; corpo idêntico ao de contest inexistente"

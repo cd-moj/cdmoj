@@ -1207,6 +1207,14 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   faixa ou fórmula inline: era isso que dava "fácil" na busca e "difícil" na estatística
   (`acceptance_rate` por submissão fica só como número). Pós-deploy: `rm contests/treino/var/.metrics-stamp`
   força o recompute em massa dos metrics (ganha `tries_to_ac`; tocar o conf não basta desde 15/10/2026).
+- **VIRTUAL COM CARA DE CONTEST (10/11/2026; relato: "não achei os tempos-limite"; desenho aprovado)**: abas na
+  `/treino/virtual/` (Prova · Placar · Clarifications & avisos · Minhas submissões · Ajuda); TL por linguagem pelo
+  `web/shared/tl-chips.js` (FONTE ÚNICA dos chips do contest, treino e virtual — mexeu na regra, é lá); editor embutido.
+  Rotas novas, todas com `vr_gate` + `vr_clock` (o relógio da run, lib/virtual.sh): `clarifications` (públicas + avisos +
+  notícias no tempo RELATIVO, cortado no SERVIDOR; depois do fim só com a run terminada), `news-file`, `docs`/`doc` (o
+  publicado com PDF desde a largada; editorial só no fim). O feed leva `freeze_rel` (do `var/freeze-final.json`) e o
+  motor congela os outros até a run terminar. Rota nova do virtual ⇒ entra na matriz do `smoke-virtual-leak.sh`. Testes:
+  `smoke-virtual-contest.sh`, `smoke-virtual-board.gjs.sh`. Doc: `docs/VIRTUAL.md` §5½.
 - **Sorteio com PRIVADOS = opt-in (PR #35, 2026-09-29)**: `include_private=1` nas 5 rotas do banco
   (`/contest/admin/draw`, `/contest/admin/bank?meta=1`, `/treino/contest-create/{draw,tags,collections}`);
   **padrão = só públicos**, porque sortear por tag/coleção pode puxar a prova em elaboração de um colega

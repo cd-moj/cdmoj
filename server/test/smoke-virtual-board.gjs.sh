@@ -109,6 +109,14 @@ print('virt_t1700=' + (me2.total === '0' && me2.probs.A === '1/-' ? 'ok' : 'bad 
   const row = (l) => bb.teams.find((x) => x.vlogin === l);
   print('pinned_row=' + [row('bia').pinned, row('ana').pinned, row('caio').pinned, row('bia').username].join(','));
   print('pick_pure=' + (VS.every((v) => v.pinned === undefined))); }
+// FREEZE relativo (10/11/2026): depois de F, quem não é você congela (n/-? nas células com run escondida)
+{ const VF = [{ login: 'ana', runs: [[1000, 0, 'N'], [1800, 0, 'Y'], [5000, 2, 'Y']], you: true }, { login: 'bia', runs: [[4500, 0, 'Y']] }];
+  const fz = boardAt(FEED, idx, VF, 9999, {}, { freeze: 4000 });
+  const r = (u) => fz.teams.find((x) => x.username === u || x.vlogin === u);
+  print('fz=' + [r('t1').probs.A, r('t1').probs.B, r('t1').total, r('t2').probs.B, r('t5').probs.C, r('ana').probs.C, r('bia').probs.A, fz.frozenAt].join(','));
+  const pre = boardAt(FEED, idx, [], 3000, {}, { freeze: 4000 }), raw = boardAt(FEED, idx, [], 3000);
+  print('fz_before=' + (JSON.stringify(pre.teams) === JSON.stringify(raw.teams)) + ',' + pre.frozenAt);
+  print('fz_null=' + boardAt(FEED, idx, [], 9999, {}, { freeze: null }).teams.find((x) => x.username === 't1').probs.B); }
 print('upto=' + runsUpTo(idx, 900) + ',' + runsUpTo(idx, -1) + ',' + (runsUpTo(idx, 1e9) === FEED.runs.length));
 JS
 } > "$W/t.js"
@@ -132,6 +140,9 @@ check virt_t1700 ok     "no minuto 28 a virtual ainda não resolveu (1/-)"
 check pick "ana,bia*,caio|ana,bia*|ana|" "pickVirtuals: todos | só os escolhidos (+eu) | só o meu | nenhum"
 check pinned_row "true,false,false,#bia" "escolhido chega à linha do placar como pinned (com o login p/ o 📌)"
 check pick_pure true     "pickVirtuals não altera a lista recebida"
+check fz "2/20,2/-?,1,1/-?,2/-?,1/83,1/-?,4000" "freeze: fantasmas e outros virtuais congelam (n/-?), a SUA linha não"
+check fz_before "true,null" "antes do freeze: o placar é o de sempre"
+check fz_null "2/83" "sem freeze (run terminada / sem registro): tudo aberto"
 check upto "7,0,true"   "runsUpTo (busca binária: 7 runs até o segundo 900)"
 grep -q "★\|\*" "$FIX/dfull/var/placar.txt" && echo "  (fixture tem ★ no TXT: $(grep -o '[0-9]*/[0-9]*\*' "$FIX/dfull/var/placar.txt" | tr '\n' ' '))"
 echo "RESULT: $PASS passed, $FAIL failed"; (( FAIL == 0 ))

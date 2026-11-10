@@ -124,6 +124,40 @@ velho que isso não segura a finalização).
 - Duas implementações da regra ICPC (bash e JS) ⇒ teste **diferencial**
   `smoke-virtual-board.gjs.sh`: motor em `t=∞` == `placar.txt`; motor em `t=T` == placar de history truncado.
 
+- **Freeze como na prova** (10/11/2026): o feed traz `freeze_rel`, o freeze em segundos desde o início, lido de
+  `var/freeze-final.json` (o "Encerrar evento" o grava antes de zerar o `FREEZE_TIME`). Com a run **rodando**, o motor
+  (`boardAt … {freeze}`) congela todas as linhas menos a sua: só as runs até o freeze contam, e as de depois viram
+  tentativas escondidas, `n/-?`, a mesma marca do placar congelado. Posição e ★ saem do instante do freeze. A faixa
+  ❄️ explica, e o placar descongela quando a run termina. É tela, não segredo: o placar final já é público. Contest
+  sem o registro não tem freeze no virtual.
+
+## 5½. A cara de contest (10/11/2026)
+
+Relato de usuário: "simulando a última final nacional, não consegui achar os tempos-limite". Com a run largada a
+página ganha as abas **Prova · Placar · Clarifications & avisos · Minhas submissões · Ajuda**. O desenho aprovado pelo
+Ribas está em `.claude/prototipos/2026-11-10/virtual/`.
+
+- **Prova**:
+  - **Avisos da organização** (notícias e avisos oficiais) e **Arquivos da prova**.
+  - A sanfona: o **tempo-limite por linguagem** (`web/shared/tl-chips.js`, a mesma regra do contest e do treino). É o
+    TL que **julga** a submissão virtual, o do json público. O `/treino/virtual/problems` o manda junto com o relógio
+    do TL e o TL único.
+  - O enunciado e o **editor embutido**, com envio de arquivo ao lado, para o `/submit` do treino com `virtual`.
+- **Arquivos** (`/treino/virtual/docs` + `/doc`): os documentos **publicados** do contest com PDF (caderno, ambiente
+  de julgamento, tempos-limite) **desde a largada**. O **editorial** só com a run terminada; antes ele aparece
+  trancado, para o participante saber que existe. Também entram os links externos do `resources.json`.
+- **Avisos e clarifications** (`/treino/virtual/clarifications` + `/news-file`):
+  - Só o que foi **público** na prova: a clarification respondida em público, o aviso oficial e a notícia.
+  - Cada um aparece no **mesmo minuto relativo** em que saiu na prova: `answered_at`, `time` ou `date`, menos o início.
+  - O que saiu **depois do fim** da prova aparece quando a run termina.
+  - O corte é feito **no servidor**, pelo relógio da run (`vr_clock`). O cliente nunca recebe o que ainda não
+    "aconteceu", nem a contagem.
+  - Pergunta privada nunca aparece. Quem perguntou e quem respondeu também não.
+  - Não dá para perguntar, porque ninguém responde. A aba ganha um contador de novidades, como no contest.
+- Run **desistida** não vê nada disso; ao largar de novo, volta tudo.
+- Testes: `smoke-virtual-contest.sh` (rotas e cortes), `smoke-virtual-leak.sh` (as rotas novas na matriz do portão),
+  `smoke-virtual-board.gjs.sh` (o freeze).
+
 ## 6. Painel do dono e moderação
 
 **Evento › Virtual**: mostra o portão aberto em partes (o que falta), o link da página e as

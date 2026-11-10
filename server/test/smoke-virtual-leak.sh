@@ -59,13 +59,13 @@ ck(){ if eval "$2"; then ((pass++)); else echo "  FAIL: $1 :: ${OUT:0:240}"; ((f
 
 echo "== referência: contest INEXISTENTE =="
 declare -A REF
-for r in info run problems feed board; do call ana "/treino/virtual/$r" GET contest=naoexiste; REF[$r]="$OUT"
+for r in info run problems feed board clarifications docs doc news-file; do call ana "/treino/virtual/$r" GET contest=naoexiste; REF[$r]="$OUT"
   ck "ref $r é 404 virtual_unavailable" '[[ "$OUT" == *"Status: 404"* && "$OUT" == *virtual_unavailable* ]]'; done
 call ana /treino/virtual/run POST "" '{"contest":"naoexiste","action":"start","accept":true}'; REF[post]="$OUT"
 
 echo "== matriz: rota × contest proibido =="
 for c in $BAD; do
-  for r in info run problems feed board; do
+  for r in info run problems feed board clarifications docs doc news-file; do
     for who in ana -; do
       for AE in "" gzip; do
         call "$who" "/treino/virtual/$r" GET "contest=$c"

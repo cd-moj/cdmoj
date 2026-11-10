@@ -22,6 +22,27 @@
     .vr-replay input[type=range] { flex:1 1 240px }
     .vr-frlist { display:flex; flex-direction:column; gap:.2rem; max-height:16rem; overflow:auto }
     .vr-fr { cursor:pointer }
+    /* ---- cara de contest (10/11/2026): abas, avisos, arquivos, sanfona com TL + editor ---- */
+    .vr-tabs { display:flex; gap:.2rem 1.2rem; flex-wrap:wrap; border-bottom:1px solid var(--line); margin:.2rem 0 1rem; padding:0 .2rem }
+    .vr-tabs button { background:none; border:0; padding:.55rem 0; font:inherit; font-weight:700; color:var(--blue-dark,#1f3c88); cursor:pointer; border-bottom:3px solid transparent }
+    .vr-tabs button.on { border-bottom-color:var(--blue,#2563eb) }
+    .vr-tabs button:focus-visible { outline:2px solid var(--blue,#2563eb); outline-offset:2px }
+    .vr-tabs .cnt { display:inline-block; min-width:1.2rem; text-align:center; background:#c0392b; color:#fff; border-radius:999px; font-size:.72rem; padding:0 .3rem; margin-left:.25rem }
+    .vr-rel { font-family:var(--mono); font-size:.8rem; color:var(--muted); white-space:nowrap }
+    .vr-item { border:1px solid var(--line); border-radius:10px; padding:.55rem .8rem; margin:.5rem 0; background:var(--card,#fff) }
+    .vr-item.new { background:#fff7e0; border-color:#f2c94c }
+    .vr-item .hd { display:flex; gap:.5rem; align-items:center; flex-wrap:wrap }
+    .vr-item p { margin:.3rem 0; white-space:pre-wrap }
+    .vr-note { background:#f4f7fc; border:1px dashed var(--line); border-radius:10px; padding:.55rem .8rem; font-size:.9rem }
+    .vr-freeze { background:#eef4ff; border:1px solid #c7d7fb; border-radius:10px; padding:.5rem .8rem; margin:.4rem 0 .6rem }
+    .vr-prob { border:1px solid var(--line); border-radius:10px; margin:.45rem 0; background:var(--card,#fff) }
+    .vr-prob > summary { list-style:none } .vr-prob > summary::-webkit-details-marker { display:none }
+    .vr-prob > summary::before { content:'▶'; display:inline-block; width:1.2em; color:var(--muted) }
+    .vr-prob[open] > summary::before { content:'▼' }
+    .vr-prob > .vr-pbody { padding:0 .8rem .8rem }
+    .vr-cols { display:grid; grid-template-columns:1fr; gap:1.2rem; align-items:start; margin-top:.6rem }
+    @media (min-width:992px) { .vr-cols { grid-template-columns:minmax(0,1.4fr) minmax(0,1fr) } }
+    .vr-docs .doc-line .pill { text-decoration:none }
     @media (max-width: 820px) { .vr-clock { font-size:1.3rem } }
   </style>
 </head>
@@ -42,12 +63,28 @@
   <main class="container">
     <div id="vhead" class="section"><span class="muted" data-en="loading…" data-es="cargando…">carregando…</span></div>
     <div id="vstart" class="section hidden"></div>
+    <!-- ABAS (com a run largada): a cara do contest — Prova · Placar · Clarifications & avisos · Minhas submissões · Ajuda -->
+    <nav id="vtabs" class="vr-tabs hidden" role="tablist"></nav>
     <div id="varena" class="hidden">
-      <div class="section"><h2 data-en="Problems" data-es="Problemas">Problemas</h2><div id="vprobs"></div></div>
-      <div class="section"><h2 data-en="My submissions" data-es="Mis envíos">Minhas submissões</h2><div id="vsubs"></div></div>
+      <div data-tab="prova">
+        <div class="section hidden" id="vnewssec"><h2 data-en="Notices from the organization" data-es="Avisos de la organización">Avisos da organização</h2><div id="vnews"></div>
+          <p class="small muted" style="margin:.4rem 0 0" data-en="Each notice appears at the same minute of YOUR contest at which it came out in the real one." data-es="Cada aviso aparece en el mismo minuto de TU competencia en que salió en la competencia real.">Cada aviso aparece no mesmo minuto da SUA prova em que saiu na prova de verdade.</p></div>
+        <div class="section hidden vr-docs" id="vdocssec"><h2 data-en="Contest files" data-es="Archivos de la competencia">Arquivos da prova</h2><div id="vdocs" class="doc-lines"></div></div>
+        <div class="section"><h2 data-en="Problems" data-es="Problemas">Problemas</h2><div id="vprobs"></div></div>
+      </div>
+      <div data-tab="clar" class="hidden">
+        <div class="section"><h2 data-en="Clarifications &amp; notices" data-es="Aclaraciones y avisos">Clarifications &amp; avisos</h2>
+          <div class="vr-note" style="margin-bottom:.7rem" data-en="In a virtual participation there is no judge to answer questions. Here you see the clarifications the organization answered in PUBLIC and the notices, at the same minute of your contest at which they came out in the real one. Those answered after the contest ended appear when your participation ends." data-es="En la participación virtual no hay juez para responder preguntas. Aquí aparecen las aclaraciones que la organización respondió en PÚBLICO y los avisos, en el mismo minuto de tu competencia en que salieron en la real. Las respondidas después del fin de la competencia aparecen cuando termina tu participación.">No virtual não há juiz para responder perguntas. Aqui aparecem as clarifications que a organização respondeu em PÚBLICO e os avisos, no mesmo minuto da sua prova em que saíram na prova de verdade. As respondidas depois do fim da prova aparecem quando a sua participação terminar.</div>
+          <div id="vclar"></div></div>
+      </div>
+      <div data-tab="subs" class="hidden">
+        <div class="section"><h2 data-en="My submissions" data-es="Mis envíos">Minhas submissões</h2><div id="vsubs"></div></div>
+      </div>
+      <div data-tab="ajuda" class="hidden"><div class="section" id="vhelp"></div></div>
     </div>
-    <div id="vboardsec" class="section hidden">
+    <div id="vboardsec" class="section hidden" data-tab="placar">
       <h2 id="vboardtitle" data-en="Scoreboard" data-es="Marcador">Placar</h2>
+      <div id="vfreeze" class="vr-freeze hidden"></div>
       <!-- a MESMA barra do placar oficial (coorte, bandeira, universidade, sede, busca) + "Virtuais" -->
       <div class="fbar hidden" id="vfilters"></div>
       <!-- "meus escolhidos": virtuais que aparecem sempre (lista da conta; /treino/virtual/friends) -->

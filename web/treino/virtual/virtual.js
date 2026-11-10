@@ -1,5 +1,8 @@
 // treino/virtual/virtual.js — PARTICIPAÇÃO VIRTUAL: refazer um contest encerrado contra o placar
-// oficial, no tempo de quem participa. Três telas na MESMA página:
+// oficial, no tempo de quem participa. COM A RUN LARGADA a página tem a cara do contest (10/11/2026; relato: "não achei
+// os tempos limites"; desenho aprovado pelo Ribas em .claude/prototipos/2026-11-10/virtual): abas Prova (avisos,
+// arquivos da prova, sanfona com TL + enunciado + editor) · Placar (com o FREEZE relativo) · Clarifications & avisos (as
+// PÚBLICAS no tempo relativo — o servidor corta) · Minhas submissões · Ajuda. Três telas na MESMA página:
 //   largada  — regras de honra, duração, "começar agora"/agendar, regra de desistência
 //   arena    — relógio, problemas (enunciado da rota pública /treino/problem), envio, submissões,
 //              placar com os times oficiais como "fantasmas" + virtuais anteriores + você
@@ -8,7 +11,7 @@
 // vem do servidor (/treino/virtual/run). Atualização EM LUGAR: o relógio anda a cada segundo, o
 // placar só é refeito quando uma run nova "acontece" ou o meu estado muda.
 import { apiGet, apiPost, getToken } from '/shared/api.js';
-import { status, fileToBase64 } from '/shared/auth.js';
+import { status, fileToBase64, textToBase64 } from '/shared/auth.js';
 import { el, verdictClass, isPending, fmtCountdown } from '/shared/ui.js';
 import { T, uiLocale } from '/shared/i18n.js';
 import { indexFeed, runsUpTo, boardAt, myRow, sliceVirtualPlaces, pickVirtuals } from '/shared/virtual-board.js';
@@ -17,8 +20,11 @@ import * as F from '/contest/score/score-filters.js';   // a MESMA lógica de fi
 import { flagName, flagNamesReady } from '/shared/flags.js';
 import { pickStmtLang, makeStmtLangChips, setChipsActive, rememberStmtLang, stmtHtmlLang } from '/shared/statement-langs.js';
 import { decorateSamples } from '/shared/statement-samples.js';
-import { langById } from '/shared/languages.js';
-import { submitErrorText } from '/shared/submit-ux.js';
+import { langById, DEFAULT_SUBMIT_LANGUAGES, extCanon } from '/shared/languages.js';
+import { makeSubmitFlow, attachSubmitButton, lastSubKey } from '/shared/submit-ux.js';
+import { createEditor } from '/shared/editor.js';
+import { skeletonFor, isSkeleton, docOnLangChange } from '/shared/editor-skeleton.js';
+import { tlParts } from '/shared/tl-chips.js';   // chips de TL: a MESMA regra do contest e do treino
 
 const CID = new URLSearchParams(location.search).get('c') || '';
 const enc = encodeURIComponent;
@@ -185,14 +191,14 @@ async function finish() {
   try { const d = await apiPost('/treino/virtual/run', { contest: CID, action: 'finish' }, A); setMe(d.me); await enter(); } catch (e) { alert(e.message); }
 }
 
-// ---------------------------------------------------------------- arena: problemas + envio
+// ---------------------------------------------------------------- arena: problemas (TL + enunciado + editor)
 const probBox = {};          // id -> {det, mark}
 function renderProblems() {
   const box = $('vprobs'); if (box.dataset.built) { markProblems(); return; }
   box.dataset.built = '1'; box.innerHTML = '';
   problems.forEach((p) => {
     const mark = el('span', {});
-    const body = el('div', {});
+    const body = el('div', { class: 'vr-pbody' });
     const det = el('details', { class: 'vr-prob' }, el('summary', {}, el('span', { class: 'lt' }, p.letter), p.name, ' ', mark), body);
     det.addEventListener('toggle', () => { if (det.open && !body.dataset.loaded) loadStatement(p, body); });
     probBox[p.id] = { det, mark };
@@ -210,10 +216,19 @@ function markProblems() {
     m.textContent = ac ? '✓' : (pend ? '…' : (bad ? '✗ ' + bad : ''));
   });
 }
+// as linguagens da PROVA (o servidor já resolveu a whitelist do contest/problema); vazio = as normais
+const probLangs = (p) => ((p.languages && p.languages.length) ? p.languages.map(langById) : DEFAULT_SUBMIT_LANGUAGES);
 async function loadStatement(p, body) {
   body.dataset.loaded = '1'; body.innerHTML = '';
+  // TEMPO-LIMITE por linguagem — o que JULGA a submissão virtual (o do treino, /treino/virtual/problems)
+  const tlp = tlParts(p, (p.languages && p.languages.length) ? probLangs(p) : null);
+  if (tlp.length) body.append(el('div', { class: 'tl-block' }, ...tlp));
+  const stmtCol = el('div', {}, el('span', { class: 'muted small' }, T('carregando o enunciado…', 'loading the statement…', 'cargando el enunciado…')));
+  const edCol = el('div', {});
+  body.append(el('div', { class: 'vr-cols' }, stmtCol, edCol));
+  edCol.append(submitBox(p));
   let pj;
-  try { pj = await apiGet('/treino/problem?id=' + enc(p.id), A); } catch (e) { body.append(el('p', { class: 'muted' }, e.message)); delete body.dataset.loaded; return; }
+  try { pj = await apiGet('/treino/problem?id=' + enc(p.id), A); } catch (e) { stmtCol.replaceChildren(el('p', { class: 'muted' }, e.message)); delete body.dataset.loaded; return; }
   const langs = Array.isArray(pj.statement_langs) && pj.statement_langs.length ? pj.statement_langs : ['pt'];
   const stmt = el('div', { class: 'statement-content' });
   const show = (lang) => {
@@ -224,32 +239,67 @@ async function loadStatement(p, body) {
     decorateSamples(stmt);
   };
   let cur = pickStmtLang(langs, 'pt');
+  stmtCol.replaceChildren();
   if (langs.length > 1) {
     const chips = makeStmtLangChips(langs, cur, (l) => { cur = l; rememberStmtLang(l); setChipsActive(chips, l); show(l); });
-    body.append(chips);
+    stmtCol.append(chips);
   }
   show(cur);
-  body.append(sendForm(p), stmt);
+  stmtCol.append(stmt);
 }
-function sendForm(p) {
-  const exts = (p.languages && p.languages.length ? p.languages : []).flatMap((id) => { const L = langById(id); return (L && L.exts ? L.exts : [id]).map((x) => '.' + x); });
+// ENVIO: editor embutido (como no contest e no treino) + arquivo. Vai ao /submit do treino com `virtual:<cid>` —
+// o servidor exige a run rodando, o problema da prova e a linguagem do contest.
+function submitBox(p) {
+  if (!me || me.state !== 'running') return el('p', { class: 'muted small' }, T('A participação terminou: o envio está fechado.', 'The participation has ended: submitting is closed.', 'La participación terminó: el envío está cerrado.'));
+  const langs = probLangs(p);
+  const cfg = { functionLangs: p.function_langs || [] };
+  let cur = langs[0].id, editor = null;
+  const sel = el('select', {}, ...langs.map((l) => el('option', { value: l.id }, l.label)));
+  const mount = el('div');
+  const box = el('div', { class: 'editor-box', style: 'height:420px' }, mount);
+  const exts = [...new Set(langs.flatMap((l) => (l.exts && l.exts.length) ? l.exts : [l.id]))].map((x) => '.' + x);
   const file = el('input', { type: 'file', class: 'hidden', accept: exts.join(',') });
-  const name = el('span', { class: 'muted small' }, T('nenhum arquivo', 'no file', 'ningún archivo'));
-  const msg = el('span', { class: 'small' });
-  const send = el('button', { class: 'btn', disabled: true }, T('Enviar', 'Submit', 'Enviar') + ' ' + p.letter);
-  file.addEventListener('change', () => { const f = file.files[0]; name.textContent = f ? f.name : T('nenhum arquivo', 'no file', 'ningún archivo'); send.disabled = !f; msg.textContent = ''; });
-  send.addEventListener('click', async () => {
-    const f = file.files[0]; if (!f) return;
-    send.disabled = true; msg.style.color = ''; msg.textContent = T('enviando…', 'sending…', 'enviando…');
-    try {
-      await apiPost('/submit?contest=treino', { problem_id: p.id, filename: f.name, code_b64: await fileToBase64(f), source: 'file', virtual: CID }, A);
-      msg.textContent = T('enviado — aguarde o veredicto', 'sent — wait for the verdict', 'enviado — espera el veredicto'); file.value = ''; name.textContent = T('nenhum arquivo', 'no file', 'ningún archivo');
-      await refreshRun();
-    } catch (e) { msg.style.color = '#c0392b'; msg.textContent = submitErrorText(e); send.disabled = false; }   // 429 = teto de envios na fila
+  const fname = el('span', { class: 'muted small' });
+  file.addEventListener('change', () => { fname.textContent = file.files[0] ? file.files[0].name : ''; });
+  const steps = el('span', { class: 'submit-steps' });
+  const btn = el('button', { class: 'btn', type: 'button' }, T('Enviar', 'Submit', 'Enviar') + ' ' + p.letter);
+  (async () => {
+    editor = await createEditor(mount, { doc: skeletonFor(cur, cfg), cm: langById(cur).cm, tab: 'indent' });
+    sel.addEventListener('change', async () => {
+      const txt = docOnLangChange(editor ? editor.getValue() : '', sel.value, cfg); cur = sel.value; mount.innerHTML = '';
+      editor = await createEditor(mount, { doc: txt, cm: langById(cur).cm, tab: 'indent' });
+    });
+  })();
+  const flow = makeSubmitFlow({ key: lastSubKey('virtual:' + CID, who || '', p.id),
+    send: (payload) => apiPost('/submit?contest=treino', { problem_id: p.id, virtual: CID, ...payload }, A) });
+  attachSubmitButton(flow, btn, steps, {
+    label: () => T('Enviar', 'Submit', 'Enviar') + ' ' + p.letter,
+    describe: (r) => langById(r.prep.lang).label,
+    hint: () => T('acompanhe em Minhas submissões', 'follow it in My submissions', 'síguelo en Mis envíos'),
+    prepare: async () => {
+      const f = file.files && file.files[0];
+      if (f) {
+        const fext = f.name.includes('.') ? f.name.split('.').pop() : '';
+        if (p.languages && p.languages.length && !p.languages.map(extCanon).includes(extCanon(fext))) {
+          throw new Error(T(`Esta prova só aceita: ${p.languages.join(', ')} — o arquivo .${fext || '?'} não pode ser enviado.`,
+            `This contest only accepts: ${p.languages.join(', ')} — the .${fext || '?'} file cannot be submitted.`,
+            `Esta competencia solo acepta: ${p.languages.join(', ')} — el archivo .${fext || '?'} no se puede enviar.`));
+        }
+        return { payload: { filename: f.name, code_b64: await fileToBase64(f), source: 'file' }, lang: extCanon(fext) };
+      }
+      const txt = editor ? editor.getValue() : '';
+      if (!txt.trim()) throw new Error(T('Escreva o seu código no editor ou escolha um arquivo.', 'Write your code in the editor or choose a file.', 'Escribe tu código en el editor o elige un archivo.'));
+      if (isSkeleton(txt, cfg)) throw new Error(T('Você ainda não alterou o código inicial: escreva a sua solução.', 'You have not changed the starter code yet: write your solution.', 'Todavía no cambiaste el código inicial: escribe tu solución.'));
+      return { payload: { filename: 'solution.' + cur, code_b64: textToBase64(txt), source: 'web' }, lang: cur };
+    },
+    onSent: async () => { file.value = ''; fname.textContent = ''; await refreshRun(); },
   });
-  return el('div', { class: 'vr-send' }, file,
-    el('button', { class: 'btn ghost', onclick: () => file.click() }, T('Escolher arquivo…', 'Choose file…', 'Elegir archivo…')), name, send, msg,
-    exts.length ? el('span', { class: 'muted small' }, T('aceita: ', 'accepts: ', 'acepta: ') + exts.join(' ')) : '');
+  return el('div', { class: 'editor-wrap' },
+    el('div', { class: 'editor-bar' }, el('label', { class: 'small' }, T('Linguagem: ', 'Language: ', 'Lenguaje: ')), sel,
+      el('a', { class: 'small', href: '/treino/ajuda/', target: '_blank', rel: 'noopener' }, T('📖 Como enviar', '📖 How to submit', '📖 Cómo enviar'))),
+    box,
+    el('div', { class: 'row', style: 'gap:.5rem;align-items:center;flex-wrap:wrap;margin-top:.4rem' }, btn,
+      el('button', { class: 'btn ghost', type: 'button', onclick: () => file.click() }, T('ou enviar arquivo…', 'or submit a file…', 'o enviar archivo…')), file, fname, steps));
 }
 function renderSubs() {
   const box = $('vsubs'); const runs = (me && me.runs) || [];
@@ -296,7 +346,10 @@ function paintBoard(force, user) {
   const nowMs = Date.now();
   if (!force && !user && playing === null && nowMs - lastPaint < 5000 && !mineChanged(vs)) return;
   lastPaint = nowMs; lastSig = sig;
-  const parsed = boardAt(feed, idx, vs, t, balloons, { teamOk: viewFn() });
+  // FREEZE relativo (feed.freeze_rel, o freeze preservado pelo "Encerrar evento"): só com a run RODANDO — terminou, abre
+  const fz = (me && me.state === 'running' && Number.isFinite(feed.freeze_rel)) ? feed.freeze_rel : null;
+  const parsed = boardAt(feed, idx, vs, t, balloons, { teamOk: viewFn(), freeze: fz });
+  paintFreeze(parsed.frozenAt);
   F.applyTeamsDir(parsed, teamsDir, CID); F.applyTeamsMeta(parsed, teamsMeta);   // sede, brasão, bandeira por regra
   const keep = keepFn();
   if (keep) sliceVirtualPlaces(parsed, keep);      // a virtual acompanha a renumeração do recorte
@@ -308,6 +361,16 @@ function paintBoard(force, user) {
   box.replaceChildren(el('div', { class: 'board-wrap' }, table));
   window.scrollTo(0, y);
   paintStat(parsed);
+}
+function paintFreeze(at) {
+  const box = $('vfreeze'); if (!box) return;
+  if (at === null || at === undefined) { box.classList.add('hidden'); box.innerHTML = ''; return; }
+  const sig = String(at); if (box.dataset.sig === sig && !box.classList.contains('hidden')) return; box.dataset.sig = sig;
+  box.replaceChildren('❄️ ', el('b', {}, T('Placar congelado aos ', 'Scoreboard frozen at ', 'Marcador congelado a los ') + hms(at) + T(', como na prova.', ', as in the contest.', ', como en la competencia.')), ' ',
+    T('Os outros não mostram o que fizeram depois disso (n/-? = tentativas escondidas); as suas submissões continuam aparecendo. Descongela quando a sua participação terminar.',
+      'The others do not show what they did after that (n/-? = hidden attempts); your submissions keep showing. It unfreezes when your participation ends.',
+      'Los demás no muestran lo que hicieron después (n/-? = intentos ocultos); tus envíos siguen apareciendo. Se descongela cuando termina tu participación.'));
+  box.classList.remove('hidden');
 }
 // COORTE recorta no MOTOR (posição e ★ saem como no placar próprio da visão); o resto é recorte de LINHA
 function viewFn() {
@@ -454,6 +517,154 @@ function renderReplay() {
   box.append(play, rng, lab, el('span', { class: 'muted small' }, T('arraste para ver o placar em qualquer minuto da prova', 'drag to see the scoreboard at any minute of the contest', 'arrastra para ver el marcador en cualquier minuto de la competencia')));
 }
 
+// ---------------------------------------------------------------- abas (cara de contest, com a run largada)
+const TABS = [['prova', () => T('Prova', 'Contest', 'Competencia')], ['placar', () => T('Placar', 'Scoreboard', 'Marcador')],
+  ['clar', () => T('Clarifications & avisos', 'Clarifications & notices', 'Aclaraciones y avisos')],
+  ['subs', () => T('Minhas submissões', 'My submissions', 'Mis envíos')], ['ajuda', () => T('Ajuda', 'Help', 'Ayuda')]];
+let tab = 'prova';
+const tabsOn = () => !!(me && ['running', 'judging', 'finished'].includes(me.state));
+function buildTabs() {
+  const nav = $('vtabs');
+  if (!tabsOn()) { nav.classList.add('hidden'); nav.innerHTML = ''; showTab(null); return; }
+  nav.classList.remove('hidden');
+  if (!nav.dataset.built) {
+    nav.dataset.built = '1'; nav.innerHTML = '';
+    TABS.forEach(([k, lbl]) => nav.append(el('button', { type: 'button', role: 'tab', 'data-k': k, onclick: () => { location.hash = k; showTab(k); } }, lbl())));
+  }
+  const h = (location.hash || '').slice(1);
+  showTab(TABS.some(([k]) => k === h) ? h : tab);
+}
+// sem abas (largada, agendada, replay): a página de sempre — arena escondida, placar à mostra
+function showTab(k) {
+  tab = k || 'prova';
+  document.querySelectorAll('#varena > [data-tab]').forEach((d) => d.classList.toggle('hidden', !k || d.dataset.tab !== k));
+  $('vboardsec').classList.toggle('hidden', !!k && k !== 'placar');
+  $('vtabs').querySelectorAll('button').forEach((b) => { b.classList.toggle('on', b.dataset.k === k); b.setAttribute('aria-selected', b.dataset.k === k ? 'true' : 'false'); });
+  if (k === 'clar') markClarSeen();
+  if (k === 'placar') paintBoard(true);
+}
+
+// ---------------------------------------------------------------- avisos & clarifications (tempo relativo)
+// O SERVIDOR corta pelo relógio da run (/treino/virtual/clarifications): aqui só se desenha o que chegou. "Novo" =
+// id ainda não visto NESTE navegador; a aba ganha o contador (o mesmo aviso do contest: contador, sem som).
+const SKEY = 'moj_vclar_seen_' + CID;
+let clarItems = [], clarSig = '';
+let seen = new Set();
+try { seen = new Set(JSON.parse(localStorage.getItem(SKEY) || '[]')); } catch { /* storage indisponível */ }
+const saveSeen = () => { try { localStorage.setItem(SKEY, JSON.stringify([...seen])); } catch { /* idem */ } };
+const relTxt = (it) => (it.kind === 'news' && it.rel === 0) ? T('antes da prova', 'before the contest', 'antes de la competencia')
+  : (it.rel > info.duration ? T('depois da prova', 'after the contest', 'después de la competencia')
+    : (it.kind === 'clar' ? T('respondida aos ', 'answered at ', 'respondida a los ') : T('aos ', 'at ', 'a los ')) + hms(it.rel));
+async function loadClar() {
+  if (!tabsOn() || loadClar.busy) return; loadClar.busy = true;
+  try {
+    const d = await apiGet('/treino/virtual/clarifications?contest=' + enc(CID), A);
+    clarItems = d.items || [];
+    const sig = JSON.stringify(clarItems.map((x) => x.kind + x.id));
+    if (sig !== clarSig) { clarSig = sig; renderClar(); renderNews(); }
+    paintClarCount();
+  } catch { /* rede: tenta no próximo ciclo */ } finally { loadClar.busy = false; }
+}
+function itemBox(it) {
+  const isNew = !seen.has(it.kind + ':' + it.id);
+  const tag = it.kind === 'clar' ? (it.problem === 'general' ? T('Geral', 'General', 'General') : it.problem)
+    : (it.kind === 'notice' ? T('Aviso', 'Notice', 'Aviso') : T('Notícia', 'News', 'Noticia'));
+  const kids = [el('div', { class: 'hd' }, el('span', { class: 'pill' }, tag), el('span', { class: 'vr-rel' }, relTxt(it)),
+    isNew ? el('span', { class: 'pill' }, T('nova', 'new', 'nueva')) : '')];
+  if (it.kind === 'clar') {
+    if (it.question) kids.push(el('p', {}, el('b', {}, T('Pergunta: ', 'Question: ', 'Pregunta: ')), it.question));
+    kids.push(el('p', {}, el('b', {}, T('Resposta: ', 'Answer: ', 'Respuesta: ')), it.answer));
+  } else if (it.kind === 'notice') {
+    if (it.question) kids.push(el('p', {}, el('b', {}, it.question)));
+    kids.push(el('p', {}, it.answer));
+  } else {
+    kids.push(el('p', {}, el('b', {}, it.title)));
+    if (it.text) kids.push(el('p', {}, it.text));
+    if (it.file) kids.push(el('p', {}, el('a', { href: '#', onclick: (e) => { e.preventDefault(); downloadFile('/treino/virtual/news-file?contest=' + enc(CID) + '&id=' + enc(it.id), it.file.name); } }, '📎 ' + it.file.name)));
+  }
+  return el('div', { class: 'vr-item' + (isNew ? ' new' : '') }, ...kids);
+}
+function renderClar() {
+  const box = $('vclar'); box.innerHTML = '';
+  if (!clarItems.length) { box.append(el('p', { class: 'muted small' }, T('Nada por enquanto.', 'Nothing yet.', 'Nada por ahora.'))); return; }
+  const opts = ['', 'general', ...problems.map((p) => p.letter)];
+  const f = el('select', {}, ...opts.map((o) => el('option', { value: o }, o === '' ? T('Todos', 'All', 'Todos') : (o === 'general' ? T('Geral e avisos', 'General and notices', 'General y avisos') : o))));
+  const list = el('div', {});
+  const paint = () => list.replaceChildren(...clarItems.filter((it) => !f.value || (f.value === 'general' ? (it.kind !== 'clar' || it.problem === 'general') : (it.kind === 'clar' && it.problem === f.value))).map(itemBox));
+  f.addEventListener('change', paint);
+  box.append(el('div', { class: 'row', style: 'gap:.5rem;margin-bottom:.4rem' }, el('label', { class: 'small' }, T('Problema: ', 'Problem: ', 'Problema: ')), f), list);
+  paint();
+}
+// avisos e notícias também no topo da aba Prova (como a seção "Informações & Notícias" do contest)
+function renderNews() {
+  const ns = clarItems.filter((it) => it.kind !== 'clar');
+  $('vnewssec').classList.toggle('hidden', !ns.length);
+  $('vnews').replaceChildren(...ns.map(itemBox));
+}
+function paintClarCount() {
+  const n = clarItems.filter((it) => !seen.has(it.kind + ':' + it.id)).length;
+  const b = $('vtabs').querySelector('[data-k=clar]'); if (!b) return;
+  let c = b.querySelector('.cnt');
+  if (n && tab !== 'clar') { if (!c) { c = el('span', { class: 'cnt' }); b.append(c); } c.textContent = String(n); }
+  else if (c) c.remove();
+  if (tab === 'clar' && n) markClarSeen();
+}
+function markClarSeen() {
+  if (!clarItems.length) return;
+  const before = seen.size; clarItems.forEach((it) => seen.add(it.kind + ':' + it.id));
+  if (seen.size !== before) { saveSeen(); setTimeout(() => { renderClar(); renderNews(); }, 4000); }   // o "nova" fica uns segundos
+  const c = $('vtabs').querySelector('[data-k=clar] .cnt'); if (c) c.remove();
+}
+
+// ---------------------------------------------------------------- arquivos da prova
+const DOC_LABEL = { contest: () => T('📘 Caderno de problemas', '📘 Problem set', '📘 Cuaderno de problemas'),
+  'info-sheet': () => T('🖥️ Ambiente de julgamento', '🖥️ Judging environment', '🖥️ Entorno de evaluación'),
+  times: () => T('⏱️ Tempos-limite', '⏱️ Time limits', '⏱️ Límites de tiempo'),
+  editorial: () => T('💡 Editorial (soluções comentadas)', '💡 Editorial (solutions explained)', '💡 Editorial (soluciones comentadas)') };
+async function loadDocs() {
+  if (!tabsOn()) return;
+  let d; try { d = await apiGet('/treino/virtual/docs?contest=' + enc(CID), A); } catch { return; }
+  const rows = [];
+  (d.docs || []).forEach((x) => {
+    const lbl = (DOC_LABEL[x.type] || (() => x.type))();
+    if (x.locked) { rows.push(el('div', { class: 'doc-line muted' }, '🔒 ', el('b', {}, lbl), ' — ', T('libera quando a sua participação terminar', 'unlocks when your participation ends', 'se libera cuando termine tu participación'))); return; }
+    rows.push(el('div', { class: 'doc-line' }, el('b', {}, lbl), ...x.langs.map((l) => el('a', { class: 'tag pill', href: '#',
+      onclick: (e) => { e.preventDefault(); openPdf('/treino/virtual/doc?contest=' + enc(CID) + '&type=' + enc(x.type) + '&lang=' + enc(l)); } }, l.toUpperCase()))));
+  });
+  (d.links || []).forEach((x) => rows.push(el('div', { class: 'doc-line' }, '🔗 ', el('a', { href: x.url, target: '_blank', rel: 'noopener noreferrer' }, x.label))));
+  $('vdocssec').classList.toggle('hidden', !rows.length);
+  $('vdocs').replaceChildren(...rows);
+}
+// PDF autenticado numa aba nova (aberta NO CLIQUE: depois do await o navegador bloquearia o pop-up)
+async function openPdf(path) {
+  const w = window.open('', '_blank');
+  try {
+    const r = await fetch('/api/v1' + path, { headers: { Authorization: 'Bearer ' + getToken('treino') } });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const url = URL.createObjectURL(new Blob([await r.blob()], { type: 'application/pdf' }));
+    if (w && !w.closed) w.location.replace(url); else window.open(url, '_blank');
+  } catch { if (w && !w.closed) w.close(); alert(T('Não foi possível abrir o arquivo.', 'Could not open the file.', 'No se pudo abrir el archivo.')); }
+}
+async function downloadFile(path, name) {
+  try {
+    const r = await fetch('/api/v1' + path, { headers: { Authorization: 'Bearer ' + getToken('treino') } });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const a = el('a', { href: URL.createObjectURL(await r.blob()), download: name }); document.body.append(a); a.click(); a.remove();
+  } catch { alert(T('Falha ao baixar.', 'Download failed.', 'Error al descargar.')); }
+}
+
+// ---------------------------------------------------------------- ajuda
+function renderHelp() {
+  const box = $('vhelp'); if (box.dataset.built) return; box.dataset.built = '1';
+  box.append(el('h2', {}, T('Como funciona a participação virtual', 'How the virtual participation works', 'Cómo funciona la participación virtual')),
+    el('ul', { class: 'vr-rules' },
+      el('li', {}, T('O relógio é o da SUA prova: os times oficiais aparecem no placar resolvendo cada problema no mesmo minuto em que resolveram na prova de verdade.', 'The clock is YOUR contest\'s: the official teams appear on the scoreboard solving each problem at the same minute as in the real contest.', 'El reloj es el de TU competencia: los equipos oficiales aparecen en el marcador resolviendo cada problema en el mismo minuto que en la competencia real.')),
+      el('li', {}, T('O tempo-limite de cada problema aparece ao abrir o problema, por linguagem — é o que julga a sua submissão.', 'Each problem\'s time limit shows when you open the problem, per language — it is what judges your submission.', 'El límite de tiempo de cada problema aparece al abrirlo, por lenguaje — es el que evalúa tu envío.')),
+      el('li', {}, T('Avisos e clarifications públicas chegam no mesmo minuto em que saíram na prova. Ninguém responde perguntas no virtual.', 'Notices and public clarifications arrive at the same minute as in the contest. Nobody answers questions in a virtual participation.', 'Los avisos y las aclaraciones públicas llegan en el mismo minuto que en la competencia. Nadie responde preguntas en el virtual.')),
+      el('li', {}, T('O placar congela no mesmo minuto em que congelou na prova (as suas submissões continuam visíveis) e abre quando a sua participação termina; o editorial também.', 'The scoreboard freezes at the same minute it froze in the contest (your submissions stay visible) and opens when your participation ends; so does the editorial.', 'El marcador se congela en el mismo minuto que en la competencia (tus envíos siguen visibles) y se abre cuando termina tu participación; el editorial también.'))),
+    el('p', {}, el('a', { href: '/treino/ajuda/', target: '_blank', rel: 'noopener' }, T('📖 Como enviar: entrada e saída e o código inicial de cada linguagem', '📖 How to submit: input and output and each language\'s starter code', '📖 Cómo enviar: entrada y salida y el código inicial de cada lenguaje'))));
+}
+
 // ---------------------------------------------------------------- ciclo
 async function refreshRun() {
   if (!logged() || refreshRun.busy) return; refreshRun.busy = true;
@@ -475,13 +686,17 @@ async function enter() {
   await Promise.all([loadBoard(), loadFriends()]);
   if (st === 'running' || st === 'judging' || st === 'finished') {
     if (!problems) { try { problems = (await apiGet('/treino/virtual/problems?contest=' + enc(CID), A)).problems; } catch { problems = []; } }
-    $('varena').classList.remove('hidden'); renderProblems(); renderSubs();
+    // a sanfona é refeita na troca de estado (o envio fecha quando a run termina)
+    if ($('vprobs').dataset.state !== st) { $('vprobs').dataset.state = st; $('vprobs').dataset.built = ''; }
+    $('varena').classList.remove('hidden'); renderProblems(); renderSubs(); renderHelp();
+    loadClar(); loadDocs();                      // o que o relógio da run já liberou (o editorial, só no fim)
   }
   if (st === 'scheduled') renderScheduled();
   else if (st === 'none' || st === 'discarded' || st === 'forbidden' || st === 'anon') renderStart();
   if (st !== 'running' && st !== 'scheduled') { replayT = Infinity; renderReplay(); }
   $('vboardtitle').textContent = st === 'running' ? T('Placar no seu tempo de prova', 'Scoreboard at your contest time', 'Marcador en tu tiempo de competencia') : T('Placar — oficial + participações virtuais', 'Scoreboard — official + virtual participations', 'Marcador — oficial + participaciones virtuales');
   $('vfilters').dataset.built = ''; renderFilters();
+  buildTabs();
   paintHead(); paintBoard(true);
 }
 
@@ -516,6 +731,9 @@ async function boot() {
   await enter();
   setInterval(() => { paintHead(); if (me && me.state === 'running') paintBoard(); }, 1000);
   setInterval(() => { if (me && ['running', 'judging', 'scheduled'].includes(me.state) && !document.hidden) refreshRun(); }, 10000);
-  document.addEventListener('moj:lang', () => { headState = ''; $('vprobs').dataset.built = ''; $('vreplay').dataset.built = ''; $('vreplay').innerHTML = ''; $('vfilters').dataset.built = ''; $('vfriends').dataset.built = ''; $('vsubs').dataset.sig = ''; enter(); });
+  // avisos/clarifications chegam no tempo relativo: o servidor corta, aqui só se pergunta de tempos em tempos
+  setInterval(() => { if (me && me.state === 'running' && !document.hidden) loadClar(); }, 20000);
+  window.addEventListener('hashchange', () => { if (tabsOn()) buildTabs(); });
+  document.addEventListener('moj:lang', () => { headState = ''; $('vprobs').dataset.built = ''; $('vtabs').dataset.built = ''; $('vhelp').dataset.built = ''; $('vhelp').innerHTML = ''; clarSig = ''; $('vreplay').dataset.built = ''; $('vreplay').innerHTML = ''; $('vfilters').dataset.built = ''; $('vfriends').dataset.built = ''; $('vsubs').dataset.sig = ''; enter(); });
 }
 boot();
