@@ -529,6 +529,7 @@ async function boot() {
   const st = await status(CONTEST);
   isAuth = !!st.logged_in;
   mountContestUserChip(st);   // nome · login no cabeçalho, como nas outras páginas (issue #29)
+  if (st.role === 'diretor') { const rh = document.getElementById('roleHelp'); if (rh) rh.classList.remove('hidden'); }
   mountSiteFooter().catch(() => {});
   document.getElementById('publicNotice').classList.toggle('hidden', isAuth);
 

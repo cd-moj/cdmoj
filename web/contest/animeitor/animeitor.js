@@ -680,6 +680,10 @@ async function boot() {
     return;
   }
   RO = !!(st.is_cstaff || st.is_staff || role === 'foto' || role === 'musica') && !st.is_admin && !st.is_animeitor;
+  // o tutorial do papel: .foto e .musica têm o deles (a mesma página, menos poderes)
+  if (role === 'foto' || role === 'musica') {
+    const hl = document.querySelector('a[href="/contest/ajuda/animeitor.html"]'); if (hl) hl.href = '/contest/ajuda/foto.html';
+  }
   CAN_PHOTO = !!st.is_admin || roleCan(st.login, 'foto');
   CAN_MUSIC = !!st.is_admin || roleCan(st.login, 'musica');
   NOWRITE = !CAN_PHOTO && !CAN_MUSIC;                 // .staff puro: só olha e ouve

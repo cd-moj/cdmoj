@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="pt-br" data-en-doctitle="MOJ — the .diretor role (region scoreboard)" data-es-doctitle="MOJ — el rol .diretor (marcador de la región)">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MOJ — o papel .diretor (placar da região)</title>
+  <link rel="stylesheet" href="/shared/ui.css">
+  <link rel="stylesheet" href="/contest/ajuda/_tutorial.css">
+  <link rel="icon" type="image/svg+xml" href="/shared/assets/logo_moj.svg">
+</head>
+<body>
+  <!-- GERADO por um script de 09/11/2026 no molde das páginas de papel; edite à mão à vontade daqui em diante -->
+  <header class="topbar">
+    <div class="bar">
+      <a class="brand" href="/"><img src="/shared/assets/logo_moj.svg" alt="MOJ"> MOJ
+        <span class="slogan">Melhor Online Judge</span></a>
+      <div class="spacer"></div>
+      <nav class="navlinks">
+        <a href="/docs/MANUAL-ADMIN.html" data-en-href="/docs/en/MANUAL-ADMIN.html" data-es-href="/docs/es/MANUAL-ADMIN.html" target="_blank" data-en="Organizer manual" data-es="Manual del organizador">Manual do organizador</a>
+        <a href="/docs/" target="_blank" data-en="Documentation" data-es="Documentación">Documentação</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="container">
+    <div class="section">
+      <h1 data-en="🧭 The .diretor role — the unfrozen scoreboard of your region" data-es="🧭 El rol .diretor — el marcador sin congelamiento de tu región">🧭 O papel .diretor — o placar sem freeze da sua região</h1>
+      <div class="rolehead">
+        <span class="em">🧭</span>
+        <div>
+          <code>alguem.diretor</code>
+          <div class="d" data-en-html="You direct a region or a country. You see the &lt;b&gt;unfrozen scoreboard&lt;/b&gt; during the whole contest, &lt;b&gt;only for your teams&lt;/b&gt;, with the position and the ★ recomputed in your subset — and you keep that result to yourself until the reveal." data-es-html="Diriges una región o un país. Ves el &lt;b&gt;marcador sin congelamiento&lt;/b&gt; durante toda la competencia, &lt;b&gt;solo de tus equipos&lt;/b&gt;, con la posición y la ★ recalculadas en tu recorte — y guardas ese resultado hasta la revelación.">Você dirige uma região ou um país. Você vê o <b>placar sem freeze</b> durante a prova inteira, <b>só dos seus times</b>, com a posição e a ★ recalculadas no seu recorte — e guarda esse resultado até a revelação.</div>
+        </div>
+      </div>
+      <nav class="rolenav">
+        <a href="/contest/ajuda/competidor.html">🏁 <span data-en="competitor" data-es="competidor">competidor</span></a>
+        <a href="/contest/ajuda/staff.html">🖨️ .staff</a>
+        <a href="/contest/ajuda/cstaff.html">🏷️ .cstaff</a>
+        <a href="/contest/ajuda/animeitor.html">🎥 .animeitor</a>
+        <a href="/contest/ajuda/foto.html">📷 .foto / .musica</a>
+        <a href="/contest/ajuda/sistemas.html">🖥 .sistemas</a>
+        <a href="/contest/ajuda/judge.html">⚖️ .judge</a>
+        <a href="/contest/ajuda/cjudge.html">👑 .cjudge</a>
+        <a class="cur" href="/contest/ajuda/diretor.html">🧭 .diretor</a>
+      </nav>
+      <p class="small muted" style="margin:.7rem 0 0" data-en-html="The screenshots show the interface in &lt;b&gt;English&lt;/b&gt; — the default of an international contest. In a contest set to Portuguese the same buttons appear translated." data-es-html="Las capturas de pantalla muestran la interfaz en &lt;b&gt;inglés&lt;/b&gt; — el predeterminado de una competencia internacional. En una competencia configurada en portugués, los mismos botones aparecen traducidos.">
+        As telas dos exemplos estão em <b>inglês</b> — o padrão de uma prova
+        internacional. Num contest em português, os mesmos botões aparecem traduzidos.
+      </p>
+    </div>
+
+    <div class="section tlayout">
+      <nav class="ttoc">
+        <b data-en="Contents" data-es="Contenido">Conteúdo</b>
+        <a href="#papel" data-en="1. What the role is" data-es="1. Qué es el rol">1. O que é o papel</a>
+        <a href="#escopo" data-en="2. Your region (the scope)" data-es="2. Tu región (el alcance)">2. A sua região (o escopo)</a>
+        <a href="#placar" data-en="3. The scoreboard of your subset" data-es="3. El marcador de tu recorte">3. O placar do seu recorte</a>
+        <a href="#sigilo" data-en="4. Careful: it is the unfrozen scoreboard" data-es="4. Cuidado: es el marcador sin congelamiento">4. Cuidado: é o placar sem freeze</a>
+        <a href="#nao" data-en="5. What you cannot do" data-es="5. Qué no puedes hacer">5. O que você não faz</a>
+        <a href="#resumo" data-en="6. Summary" data-es="6. Resumen">6. Resumo</a>
+      </nav>
+
+      <article class="tmain">
+        <h2 id="papel" data-en="1. What the role is" data-es="1. Qué es el rol">1. O que é o papel</h2>
+<p data-en-html="A login ending in &lt;code&gt;.diretor&lt;/code&gt; is for whoever directs a &lt;b&gt;region or a country&lt;/b&gt; in a contest with several sites. You see the &lt;b&gt;scoreboard WITHOUT freeze&lt;/b&gt; during the whole contest, but &lt;b&gt;only for the teams of your subset&lt;/b&gt;: the position and the first-to-solve star (★) are recomputed inside it." data-es-html="Un usuario que termina en &lt;code&gt;.diretor&lt;/code&gt; es para quien dirige una &lt;b&gt;región o un país&lt;/b&gt; en una competencia con varias sedes. Ves el &lt;b&gt;marcador SIN congelamiento&lt;/b&gt; durante toda la competencia, pero &lt;b&gt;solo de los equipos de tu recorte&lt;/b&gt;: la posición y la estrella de primero (★) se recalculan dentro de él.">Um login terminado em <code>.diretor</code> é para quem dirige uma <b>região ou um país</b> numa prova com várias sedes. Você vê o <b>placar SEM freeze</b> durante a prova inteira, mas <b>só dos times do seu recorte</b>: a posição e a estrela de primeiro (★) são recalculadas dentro dele.</p>
+<p data-en-html="You do not compete: you do not see the problems and you do not submit. Your buttons are &lt;b&gt;Score&lt;/b&gt; and &lt;b&gt;Documents&lt;/b&gt;." data-es-html="No compites: no ves los problemas y no envías. Tus botones son &lt;b&gt;Marcador&lt;/b&gt; y &lt;b&gt;Documentos&lt;/b&gt;.">Você não participa da prova: não vê os problemas e não submete. Os seus botões são <b>Score</b> e <b>Documentos</b>.</p>
+<h2 id="escopo" data-en="2. Your region (the scope)" data-es="2. Tu región (el alcance)">2. A sua região (o escopo)</h2>
+<p data-en-html="Everything you see is cut to your &lt;b&gt;scope&lt;/b&gt;: a site, a country or a region. The administrator sets it, in &lt;b&gt;Operations › Staff › Scope of the role accounts&lt;/b&gt; (usually &lt;code&gt;region:&amp;lt;name&amp;gt;&lt;/code&gt;). You cannot edit your own scope." data-es-html="Todo lo que ves está recortado a tu &lt;b&gt;alcance&lt;/b&gt;: una sede, un país o una región. Lo configura el administrador, en &lt;b&gt;Operación › Staff › Alcance de las cuentas de rol&lt;/b&gt; (normalmente &lt;code&gt;region:&amp;lt;nombre&amp;gt;&lt;/code&gt;). No puedes editar tu propio alcance.">Tudo o que você vê é recortado no seu <b>escopo</b>: uma sede, um país ou uma região. Quem configura é o administrador, em <b>Operação › Staff › Escopo das contas de papel</b> (normalmente <code>region:&lt;nome&gt;</code>). Você não edita o próprio escopo.</p>
+<p class="warn" data-en-html="&lt;b&gt;Without a scope, you see no team.&lt;/b&gt; This is on purpose: this role fails closed. (The &lt;code&gt;.staff&lt;/code&gt; and &lt;code&gt;.cstaff&lt;/code&gt; roles are different: without a scope, they see everybody.) If your screen is empty, ask the administrator to set your site." data-es-html="&lt;b&gt;Sin alcance definido, no ves ningún equipo.&lt;/b&gt; Es a propósito: este rol falla cerrado. (El &lt;code&gt;.staff&lt;/code&gt; y el &lt;code&gt;.cstaff&lt;/code&gt; son distintos: sin alcance, ven a todos.) Si tu pantalla está vacía, pídele al administrador que defina tu sede."><b>Sem escopo definido, você não vê nenhum time.</b> É de propósito: este papel falha fechado. (O <code>.staff</code> e o <code>.cstaff</code> são diferentes: sem escopo, eles veem todos.) Se a sua tela está vazia, peça ao administrador para definir a sua sede.</p>
+<p class="tip" data-en-html="The server makes the cut, not the browser: a team outside your scope never reaches your screen." data-es-html="El corte lo hace el servidor, no el navegador: un equipo fuera de tu alcance nunca llega a tu pantalla.">O corte é feito no servidor, não no navegador: um time fora do seu escopo não chega à sua tela.</p>
+<h2 id="placar" data-en="3. The scoreboard of your subset" data-es="3. El marcador de tu recorte">3. O placar do seu recorte</h2>
+<figure class="shot"><img loading="lazy" decoding="async" src="/contest/ajuda/img/diretor-placar.webp" alt=""><figcaption data-en="The scoreboard of a North .diretor: only the North teams, without freeze (the solves after the freeze appear), numbered 1 to 5 inside the subset. The ★ of A belongs to Binary Owls: the first North team to solve it, even if a South team solved it earlier." data-es="El marcador de un .diretor del Norte: solo los equipos del Norte, sin congelamiento (aparecen los aciertos después del congelamiento), numerados del 1 al 5 dentro del recorte. La ★ de A es de Binary Owls: el primero del Norte en resolverlo, aunque un equipo del Sur lo haya resuelto antes.">O placar de um .diretor do Norte: só os times do Norte, sem freeze (os acertos depois do congelamento aparecem), numerados de 1 a 5 dentro do recorte. A ★ do A é do Binary Owls: o primeiro do Norte a resolver, mesmo que um time do Sul tenha resolvido antes.</figcaption></figure>
+<ul><li data-en-html="&lt;b&gt;Without freeze&lt;/b&gt;: you see what really happened, also in the last hour. The page does not show the frozen scoreboard notice." data-es-html="&lt;b&gt;Sin congelamiento&lt;/b&gt;: ves lo que pasó de verdad, también en la última hora. La página no muestra el aviso de marcador congelado."><b>Sem freeze</b>: você vê o que aconteceu de verdade, inclusive na última hora. A página não mostra o aviso de placar congelado.</li><li data-en-html="&lt;b&gt;The position is the one inside the subset&lt;/b&gt;: 1st of the North, 2nd of the North… The position on the overall scoreboard does not appear." data-es-html="&lt;b&gt;La posición es la del recorte&lt;/b&gt;: 1.º del Norte, 2.º del Norte… La posición en el marcador general no aparece."><b>A posição é a do recorte</b>: 1º do Norte, 2º do Norte… A posição no placar geral não aparece.</li><li data-en-html="&lt;b&gt;The ★ is the one of the subset&lt;/b&gt;: the first team of the subset to solve the problem. When an older submission is still being judged, the ★ of the problem waits — on the overall scoreboard and on yours — so a wrong first place is never announced." data-es-html="&lt;b&gt;La ★ es la del recorte&lt;/b&gt;: el primer equipo del recorte en resolver el problema. Cuando un envío más antiguo todavía se está juzgando, la ★ del problema espera — en el marcador general y en el tuyo —, para nunca anunciar un primer lugar equivocado."><b>A ★ é a do recorte</b>: o primeiro time do recorte a resolver o problema. Quando uma submissão mais antiga ainda está sendo julgada, a ★ do problema espera — no placar geral e no seu —, para nunca anunciar um primeiro lugar errado.</li><li data-en-html="The filters (university, site, search) work as for everyone, inside your subset." data-es-html="Los filtros (universidad, sede, búsqueda) funcionan como para todos, dentro de tu recorte.">Os filtros (universidade, sede, busca) funcionam como para todos, dentro do seu recorte.</li></ul>
+<h2 id="sigilo" data-en="4. Careful: it is the unfrozen scoreboard" data-es="4. Cuidado: es el marcador sin congelamiento">4. Cuidado: é o placar sem freeze</h2>
+<p class="warn" data-en-html="During the freeze, nobody outside the organization knows the result of the last hour. &lt;b&gt;Do not project your screen, do not share screenshots and do not talk about the result&lt;/b&gt; before the official reveal. The big screen (the Animeitor) runs the reveal." data-es-html="Durante el congelamiento, nadie fuera de la organización sabe el resultado de la última hora. &lt;b&gt;No proyectes tu pantalla, no compartas capturas y no comentes el resultado&lt;/b&gt; antes de la revelación oficial. Quien conduce la revelación es la pantalla (el Animeitor).">Durante o freeze, ninguém fora da organização sabe o resultado da última hora. <b>Não projete a sua tela, não compartilhe capturas e não comente o resultado</b> antes da revelação oficial. Quem conduz a revelação é o telão (o Animeitor).</p>
+<h2 id="nao" data-en="5. What you cannot do" data-es="5. Qué no puedes hacer">5. O que você não faz</h2>
+<table class="cheat"><tr><th data-en="Attempt" data-es="Intento">Tentativa</th><th data-en="Answer" data-es="Respuesta">Resposta</th></tr><tr><td data-en-html="See teams outside your subset" data-es-html="Ver equipos fuera de tu recorte">Ver times fora do seu recorte</td><td data-en-html="The server does not send their rows" data-es-html="El servidor no manda sus filas">O servidor não manda as linhas deles</td></tr><tr><td data-en-html="Statistics, All submissions" data-es-html="Estadísticas, Todos los envíos">Estatísticas, Todas as submissões</td><td data-en-html="&lt;code&gt;403&lt;/code&gt;" data-es-html="&lt;code&gt;403&lt;/code&gt;"><code>403</code></td></tr><tr><td data-en-html="Badges, print queue, big screen, machines" data-es-html="Etiquetas, cola de impresión, pantalla, máquinas">Etiquetas, fila de impressão, telão, máquinas</td><td data-en-html="&lt;code&gt;403&lt;/code&gt; — &lt;span&gt;they belong to other roles&lt;/span&gt;" data-es-html="&lt;code&gt;403&lt;/code&gt; — &lt;span&gt;son de otros roles&lt;/span&gt;"><code>403</code> — <span>são de outros papéis</span></td></tr><tr><td data-en-html="Answer clarifications" data-es-html="Responder aclaraciones">Responder clarification</td><td data-en-html="&lt;code&gt;403&lt;/code&gt;" data-es-html="&lt;code&gt;403&lt;/code&gt;"><code>403</code></td></tr><tr><td data-en-html="See the problems, submit (offline too), ask for a printout" data-es-html="Ver los problemas, enviar (también sin conexión), pedir impresión">Ver os problemas, submeter (também offline), pedir impressão</td><td data-en-html="&lt;code&gt;403&lt;/code&gt; — &lt;span&gt;the account does not compete&lt;/span&gt;" data-es-html="&lt;code&gt;403&lt;/code&gt; — &lt;span&gt;la cuenta no compite&lt;/span&gt;"><code>403</code> — <span>a conta não participa da prova</span></td></tr></table>
+<h2 id="resumo" data-en="6. Summary" data-es="6. Resumen">6. Resumo</h2>
+<table class="cheat"><tr><th data-en="What you see" data-es="Lo que ves">O que você vê</th><th data-en="What you keep to yourself" data-es="Lo que guardas">O que você guarda</th></tr><tr><td data-en-html="The &lt;b&gt;unfrozen&lt;/b&gt; scoreboard of your region/country, with the subset position and ★, during the whole contest" data-es-html="El marcador &lt;b&gt;sin congelamiento&lt;/b&gt; de tu región/país, con la posición y la ★ del recorte, toda la competencia">O placar <b>sem freeze</b> da sua região/país, com a posição e a ★ do recorte, a prova inteira</td><td data-en-html="The result of the last hour, until the official reveal" data-es-html="El resultado de la última hora, hasta la revelación oficial">O resultado da última hora, até a revelação oficial</td></tr></table>
+        <p class="small muted"><a href="/contest/ajuda/cstaff.html" data-en="The site chief (.cstaff) →" data-es="El jefe de sede (.cstaff) →">O chefe de sede (.cstaff) →</a> · <a href="/docs/MANUAL-ADMIN.html" data-en-href="/docs/en/MANUAL-ADMIN.html" data-es-href="/docs/es/MANUAL-ADMIN.html" target="_blank" data-en="Organizer manual" data-es="Manual del organizador">Manual do organizador</a></p>
+      </article>
+    </div>
+  </main>
+
+  <script type="module" src="/shared/i18n-dom.js"></script>
+  <script type="module" src="/contest/ajuda/_tutorial.js"></script>
+</body>
+</html>

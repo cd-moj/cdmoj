@@ -65,7 +65,11 @@ async function boot() {
     const tab = makeMlinuxTab(CONTEST);
     app.append(tab.panel);
     const st = await status(CONTEST).catch(() => null);
-    if (st && st.role === 'sistemas') app.append(siteLockCard());
+    if (st && st.role === 'sistemas') {
+      app.prepend(el('a', { class: 'btn ghost', href: '/contest/ajuda/sistemas.html', target: '_blank', style: 'float:right;margin:.2rem 0 0' },
+        T('📖 Como funciona este papel', '📖 How this role works', '📖 Cómo funciona este rol')));
+      app.append(siteLockCard());
+    }
     await tab.load();
   } catch (e) {
     app.append(el('div', { class: 'section' }, el('h2', {}, T('🔒 Restrito', '🔒 Restricted', '🔒 Restringido')),

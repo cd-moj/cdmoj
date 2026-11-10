@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="pt-br" data-en-doctitle="MOJ — the .sistemas role (site machines)" data-es-doctitle="MOJ — el rol .sistemas (máquinas de la sede)">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MOJ — o papel .sistemas (máquinas da sede)</title>
+  <link rel="stylesheet" href="/shared/ui.css">
+  <link rel="stylesheet" href="/contest/ajuda/_tutorial.css">
+  <link rel="icon" type="image/svg+xml" href="/shared/assets/logo_moj.svg">
+</head>
+<body>
+  <!-- GERADO por um script de 09/11/2026 no molde das páginas de papel; edite à mão à vontade daqui em diante -->
+  <header class="topbar">
+    <div class="bar">
+      <a class="brand" href="/"><img src="/shared/assets/logo_moj.svg" alt="MOJ"> MOJ
+        <span class="slogan">Melhor Online Judge</span></a>
+      <div class="spacer"></div>
+      <nav class="navlinks">
+        <a href="/docs/MANUAL-ADMIN.html" data-en-href="/docs/en/MANUAL-ADMIN.html" data-es-href="/docs/es/MANUAL-ADMIN.html" target="_blank" data-en="Organizer manual" data-es="Manual del organizador">Manual do organizador</a>
+        <a href="/docs/" target="_blank" data-en="Documentation" data-es="Documentación">Documentação</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="container">
+    <div class="section">
+      <h1 data-en="🖥 The .sistemas role — site machines" data-es="🖥 El rol .sistemas — máquinas de la sede">🖥 O papel .sistemas — máquinas da sede</h1>
+      <div class="rolehead">
+        <span class="em">🖥</span>
+        <div>
+          <code>alguem.sistemas</code>
+          <div class="d" data-en-html="You take care of the &lt;b&gt;machines&lt;/b&gt; of your site: you see their state, send commands, lock and unlock the screens and release an IP pinned by the site lock. Only at the sites in your scope." data-es-html="Te encargas de las &lt;b&gt;máquinas&lt;/b&gt; de tu sede: ves su estado, mandas comandos, bloqueas y desbloqueas las pantallas y sueltas un IP fijado por el bloqueo de sede. Solo en las sedes de tu alcance.">Você cuida das <b>máquinas</b> da sua sede: vê o estado delas, manda comandos, trava e destrava as telas e solta um IP preso pela trava de sede. Só nas sedes do seu escopo.</div>
+        </div>
+      </div>
+      <nav class="rolenav">
+        <a href="/contest/ajuda/competidor.html">🏁 <span data-en="competitor" data-es="competidor">competidor</span></a>
+        <a href="/contest/ajuda/staff.html">🖨️ .staff</a>
+        <a href="/contest/ajuda/cstaff.html">🏷️ .cstaff</a>
+        <a href="/contest/ajuda/animeitor.html">🎥 .animeitor</a>
+        <a href="/contest/ajuda/foto.html">📷 .foto / .musica</a>
+        <a class="cur" href="/contest/ajuda/sistemas.html">🖥 .sistemas</a>
+        <a href="/contest/ajuda/judge.html">⚖️ .judge</a>
+        <a href="/contest/ajuda/cjudge.html">👑 .cjudge</a>
+        <a href="/contest/ajuda/diretor.html">🧭 .diretor</a>
+      </nav>
+      <p class="small muted" style="margin:.7rem 0 0" data-en-html="The screenshots show the interface in &lt;b&gt;English&lt;/b&gt; — the default of an international contest. In a contest set to Portuguese the same buttons appear translated." data-es-html="Las capturas de pantalla muestran la interfaz en &lt;b&gt;inglés&lt;/b&gt; — el predeterminado de una competencia internacional. En una competencia configurada en portugués, los mismos botones aparecen traducidos.">
+        As telas dos exemplos estão em <b>inglês</b> — o padrão de uma prova
+        internacional. Num contest em português, os mesmos botões aparecem traduzidos.
+      </p>
+    </div>
+
+    <div class="section tlayout">
+      <nav class="ttoc">
+        <b data-en="Contents" data-es="Contenido">Conteúdo</b>
+        <a href="#papel" data-en="1. What the role is" data-es="1. Qué es el rol">1. O que é o papel</a>
+        <a href="#escopo" data-en="2. Your site (the scope)" data-es="2. Tu sede (el alcance)">2. A sua sede (o escopo)</a>
+        <a href="#maquinas" data-en="3. The Machines screen" data-es="3. La pantalla de Máquinas">3. A tela de Máquinas</a>
+        <a href="#travar" data-en="4. Lock and unlock the screens" data-es="4. Bloquear y desbloquear las pantallas">4. Travar e destravar as telas</a>
+        <a href="#trava" data-en="5. The per-site IP lock" data-es="5. El bloqueo de sede por IP">5. A trava de sede por IP</a>
+        <a href="#nao" data-en="6. What you cannot do" data-es="6. Qué no puedes hacer">6. O que você não faz</a>
+        <a href="#resumo" data-en="7. Summary" data-es="7. Resumen">7. Resumo</a>
+      </nav>
+
+      <article class="tmain">
+        <h2 id="papel" data-en="1. What the role is" data-es="1. Qué es el rol">1. O que é o papel</h2>
+<p data-en-html="A login ending in &lt;code&gt;.sistemas&lt;/code&gt; takes care of the &lt;b&gt;machines&lt;/b&gt; of a site: the team machines, with Maratona Linux and the NutellaBoot agent. You see their state, send commands, lock and unlock the screens and release an IP pinned by the site lock — all only at the sites in your scope." data-es-html="Un usuario que termina en &lt;code&gt;.sistemas&lt;/code&gt; se encarga de las &lt;b&gt;máquinas&lt;/b&gt; de una sede: las máquinas de los equipos, con Maratona Linux y el agente de NutellaBoot. Ves su estado, mandas comandos, bloqueas y desbloqueas las pantallas y sueltas un IP fijado por el bloqueo de sede — todo solo en las sedes de tu alcance.">Um login terminado em <code>.sistemas</code> cuida das <b>máquinas</b> de uma sede: as máquinas dos times, com o Maratona Linux e o agente do NutellaBoot. Você vê o estado delas, manda comandos, trava e destrava as telas e solta um IP preso pela trava de sede — tudo só nas sedes do seu escopo.</p>
+<p data-en-html="You do not compete: you do not see the problems and you do not submit. Your button in the bar is &lt;b&gt;Machines&lt;/b&gt;." data-es-html="No compites: no ves los problemas y no envías. Tu botón en la barra es &lt;b&gt;Máquinas&lt;/b&gt;.">Você não participa da prova: não vê os problemas e não submete. O seu botão na barra é <b>Máquinas</b>.</p>
+<h2 id="escopo" data-en="2. Your site (the scope)" data-es="2. Tu sede (el alcance)">2. A sua sede (o escopo)</h2>
+<p data-en-html="Everything you see is cut to your &lt;b&gt;scope&lt;/b&gt;: a site, a country or a region. The administrator sets it, in &lt;b&gt;Operations › Staff › Scope of the role accounts&lt;/b&gt; (usually &lt;code&gt;region:&amp;lt;name&amp;gt;&lt;/code&gt;). You cannot edit your own scope." data-es-html="Todo lo que ves está recortado a tu &lt;b&gt;alcance&lt;/b&gt;: una sede, un país o una región. Lo configura el administrador, en &lt;b&gt;Operación › Staff › Alcance de las cuentas de rol&lt;/b&gt; (normalmente &lt;code&gt;region:&amp;lt;nombre&amp;gt;&lt;/code&gt;). No puedes editar tu propio alcance.">Tudo o que você vê é recortado no seu <b>escopo</b>: uma sede, um país ou uma região. Quem configura é o administrador, em <b>Operação › Staff › Escopo das contas de papel</b> (normalmente <code>region:&lt;nome&gt;</code>). Você não edita o próprio escopo.</p>
+<p class="warn" data-en-html="&lt;b&gt;Without a scope, you see no team.&lt;/b&gt; This is on purpose: this role fails closed. (The &lt;code&gt;.staff&lt;/code&gt; and &lt;code&gt;.cstaff&lt;/code&gt; roles are different: without a scope, they see everybody.) If your screen is empty, ask the administrator to set your site." data-es-html="&lt;b&gt;Sin alcance definido, no ves ningún equipo.&lt;/b&gt; Es a propósito: este rol falla cerrado. (El &lt;code&gt;.staff&lt;/code&gt; y el &lt;code&gt;.cstaff&lt;/code&gt; son distintos: sin alcance, ven a todos.) Si tu pantalla está vacía, pídele al administrador que defina tu sede."><b>Sem escopo definido, você não vê nenhum time.</b> É de propósito: este papel falha fechado. (O <code>.staff</code> e o <code>.cstaff</code> são diferentes: sem escopo, eles veem todos.) Se a sua tela está vazia, peça ao administrador para definir a sua sede.</p>
+<p class="tip" data-en-html="The server makes the cut, not the browser: a team outside your scope never reaches your screen." data-es-html="El corte lo hace el servidor, no el navegador: un equipo fuera de tu alcance nunca llega a tu pantalla.">O corte é feito no servidor, não no navegador: um time fora do seu escopo não chega à sua tela.</p>
+<h2 id="maquinas" data-en="3. The Machines screen" data-es="3. La pantalla de Máquinas">3. A tela de Máquinas</h2>
+<figure class="shot"><img loading="lazy" decoding="async" src="/contest/ajuda/img/sistemas-maquinas.webp" alt=""><figcaption data-en="The Machines screen of a .sistemas account: the commands (only the sites in the scope), the overview, the attention box, the machine health in the contest and the hardware." data-es="La pantalla de Máquinas de una cuenta .sistemas: los comandos (solo las sedes del alcance), el panorama, la atención, la salud de las máquinas en la competencia y el hardware.">A tela de Máquinas de um .sistemas: os comandos (só as sedes do escopo), o panorama, a atenção, a saúde das máquinas na prova e o hardware.</figcaption></figure>
+<ul><li data-en-html="&lt;b&gt;Machine commands&lt;/b&gt;: choose the site and the machine (or all) and the command. The command goes to the NutellaBoot queue and runs at the next contact of the machine. Everything goes to the audit log." data-es-html="&lt;b&gt;Comandos de las máquinas&lt;/b&gt;: elige la sede y la máquina (o todas) y el comando. El comando entra en la cola de NutellaBoot y corre en el próximo contacto de la máquina. Todo queda en la auditoría."><b>Comandos das máquinas</b>: escolha a sede e a máquina (ou todas) e o comando. O comando entra na fila do NutellaBoot e roda no próximo contato da máquina. Tudo fica na auditoria.</li><li data-en-html="&lt;b&gt;Attention&lt;/b&gt; and &lt;b&gt;health&lt;/b&gt;: alerts (USB stick, phone, duplicate identity), reboots, processes killed for lack of memory, clock off, idle machines." data-es-html="&lt;b&gt;Atención&lt;/b&gt; y &lt;b&gt;salud&lt;/b&gt;: alertas (pendrive, celular, identidad repetida), reinicios, procesos muertos por falta de memoria, reloj desfasado, máquinas inactivas."><b>Atenção</b> e <b>saúde</b>: alertas (pendrive, celular, identidade repetida), reinícios, processos mortos por falta de memória, relógio fora, máquinas paradas.</li><li data-en-html="&lt;b&gt;Hardware&lt;/b&gt; and &lt;b&gt;editors&lt;/b&gt;: memory, processor, model and the editors that the teams use." data-es-html="&lt;b&gt;Hardware&lt;/b&gt; y &lt;b&gt;editores&lt;/b&gt;: memoria, procesador, modelo y los editores que usan los equipos."><b>Hardware</b> e <b>editores</b>: memória, processador, modelo e os editores que os times usam.</li></ul>
+<h2 id="travar" data-en="4. Lock and unlock the screens" data-es="4. Bloquear y desbloquear las pantallas">4. Travar e destravar as telas</h2>
+<p data-en-html="&lt;b&gt;🔒 Lock screens&lt;/b&gt; and &lt;b&gt;🔓 Unlock screens&lt;/b&gt; act on the chosen site (or on one machine). The lock lives on the NutellaBoot server and holds until the opposite order, even after a reboot of the machine. Use it before the start and after the end of the contest." data-es-html="&lt;b&gt;🔒 Bloquear pantallas&lt;/b&gt; y &lt;b&gt;🔓 Desbloquear pantallas&lt;/b&gt; actúan en la sede elegida (o en una máquina). El bloqueo está en el servidor de NutellaBoot y vale hasta la orden contraria, incluso después de reiniciar la máquina. Úsalo antes del inicio y después del fin de la competencia."><b>🔒 Travar telas</b> e <b>🔓 Destravar telas</b> agem na sede escolhida (ou numa máquina). A trava fica no servidor do NutellaBoot e vale até a ordem contrária, mesmo depois de reiniciar a máquina. Use antes do início e depois do fim da prova.</p>
+<p class="tip" data-en-html="The whole fleet (&lt;i&gt;all sites&lt;/i&gt;) is only for the administrator." data-es-html="La flota entera (&lt;i&gt;todas las sedes&lt;/i&gt;) es solo del administrador.">A frota inteira (<i>todas as sedes</i>) é só do administrador.</p>
+<h2 id="trava" data-en="5. The per-site IP lock" data-es="5. El bloqueo de sede por IP">5. A trava de sede por IP</h2>
+<p data-en-html="With the site lock on, each team login &lt;b&gt;pins the machine IP&lt;/b&gt; to this contest: from that IP, training and other contests do not answer. At the end of the Machines screen you see the pinned IPs of your site." data-es-html="Con el bloqueo de sede activo, cada inicio de sesión de equipo &lt;b&gt;fija el IP de la máquina&lt;/b&gt; a esta competencia: desde ese IP, el entrenamiento y otras competencias no responden. Al final de la pantalla de Máquinas ves los IP fijados de tu sede.">Com a trava de sede ligada, cada login de time <b>prende o IP da máquina</b> a esta prova: daquele IP, o treino e outros contests não respondem. No fim da tela de Máquinas você vê os IPs presos da sua sede.</p>
+<figure class="shot"><img loading="lazy" decoding="async" src="/contest/ajuda/img/sistemas-trava.webp" alt=""><figcaption data-en="The pinned IPs of the site: logins, blocks and release (two clicks: release, then confirm)." data-es="Los IP fijados de la sede: inicios de sesión, bloqueos y soltar (dos clics: soltar, después confirmar).">Os IPs presos da sede: logins, bloqueios e o soltar (dois cliques: soltar, depois confirmar).</figcaption></figure>
+<p data-en-html="&lt;b&gt;Release&lt;/b&gt; an IP when the machine must leave the contest — for example, a machine swap. You only release IPs of your site. Turning the lock on or off is the administrator&#x27;s job." data-es-html="&lt;b&gt;Suelta&lt;/b&gt; un IP cuando la máquina debe salir de la competencia — por ejemplo, un cambio de máquina. Solo sueltas IP de tu sede. Activar o apagar el bloqueo es trabajo del administrador."><b>Solte</b> um IP quando a máquina precisa sair da prova — por exemplo, uma troca de máquina. Você só solta IP da sua sede. Ligar ou desligar a trava é do administrador.</p>
+<h2 id="nao" data-en="6. What you cannot do" data-es="6. Qué no puedes hacer">6. O que você não faz</h2>
+<table class="cheat"><tr><th data-en="Attempt" data-es="Intento">Tentativa</th><th data-en="Answer" data-es="Respuesta">Resposta</th></tr><tr><td data-en-html="See or command machines of another site" data-es-html="Ver o mandar máquinas de otra sede">Ver ou comandar máquinas de outra sede</td><td data-en-html="&lt;code&gt;403&lt;/code&gt; &lt;code&gt;site_forbidden&lt;/code&gt;" data-es-html="&lt;code&gt;403&lt;/code&gt; &lt;code&gt;site_forbidden&lt;/code&gt;"><code>403</code> <code>site_forbidden</code></td></tr><tr><td data-en-html="Command the whole fleet" data-es-html="Mandar la flota entera">Comandar a frota inteira</td><td data-en-html="Only the administrator" data-es-html="Solo el administrador">Só o administrador</td></tr><tr><td data-en-html="Release an IP of another site" data-es-html="Soltar un IP de otra sede">Soltar IP de outra sede</td><td data-en-html="&lt;code&gt;403&lt;/code&gt; &lt;code&gt;site_forbidden&lt;/code&gt;" data-es-html="&lt;code&gt;403&lt;/code&gt; &lt;code&gt;site_forbidden&lt;/code&gt;"><code>403</code> <code>site_forbidden</code></td></tr><tr><td data-en-html="Turn the lock on or off; pin the IPs already seen" data-es-html="Activar o apagar el bloqueo; fijar los IP ya vistos">Ligar ou desligar a trava; prender os IPs já vistos</td><td data-en-html="Only the administrator" data-es-html="Solo el administrador">Só o administrador</td></tr><tr><td data-en-html="Configure the integration (the NutellaBoot key)" data-es-html="Configurar la integración (la clave de NutellaBoot)">Configurar a integração (a chave do NutellaBoot)</td><td data-en-html="Only the administrator" data-es-html="Solo el administrador">Só o administrador</td></tr><tr><td data-en-html="See the problems, submit (offline too), ask for a printout" data-es-html="Ver los problemas, enviar (también sin conexión), pedir impresión">Ver os problemas, submeter (também offline), pedir impressão</td><td data-en-html="&lt;code&gt;403&lt;/code&gt; — &lt;span&gt;the account does not compete&lt;/span&gt;" data-es-html="&lt;code&gt;403&lt;/code&gt; — &lt;span&gt;la cuenta no compite&lt;/span&gt;"><code>403</code> — <span>a conta não participa da prova</span></td></tr></table>
+<h2 id="resumo" data-en="7. Summary" data-es="7. Resumen">7. Resumo</h2>
+<table class="cheat"><tr><th data-en="Before the contest" data-es="Antes de la competencia">Antes da prova</th><th data-en="During and after" data-es="Durante y después">Durante e depois</th></tr><tr><td data-en-html="Check the machines of the site (health, alerts, hardware) · &lt;b&gt;lock the screens&lt;/b&gt; until the start" data-es-html="Revisar las máquinas de la sede (salud, alertas, hardware) · &lt;b&gt;bloquear las pantallas&lt;/b&gt; hasta el inicio">Conferir as máquinas da sede (saúde, alertas, hardware) · <b>travar as telas</b> até a largada</td><td data-en-html="Follow the alerts · &lt;b&gt;release the IP&lt;/b&gt; on a machine swap · lock the screens at the end" data-es-html="Seguir las alertas · &lt;b&gt;soltar el IP&lt;/b&gt; en un cambio de máquina · bloquear las pantallas al final">Acompanhar os alertas · <b>soltar o IP</b> numa troca de máquina · travar as telas no fim</td></tr></table>
+        <p class="small muted"><a href="/docs/NUTELLABOOT.html" target="_blank" data-en="NutellaBoot integration" data-es="Integración NutellaBoot">Integração NutellaBoot</a> · <a href="/docs/MANUAL-ADMIN.html" data-en-href="/docs/en/MANUAL-ADMIN.html" data-es-href="/docs/es/MANUAL-ADMIN.html" target="_blank" data-en="Organizer manual" data-es="Manual del organizador">Manual do organizador</a></p>
+      </article>
+    </div>
+  </main>
+
+  <script type="module" src="/shared/i18n-dom.js"></script>
+  <script type="module" src="/contest/ajuda/_tutorial.js"></script>
+</body>
+</html>
