@@ -346,8 +346,9 @@ function paintBoard(force, user) {
   const nowMs = Date.now();
   if (!force && !user && playing === null && nowMs - lastPaint < 5000 && !mineChanged(vs)) return;
   lastPaint = nowMs; lastSig = sig;
-  // FREEZE relativo (feed.freeze_rel, o freeze preservado pelo "Encerrar evento"): só com a run RODANDO — terminou, abre
-  const fz = (me && me.state === 'running' && Number.isFinite(feed.freeze_rel)) ? feed.freeze_rel : null;
+  // FREEZE relativo (feed.freeze_rel, o freeze preservado pelo "Encerrar evento"): com a run rodando ou esperando o último
+  // veredicto (judging) — só a run FINALIZADA abre o placar (a regra do servidor, vr_clock)
+  const fz = (me && (me.state === 'running' || me.state === 'judging') && Number.isFinite(feed.freeze_rel)) ? feed.freeze_rel : null;
   const parsed = boardAt(feed, idx, vs, t, balloons, { teamOk: viewFn(), freeze: fz });
   paintFreeze(parsed.frozenAt);
   F.applyTeamsDir(parsed, teamsDir, CID); F.applyTeamsMeta(parsed, teamsMeta);   // sede, brasão, bandeira por regra

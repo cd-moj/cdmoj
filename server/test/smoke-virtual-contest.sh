@@ -114,6 +114,19 @@ call ana /treino/virtual/docs GET contest=v1
 ck "editorial destrancado" '[[ "$(jq -c ".docs[] | select(.type==\"editorial\") | [.locked, .langs]" <<<"$BODY")" == "[false,[\"pt\"]]" ]]'
 call ana /treino/virtual/doc GET "contest=v1&type=editorial&lang=pt"; ck "editorial: 200" '[[ "$OUT" == *"Status: 200"* && "$BODY" == *editorial.pt* ]]'
 
+echo "== tempo esgotado com veredicto PENDENTE (judging): ainda não libera; 0 AC = desistência = nada =="
+call beto /treino/virtual/run POST "" '{"contest":"v1","action":"start","accept":true}'; agerun beto 9000
+vsub beto 'col#pa'; BS="$SID"; agerun beto 2000          # submissão aos ~9000 s, pendente; o tempo acabou há ~1000 s
+awk -F: -v OFS=: -v id="$BS" '$NF==id{$(NF-1)-=2000; $1-=2000} 1' "$T/users/beto/history" > "$T/users/beto/history.n" && mv "$T/users/beto/history.n" "$T/users/beto/history"
+call beto /treino/virtual/run GET contest=v1; ck "(a run está em judging)" '[[ "$(st)" == judging ]]'
+call beto /treino/virtual/docs GET contest=v1
+ck "judging: o editorial segue TRANCADO" '[[ "$(jq -c ".docs[] | select(.type==\"editorial\") | .locked" <<<"$BODY")" == true ]]'
+call beto /treino/virtual/clarifications GET contest=v1
+ck "judging: a prova inteira (aviso dos 3000 s), mas nada de depois do fim" '[[ "$(jq -r "[.items[] | .id] | sort | join(\",\")" <<<"$BODY")" == "c1,c3,n0,n1" && "$(jq -r .ended <<<"$BODY")" == false ]]'
+call beto /treino/virtual/doc GET "contest=v1&type=editorial&lang=pt"; ck "judging: editorial 404" '[[ "$OUT" == *"Status: 404"* ]]'
+verdict beto "$BS" 'Wrong Answer'
+call beto /treino/virtual/clarifications GET contest=v1; ck "o WA sai: 0 AC = desistida = 403 (pode largar de novo sem ter visto o fim)" '[[ "$(code)" == virtual_not_started ]]'
+
 call caio /treino/virtual/run POST "" '{"contest":"v1","action":"start","accept":true}'; agerun caio 100
 call caio /treino/virtual/run POST "" '{"contest":"v1","action":"discard"}'
 call caio /treino/virtual/clarifications GET contest=v1; ck "run DESISTIDA não vê nada (pode largar de novo)" '[[ "$(code)" == virtual_not_started ]]'

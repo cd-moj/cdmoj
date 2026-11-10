@@ -185,7 +185,9 @@ vr_effective(){
 vr_state(){ local f; f="$(vr_file "$1" "$2")"; [[ -s "$f" ]] && jq -c . "$f" 2>/dev/null; }
 # vr_clock <login> <cid> — o RELÓGIO DA RUN (com vr_load feito), p/ o que o virtual libera no tempo relativo da prova
 # (avisos, clarifications públicas, notícias, documentos; 10/11/2026): VR_ELAPSED = segundos desde a largada (até a
-# duração) e VR_ENDED = 1 quando a run acabou (fim do tempo, "encerrar agora" — judging/finished). rc 1 = não largou
+# duração) e VR_ENDED = 1 só com a run FINALIZADA (gravada). `judging` (o tempo acabou, veredicto pendente) NÃO libera:
+# com 0 AC ela ainda pode virar desistência e largar de novo — e teria visto o editorial e o que saiu depois do fim.
+# rc 1 = não largou
 # (none/scheduled/discarded): quem chama responde 403 `virtual_not_started`. É o SERVIDOR que corta: o cliente nunca
 # recebe o que ainda não "aconteceu" na prova dele.
 vr_clock(){
@@ -199,6 +201,7 @@ vr_clock(){
     VR_ELAPSED=$(( EPOCHSECONDS - s ))
     (( VR_ELAPSED > VR_DUR )) && VR_ELAPSED=$VR_DUR
     (( VR_ELAPSED < 0 )) && VR_ELAPSED=0
+  elif [[ "$eff" == judging ]]; then VR_ELAPSED=$VR_DUR
   else VR_ELAPSED=$VR_DUR; VR_ENDED=1; fi
   return 0
 }
