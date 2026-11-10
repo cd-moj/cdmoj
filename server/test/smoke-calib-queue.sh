@@ -105,4 +105,30 @@ ck "pedido novo ENTRA (versão nova)"   '[[ "$c" != "$a" && "$(upd_pending_kind_
 d="$(cal_request col "col#pa" autor)"
 ck "e o clique seguinte dedupa"        '[[ "$d" == "$c" && "$(upd_pending_kind_count calibrate)" == 1 ]]'
 
+echo "== calibração INCREMENTAL (reuse, opt-in, 10/11/2026): o pedido leva reuse e o \"rodar tudo\" vence o dedup =="
+rm -rf "$UPDATESDIR/pending" "$UPDATESDIR/inprogress" "$CMDDIR"; mkdir -p "$UPDATESDIR/pending" "$UPDATESDIR/inprogress" "$CMDDIR"
+pf(){ printf '%s/pending/%s.json' "$UPDATESDIR" "$1"; }
+r="$(cal_request col "col#pr" autor)"
+ck "sem o 4º argumento: sem reuse (padrão = rodar tudo)" '! jq -e "has(\"reuse\")" "$(pf "$r")" >/dev/null'
+rm -f "$(pf "$r")"
+r="$(cal_request col "col#pr" autor 1)"
+ck "com 1: reuse:true no pedido"                  'jq -e ".reuse == true and .kind == \"calibrate\" and .target == \"col#pr\"" "$(pf "$r")" >/dev/null'
+r2="$(cal_request col "col#pr" autor 1)"
+ck "outro com reuse: dedupa e segue reuse"        '[[ "$r2" == "$r" ]] && jq -e ".reuse == true" "$(pf "$r")" >/dev/null'
+r3="$(cal_request col "col#pr" autor)"
+ck "um SEM reuse sobre ele: dedupa e o pendente PERDE o reuse" '[[ "$r3" == "$r" ]] && ! jq -e "has(\"reuse\")" "$(pf "$r")" >/dev/null'
+r4="$(cal_request col "col#pr" autor 1)"
+ck "e um reuse depois não o religa (rodar tudo vence)" '[[ "$r4" == "$r" ]] && ! jq -e "has(\"reuse\")" "$(pf "$r")" >/dev/null'
+got="$(upd_claim juiz1)"
+ck "o claim entrega o pedido inteiro"             '[[ "$(jq -r ".target" <<<"$got")" == "col#pr" ]]'
+upd_done juiz1 "$r"
+cid="$(cmd_request juiz1 calibrate autor "col#pq" '{"reuse":true}')"
+ck "comando direcionado com reuse"                'jq -e ".reuse == true and .action == \"calibrate\" and .id == \"col#pq\"" "$CMDDIR/juiz1/$cid.json" >/dev/null'
+_req_drop_reuse "$CMDDIR/juiz1/$cid.json"
+ck "_req_drop_reuse tira o campo do comando"     '! jq -e "has(\"reuse\")" "$CMDDIR/juiz1/$cid.json" >/dev/null && [[ "$(jq -r .id "$CMDDIR/juiz1/$cid.json")" == "col#pq" ]]'
+cid2="$(cmd_request juiz1 calibrate autor "col#pz")"
+ck "comando sem o 5º argumento: sem reuse"       '! jq -e "has(\"reuse\")" "$CMDDIR/juiz1/$cid2.json" >/dev/null'
+out="$(cmd_request juiz1 calibrate autor "col#pw" '{"reuse":true,"cmdid":"forjado","action":"kill"}')"
+ck "o extra nunca sobrescreve cmdid/action/id"   '[[ "$(jq -r ".cmdid + \" \" + .action" "$CMDDIR/juiz1/$out.json")" == "$out calibrate" ]]'
+
 echo; echo "RESULT: $pass passed, $fail failed"; (( fail == 0 ))

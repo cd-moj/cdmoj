@@ -76,7 +76,10 @@ fi
 # Vai por ARQUIVO (--slurpfile): o vetor cresce com nº de soluções × testes.
 # Os DOIS métodos de TL (26/10/2026, mojtools tl-methods.sh): `method` (o dos `code`), `etl` (o teto de tempo
 # de cada teste) e, por teste, `code_alt`/`tl_alt` (o veredicto e o TL pelo OUTRO método — só pass/slow/wrong)
-# — lib/calib-expect.sh escolhe um ou outro conforme o método avaliado.
+# — lib/calib-expect.sh escolhe um ou outro conforme o método avaliado. Por teste também `wall` (TLCLOCK=cpu: morreu
+# pelo teto de PAREDE; a simulação e o juízo do Kattis o usam — até 10/11/2026 a projeção o descartava e o caso do E2E
+# de 05/11 só funcionava no teste, que grava o arquivo do host direto) e, por solução, `reused_at` (calibração
+# incremental: o resultado veio do memo do juiz, medido nesse epoch).
 SOLSF="$(mktemp)"; trap 'rm -f "$bf" "$SOLSF" "$SOLSF.n"' EXIT
 if jq -e '(.sols // null) | type == "array"' "$bf" >/dev/null 2>&1 \
    && (( $(jq -c '.sols' "$bf" 2>/dev/null | wc -c) <= 1048576 )); then
@@ -88,9 +91,11 @@ if jq -e '(.sols // null) | type == "array"' "$bf" >/dev/null 2>&1 \
                          time:(.time | (tonumber? // null)), tl:(.tl | (tonumber? // null))}
                         + (if (.msg // null) == null then {} else {msg:(.msg | tostring | .[0:300])} end)
                         + (if (.code_alt // null) == null then {}
-                           else {code_alt:(.code_alt | tostring | .[0:16]), tl_alt:(.tl_alt | (tonumber? // null))} end) ]}
+                           else {code_alt:(.code_alt | tostring | .[0:16]), tl_alt:(.tl_alt | (tonumber? // null))} end)
+                        + (if .wall == true then {wall:true} else {} end) ]}
              + (if (.method // "") == "kattis" or (.method // "") == "moj" then {method:.method} else {} end)
-             + ((.etl | tonumber? // null) as $e | if $e != null then {etl:$e} else {} end) ]' \
+             + ((.etl | tonumber? // null) as $e | if $e != null then {etl:$e} else {} end)
+             + ((.reused_at | tonumber? // null) as $r | if $r != null and $r > 0 then {reused_at:($r | floor)} else {} end) ]' \
     "$bf" > "$SOLSF" 2>/dev/null
   # MESMA versão: JUNTA por categoria/arquivo (a linha nova troca a do mesmo arquivo; a categoria ausente do
   # envio fica). Com o TLMETHOD fora da versão do pacote, uma calibração RÁPIDA na mesma versão (só as good) é

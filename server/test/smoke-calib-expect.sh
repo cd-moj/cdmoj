@@ -148,10 +148,10 @@ get /judge/package-meta "id=col%23pa" mojw_segredo; VER="$(jq -r '.checksum // "
 [[ -n "$VER" ]] || { echo "SETUP FAIL: package-meta sem checksum"; exit 1; }
 # a calibração do relato: good .py acima do override, slow que deu WA junto do TLE, wrong que só deu TLE
 SOLS='[
- {"file":"sol.c","lang":"c","category":"good","verdict":"Accepted,100p","tests":[{"name":"t1","code":"AC","time":0.3,"tl":5}]},
+ {"file":"sol.c","lang":"c","category":"good","verdict":"Accepted,100p","reused_at":1790000000,"tests":[{"name":"t1","code":"AC","time":0.3,"tl":5}]},
  {"file":"sol.py","lang":"py","category":"good","verdict":"Accepted,100p","tests":[{"name":"t1","code":"AC","time":0.9,"tl":5}]},
  {"file":"lento.c","lang":"c","category":"slow","verdict":"Time Limit Exceeded,0p","tests":[{"name":"t1","code":"TLE","time":1.1,"tl":1},{"name":"t2","code":"WA","time":0.2,"tl":1}]},
- {"file":"int32.c","lang":"c","category":"wrong","verdict":"Time Limit Exceeded,0p","tests":[{"name":"t1","code":"TLE","time":1.1,"tl":1}]},
+ {"file":"int32.c","lang":"c","category":"wrong","verdict":"Time Limit Exceeded,0p","tests":[{"name":"t1","code":"TLE","time":1.1,"tl":1,"wall":true}]},
  {"file":"scripts/validator.cpp","lang":"cpp","category":"validator","verdict":"invalid",
   "tests":[{"name":"t1","code":"INVALID","msg":"FAIL Integer 1296 violates the range [1, 1000]"},{"name":"t2","code":"OK"}]}]'
 post "$(jq -cn --arg c "$VER" --argjson s "$SOLS" '{host:"juiz1", id:"col#pa", checksum:$c, log:"x", sols:$s}')"
@@ -163,6 +163,7 @@ ck "sumário: slow com WA e wrong com TLE = note"  '[[ "$(jq -c ".note_files|sor
 ck "sumário: validador inválido"                  '[[ "$(jq -r .validator.state "$SF")" == invalid && "$(jq -r .validator.invalid "$SF")" == 1 ]]'
 ck "sumário: a folga do TL é o pior caso (py: override 0,5 ÷ W 0,9)" '[[ "$(jq -c "[.margin.lang,.margin.min,.margin.w,.margin.tl]" "$SF")" == "[\"py\",0.55,0.9,0.5]" ]]'
 ck "mapa do Painel (run/calib-summary.json) com a chave" '[[ "$(jq -r ".[\"col#pa\"].bad" "$RUN/calib-summary.json")" == 1 ]]'
+ck "wall (TLCLOCK=cpu) e reused_at (calibração incremental) passam pela projeção" '[[ "$(jq -c "[(.sols[]|select(.file==\"int32.c\")|.tests[0].wall), (.sols[]|select(.file==\"sol.c\")|.reused_at), (.sols[]|select(.file==\"sol.py\")|has(\"reused_at\"))]" "$RUN/calib/col#pa/juiz1.json")" == "[true,1790000000,false]" ]]'
 ck "msg da testlib passou pela projeção"          '[[ "$(jq -r ".sols[]|select(.category==\"validator\")|.tests[0].msg" "$RUN/calib/col#pa/juiz1.json")" == FAIL* ]]'
 
 get /problems/calib "id=col%23pa" aut

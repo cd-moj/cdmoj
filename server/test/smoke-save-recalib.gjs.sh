@@ -27,6 +27,7 @@ const calibRunning = () => CALIB_LIVE.length > 0;
 let MSG = '', CLS = ''; const setMsg = (t, c) => { MSG = t; CLS = c; };
 function T(pt) { return pt; }
 let POSTS = [], POSTFAIL = null;
+let REUSE = false; const reuseBody = (b) => (REUSE ? { ...b, reuse: true } : b);   // o checkbox ♻ (calibração incremental)
 async function apiPost(path, body) { if (POSTFAIL) throw new Error(POSTFAIL); POSTS.push({ path, body }); return { status: 'queued' }; }
 let NRV = 0, NSP = 0; const renderVal = () => { NRV++; }, updateReady = () => {}, startPolling = () => { NSP++; };
 JS
@@ -47,6 +48,11 @@ async function main() {
   ck('…nos juízes que tinham calibrado e estão online', JSON.stringify(POSTS[0].body) === JSON.stringify({ id: 'org#p', hosts: ['judge', 'judge-sp1'] }));
   ck('…e acompanha (RUNNING, painel, polling)', RUNNING === 'calibrate' && NRV === 1 && NSP === 1);
   ck('…dizendo onde', MSG.startsWith('Salvo ✓ — a mudança desatualizou a calibração: recalibrando em judge, judge-sp1') && CLS === 'v-ok');
+  // 1b) com o ♻ marcado, o recalibrar do Salvar leva reuse:true (o mesmo pedido, opt-in)
+  reset(); REUSE = true; LASTCALIB = { version: 'v1', hosts: [{ host: 'judge' }] };
+  r = await recalibIfOutdated(calibSnapshot(), { version: 'v2', hosts: [] }, 'Salvo ✓'); REUSE = false;
+  ck('♻ marcado: o pedido leva reuse:true', r === true && JSON.stringify(POSTS[0].body) === JSON.stringify({ id: 'org#p', hosts: ['judge'], reuse: true }));
+  LASTCALIB = { version: 'v1', hosts: [{ host: 'judge' }, { host: 'judge-sp1' }] };
   // 2) versão igual (enunciado, só o TLMETHOD): nada
   reset(); r = await recalibIfOutdated(prev, { version: 'v1', hosts: [] }, 'Salvo ✓');
   ck('versão igual: não pede nada', r === false && POSTS.length === 0 && RUNNING === '' && MSG === '');

@@ -1,4 +1,6 @@
-# POST /problems/request-calibration   (Bearer)   body: {id, hosts?:[...]}
+# POST /problems/request-calibration   (Bearer)   body: {id, hosts?:[...], reuse?:bool}
+# `reuse:true` = calibração INCREMENTAL (opt-in, 10/11/2026): o juiz reaproveita o resultado das soluções cuja chave não
+# mudou (mojtools calibreitor) e só roda o resto. Padrão: roda tudo. No dedup, "rodar tudo" vence (sched-lib).
 # Pede CALIBRAÇÃO. Sem "hosts": 1 juiz livre pega no heartbeat (kind=calibrate). Com "hosts":
 # manda um comando DIRECIONADO a cada juiz escolhido (cada um recalibra full e reporta) — p/ ver
 # o comportamento em processadores diferentes. Roda mojtools/calibreitor.sh no pacote.
@@ -17,6 +19,8 @@ require_problem_edit "$id"   # calibrar é ação de autoria -> só dono/colabor
 repo="${id%%#*}"; [[ "$repo" == "$id" ]] && repo="${id%%/*}"   # org; pacote já está local
 
 hosts="$(jq -c '.hosts // []' <<<"$body" 2>/dev/null)"; [[ -n "$hosts" ]] || hosts='[]'
+reuse="$(jq -r 'if .reuse == true then 1 else 0 end' <<<"$body" 2>/dev/null)"; [[ "$reuse" == 1 ]] || reuse=0
+rx='{}'; (( reuse )) && rx='{"reuse":true}'
 if (( $(jq 'length' <<<"$hosts") > 0 )); then
   # DEDUP direcionado: calibrate ainda não entregue ao host p/ o mesmo id não é duplicado
   sent='[]'
@@ -24,22 +28,22 @@ if (( $(jq 'length' <<<"$hosts") > 0 )); then
     valid_hostname "$h" || continue
     st="queued"
     cid="$(cmd_find_calibrate "$h" "$id")"
-    if [[ -n "$cid" ]]; then st="already_queued"
-    else cid="$(cmd_request "$h" calibrate "$SESSION_LOGIN" "$id")"; fi
+    if [[ -n "$cid" ]]; then st="already_queued"; (( reuse )) || _req_drop_reuse "$CMDDIR/$h/$cid.json"
+    else cid="$(cmd_request "$h" calibrate "$SESSION_LOGIN" "$id" "$rx")"; fi
     [[ -n "$cid" ]] && sent="$(jq -c --arg h "$h" --arg c "$cid" --arg s "$st" \
                                '. + [{host:$h, cmdid:$c, status:$s}]' <<<"$sent")"
   done < <(jq -r '.[]' <<<"$hosts")
-  audit_log "calibrate" "id=$id targeted_hosts=$(jq 'length' <<<"$sent")"
+  audit_log "calibrate" "id=$id targeted_hosts=$(jq 'length' <<<"$sent") reuse=$reuse"
   # o `status` do topo REFLETE os hosts: era a string fixa "queued" mesmo quando todos caíram no
   # dedup, e o editor (que só lê o topo) dizia "Calibração disparada ✓" sem ter disparado nada —
   # o autor clicava de novo achando que não pegou (relatos de 21/09/2026).
   st="$(jq -r 'if length > 0 and (all(.[]; .status=="already_queued")) then "already_queued" else "queued" end' <<<"$sent")"
-  ok_json '{action:"calibrate", id:$i, hosts:$h, status:$s}' --arg i "$id" --argjson h "$sent" --arg s "${st:-queued}"
+  ok_json '{action:"calibrate", id:$i, hosts:$h, status:$s, reuse:($r == "1")}' --arg i "$id" --argjson h "$sent" --arg s "${st:-queued}" --arg r "$reuse"
 else
   # DEDUP global: já há calibração pendente/em execução p/ o id => devolve o reqid existente
   # (cal_request também dedupa por dentro — aqui só distinguimos o status p/ o cliente avisar)
   st="queued"; [[ -n "$(upd_find_calibrate "$id")" ]] && st="already_queued"
-  reqid="$(cal_request "$repo" "$id" "$SESSION_LOGIN")"
-  audit_log "calibrate" "id=$id reqid=$reqid status=$st"
-  ok_json '{action:"calibrate", id:$i, reqid:$r, status:$s}' --arg i "$id" --arg r "$reqid" --arg s "$st"
+  reqid="$(cal_request "$repo" "$id" "$SESSION_LOGIN" "$reuse")"
+  audit_log "calibrate" "id=$id reqid=$reqid status=$st reuse=$reuse"
+  ok_json '{action:"calibrate", id:$i, reqid:$r, status:$s, reuse:($u == "1")}' --arg i "$id" --arg r "$reqid" --arg s "$st" --arg u "$reuse"
 fi

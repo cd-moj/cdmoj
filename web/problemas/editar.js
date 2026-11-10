@@ -1208,6 +1208,11 @@ function solsBlock(h) {
       alt,
       el('b', {}, (s.category || '?') + '/' + (s.file || '?')),
       el('span', { class: 'muted' }, s.verdict || ''),
+      // calibração incremental: o resultado veio do memo do juiz (medido antes, não nesta calibração)
+      s.reused_at ? el('span', { class: 'pill', title: T('Resultado reaproveitado de uma calibração anterior neste juiz (nada mudou nesta solução). Medido em ',
+        'Result reused from an earlier calibration on this judge (nothing changed in this solution). Measured on ',
+        'Resultado reaprovechado de una calibración anterior en este juez (nada cambió en esta solución). Medido el ')
+        + new Date(s.reused_at * 1000).toLocaleString() }, '♻ ' + T('reaproveitado', 'reused', 'reaprovechado')) : null,
       tg,
       (h.reports || []).includes(repName)
         ? el('a', { href: '#', style: 'white-space:nowrap', onclick: (e) => { e.preventDefault(); openCalibReport(h.host, repName); } }, '📄 report')
@@ -1837,7 +1842,7 @@ async function act(action, label) {
   if (!ID) { setMsg(T('Salve o problema primeiro.', 'Save the problem first.', 'Guarda el problema primero.'), 'error'); return; }
   setMsg(label + '…');
   try {
-    const j = await apiPost('/problems/' + action, { id: ID }, { contest: CONTEST, auth: true });
+    const j = await apiPost('/problems/' + action, action === 'request-calibration' ? reuseBody({ id: ID }) : { id: ID }, { contest: CONTEST, auth: true });
     RUNNING = (action === 'validate') ? 'publish' : 'calibrate';   // 'publish' = nome interno do estado
     // o servidor DEDUPLICA (já havia calibração deste problema na fila) e dizia isso na resposta,
     // que a tela jogava fora: o autor lia "iniciado ✓" 5 vezes seguidas e achava que nenhuma pegou
@@ -1868,6 +1873,15 @@ function renderJudges() {
     box.append(grp);
   });
 }
+// CALIBRAÇÃO INCREMENTAL (opt-in): o checkbox #calibReuse, lembrado neste navegador; `reuse:true` só quando marcado
+const REUSE_KEY = 'moj_calib_reuse';
+const reuseOn = () => !!($('calibReuse') && $('calibReuse').checked);
+const reuseBody = (b) => (reuseOn() ? { ...b, reuse: true } : b);
+function bindReuse() {
+  const c = $('calibReuse'); if (!c) return;
+  try { c.checked = localStorage.getItem(REUSE_KEY) === '1'; } catch { /* sem storage: desmarcado */ }
+  c.onchange = () => { try { localStorage.setItem(REUSE_KEY, c.checked ? '1' : '0'); } catch { /* ok */ } };
+}
 const checkedHosts = () => [...$('judgePick').querySelectorAll('input[type=checkbox]:checked')].map(c => c.value);
 const onePerCpu = () => Object.values(JUDGES.filter(j => j.online).reduce((a, j) => { a[j.cpu] = a[j.cpu] || j.host; return a; }, {}));
 async function calibrateHosts(hosts) {
@@ -1876,7 +1890,7 @@ async function calibrateHosts(hosts) {
   if (!hosts.length) { setMsg(T('Escolha ao menos um juiz online.', 'Choose at least one online judge.', 'Elige al menos un juez en línea.'), 'error'); return; }
   setMsg(T('Calibrando em ', 'Calibrating on ', 'Calibrando en ') + hosts.length + T(' juiz(es)…', ' judge(s)…', ' juez(es)…'));
   try {
-    const j = await apiPost('/problems/request-calibration', { id: ID, hosts }, { contest: CONTEST, auth: true });
+    const j = await apiPost('/problems/request-calibration', reuseBody({ id: ID, hosts }), { contest: CONTEST, auth: true });
     RUNNING = 'calibrate';
     const novos = ((j && j.hosts) || []).filter(h => h.status !== 'already_queued').length;
     setMsg(novos ? (T('Calibração disparada em ', 'Calibration triggered on ', 'Calibración disparada en ') + novos + T(' juiz(es) — acompanhe abaixo.', ' judge(s) — follow below.', ' juez(es) — sigue el progreso abajo.'))
@@ -1907,7 +1921,7 @@ async function recalibIfOutdated(prev, cal, done) {
   const online = new Set(JUDGES.filter(j => j.online).map(j => j.host));
   const hosts = prev.hosts.filter(h => online.has(h));
   try {
-    await apiPost('/problems/request-calibration', hosts.length ? { id: ID, hosts } : { id: ID }, { contest: CONTEST, auth: true });
+    await apiPost('/problems/request-calibration', reuseBody(hosts.length ? { id: ID, hosts } : { id: ID }), { contest: CONTEST, auth: true });
     RUNNING = 'calibrate';
     setMsg(done + T(' — a mudança desatualizou a calibração: recalibrando ', ' — the change made the calibration outdated: recalibrating ', ' — el cambio dejó la calibración desactualizada: recalibrando ')
       + (hosts.length ? T('em ', 'on ', 'en ') + hosts.join(', ') : T('num juiz livre', 'on a free judge', 'en un juez libre'))
@@ -2057,6 +2071,7 @@ async function boot() {
   $('app').style.display = '';
 
   bindHandlers();           // 1) liga TUDO antes de qualquer await de dados
+  bindReuse();
   setupTabs();
   if (location.hash === '#hist') showTab('hist');   // link direto p/ a aba Histórico (painel)
   if (location.hash === '#issues') showTab('issues');   // link direto p/ as issues (chip 🐞 do Painel)

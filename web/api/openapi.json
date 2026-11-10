@@ -8092,6 +8092,10 @@
                       "type": "string"
                     },
                     "description": "Calibração direcionada a juízes específicos (opcional)."
+                  },
+                  "reuse": {
+                    "type": "boolean",
+                    "description": "Calibração incremental (opt-in; padrão false = roda tudo): o juiz reaproveita o resultado das soluções cuja chave não mudou e só roda o resto. No dedup, um pedido sem reuse tira o reuse do pendente."
                   }
                 },
                 "required": [

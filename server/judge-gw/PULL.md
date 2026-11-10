@@ -87,6 +87,14 @@ envelhecer porque alguém salvou uma solução `wrong`. Serve o **máximo entre 
 recalibrar). Se o pacote muda de verdade, o `tl_checksum` novo **descarta** o TL antigo (todos
 recalibram).
 
+**Calibração incremental (10/11/2026, opt-in).** O update `calibrate` e o comando dirigido podem levar
+`reuse:true` (`/problems/request-calibration {reuse}`; `cal_request <repo> <id> <by> 1`, `cmd_request … '{"reuse":true}'`).
+O agente (`run_update`/`run_command`) o passa ao `ensure_cached` (6º arg) e o calibreitor roda com
+`MOJ_CALIB_MEMO_DIR=<cache>/<id>/calib-memo` SEMPRE (grava o retrato de cada solução) e `MOJ_CALIB_REUSE=1` só com o
+pedido (reaproveita a solução cuja chave não mudou; mojtools `calibreitor.sh`). A calibração rápida (1º envio) nunca
+reaproveita. No DEDUP, "rodar tudo" vence: pedido sem `reuse` sobre um pendente/não entregue com `reuse` o tira
+(`_req_drop_reuse`). O GC leva o `calib-memo/` junto com o `pkg/`. Teste: `smoke-calib-queue.sh`.
+
 **Raias da calibração (26/10/2026).** A calibração completa (update `calibrate` e o comando dirigido) leva
 `par_max`/`par_cap` = G grupos de CPU e `slots` = G × k_slots: G = min(`CALIB_PAR_MAX` (4; `1` desliga),
 livres ÷ k_slots, a maior fase — #good ou #pass+slow+wrong, contadas com `find`: a API roda sem glob), e 1 com job

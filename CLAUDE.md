@@ -746,6 +746,16 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   de sempre). Editor `cf_tlunified` (`CF_YN`, padrão n); Painel pílula "TL único". DENTRO do tl-checksum (ligar
   recalibra). Testes: `smoke-tl-unified.sh`, `smoke-tl-sim.sh`, `smoke-tl-mods.sh` (a cópia literal),
   `smoke-limits-tab.gjs.sh`, `smoke-statement-langs.sh`.
+- **CALIBRAÇÃO INCREMENTAL (10/11/2026; pedido do Ribas: "aproveitar resultados que já tinham calculado", OPT-IN,
+  desligado por padrão, sempre dá p/ rodar tudo)**: `/problems/request-calibration {reuse:true}` → o update/comando leva
+  `reuse` (`cal_request` 4º arg, `cmd_request` 5º = objeto extra; o extra nunca sobrescreve os campos próprios) → o
+  agente roda o calibreitor com `MOJ_CALIB_REUSE=1` e o memo por solução do juiz (`<cache>/<id>/calib-memo`, mojtools)
+  só roda o que mudou. Dedup: "rodar tudo" vence (`_req_drop_reuse`). Web: ☐ ♻ em "Validação & calibração" (vale p/
+  os botões, o "Calibrar" e o recalibrar do Salvar; lembrado no localStorage), selo "♻ reaproveitado" na solução
+  (`sols[].reused_at`, que o `/judge/calib-report` agora passa — junto com o `tests[].wall`, que a projeção fechada
+  DESCARTAVA desde o TLCLOCK=cpu: a simulação só via a morte pela parede no teste, que grava o arquivo do host direto).
+  CLI `moj calibrate --reuse`. Testes: `smoke-calib-queue.sh`, `smoke-calib-expect.sh`, `smoke-save-recalib.gjs.sh`;
+  mojtools `test-calib-memo.sh`, judge `test/agent.sh`, moj-cli `test/calibrate-reuse.sh`.
 - **LOCKS do store de TL e da calibração (26/10/2026)**: todo ler-e-regravar de `run/tl/<id>.json` passa por
   `_tl_locked <id>` (`lib/tl-store.sh`: `run/tl/<id>.lock`, `flock -w 10`, rc 75 ⇒ o tl-report responde 500) — dois
   juízes reportando juntos perdiam a entrada de um (o último `mv` vencia); o sumário das soluções por `_calx_locked`
