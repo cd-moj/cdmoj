@@ -1156,6 +1156,13 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   `Cache-Control: no-cache, must-revalidate` — módulo ESM revalida por ETag a cada uso. Sem isso
   um deploy que muda o CONTRATO (TXT em segundos `icpc s`, 30/08) deixa JS velho no navegador do
   time lendo dado novo. Mudou o `.conf.in` ⇒ reinstalar/recarregar o nginx no deploy.
+- **BALDE DA AUTORIA no nginx** (10/11/2026; LATAM: uma ferramenta em laço sobre `/problems/{tl,calib,status,validation}`,
+  70/min a 1,47 s, ocupava ~3 workers do pool sem teto): `location /api/v1/problems/` segue FORA do `moj_site` (autor
+  terminando problema da prova não leva o 429 do treino), mas com `limit_conn moj_problems_key 6` (por sessão = o
+  `Authorization`; sem ele, o IP) e `limit_conn moj_problems 12` (total). Zonas no bloco "AUTORIA", IGUAL nos dois
+  `moj-prod*.conf.in`. O editor abre com ≤5 pedidos em paralelo; a CLI (`_api_retry_429`, moj-cli `lib/core.sh`) repete o
+  429 do NGINX (corpo não-JSON) em 1, 2, 4, 8 s — o 429 da API (JSON) nunca. Teste: `smoke-problems-limit.sh` (nginx de
+  teste com upstream lento); os outros smokes de nginx incluem o bloco.
 - **`/robots.txt` POR HOST** (30/10/2026; robôs eram ~11% dos pedidos, 84% deles nos subdomínios de contest): o `web/`
   é o mesmo em todo host, então a `location = /robots.txt` do `moj-app.conf.in` entrega `web/robots-contest.txt`
   ("Disallow: /") quando `$moj_contest_host` não é vazio e `web/robots.txt` (só `/api/` fora) no site principal.

@@ -144,6 +144,13 @@ com `team-music` (`audio/mpeg`, 206 com `Range`). Rode
 `server/test/smoke-team-media-nginx.sh` e `smoke-robots.sh` NO SERVIDOR antes do `install-nginx.sh`: lá os
 `include /etc/nginx/moj-*` casam arquivos reais.
 
+**Balde da autoria (10/11/2026).** O `/api/v1/problems/` (editor, Painel de problemas, CLI `moj`) fica fora do
+anteparo do treino (`moj_site`), para o autor que termina um problema da prova não levar 429, mas tem zonas próprias
+(bloco "AUTORIA" do `conf.d/moj.conf`): **6 pedidos em voo por sessão** (o token; sem token, o IP) e **12 no total**.
+Um script em laço sobre `/problems/{tl,calib,status,validation}` ocupava workers do pool de 64 sem teto nenhum (LATAM,
+07/11). O excedente leva 429; a CLI o repete sozinha (1, 2, 4, 8 s). Mudou o template ⇒ reinstale o nginx e rode
+`server/test/smoke-problems-limit.sh` (sobe um nginx de teste com upstream lento e conta os 429).
+
 **DNS curinga + certificado `*.<host>` são REQUISITO** (16/10/2026): o time só entra pelo subdomínio do contest
 (`lib/team-host.sh`, `TEAM_HOST_LOCK=1` no `etc/common.conf`). Instalação sem subdomínio (localhost, um fork) liga
 com `TEAM_HOST_LOCK=0` no ambiente do container. Botão de emergência sem restart: `echo 0 > run/team-host-lock`

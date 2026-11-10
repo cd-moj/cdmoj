@@ -61,6 +61,21 @@ limit_conn_zone $moj_contest_conn zone=moj_contest:1m;
 # já tem fallback próprio (backlog 16 → 502 → @moj_fcgiwrap).
 limit_conn_zone $moj_contest_conn zone=moj_porteiro:1m;
 
+# >>> AUTORIA (bloco IGUAL no moj-prod-http.conf.in; o smoke-problems-limit.sh compara os dois)
+# 10/11/2026: o /api/v1/problems/ (editor, Painel de problemas, `moj`) ficava FORA de todo balde — de propósito, p/ o autor
+# que termina um problema da prova não levar 429 do treino. Mas uma ferramenta em laço (07/11, LATAM: /problems/{tl,calib,
+# status,validation} a 70/min, 1,47 s cada, ~3 workers) disputava o pool de 64 com o contest SEM teto nenhum. Duas zonas:
+#   · moj_problems_key — 6 em voo POR SESSÃO (o token; sem token, o IP). O editor abre com no máximo ~5 em paralelo
+#     (repos+source, share+coleções, as 4 do painel de validação, juízes); laço de script fica no balde DELE;
+#   · moj_problems — 12 em voo no TOTAL: a autoria nunca passa de 12 dos 64, por mais autores que haja.
+# O excedente leva 429 na hora (limit_conn_status, acima). A CLI repete o 429 do nginx (1, 2, 4, 8 s); a web mostra o
+# erro e o poll da calibração tenta de novo no tick seguinte.
+map $http_authorization $moj_problems_key { "" $binary_remote_addr; default $http_authorization; }
+map $host $moj_problems_conn { default "problems"; }
+limit_conn_zone $moj_problems_key zone=moj_problems_key:2m;
+limit_conn_zone $moj_problems_conn zone=moj_problems:1m;
+# <<< AUTORIA
+
 # >>> MÍDIA DE TIME (bloco IGUAL no moj-prod-http.conf.in; o smoke-team-media-nginx.sh o lê daqui e compara os dois)
 # 05/11/2026: no placar de 500+ times o brasão era rebaixado a cada minuto (max-age=60, sem validador) e cada pedido era
 # um bash no balde do contest, o MESMO do /submit. As peças moram no snippet (moj-app.conf.in, "MÍDIA DE TIME"):

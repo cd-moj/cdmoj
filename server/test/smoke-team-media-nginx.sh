@@ -78,6 +78,7 @@ http {
   map \$arg_id \$moj_legacy_probid { default ""; }
   limit_conn_zone \$moj_site_conn zone=moj_site:1m;
   limit_conn_status 429;
+$(sed -n '/^# >>> AUTORIA/,/^# <<< AUTORIA/p' "$E/moj-prod.conf.in")
 $(blk "$E/moj-prod.conf.in" | sed "s#@WORKROOT@#$T/wr#g")
   server { listen 127.0.0.1:$PORT; server_name moj.test ~^[a-z0-9][a-z0-9._-]*\.moj\.test\$; include $T/app.conf; }
 }
