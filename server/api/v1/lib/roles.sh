@@ -40,7 +40,11 @@ _roles_load() {
   done
   ROLE_JQ="($a)"; ROLE_JQ_ORG="(${o:-false})"; ROLE_JQ_SALA="(${l:-false})"
 }
-_roles_load
+# REGISTRO AUSENTE OU VAZIO É FATAL (falha fechado): seguir com os mapas vazios faria TODO login virar "time" — o
+# cadastro aceitaria `fulano.admin` e o placar listaria as contas de papel. Melhor o processo morrer alto (502 na rota,
+# daemon parado) do que abrir em silêncio.
+_roles_load && (( ${#ROLE_SUFFIXES[@]} > 0 )) \
+  || { printf 'roles.sh: registro dos papéis ausente ou vazio (%s) — abortando\n' "$ROLES_TSV" >&2; exit 1; }
 role_suffix_to() { local -n __rs_ref="$1"; local __rs_s="${2##*.}"; __rs_ref=""
   [[ "$2" == *.* && -n "${ROLE_CLASS[$__rs_s]+x}" ]] && __rs_ref="$__rs_s"; return 0; }
 role_of() { local s; role_suffix_to s "$1"; printf '%s' "$s"; }

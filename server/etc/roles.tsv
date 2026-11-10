@@ -6,7 +6,8 @@
 #
 # Colunas (TAB):
 #   sufixo  — o que vem depois do último ponto do login;
-#   nav     — o nome do papel no cache da navegação (navbuttons.sh / porteiro role_of; `chief` é o .cjudge);
+#   nav     — o nome do papel no cache da navegação (navbuttons.sh / porteiro role_of; `chief` é o .cjudge).
+#             ⚠ no porteiro `role_of` devolve ESTE nome; no bash/JS `role_of`/`roleOf` devolvem o SUFIXO — de propósito;
 #   classe  — org (organização: nunca sai no "sair em massa", conta como organização na estatística/sessões) |
 #             sala (a equipe da sala: sai junto com o staff no "sair em massa");
 #   escopo  — sim = o papel tem recorte por sede/país/região (staff-filters.json, editor em Operação › Staff);

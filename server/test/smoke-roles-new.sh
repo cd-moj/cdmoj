@@ -77,8 +77,8 @@ call /contest/nutella GET nf;  ck ".foto não entra (403)"          '[[ "$(st)" 
 source "$ROOT/api/v1/lib/common.sh" 2>/dev/null; source "$ROOT/api/v1/lib/site-lock.sh" 2>/dev/null
 printf 'SITE_LOCK=1\n' >> "$C/conf"
 sl_claim rn 10.0.0.1 tn1 >/dev/null 2>&1; sl_claim rn 10.0.0.2 ts1 >/dev/null 2>&1
-SESSION_LOGIN=x audit_log_to rn site-lock-claim "ip=10.0.0.1 login=tn1 until=$((NOW+9999))" 2>/dev/null
-SESSION_LOGIN=x audit_log_to rn site-lock-claim "ip=10.0.0.2 login=ts1 until=$((NOW+9999))" 2>/dev/null
+# a auditoria site-lock-claim (ip= login=) é a do PRÓPRIO sl_claim — é dela que o recorte do .sistemas sai
+ck "o sl_claim audita ip e login"        'grep -q "site-lock-claim.*ip=10.0.0.1 login=tn1" "$C/var/admin-audit.log"'
 call /contest/admin/site-lock GET ns
 ck ".sistemas vê só o IP da sede"         '[[ "$(jq -r "[.claims[].ip] | join(\",\")" <<<"$BODY")" == 10.0.0.1 ]]'
 call /contest/admin/site-lock POST ns "" '{"action":"release","ip":"10.0.0.2"}'

@@ -23,6 +23,10 @@ ck "ROLE_RE no grep"                            '[[ "$(printf "%s\n" a.mon b.mon
 ck "ROLE_RE no awk -v (sem o escape virar curinga)" '[[ "$(printf "%s\n" a.mon bxmon | awk -v re="$ROLE_RE" "\$0 ~ re" | wc -l)" == 1 ]]'
 ck "ROLE_RE no jq"                              '[[ "$(jq -rn --arg re "$ROLE_RE" "[\"a.foto\",\"afoto\",\"a.fotos\"] | map(select(test(\$re))) | length")" == 1 ]]'
 
+ck "registro AUSENTE: sourcear falha (não vira \"ninguém tem papel\")" \
+   '! ROLES_TSV=/nao/existe bash -c "source \"$ROOT/server/api/v1/lib/roles.sh\"; echo segue" 2>/dev/null | grep -q segue'
+ck "registro VAZIO: idem" '! ROLES_TSV=/dev/null bash -c "source \"$ROOT/server/api/v1/lib/roles.sh\"; echo segue" 2>/dev/null | grep -q segue'
+
 echo "== os is_* do auth.sh =="
 source "$ROOT/server/api/v1/lib/auth.sh" 2>/dev/null
 j(){ bash -c "source '$ROOT/server/api/v1/lib/auth.sh' 2>/dev/null; SESSION_LOGIN='$1'; is_judge" && echo s || echo n; }
