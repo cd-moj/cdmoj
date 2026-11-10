@@ -717,6 +717,7 @@ pr_build_pdf() {
   [[ -f "$src" && -f "$meta" ]] || return 1
   if _pr_cache_ok "$cache" "$src" "$meta" "$L"; then printf '%s' "$cache"; return 0; fi
   ( flock -w 30 9 || exit 1
+    [[ -f "$meta" && -f "$src" ]] || exit 1                  # apagada enquanto esperava o lock (pré-geração × remoção)
     _pr_cache_ok "$cache" "$src" "$meta" "$L" && exit 0     # double-check após o lock
     _pr_render_slot _pr_render "$c" "$id" "$src" "$meta" "$cache" || exit 1
   ) 9>"$dir/$id.lock"
@@ -914,6 +915,7 @@ pr_build_balloon() {
   [[ -f "$meta" ]] || return 1
   _pr_balloon_cache_ok "$cache" "$meta" "$L" && { printf '%s' "$cache"; return 0; }
   ( flock -w 30 9 || exit 1
+    [[ -f "$meta" ]] || exit 1                                # apagada enquanto esperava o lock
     _pr_balloon_cache_ok "$cache" "$meta" "$L" && exit 0
     _pr_render_slot _pr_render_balloon "$c" "$id" "$meta" "$cache" || exit 1
   ) 9>"$dir/$id.lock"
@@ -1241,9 +1243,10 @@ pr_reconcile_balloons() {
         fi; true; } > "$af"
       tmf="$CONTESTSDIR/$c/teams-meta.json"
       { [[ -f "$tmf" ]] && jq -e . "$tmf" >/dev/null 2>&1; } || { tmf="$(mktemp)"; printf 'null' > "$tmf"; }
+      local -a NEWT=()
       while IFS=$'\t' read -r kind id _l; do
         case "$kind" in
-          T) printf '%s\n' "$_l" > "$dir/$id.json.tmp" && mv -f "$dir/$id.json.tmp" "$dir/$id.json" ;;
+          T) printf '%s\n' "$_l" > "$dir/$id.json.tmp" && mv -f "$dir/$id.json.tmp" "$dir/$id.json" && NEWT+=("$id") ;;
           F) printf '%s\n' "$_l" >> "$held" ;;
           A) audit_log_to "$c" "$id" "$_l" ;;
         esac
@@ -1282,6 +1285,8 @@ pr_reconcile_balloons() {
             end' 2>/dev/null)
       [[ "$tmf" == "$CONTESTSDIR/$c/teams-meta.json" ]] || rm -f "$tmf"
       rm -f "$af"
+      # a folha de cada balão novo sai pronta (um processo p/ o lote; ver pr_pregen_bg)
+      (( ${#NEWT[@]} )) && pr_pregen_bg "$c" "${NEWT[@]}"
     fi
     rm -f "$rf"
     # o que ficou esperando decisão volta para o arquivo de espera
@@ -1320,6 +1325,45 @@ pr_reconcile_balloons_bg() {
                                     || printf "%s %s: pr_reconcile_balloons rc=%s\n" "$EPOCHSECONDS" "$1" "$?" >&2' \
                                   _ "$c" "${SESSION_LOGIN:-?}" \
       </dev/null >/dev/null 2>>"$err" & ) 2>/dev/null
+  return 0
+}
+
+# pr_pregen_bg <c> <id…> — PRÉ-GERA a folha (PDF combinado do pedido, folha do balão) logo que a tarefa nasce
+# (09/11/2026, decisão do Ribas pós-LATAM): a estação que imprime pega o PDF já pronto em vez de esperar a
+# renderização no clique ("Abrir PDF") ou no modo automático. É o MESMO pr_build_pdf/pr_build_balloon, com o mesmo
+# cache e o mesmo flock por tarefa — pré-geração × clique nunca renderizam duas vezes. Um processo destacado por
+# LOTE (o molde do pr_reconcile_balloons_bg: setsid, fds no parêntese, env explícito, stderr num arquivo), em série,
+# dentro dos slots de renderização (_pr_render_slot). Desliga com PRINT_PREGEN=n no conf. MOJ_JOBS_SYNC=1 (testes)
+# NÃO pré-gera — senão todo smoke de balão renderiza PDFs —, salvo PR_PREGEN_SYNC=1, que roda na hora (o teste dele).
+# ⚠ `9>&-`: o reconcile chama isto SEGURANDO o .balloon.lock no fd 9; o filho não pode herdá-lo.
+pr_pregen_bg() {
+  local c="$1"; shift
+  (( $# )) || return 0
+  local pg; pg="$(sed -n 's/^[[:space:]]*PRINT_PREGEN=//p' "$CONTESTSDIR/$c/conf" 2>/dev/null | tail -1 | tr -d "\"' ")"
+  [[ "$pg" == n || "$pg" == no || "$pg" == 0 ]] && return 0
+  if [[ "${MOJ_JOBS_SYNC:-0}" == 1 ]]; then
+    [[ "${PR_PREGEN_SYNC:-0}" == 1 ]] && _pr_pregen "$c" "$@"
+    return 0
+  fi
+  local api="${_LIBDIR:-${BASH_SOURCE[0]%/*}}/.."
+  local -a E=(CONTESTSDIR="$CONTESTSDIR" _DIR="$api")
+  [[ -n "${RUNDIR:-}" ]] && E+=(RUNDIR="$RUNDIR")
+  local err="/dev/null"; [[ -n "${RUNDIR:-}" && -d "$RUNDIR" ]] && err="$RUNDIR/print-pregen.err"
+  ( setsid env "${E[@]}" bash -c 'source "$_DIR/lib/sources.sh" >/dev/null 2>&1; source "$_DIR/lib/print.sh" || exit 1
+                                  c="$1"; shift; _pr_pregen "$c" "$@"' _ "$c" "$@" \
+      </dev/null >/dev/null 2>>"$err" 9>&- & ) 2>/dev/null
+  return 0
+}
+# _pr_pregen <c> <id…> — em série: o tipo vem do meta (balão × pedido); falha numa tarefa não para as outras
+# (o clique refaz a tentativa, como sempre) e vai p/ o stderr (print-pregen.err).
+_pr_pregen() {
+  local c="$1" id dir k; shift; dir="$(pr_dir "$c")"
+  for id in "$@"; do
+    [[ "$id" =~ ^[A-Za-z0-9]+$ && -f "$dir/$id.json" ]] || continue
+    k="$(jq -r '.kind // "print"' "$dir/$id.json" 2>/dev/null)"
+    if [[ "$k" == balloon ]]; then pr_build_balloon "$c" "$id" >/dev/null || printf '%s %s: pré-geração do balão %s falhou\n' "$EPOCHSECONDS" "$c" "$id" >&2
+    else pr_build_pdf "$c" "$id" >/dev/null || printf '%s %s: pré-geração do pedido %s falhou\n' "$EPOCHSECONDS" "$c" "$id" >&2; fi
+  done
   return 0
 }
 
@@ -1439,7 +1483,11 @@ pr_test_remove() {
   local c="$1" d n=0 i; d="$(pr_dir "$c")"; shift
   for i in "$@"; do
     [[ "$i" =~ ^tst[0-9a-f]{20}$ ]] || continue
-    rm -f "$d/$i.json" "$d/$i.src" "$d/$i.combined.pdf" "$d/$i.lock" "$d/$i.err" && n=$(( n + 1 ))
+    # sob o lock DA TAREFA (o mesmo do build): a pré-geração destacada (pr_pregen_bg) pode estar renderizando esta
+    # folha, e o render regrava o meta no fim — sem o lock, a tarefa apagada voltava (09/11/2026)
+    ( flock -w 30 9 || true
+      rm -f "$d/$i.json" "$d/$i.src" "$d/$i.combined.pdf" "$d/$i.err" ) 9>"$d/$i.lock"
+    rm -f "$d/$i.lock"; n=$(( n + 1 ))
   done
   printf '%s' "$n"
 }
@@ -1477,9 +1525,11 @@ pr_test_create() {
   [[ -n "$site" ]] || site="$(_pr_t "$L" test_all)"
   now="$EPOCHSECONDS"; hhmm="$(date -d "@$now" '+%d/%m %H:%M:%S' 2>/dev/null)"
   local letters=(A B C D E F G H I J K L M N O)
+  local -a NEW=()
   for (( i = 0; i < n; i++ )); do
     sq="T$(( t0 + i ))"
     id="tst$(printf '%s%s%s%s' "$now" "$RANDOM" "$i" "$by" | md5sum | cut -c1-20)"
+    NEW+=("$id")
     k="$kind"; [[ "$kind" == mixed ]] && { (( i % 2 == 0 )) && k=print || k=balloon; }
     if [[ "$k" == print ]]; then
       local p
@@ -1506,6 +1556,8 @@ pr_test_create() {
           claimed_by:"", claimed_at:0, processed_by:"", processed_at:0, delivered_by:"", delivered_at:0 }' > "$dir/$id.json"
     fi
   done
+  # o teste mede a MESMA cadeia das tarefas reais — inclusive a pré-geração da folha
+  pr_pregen_bg "$c" "${NEW[@]}" >/dev/null 2>&1
   printf 'T%s T%s' "$t0" "$(( t0 + n - 1 ))"
 }
 

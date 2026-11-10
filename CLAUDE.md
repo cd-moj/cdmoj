@@ -987,6 +987,13 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   folha segundos depois de a tarefa nascer e o `pr_build_balloon` **cacheia o PDF para sempre** —
   a estrela tardia mudaria a tela e nunca o papel. ⚠ Na folha a estrela é **desenhada** (polígono,
   como o balão), nunca o caractere `★`: fonte sem o glifo o imprime como NADA.
+  **PRÉ-GERAÇÃO DA FOLHA (09/11/2026, `pr_pregen_bg`):** a tarefa nasce e a folha (PDF combinado do pedido, folha do
+  balão) já é renderizada por um processo DESTACADO por lote (o molde do `pr_reconcile_balloons_bg`; `9>&-` porque o
+  reconcile chama segurando o `.balloon.lock`), no MESMO cache/flock por tarefa do clique — nunca renderiza duas vezes.
+  Pontos: `/contest/print` (pedido), o lote de balões novos do reconcile e o `pr_test_create`. `PRINT_PREGEN=n` no conf
+  desliga; `MOJ_JOBS_SYNC=1` não pré-gera (salvo `PR_PREGEN_SYNC=1`). ⚠ O render regrava o meta no fim: quem APAGA uma
+  tarefa (o `pr_test_remove`) toma o `<id>.lock` antes, e os builders re-conferem o meta depois do lock — sem isso a
+  tarefa apagada voltava. A claim/impressão (`print-action`) já serializa no mesmo lock. Teste: `smoke-print-pregen.sh`.
   **TAREFAS DE TESTE (09/11/2026, pedido do Fernando; `lib/print.sh` `pr_test_*`, rota `/contest/staff/test-tasks`,
   caixa `web/contest/staff/test-box.js` na página do staff e no painel Operação › Staff):** lote falso (impressão de N
   páginas e/ou balão) pela MESMA cadeia das reais, para medir as impressoras. Id `tst…`, `test:true`, `seq` = `"T<n>"`

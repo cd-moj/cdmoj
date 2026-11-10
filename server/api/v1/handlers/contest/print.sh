@@ -63,4 +63,5 @@ jq -cn --arg id "$id" --argjson seq "$seq" --arg login "$login" --arg fn "$fulln
   }' > "$dir/$id.json"
 
 audit_log_to "$contest" print-request "seq=$seq login=$login arquivo=$safe tipo=$mime tamanho=${sz:-0}"
+pr_pregen_bg "$contest" "$id"          # a folha sai pronta p/ a estação (lib/print.sh pr_pregen_bg)
 ok_json '{id:$id, seq:$seq, status:"pending"}' --arg id "$id" --argjson seq "$seq"
