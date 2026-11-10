@@ -1475,7 +1475,7 @@
         "tags": [
           "treino"
         ],
-        "summary": "Avisos e clarifications PÚBLICAS da prova no TEMPO RELATIVO da run (o servidor corta pelo relógio; o que saiu depois do fim só com a run terminada; privada nunca)",
+        "summary": "Avisos e clarifications PÚBLICAS da prova no TEMPO RELATIVO da run (o servidor corta pelo relógio; o que saiu depois do fim só com a run terminada; privada nunca; aviso = o maior de time e answered_at, notícia = o maior de date e edited_at; instante ilegível = rel null, só no fim)",
         "parameters": [
           {
             "name": "contest",
@@ -1551,7 +1551,7 @@
         "tags": [
           "treino"
         ],
-        "summary": "Arquivos da prova: documentos publicados com PDF desde a largada; o editorial só com a run terminada (antes, locked); links externos do resources.json",
+        "summary": "Arquivos da prova: documentos publicados com PDF desde a largada; o editorial só com a run terminada (antes, locked); links externos do resources.json também só no fim (antes, links_locked)",
         "parameters": [
           {
             "name": "contest",
@@ -1564,7 +1564,7 @@
         ],
         "responses": {
           "200": {
-            "description": "{contest,ended,docs:[{type,langs,locked}],links:[{label,url}]}"
+            "description": "{contest,ended,docs:[{type,langs,locked}],links:[{label,url}],links_locked}"
           },
           "404": {
             "description": "virtual_unavailable — contest não elegível; corpo idêntico ao de contest inexistente"
@@ -2596,6 +2596,15 @@
         "parameters": [
           {
             "$ref": "#/components/parameters/contest"
+          },
+          {
+            "name": "id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "id da tarefa da fila do staff"
           }
         ],
         "responses": {
@@ -2619,6 +2628,15 @@
         "parameters": [
           {
             "$ref": "#/components/parameters/contest"
+          },
+          {
+            "name": "id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "id da tarefa da fila do staff"
           }
         ],
         "responses": {
@@ -4105,6 +4123,11 @@
                   },
                   "name": {
                     "type": "string"
+                  },
+                  "verdict_rule": {
+                    "type": "string",
+                    "enum": ["first", "worst"],
+                    "description": "Regra do veredicto. Ausente = first no modo icpc e worst nos outros; o export, o duplicate e os templates a levam sempre."
                   },
                   "mode": {
                     "type": "string",
@@ -5915,7 +5938,7 @@
         "tags": [
           "contest-admin"
         ],
-        "summary": "Configurações do contest (inclui statement_langs/statement_langs_mode/default_statement_lang só leitura — muda-se em /contest/admin/statement-langs; mode read-only, tz = fuso IANA da prova (CONTEST_TZ; vazio = MOJ_TZ da instalação; nome antigo, ex. America/Buenos_Aires, é gravado com o atual; desconhecido = 422 tz_invalid), judges[] = pool de juízes do contest, e a penalidade ICPC: penalty_minutes, penalty_verdicts; show_log é o valor EFETIVO — em modo icpc, SHOWLOG ausente = false; freeze_release_at = quando pode descongelar; POST freeze:0 antes disso = 409 freeze_locked; guest_numbering = convidados numerados na sequência própria, flag g no TXT; priority = prioridade efetiva (ausente = lista-publica), priority_set = definida no conf, priority_locked = está em super). verdict_rule (first|worst, 09/11/2026): regra do veredicto — first = o do 1º teste que falhou (exemplos primeiro; padrão de contest novo), worst = o mais grave (conf sem a linha). print_format (pdf|html, 09/11/2026, PROTÓTIPO): o formato da folha impressa (html = a estação usa /contest/staff/print-html)",
+        "summary": "Configurações do contest (inclui statement_langs/statement_langs_mode/default_statement_lang só leitura — muda-se em /contest/admin/statement-langs; mode read-only, tz = fuso IANA da prova (CONTEST_TZ; vazio = MOJ_TZ da instalação; nome antigo, ex. America/Buenos_Aires, é gravado com o atual; desconhecido = 422 tz_invalid), judges[] = pool de juízes do contest, e a penalidade ICPC: penalty_minutes, penalty_verdicts; show_log é o valor EFETIVO — em modo icpc, SHOWLOG ausente = false; freeze_release_at = quando pode descongelar; POST freeze:0 antes disso = 409 freeze_locked; guest_numbering = convidados numerados na sequência própria, flag g no TXT; priority = prioridade efetiva (ausente = lista-publica), priority_set = definida no conf, priority_locked = está em super). verdict_rule (first|worst, 09/11/2026): regra do veredicto — first = o do 1º teste que falhou (exemplos primeiro; padrão de contest NOVO do modo icpc — nos outros só verdict_rule:\"first\" explícito), worst = o mais grave (conf sem a linha). print_format (pdf|html, 09/11/2026, PROTÓTIPO): o formato da folha impressa (html = a estação usa /contest/staff/print-html)",
         "parameters": [
           {
             "$ref": "#/components/parameters/contest"
@@ -6967,7 +6990,7 @@
         "tags": [
           "contest-admin"
         ],
-        "summary": "Notícias do contest (admin/judge/mon)",
+        "summary": "Notícias do contest (admin/judge/mon). action:add|remove|edit; o edit (admin/juiz-chefe) mantém id/date/anexo e carimba edited_at (a participação virtual libera a notícia pelo maior de date e edited_at)",
         "parameters": [
           {
             "$ref": "#/components/parameters/contest"

@@ -71,15 +71,22 @@ HANDLERS = os.path.join(MOJ_HOME, "server/api/v1/handlers")
 VALID_ID = re.compile(r"^[A-Za-z0-9._@#+-]+$")
 # PAPÉIS = o REGISTRO ÚNICO server/etc/roles.tsv (o mesmo do lib/roles.sh do bash e do web/shared/roles.js), lido na
 # largada. Papel novo entra lá, nunca numa lista aqui (smoke-roles-registry.sh confere).
+# A MESMA validação do lib/roles.sh: CRLF tolerado; linha malformada ou registro VAZIO derrubam a largada (falha
+# fechado).
 def _roles_load(path):
     roles = []
     with open(path, encoding="utf-8") as fh:
-        for ln in fh:
+        for n, ln in enumerate(fh, 1):
+            ln = ln.rstrip("\r\n")
             if not ln.strip() or ln.startswith("#"):
                 continue
-            f = (ln.rstrip("\n").split("\t") + [""] * 5)[:5]
-            if re.fullmatch(r"[a-z]+", f[0]):
-                roles.append({"suffix": f[0], "nav": f[1], "cls": f[2], "scoped": f[3] == "sim", "can": f[4].split()})
+            f = (ln.split("\t") + [""] * 5)[:5]
+            if not (re.fullmatch(r"[a-z]+", f[0]) and f[1] and f[2] in ("org", "sala") and f[3] in ("sim", "nao")
+                    and f[4].strip()):
+                raise SystemExit("moj-porteiro: roles.tsv linha %d malformada (%s)" % (n, path))
+            roles.append({"suffix": f[0], "nav": f[1], "cls": f[2], "scoped": f[3] == "sim", "can": f[4].split()})
+    if not roles:
+        raise SystemExit("moj-porteiro: registro dos papéis vazio (%s)" % path)
     return roles
 
 

@@ -54,10 +54,14 @@ cl c2 "{\"id\":\"c2\",\"time\":$((S0+400)),\"problem\":\"B\",\"login\":\"t2\",\"
 cl c3 "{\"id\":\"c3\",\"time\":$((S0+3000)),\"problem\":\"general\",\"login\":\"\",\"question\":\"\",\"public\":true,\"broadcast\":true,\"answer\":\"Aviso: o exemplo 2 do B mudou.\"}"
 cl c4 "{\"id\":\"c4\",\"time\":$((S0+9000)),\"problem\":\"B\",\"login\":\"t1\",\"question\":\"Depois?\",\"public\":true,\"answer\":\"Respondida depois do fim.\",\"answered_by\":\"juiz\",\"answered_at\":$((E0+600))}"
 cl c5 "{\"id\":\"c5\",\"time\":$((S0+700)),\"problem\":\"A\",\"login\":\"t2\",\"question\":\"Sem resposta\",\"public\":true,\"answer\":\"\",\"answered_by\":\"\",\"answered_at\":0}"
-# notícias: antes da prova · aos 2000 s com anexo · depois do fim (com anexo)
+# REVISÃO 10/11/2026: o aviso reeditado vale pelo answered_at (o MAIOR dos dois) · instante ilegível = só no fim
+cl c6 "{\"id\":\"c6\",\"time\":$((S0+1500)),\"problem\":\"general\",\"login\":\"\",\"question\":\"\",\"public\":true,\"broadcast\":true,\"answer\":\"Aviso reeditado.\",\"answered_at\":$((S0+3200))}"
+cl c7 "{\"id\":\"c7\",\"time\":\"ontem\",\"problem\":\"A\",\"login\":\"t1\",\"question\":\"Lixo?\",\"public\":true,\"answer\":\"Data ilegivel.\",\"answered_at\":\"lixo\"}"
+# notícias: antes da prova · aos 2000 s com anexo · depois do fim (com anexo) · aos 1500 s EDITADA aos 3300 s
 mkdir -p "$C/news-files/n1" "$C/news-files/n2"; printf 'anexo-n1' > "$C/news-files/n1/folha.txt"; printf 'anexo-n2' > "$C/news-files/n2/fim.txt"
-printf '[{"id":"n0","title":"Boas-vindas","text":"leia","date":%s},{"id":"n1","title":"Errata","text":"F","date":%s,"file":{"name":"folha.txt","size":8}},{"id":"n2","title":"Resultado","text":"fim","date":%s,"file":{"name":"fim.txt","size":8}}]' \
-  "$((S0-3600))" "$((S0+2000))" "$((E0+100))" > "$C/news.json"
+mkdir -p "$C/news-files/n3"; printf 'anexo-n3' > "$C/news-files/n3/ed.txt"
+printf '[{"id":"n0","title":"Boas-vindas","text":"leia","date":%s},{"id":"n1","title":"Errata","text":"F","date":%s,"file":{"name":"folha.txt","size":8}},{"id":"n2","title":"Resultado","text":"fim","date":%s,"file":{"name":"fim.txt","size":8}},{"id":"n3","title":"Editada","text":"v2","date":%s,"edited_at":%s,"file":{"name":"ed.txt","size":8}}]' \
+  "$((S0-3600))" "$((S0+2000))" "$((E0+100))" "$((S0+1500))" "$((S0+3300))" > "$C/news.json"
 # documentos: publicados contest.pt/en, info-sheet.pt, times.pt (SEM pdf), editorial.pt; links do resources.json
 mkdir -p "$C/docs"
 printf '{"published":["contest.pt","contest.en","info-sheet.pt","times.pt","editorial.pt"]}' > "$C/docs/config.json"
@@ -89,7 +93,8 @@ ck "anexo da notícia depois do fim: 404" '[[ "$OUT" == *"Status: 404"* && "$BOD
 call ana /treino/virtual/news-file GET "contest=v1&id=../x"; ck "id hostil: 400" '[[ "$(code)" == id_invalid ]]'
 call ana /treino/virtual/docs GET contest=v1
 ck "docs: caderno (pt,en), ambiente (pt); tempos-limite sem PDF fora; editorial TRANCADO" '[[ "$(jq -c "[.docs[] | [.type, (.langs|join(\"+\")), .locked]]" <<<"$BODY")" == "[[\"contest\",\"pt+en\",false],[\"info-sheet\",\"pt\",false],[\"editorial\",\"\",true]]" ]]'
-ck "links: só o EXTERNO" '[[ "$(jq -c "[.links[].url]" <<<"$BODY")" == "[\"https://maratona.sbc.org.br/\"]" ]]'
+ck "links com a run RODANDO: nenhum, só links_locked" '[[ "$(jq -c "[.links, .links_locked]" <<<"$BODY")" == "[[],true]" ]]'
+call ana /treino/virtual/news-file GET "contest=v1&id=n3"; ck "anexo da notícia EDITADA depois de agora: 404" '[[ "$OUT" == *"Status: 404"* && "$BODY" != *anexo-n3* ]]'
 call ana /treino/virtual/doc GET "contest=v1&type=contest&lang=en"; ck "caderno EN: 200 PDF" '[[ "$OUT" == *"Status: 200"* && "$OUT" == *"application/pdf"* && "$BODY" == *contest.en* ]]'
 call ana /treino/virtual/doc GET "contest=v1&type=contest&lang=es"; ck "caderno ES NÃO publicado: 404" '[[ "$OUT" == *"Status: 404"* && "$BODY" != *"nao publicado"* ]]'
 call ana /treino/virtual/doc GET "contest=v1&type=editorial&lang=pt"; ck "editorial com a run rodando: 404" '[[ "$OUT" == *"Status: 404"* && "$BODY" != *editorial.pt* ]]'
@@ -100,7 +105,9 @@ call beto /treino/virtual/docs GET contest=v1; ck "outra conta sem run: 403" '[[
 echo "== aos 3500 s o aviso chega =="
 agerun ana 1000
 call ana /treino/virtual/clarifications GET contest=v1
-ck "c3 (aviso aos 3000 s) entra, como notice" '[[ "$(jq -r "[.items[] | .id] | join(\",\")" <<<"$BODY")" == "c3,n1,c1,n0" && "$(jq -r ".items[0].kind" <<<"$BODY")" == notice ]]'
+ck "c3 (aviso aos 3000 s) entra, como notice; c6 pelo answered_at (3200), n3 pelo edited_at (3300)" '[[ "$(jq -r "[.items[] | .id] | join(\",\")" <<<"$BODY")" == "n3,c6,c3,n1,c1,n0" && "$(jq -r ".items[] | select(.id==\"c3\") | .kind" <<<"$BODY")" == notice && "$(jq -r ".items[] | select(.id==\"c6\") | .rel" <<<"$BODY")" == 3200 ]]'
+ck "…o instante ilegível (c7) segue de fora" '[[ "$BODY" != *ilegivel* ]]'
+call ana /treino/virtual/news-file GET "contest=v1&id=n3"; ck "anexo da editada, agora: 200" '[[ "$BODY" == anexo-n3 ]]'
 
 echo "== terminou: o que saiu depois do fim e o editorial =="
 vsub ana 'col#pa'; verdict ana "$SID" 'Accepted'
@@ -108,9 +115,11 @@ vsub ana 'col#pa'; verdict ana "$SID" 'Accepted'
 awk -F: -v OFS=: -v id="$SID" '$NF==id{$(NF-1)-=10; $1-=10} 1' "$T/users/ana/history" > "$T/users/ana/history.n" && mv "$T/users/ana/history.n" "$T/users/ana/history"      # encerrar com 0 AC seria desistência (nada a liberar)
 call ana /treino/virtual/run POST "" '{"contest":"v1","action":"finish"}'
 call ana /treino/virtual/clarifications GET contest=v1
-ck "terminada: c4 e n2 (depois do fim) entram; a privada nunca" '[[ "$(jq -r "[.items[] | .id] | sort | join(\",\")" <<<"$BODY")" == "c1,c3,c4,n0,n1,n2" && "$(jq -r .ended <<<"$BODY")" == true && "$BODY" != *SEGREDO* ]]'
+ck "terminada: c4 e n2 (depois do fim) entram; a privada nunca" '[[ "$(jq -r "[.items[] | .id] | sort | join(\",\")" <<<"$BODY")" == "c1,c3,c4,c6,c7,n0,n1,n2,n3" && "$(jq -r .ended <<<"$BODY")" == true && "$BODY" != *SEGREDO* ]]'
+ck "…c7 (instante ilegível) sai com rel null e after" '[[ "$(jq -c ".items[] | select(.id==\"c7\") | [.rel, .after]" <<<"$BODY")" == "[null,true]" ]]'
 call ana /treino/virtual/news-file GET "contest=v1&id=n2"; ck "anexo de depois do fim: 200" '[[ "$BODY" == anexo-n2 ]]'
 call ana /treino/virtual/docs GET contest=v1
+ck "links externos: agora sim" '[[ "$(jq -c "[[.links[].url], .links_locked]" <<<"$BODY")" == "[[\"https://maratona.sbc.org.br/\"],false]" ]]'
 ck "editorial destrancado" '[[ "$(jq -c ".docs[] | select(.type==\"editorial\") | [.locked, .langs]" <<<"$BODY")" == "[false,[\"pt\"]]" ]]'
 call ana /treino/virtual/doc GET "contest=v1&type=editorial&lang=pt"; ck "editorial: 200" '[[ "$OUT" == *"Status: 200"* && "$BODY" == *editorial.pt* ]]'
 
@@ -122,7 +131,7 @@ call beto /treino/virtual/run GET contest=v1; ck "(a run está em judging)" '[[ 
 call beto /treino/virtual/docs GET contest=v1
 ck "judging: o editorial segue TRANCADO" '[[ "$(jq -c ".docs[] | select(.type==\"editorial\") | .locked" <<<"$BODY")" == true ]]'
 call beto /treino/virtual/clarifications GET contest=v1
-ck "judging: a prova inteira (aviso dos 3000 s), mas nada de depois do fim" '[[ "$(jq -r "[.items[] | .id] | sort | join(\",\")" <<<"$BODY")" == "c1,c3,n0,n1" && "$(jq -r .ended <<<"$BODY")" == false ]]'
+ck "judging: a prova inteira (aviso dos 3000 s), mas nada de depois do fim" '[[ "$(jq -r "[.items[] | .id] | sort | join(\",\")" <<<"$BODY")" == "c1,c3,c6,n0,n1,n3" && "$(jq -r .ended <<<"$BODY")" == false ]]'
 call beto /treino/virtual/doc GET "contest=v1&type=editorial&lang=pt"; ck "judging: editorial 404" '[[ "$OUT" == *"Status: 404"* ]]'
 verdict beto "$BS" 'Wrong Answer'
 call beto /treino/virtual/clarifications GET contest=v1; ck "o WA sai: 0 AC = desistida = 403 (pode largar de novo sem ter visto o fim)" '[[ "$(code)" == virtual_not_started ]]'

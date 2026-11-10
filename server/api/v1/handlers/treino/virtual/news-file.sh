@@ -12,10 +12,9 @@ nid="$(param id)"
 f="$CONTESTSDIR/$cid/news.json"
 [[ -s "$f" ]] || fail 404 "Anexo não encontrado" "notfound"
 fn="$(jq -r --arg id "$nid" --argjson st "$VR_START" --argjson dur "$VR_DUR" --argjson el "$VR_ELAPSED" \
-        --argjson ended "$( (( VR_ENDED )) && echo true || echo false )" '
+        --argjson ended "$( (( VR_ENDED )) && echo true || echo false )" "$VR_TIME_JQ"'
   first(.[]? | objects | select((.id // "" | tostring) == $id)
-    | ((.date | tonumber? // 0) - $st) as $r
-    | select($ended or ($r <= $dur and ([$r, 0] | max) <= $el))
+    | select(vr_vis(vr_at([.date, .edited_at])))
     | .file.name // empty)' "$f" 2>/dev/null)"
 [[ -n "$fn" ]] || fail 404 "Anexo não encontrado" "notfound"
 safe="$(basename "$fn" | tr -cd 'A-Za-z0-9._-')"; [[ -n "$safe" ]] || fail 404 "Anexo não encontrado" "notfound"

@@ -12,10 +12,11 @@ source "$_LIBDIR/print.sh"
 dir="$(pr_dir "$contest")"; hold="$dir/.balloon-hold"; rel="$dir/.balloon-release"
 
 if [[ "${REQUEST_METHOD:-GET}" == GET ]]; then
-  h='[]'; r='[]'
-  [[ -s "$hold" ]] && h="$(jq -cs '.' "$hold" 2>/dev/null)"; [[ -n "$h" ]] || h='[]'
-  [[ -s "$rel" ]] && r="$(jq -cs '.' "$rel" 2>/dev/null)"; [[ -n "$r" ]] || r='[]'
-  ok_json '{held:$h, released:$r}' --argjson h "$h" --argjson r "$r"
+  # os dois arquivos crescem com o evento (uma linha por balão retido/par liberado): --slurpfile, nunca argv (ARG_MAX)
+  hf=/dev/null; rf=/dev/null
+  [[ -s "$hold" ]] && jq -e . "$hold" >/dev/null 2>&1 && hf="$hold"
+  [[ -s "$rel" ]] && jq -e . "$rel" >/dev/null 2>&1 && rf="$rel"
+  ok_json '{held:$h, released:$r}' --slurpfile h "$hf" --slurpfile r "$rf"
   exit 0
 fi
 require_method POST

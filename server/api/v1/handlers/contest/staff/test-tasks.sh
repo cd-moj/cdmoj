@@ -26,6 +26,13 @@ if is_admin; then
 elif mine="$(staff_regions "$contest")"; then
   scope="$(printf '%s\n' "$mine" | jq -Rsc 'split("\n") | map(select(length > 0)) | unique')"
 fi
+# staff COM escopo cujas sedes não se resolvem (escopo só por regex, time sem sede, módulo sedes desligado): o create
+# falha fechado (o .staff cria só para a própria sede); só o staff SEM escopo nenhum (que já vê tudo) cria lote de todas.
+unresolved=false
+if ! is_admin && [[ "$scope" == '[]' ]] \
+   && jq -e --arg s "$SESSION_LOGIN" 'has($s) and ((.[$s] // []) | length > 0)' "$(pr_dir "$contest")/staff-filters.json" >/dev/null 2>&1; then
+  unresolved=true
+fi
 
 if [[ "${REQUEST_METHOD:-GET}" == GET ]]; then
   pr_test_purge_if_running "$contest"
@@ -53,6 +60,7 @@ case "$action" in
     if [[ "$kind" != print ]] && ! mod_on "$contest" baloes; then
       fail 409 "O módulo de balões está desligado neste contest" "balloons_disabled"
     fi
+    [[ "$unresolved" == true ]] && fail 422 "O seu escopo não tem sede definida: peça ao admin para pôr a sede (region:<nome>) no seu escopo, ou para criar o lote" "test_scope_unresolved"
     if is_admin; then
       site="$(jq -r '.site // ""' <<<"$body")"
       if [[ -n "$site" ]]; then

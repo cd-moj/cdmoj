@@ -237,22 +237,46 @@ pr_filter_board() {
 # posição sai certa sozinha: o TXT não tem coluna de posição, o front numera na ordem — e a ordem se mantém.
 # CERTEZA (docs/SCOREBOARD.md "A estrela só pinta com CERTEZA"): o TXT não diz qual run ainda está pendente; se o
 # placar completo RETEVE a ★ de um problema (há AC e nenhuma ★ na coluna — uma run mais antiga em julgamento), o
-# recorte também retém. Conservador: nunca pinta um primeiro lugar que o placar inteiro ainda não afirmou.
+# recorte também retém. Conservador: nunca pinta um primeiro lugar que o placar inteiro ainda não afirmou. E, dentro do
+# recorte, a regra do updatescore-icpc: run NÃO JULGADA de um time do escopo enviada até o melhor AC do recorte segura a ★
+# daquele problema (a pendência vem do metrics.json das contas do escopo; revisão de 10/11/2026).
 # Só o modo icpc tem ★ (célula `tent/tempo*`); outro modo só recorta.
 pr_filter_board_subset() {
-  local c="$1" who="$2" vis
-  vis="$(mktemp)" || return 1
+  local c="$1" who="$2" vis pend d="$CONTESTSDIR/$1"
+  vis="$(mktemp)" || return 1; pend="$vis.pend"
   staff_visible_logins "$c" "$who" > "$vis" 2>/dev/null || : > "$vis"      # sem escopo = NINGUÉM (falha fechado)
+  # ★ COM CERTEZA DENTRO DO RECORTE (revisão de 10/11/2026): a regra do updatescore-icpc (sem estrela enquanto houver
+  # run NÃO JULGADA mais antiga que o melhor AC) aplicada aos times do recorte — a ★ global certa não diz nada sobre
+  # o 2º melhor, que é quem ganha a ★ do recorte. A pendência sai do metrics.json de cada conta do escopo (visão
+  # SEM freeze, a do .diretor): P <k> <id canônico> (a ordem do PROBS = a das colunas), S <início>, M <id> <epoch>
+  # (-1 = metrics velho sem o campo: desconhecido ⇒ segura, como lá).
+  ( PROBS=(); CONTEST_START=0; source "$d/conf" >/dev/null 2>&1
+    s="${CONTEST_START:-0}"; [[ "$s" =~ ^[0-9]+$ ]] || s=0
+    k=0; for ((i=0; i<${#PROBS[@]}; i+=5)); do cn="${PROBS[i+4]:-}"; [[ "$cn" == *"#"* ]] || cn="${PROBS[i+1]//\//#}"
+      printf 'P\t%s\t%s\n' "$k" "$cn"; k=$((k+1)); done
+    printf 'S\t%s\n' "$s"
+    while IFS= read -r l; do [[ -n "$l" && -f "$d/users/$l/metrics.json" ]] && printf '%s\0' "$d/users/$l/metrics.json"; done < "$vis" \
+      | xargs -0 -r jq -r '(.by_problem // {}) | to_entries[] | select(.value.pending == true)
+          | ["M", .key, (if (.value | has("pending_min_epoch")) then (.value.pending_min_epoch // 0) else -1 end)] | @tsv' 2>/dev/null
+  ) > "$pend"
   awk -F: -v VF="$vis" '
-    NR==1 { print; split($0, md, " "); icpc = (md[1] == "icpc"); next }
-    NR==2 { print
+    NR == FNR { split($0, a, "\t")
+                if (a[1] == "P") K[a[3]] = a[2]
+                else if (a[1] == "S") st = a[2] + 0
+                else if (a[1] == "M" && (a[2] in K) && a[3] + 0 != 0) { e = a[3] + 0; if (e < 0) e = 1
+                  if (!((K[a[2]]) in pe) || e < pe[K[a[2]]]) pe[K[a[2]]] = e }
+                next }
+    FNR==1 { print; split($0, md, " "); icpc = (md[1] == "icpc"); secs = (md[2] == "s"); next }
+    FNR==2 { print
             m=0; while (m<NF && (tolower($(m+1))=="desc" || tolower($(m+1))=="asc")) m++
             ucol=0; tcol=0
             # as colunas `desc`/`asc` do cabeçalho NÃO existem nas linhas (docs/SCOREBOARD.md): índice da linha = i - m
             for (i=m+1; i<=NF; i++) { h=tolower($i); if (h=="username") ucol=i-m; if (h=="total") { tcol=i-m; break } }
-            # colunas de problema: entre o cabeçalho de identificação e o Total (as que não são campo conhecido)
+            # colunas de problema: entre o cabeçalho de identificação e o Total (as que não são campo conhecido),
+            # na ordem do PROBS: a k-ésima coluna de problema é o problema k
+            np=0
             for (i=m+1; i<m+tcol; i++) { h=tolower($i)
-              if (h!="flag" && h!="username" && h!="univ short" && h!="team name" && h!="univ full") P[i-m]=1 }
+              if (h!="flag" && h!="username" && h!="univ short" && h!="team name" && h!="univ full") { P[i-m]=1; PK[i-m]=np++ } }
             while ((getline l < VF) > 0) if (l != "") V[l]=1
             close(VF); next }
     ucol && ($ucol in V) {
@@ -265,6 +289,8 @@ pr_filter_board_subset() {
       next }
     ucol && $0 != "" { for (i in P) if ($i ~ /\*$/) had[i]=1 }      # ★ fora do recorte também conta como "afirmada"
     END {
+      # dúvida em aberto no recorte: pendente do escopo enviado ATÉ o melhor AC do recorte (mesma unidade do TXT)
+      for (i in best) if ((PK[i]) in pe) { r = pe[PK[i]] - st; if (!secs) r = int(r / 60); if (r <= best[i]) delete had[i] }
       for (k=1; k<=n; k++) {
         if (!icpc) { print L[k]; continue }
         nf = split(L[k], f, ":"); out=""
@@ -272,8 +298,8 @@ pr_filter_board_subset() {
           if (i in P) { sub(/\*$/, "", cell)
             if ((i in had) && cell ~ /^[0-9]+\/[0-9]+$/ && substr(cell, index(cell, "/")+1)+0 == best[i]) cell = cell "*" }
           out = out (i>1 ? ":" : "") cell }
-        print out } }'
-  rm -f "$vis"
+        print out } }' "$pend" -
+  rm -f "$vis" "$pend"
 }
 
 # _pr_acct <c> <login> <jq-path> — campo do account.json (local, senão USERS_FROM).
@@ -1277,11 +1303,21 @@ pr_reconcile_balloons() {
                | sort -n -k1,1)
     (( ${#KL[@]} )) || { rm -f "$hold"; exit 0; }
     # DESCLASSIFICADO não ganha balão (o placar já o tirava; a fila do staff seguia entregando — auditoria do
-    # painel, 03/10/2026): um grep só sobre o account.json dos candidatos NOVOS.
+    # painel, 03/10/2026): um grep só sobre o account.json dos candidatos, os RETIDOS inclusive.
     local -A _DQ=(); local _dqf
     while IFS= read -r _dqf; do _dqf="${_dqf%/account.json}"; _DQ["${_dqf##*/}"]=1
-    done < <(for (( i = nh; i < ${#KL[@]}; i++ )); do printf '%s/%s/account.json\0' "$CONTESTSDIR/$c/users" "${KL[i]}"; done \
-               | xargs -0 -r grep -lE '"disqualified": *true' 2>/dev/null)
+    done < <(for (( i = 0; i < ${#KL[@]}; i++ )); do printf '%s/%s/account.json\0' "$CONTESTSDIR/$c/users" "${KL[i]}"; done \
+               | sort -zu | xargs -0 -r grep -lE '"disqualified": *true' 2>/dev/null)
+    # O RETIDO É REVALIDADO a cada reconcile: segue valendo só quem ainda tem a linha Accepted com o MESMO sub_epoch
+    # (rejulgamento e revisão do chefe mudam o veredicto). Uma passada só no history dos logins retidos.
+    local -A _HOK=(); local _hl _hp _hse
+    if (( nh > 0 )); then
+      while IFS=$'\t' read -r _hl _hp _hse; do [[ -n "$_hl" ]] && _HOK["$_hl|$_hp|$_hse"]=1
+      done < <(for (( i = 0; i < nh; i++ )); do printf '%s/%s/history\0' "$CONTESTSDIR/$c/users" "${KL[i]}"; done \
+                 | sort -zu | xargs -0 -r gawk -F: '{ n = split(FILENAME, a, "/"); v = $4; for (j = 5; j <= NF - 2; j++) v = v ":" $j
+                                                      sub(/¦.*$/, "", v)
+                                                      if (v ~ /^Accepted/ && v !~ / \(Ignored\)$/) print a[n-1] "\t" $2 "\t" $(NF-1) }' 2>/dev/null)
+    fi
     # os ids do lote num processo só (a regra do id está no _PR_BLN_MD5_PY)
     mapfile -t KI < <(for i in "${!KL[@]}"; do printf '%s%s%s\n' "$c" "${KL[i]}" "${KP[i]}"; done \
                         | python3 -c "$_PR_BLN_MD5_PY" 2>/dev/null)
@@ -1293,7 +1329,8 @@ pr_reconcile_balloons() {
     local -A SEEN=(); local -a SURV=()
     for i in "${!KL[@]}"; do
       id="${KI[i]}"
-      (( i >= nh )) && [[ -n "${_DQ[${KL[i]}]:-}" ]] && continue
+      [[ -n "${_DQ[${KL[i]}]:-}" ]] && continue
+      (( i < nh )) && [[ -z "${_HOK[${KL[i]}|${KP[i]}|${KE[i]}]:-}" ]] && continue   # o AC retido não vale mais
       [[ -n "${SEEN[$id]:-}" ]] && continue; SEEN[$id]=1
       [[ -f "$dir/$id.json" || -n "${FROZEN[$id]:-}" ]] && continue
       SURV+=("$i")
@@ -1341,27 +1378,28 @@ pr_reconcile_balloons() {
     local -a MK=()
     for i in "${SURV[@]}"; do
       login="${KL[i]}"; cid="${KP[i]}"; se="${KE[i]}"; since="${KS[i]:-$EPOCHSECONDS}"
+      if [[ -z "${C_SHORT[$cid]+x}" ]]; then        # letra/cor só dependem do problema: uma vez por problema
+        C_SHORT[$cid]="$(pr_short_of "$c" "$cid")"; [[ -n "${C_SHORT[$cid]}" ]] || C_SHORT[$cid]="?"
+        C_HEX[$cid]="$(pr_balloon_color "$c" "${C_SHORT[$cid]}")"
+        C_NAME[$cid]="$(pr_color_name "${C_HEX[$cid]}" "$C_LANG")"
+      fi
+      # O FREEZE DECIDE ANTES DA ESPERA: o AC de depois do congelamento vira lápide na hora e nunca entra no `held`
+      # (a fila da sede mostra só o que o placar congelado mostra; a lápide vale mesmo que o placar descongele depois).
+      if (( fz > 0 )) && [[ "$allow" != 1 ]] && (( se >= fz )); then MK+=("F"$'\t'"$i"$'\t'"false"); continue; fi
       _site_verdict "$login" "$cid" "$se"
       if [[ "$_SV" == hold ]]; then
         if (( wait_s < 0 || EPOCHSECONDS - since < wait_s )); then
           # a letra vai no registro: a fila (bash e porteiro) mostra a espera sem abrir o conf
           # (cache PRÓPRIO: o C_SHORT preenchido aqui faria o balão seguinte do problema pular o cálculo da cor)
           if [[ -z "${H_SHORT[$cid]+x}" ]]; then H_SHORT[$cid]="$(pr_short_of "$c" "$cid")"; [[ -n "${H_SHORT[$cid]}" ]] || H_SHORT[$cid]="?"; fi
-          HOLD_KEEP+=("$(jq -cn --arg l "$login" --arg p "$cid" --argjson se "$se" --argjson since "$since" \
-                          --arg reg "$_SVREG" --argjson pend "$_SVPEND" --arg sh "${H_SHORT[$cid]}" \
-                          '{login:$l, problem:$p, short:$sh, region:$reg, sub_epoch:$se, since:$since, pend:$pend}')")
+          # TSV (um jq só, no fim, monta o JSONL — era um jq POR retido a cada reconcile, e a espera não tem mais teto)
+          HOLD_KEEP+=("$login"$'\t'"$cid"$'\t'"${H_SHORT[$cid]}"$'\t'"${_SVREG//$'\t'/ }"$'\t'"${se:-0}"$'\t'"${since:-0}"$'\t'"${_SVPEND:-0}")
           continue
         fi
         _SV=not   # teto do conf vencido: entrega o balão SEM estrela (nunca inventa um primeiro lugar)
       fi
       [[ "$_SV" == first ]] && fs=true || fs=false
-      if [[ -z "${C_SHORT[$cid]+x}" ]]; then        # letra/cor só dependem do problema: uma vez por problema
-        C_SHORT[$cid]="$(pr_short_of "$c" "$cid")"; [[ -n "${C_SHORT[$cid]}" ]] || C_SHORT[$cid]="?"
-        C_HEX[$cid]="$(pr_balloon_color "$c" "${C_SHORT[$cid]}")"
-        C_NAME[$cid]="$(pr_color_name "${C_HEX[$cid]}" "$C_LANG")"
-      fi
-      if (( fz > 0 )) && [[ "$allow" != 1 ]] && (( se >= fz )); then MK+=("F"$'\t'"$i"$'\t'"$fs")
-      else MK+=("T"$'\t'"$i"$'\t'"$fs"); nT=$(( nT + 1 )); fi
+      MK+=("T"$'\t'"$i"$'\t'"$fs"); nT=$(( nT + 1 ))
     done
 
     # ---- 5. MATERIALIZA o lote: um bloco de `seq`, um jq p/ as contas e as tarefas, um mv por tarefa ----------
@@ -1436,7 +1474,12 @@ pr_reconcile_balloons() {
     fi
     rm -f "$rf"
     # o que ficou esperando decisão volta para o arquivo de espera
-    if (( ${#HOLD_KEEP[@]} )); then printf '%s\n' "${HOLD_KEEP[@]}" > "$hold"; else rm -f "$hold"; fi
+    if (( ${#HOLD_KEEP[@]} )); then
+      local _ht="$hold.tmp.$BASHPID"   # resolvido ANTES do pipe: no alvo do redirect o ${BASHPID} seria o do filho
+      printf '%s\n' "${HOLD_KEEP[@]}" | jq -Rc 'split("\t") | {login:.[0], problem:.[1], short:.[2], region:.[3],
+          sub_epoch:(.[4] | tonumber? // 0), since:(.[5] | tonumber? // 0), pend:(.[6] | tonumber? // 0)}' > "$_ht" \
+        && mv -f "$_ht" "$hold" || rm -f "$_ht"
+    else rm -f "$hold"; fi
   ) 9>"$dir/.balloon.lock"
 }
 

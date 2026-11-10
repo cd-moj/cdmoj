@@ -46,6 +46,25 @@ d = bytearray(open(W + '/liar.zip', 'rb').read())
 i = d.find(b'PK\x01\x02'); d[i + 24:i + 28] = struct.pack('<I', 10)
 open(W + '/liar.zip', 'wb').write(d)
 open(W + '/not.zip', 'wb').write(b'isto nao e um zip' * 10)
+# revisão de 10/11/2026: TRUNCADO (o fim do dado de um arquivo some; o índice segue no lugar), DEFLATE QUEBRADO e
+# nome em windows-1252 sem o bit de UTF-8 (o zip do Windows)
+d = bytearray(open(W + '/ok.zip', 'rb').read())
+i = d.find(b'PK\x01\x02'); loc = struct.unpack('<I', d[i + 42:i + 46])[0]; cs = struct.unpack('<I', d[i + 20:i + 24])[0]
+d[i + 20:i + 24] = struct.pack('<I', cs + len(d))      # o índice diz que o dado vai além do fim do arquivo
+open(W + '/trunc.zip', 'wb').write(d)
+z = zipfile.ZipFile(W + '/bad.zip', 'w'); z.writestr('team01.mp3', b'D' * 50000, compress_type=zipfile.ZIP_DEFLATED); z.close()
+d = bytearray(open(W + '/bad.zip', 'rb').read())
+i = d.find(b'PK\x03\x04'); st = i + 30 + struct.unpack('<H', d[i + 26:i + 28])[0] + struct.unpack('<H', d[i + 28:i + 30])[0]
+d[st] = 0xff; d[st + 1] = 0xff                        # bloco deflate de tipo inválido
+open(W + '/bad.zip', 'wb').write(d)
+zi = zipfile.ZipInfo('jos\xe9.png'); zi.flag_bits = 0
+z = zipfile.ZipFile(W + '/cp.zip', 'w'); z.writestr(zi, 'x'); z.close()
+d = bytearray(open(W + '/cp.zip', 'rb').read())
+for sig in (b'PK\x03\x04', b'PK\x01\x02'):              # o Python gravou o nome em UTF-8 + bit 11: vira o do Windows
+  i = d.find(sig); fo = 6 if sig == b'PK\x03\x04' else 8
+  fl = struct.unpack('<H', d[i + fo:i + fo + 2])[0] & ~0x800; d[i + fo:i + fo + 2] = struct.pack('<H', fl)
+d = d.replace('josé.png'.encode('utf-8'), b'jos\xe9.png ')   # mesmo tamanho: o padding fica no fim do nome
+open(W + '/cp.zip', 'wb').write(d)
 open(W + '/big.bin', 'wb').write(big)
 PY
 
@@ -72,6 +91,11 @@ ck('mais arquivos que o teto = erro', (await err('many.zip', { maxEntries: 10 })
 const liar = await readZip(F('liar.zip'));
 let le = ''; try { await liar[0].blob(); } catch (e) { le = e.message; }
 ck('zip que mente o tamanho para no declarado', le.includes('maior do que o zip declara'), le);
+const blobErr = async (n) => { try { const x = await readZip(F(n)); await x[0].blob(); return ''; } catch (e) { return e.message; } };
+ck('truncado = "corrompido", nunca um arquivo pela metade', (await blobErr('trunc.zip')).includes('corrompido'), await blobErr('trunc.zip'));
+ck('deflate quebrado = "corrompido" (não o TypeError do navegador)', (await blobErr('bad.zip')).includes('corrompido'), await blobErr('bad.zip'));
+const cp = await readZip(F('cp.zip'));
+ck('nome do Windows (sem UTF-8): lido em windows-1252', cp.length === 1 && cp[0].base.startsWith('jos\u00e9.png'), cp.map((e) => e.base).join(','));
 console.log(`\nRESULT: ${pass} passed, ${fail} failed`); process.exit(fail ? 1 : 0);
 JS
 cd "$W" && node "$W/t.mjs" "$W"

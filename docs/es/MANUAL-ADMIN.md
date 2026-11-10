@@ -1,4 +1,4 @@
-<!-- i18n-source: MANUAL-ADMIN.md blob:4881ce3a2b3284d553299f3fddf087649afe60c2 -->
+<!-- i18n-source: MANUAL-ADMIN.md blob:3b4128eb42ca2975fb65836cf1e1124db1774dff -->
 # MOJ: Manual del organizador (el panel .admin de la competencia)
 
 > **Nota de traducción.** Este manual es una traducción del original en portugués. Las herramientas de línea de comandos (`moj`, `moj-contest`, `moj-comp`) muestran sus mensajes en portugués, y los ejemplos de comandos son idénticos al original.
@@ -161,11 +161,14 @@ portugués.
 
 > **Qué veredicto recibe el equipo.** Cuando un envío falla en más de un caso, la regla de la
 > competencia decide qué error vale. En **Central › Reglas › Qué veredicto recibe el equipo**:
-> - **El del 1.er caso que falló** (el valor por defecto de una competencia nueva, la regla del ICPC):
+> - **El del 1.er caso que falló** (el valor por defecto de una competencia ICPC nueva, la regla del ICPC):
 >   los ejemplos se juzgan primero, después los demás casos por nombre, y vale el primer error. Quien
 >   falla el ejemplo recibe el error del ejemplo.
 > - **El del caso más grave** (la regla anterior del MOJ; las competencias creadas antes del
 >   09/11/2026 siguen con ella): vale el peor error entre todos los casos (TLE/MLE, después RE, después WA).
+>   También es el valor por defecto de una competencia nueva en los otros modos (OBI, entrenamiento,
+>   heurístico): allí lo que vale es la nota y, en un problema que se detiene en el primer error, el
+>   orden de los casos cambia la nota.
 >
 > El cambio vale para los juzgamientos y rejuzgamientos hechos después de guardar. Para aplicar la
 > regla nueva a envíos antiguos, rejuzga.
@@ -651,6 +654,25 @@ entrenamiento. Una competencia que no puede verse desde fuera no debe activar el
   fila del marcador virtual (el registro queda guardado; **restaurar** lo deshace). La acción queda auditada.
   El botón **devolver intento** borra la fila y deja que esa cuenta vuelva a empezar en esta competencia. Úsalo
   para un probador, o para quien tuvo un problema durante la competencia. La acción también queda auditada.
+
+**Lo que el participante ve de la competencia.** La pantalla tiene la cara de la competencia (pestañas Competencia ·
+Marcador · Aclaraciones y avisos · Mis envíos · Ayuda), y el servidor libera cada cosa en el **tiempo relativo** de la
+participación:
+
+- los enunciados, con el **límite de tiempo por lenguaje**: el que juzga el envío virtual, es decir, el del
+  entrenamiento ahora (si el problema se recalibró después de la competencia, puede diferir de la hoja de límites de
+  tiempo);
+- los **documentos publicados** en Evento › Documentos (cuaderno, entorno de evaluación, límites de tiempo) desde el
+  inicio; el **editorial** y los **enlaces externos** de los Recursos, solo cuando termina la participación;
+- las **aclaraciones respondidas en público**, los **avisos oficiales** y las **noticias**, cada uno en el minuto de la
+  competencia en que salió (lo que salió después del fin, solo cuando termina la participación). Una pregunta privada
+  nunca aparece, y el participante no pregunta: nadie respondería. Un aviso o una noticia **editados** cuentan desde la
+  hora de la edición;
+- el **marcador se congela** en el mismo minuto del congelamiento de la competencia (**Cerrar evento** guarda ese
+  minuto) y se descongela cuando termina la participación.
+
+Lo que publiques o edites después de la competencia también llega a quien haga el virtual después. No publiques ahí lo
+que no deba verse.
 
 **Regla del participante** (la lee antes de empezar): una participación por cuenta; puede desistir sin
 registrar en los primeros 15 minutos o mientras no tenga ningún aceptado, como máximo 2 veces; el 3.er inicio

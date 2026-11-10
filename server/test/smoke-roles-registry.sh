@@ -24,8 +24,22 @@ ck "ROLE_RE no awk -v (sem o escape virar curinga)" '[[ "$(printf "%s\n" a.mon b
 ck "ROLE_RE no jq"                              '[[ "$(jq -rn --arg re "$ROLE_RE" "[\"a.foto\",\"afoto\",\"a.fotos\"] | map(select(test(\$re))) | length")" == 1 ]]'
 
 ck "registro AUSENTE: sourcear falha (não vira \"ninguém tem papel\")" \
-   '! ROLES_TSV=/nao/existe bash -c "source \"$ROOT/server/api/v1/lib/roles.sh\"; echo segue" 2>/dev/null | grep -q segue'
-ck "registro VAZIO: idem" '! ROLES_TSV=/dev/null bash -c "source \"$ROOT/server/api/v1/lib/roles.sh\"; echo segue" 2>/dev/null | grep -q segue'
+   '! MOJ_ROLES_TSV=/nao/existe bash -c "source \"$ROOT/server/api/v1/lib/roles.sh\"; echo segue" 2>/dev/null | grep -q segue'
+ck "registro VAZIO: idem" '! MOJ_ROLES_TSV=/dev/null bash -c "source \"$ROOT/server/api/v1/lib/roles.sh\"; echo segue" 2>/dev/null | grep -q segue'
+# linha malformada é FATAL nos três leitores; CRLF é tolerado
+RT="$(mktemp -d)"; trap 'rm -rf "$RT"' EXIT
+sed 's/$/\r/' "$ROOT/server/etc/roles.tsv" > "$RT/crlf.tsv"
+{ cat "$ROOT/server/etc/roles.tsv"; printf 'quebrado\tquebrado\tsalao\tsim\tfoto\n'; } > "$RT/bad.tsv"
+ck "CRLF: a última capacidade vale (role_can maquinas a.sistemas)" \
+   'MOJ_ROLES_TSV="$RT/crlf.tsv" bash -c "source \"$ROOT/server/api/v1/lib/roles.sh\"; role_can maquinas a.sistemas && role_can placar_recorte a.diretor"'
+ck "linha malformada (classe errada): sourcear falha" \
+   '! MOJ_ROLES_TSV="$RT/bad.tsv" bash -c "source \"$ROOT/server/api/v1/lib/roles.sh\"; echo segue" 2>/dev/null | grep -q segue'
+ck "porteiro: CRLF carrega; malformado e vazio abortam" \
+   'MOJ_ROLES_TSV="$RT/crlf.tsv" python3 -c "import runpy,sys; sys.argv=[\"p\",\"--selftest\"]; g=runpy.run_path(\"$ROOT/server/porteiro/moj-porteiro.py\", run_name=\"porteiro_t\"); assert g[\"ROLE_BY\"][\"sistemas\"][\"can\"] == [\"maquinas\"]" 2>/dev/null \
+    && ! MOJ_ROLES_TSV="$RT/bad.tsv" python3 -c "import runpy; runpy.run_path(\"$ROOT/server/porteiro/moj-porteiro.py\", run_name=\"porteiro_t\")" 2>/dev/null \
+    && ! MOJ_ROLES_TSV=/dev/null python3 -c "import runpy; runpy.run_path(\"$ROOT/server/porteiro/moj-porteiro.py\", run_name=\"porteiro_t\")" 2>/dev/null'
+ck "ingest-drain: registro vazio aborta" \
+   '! MOJ_ROLES_TSV=/dev/null python3 -c "import runpy; runpy.run_path(\"$ROOT/server/daemons/ingest-drain.py\", run_name=\"ingest_t\")" 2>/dev/null'
 
 echo "== os is_* do auth.sh =="
 source "$ROOT/server/api/v1/lib/auth.sh" 2>/dev/null

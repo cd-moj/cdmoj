@@ -116,8 +116,15 @@ cc_settings_conf_lines(){
   v="$(jq -r '.secret' <<<"$spec")";         [[ "$v" == true ]] && printf 'SECRET=%q\n' 1
   # REGRA DO VEREDICTO (09/11/2026, decisão do Ribas): contest NOVO nasce com `first` (o do 1º teste que falhou,
   # exemplos primeiro). Só `verdict_rule:"worst"` explícito mantém o de sempre — é o que o export/duplicate de um
-  # contest antigo (sem a linha) carrega, então a cópia não muda de regra. Spec sem a chave = contest novo = first.
-  v="$(jq -r '.verdict_rule // ""' <<<"$spec")"; [[ "$v" == worst ]] || printf 'VERDICT_RULE=%q\n' first
+  # contest antigo (sem a linha) carrega, então a cópia não muda de regra. Spec sem a chave = contest novo = first — SÓ
+  # no modo icpc (revisão de 10/11/2026): nos outros a nota é o que vale e a ordem dos testes muda a nota de problema
+  # com STOPWHEN; lá o `first` só entra pedido explicitamente.
+  v="$(jq -r '.verdict_rule // ""' <<<"$spec")"
+  case "$v" in
+    first) printf 'VERDICT_RULE=%q\n' first;;
+    worst) ;;
+    *) [[ "$(jq -r '.mode // "icpc"' <<<"$spec")" == icpc ]] && printf 'VERDICT_RULE=%q\n' first;;
+  esac
   # DEMO=1 é TRAVA, não modo: nada no sistema muda de comportamento por causa dele. Ele existe
   # para o `/contest/admin/seed` (dados sintéticos) poder recusar QUALQUER contest que não seja
   # de demonstração — uma prova de verdade nunca pode ser semeada, nem por engano.

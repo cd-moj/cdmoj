@@ -145,10 +145,16 @@ Ribas está em `.claude/prototipos/2026-11-10/virtual/`.
   - O enunciado e o **editor embutido**, com envio de arquivo ao lado, para o `/submit` do treino com `virtual`.
 - **Arquivos** (`/treino/virtual/docs` + `/doc`): os documentos **publicados** do contest com PDF (caderno, ambiente
   de julgamento, tempos-limite) **desde a largada**. O **editorial** só com a run terminada; antes ele aparece
-  trancado, para o participante saber que existe. Também entram os links externos do `resources.json`.
+  trancado, para o participante saber que existe. Os links externos do `resources.json` também só com a run
+  terminada (`links_locked:true` antes): o link não tem data e mostra o estado de agora (placar final, vídeo das
+  soluções).
 - **Avisos e clarifications** (`/treino/virtual/clarifications` + `/news-file`):
   - Só o que foi **público** na prova: a clarification respondida em público, o aviso oficial e a notícia.
-  - Cada um aparece no **mesmo minuto relativo** em que saiu na prova: `answered_at`, `time` ou `date`, menos o início.
+  - Cada um aparece no **mesmo minuto relativo** em que saiu na prova, menos o início: a resposta pelo `answered_at`;
+    o aviso pelo MAIOR de `time` e `answered_at` (reeditar o aviso regrava o `answered_at`); a notícia pelo MAIOR de
+    `date` e `edited_at` (que a edição passou a carimbar). Vale a versão que o cliente recebe AGORA.
+  - Instante ilegível ou ausente FALHA FECHADO: o item só sai com a run terminada, com `rel:null`. A regra é UMA,
+    `VR_TIME_JQ` (`lib/virtual.sh`), usada pelo `/clarifications` e pelo `/news-file`.
   - O que saiu **depois do fim** da prova aparece quando a run termina.
   - O corte é feito **no servidor**, pelo relógio da run (`vr_clock`). O cliente nunca recebe o que ainda não
     "aconteceu", nem a contagem.

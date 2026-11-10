@@ -103,7 +103,8 @@ fastcgi_read_timeout 300s;
 # afogado). O NÚMERO: nasceu 56 (28/08), caiu p/ 32 na crise da Maratona (29/08, router.sh a 25
 # núcleos nos polls de summary/history) e subiu p/ 40 em 05/11/2026 — summary no porteiro e mídia de
 # time servida do disco: o contest (40) + o site (16) = 56 do pool de 64, e sobram ~8 p/ as exceções
-# sem limite (heartbeat dos juízes, /ops; o /problems tem teto próprio de 12 desde 10/11/2026) e CPU p/ o judged. Mexer: editar o arquivo +
+# sem limite (heartbeat dos juízes, /ops) e CPU p/ o judged — o /problems tem teto próprio de 12 desde 10/11/2026 e a
+# mídia de time 16, então a soma dos tetos passa do pool: os tetos limitam CADA classe, não somam ao pool. Mexer: editar o arquivo +
 # reload (é config do host, decisão do operador). DESLIGAR: rm do arquivo + reload.
 # MICROCACHE POR-TOKEN (include por glob, mesmo padrão do breaker): entrada por Authorization,
 # GET+200, TTL 2s — F5 repetido vira hit sem forkar bash; webcast excluído por map (tempo exato).
@@ -146,10 +147,13 @@ location /api/v1/ops/ {
     fastcgi_split_path_info ^(/api/v1)(/.*)$;
 }
 # AUTORIA (10/11/2026): fora do moj_site (o autor terminando problema da prova não leva o 429 do treino), mas com balde
-# PRÓPRIO — 6 em voo por sessão e 12 no total (zonas no conf.d/moj.conf, bloco "AUTORIA"; teste smoke-problems-limit.sh).
+# PRÓPRIO — 6 em voo por sessão, 8 por IP e 12 no total (zonas no conf.d/moj.conf, bloco "AUTORIA"; teste
+# smoke-problems-limit.sh). O corpo tem 15 s entre dois pacotes (client_body_timeout): o upload de pacote é contínuo.
 location /api/v1/problems/ {
     limit_conn moj_problems_key 6;
+    limit_conn moj_problems_ip 8;
     limit_conn moj_problems 12;
+    client_body_timeout 15s;
     fastcgi_pass            unix:@WORKROOT@/run/fcgiwrap.sock;
     fastcgi_split_path_info ^(/api/v1)(/.*)$;
 }

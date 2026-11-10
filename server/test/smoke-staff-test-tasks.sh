@@ -18,11 +18,11 @@ export CONTESTSDIR="$FIX" SESSIONDIR="$SESS" RUNDIR="$RUN"
 NOW="$EPOCHSECONDS"; C="$FIX/tt"; P="$C/print-requests"; mkdir -p "$C/var" "$P"
 conf(){ printf 'CONTEST_ID=tt\nCONTEST_TYPE=icpc\nLOCALE=pt\nCONTEST_MODULES=sedes,baloes\nCONTEST_START=%s\nCONTEST_END=%s\nPROBS=( x col#pa Alfa A col#pa )\n%s' "$1" "$2" "${3:-}" > "$C/conf"; }
 conf $(( NOW + 3600 )) $(( NOW + 7200 ))
-for u in tt.admin norte.staff norte2.staff sul.staff solto.staff time-n time-s; do fx_user "$C" "$u" p "$u"
+for u in tt.admin norte.staff norte2.staff sul.staff solto.staff rx.staff time-n time-s; do fx_user "$C" "$u" p "$u"
   printf 'CONTEST=%q\nLOGIN=%q\nUSERFULLNAME=%q\nLOGINAT=%q\n' tt "$u" "$u" "$NOW" > "$SESS/tok-$u"; done
 jq -c '.team={name:"Time N",region:"Norte"}' "$C/users/time-n/account.json" > "$C/t" && mv "$C/t" "$C/users/time-n/account.json"
 jq -c '.team={name:"Time S",region:"Sul"}'   "$C/users/time-s/account.json" > "$C/t" && mv "$C/t" "$C/users/time-s/account.json"
-printf '%s' '{"norte.staff":["region:Norte"],"norte2.staff":["region:Norte"],"sul.staff":["region:Sul"]}' > "$P/staff-filters.json"
+printf '%s' '{"norte.staff":["region:Norte"],"norte2.staff":["region:Norte"],"sul.staff":["region:Sul"],"rx.staff":["^lab3-"]}' > "$P/staff-filters.json"
 printf '7' > "$P/.seq"   # o seq REAL já está no 7: o teste não pode mexer nele
 
 call(){ local b="${5:-}"; OUT="$(PATH_INFO="$1" REQUEST_METHOD="${3:-GET}" QUERY_STRING="contest=tt${4:+&$4}" HTTP_AUTHORIZATION="Bearer tok-$2" \
@@ -42,6 +42,8 @@ call /contest/staff/test-tasks norte.staff POST "" '{"action":"create","count":2
 call /contest/staff/test-tasks norte.staff POST "" '{"action":"create","count":1,"kind":"print","pages":21}';  ck "pages 21 = 422"  '[[ "$OUT" == *pages_invalid* ]]'
 call /contest/staff/test-tasks norte.staff POST "" '{"action":"create","count":1,"kind":"x"}';               ck "tipo inválido"   '[[ "$OUT" == *kind_invalid* ]]'
 call /contest/staff/test-tasks time-n POST "" '{"action":"create","count":1}';                               ck "time = 403"      '[[ "$OUT" == *staff_required* ]]'
+call /contest/staff/test-tasks rx.staff POST "" '{"action":"create","count":1,"kind":"print","pages":1}'
+ck "staff com escopo SEM sede resolvida (só regex): 422, nunca um lote de todas as sedes" '[[ "$OUT" == *test_scope_unresolved* && "$(ls "$P"/tst*.json | wc -l)" == 3 ]]'
 call /contest/staff/test-tasks norte.staff POST "" '{"action":"create","count":1,"kind":"print","pages":1,"site":"Sul"}'
 ck "o .staff NÃO escolhe a sede (site ignorado: segue Norte)" '[[ "$(jq -c .scope <<<"$BODY")" == "[\"Norte\"]" ]]'
 

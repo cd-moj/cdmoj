@@ -65,6 +65,11 @@ ck('admin: contest sem a regra = "mais grave"', makeSettingsEditor({ value:{}, m
 ck('admin: contest first = first', makeSettingsEditor({ value:{ verdict_rule:'first' }, mode:'admin', contestMode:'icpc' }).getValue().verdict_rule==='first');
 ck('criação: nasce com first', makeSettingsEditor({ value:{}, mode:'create', contestMode:'icpc' }).getValue().verdict_rule==='first');
 ck('criação a partir de cópia worst: segue worst', makeSettingsEditor({ value:{ verdict_rule:'worst' }, mode:'create', contestMode:'icpc' }).getValue().verdict_rule==='worst');
+// fora do icpc a nota é o que vale (STOPWHEN + outra ordem = outra nota): o padrão segue o MODO até o autor escolher
+ck('criação obi: nasce worst', makeSettingsEditor({ value:{}, mode:'create', contestMode:'obi' }).getValue().verdict_rule==='worst');
+{ const e = makeSettingsEditor({ value:{}, mode:'create', contestMode:'icpc' }); e.setContestMode('obi');
+  ck('trocar p/ obi no wizard: vira worst', e.getValue().verdict_rule==='worst');
+  e.setContestMode('icpc'); ck('e de volta ao icpc: first', e.getValue().verdict_rule==='first'); }
 ck('o "auto-cadastro (late users)" não existe mais', !ed.el.textContent.includes('auto-cadastro') && ed.getValue().allow_late===undefined);
 // PRIORIDADE (01/10/2026): editável no modo admin, sem Super; Super travada; só vai no getValue() quando MUDA
 const sels=(e)=>{ const out=[]; const walk=(n)=>{ for (const c of (n.children||[])) { if (c.tagName==='select') out.push(c); walk(c); } }; walk(e.el); return out; };

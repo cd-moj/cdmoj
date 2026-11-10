@@ -27,14 +27,17 @@ ASSIGNED = os.path.join(RUNDIR, "assigned")
 RESULTS = os.path.join(RUNDIR, "results")
 VALID = re.compile(r"^[A-Za-z0-9._-]+$")
 # conta de papel = o REGISTRO ÚNICO server/etc/roles.tsv (o mesmo do lib/roles.sh e do porteiro); nunca uma lista aqui
+# registro vazio ABORTA (falha fechado) — a regra do lib/roles.sh; o mesmo MOJ_ROLES_TSV do bash e do porteiro
 def _role_suffixes():
-    p = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "etc", "roles.tsv")
+    p = os.environ.get("MOJ_ROLES_TSV") or os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "etc", "roles.tsv")
     out = []
     with open(p, encoding="utf-8") as fh:
         for ln in fh:
             f = ln.split("\t")[0].strip()
             if f and not f.startswith("#") and f.isalpha() and f.islower():
                 out.append("." + f)
+    if not out:
+        raise SystemExit("ingest-drain: registro dos papéis vazio (%s)" % p)
     return tuple(out)
 
 

@@ -193,8 +193,15 @@ async function finish() {
 
 // ---------------------------------------------------------------- arena: problemas (TL + enunciado + editor)
 const probBox = {};          // id -> {det, mark}
+// RASCUNHO do editor (revisão de 10/11/2026): a lista é refeita na troca de idioma da interface e na de estado da run —
+// sem isto o código digitado sumia junto com o editor. Antes de refazer guarda-se o código, a linguagem e o que estava
+// aberto; o editor novo nasce com o rascunho.
+const drafts = {};           // id -> {lang, code}
+const liveEd = {};           // id -> () => {lang, code} (o editor vivo)
 function renderProblems() {
   const box = $('vprobs'); if (box.dataset.built) { markProblems(); return; }
+  const wasOpen = new Set(Object.keys(probBox).filter((id) => probBox[id].det.open));
+  Object.keys(liveEd).forEach((id) => { const d = liveEd[id](); if (d) drafts[id] = d; delete liveEd[id]; });
   box.dataset.built = '1'; box.innerHTML = '';
   problems.forEach((p) => {
     const mark = el('span', {});
@@ -203,6 +210,7 @@ function renderProblems() {
     det.addEventListener('toggle', () => { if (det.open && !body.dataset.loaded) loadStatement(p, body); });
     probBox[p.id] = { det, mark };
     box.append(det);
+    if (wasOpen.has(String(p.id))) det.open = true;   // o toggle carrega o enunciado de novo
   });
   markProblems();
 }
@@ -253,7 +261,8 @@ function submitBox(p) {
   if (!me || me.state !== 'running') return el('p', { class: 'muted small' }, T('A participação terminou: o envio está fechado.', 'The participation has ended: submitting is closed.', 'La participación terminó: el envío está cerrado.'));
   const langs = probLangs(p);
   const cfg = { functionLangs: p.function_langs || [] };
-  let cur = langs[0].id, editor = null;
+  const dr = drafts[p.id];
+  let cur = (dr && langs.some((l) => l.id === dr.lang)) ? dr.lang : langs[0].id, editor = null;
   const sel = el('select', {}, ...langs.map((l) => el('option', { value: l.id }, l.label)));
   const mount = el('div');
   const box = el('div', { class: 'editor-box', style: 'height:420px' }, mount);
@@ -263,8 +272,10 @@ function submitBox(p) {
   file.addEventListener('change', () => { fname.textContent = file.files[0] ? file.files[0].name : ''; });
   const steps = el('span', { class: 'submit-steps' });
   const btn = el('button', { class: 'btn', type: 'button' }, T('Enviar', 'Submit', 'Enviar') + ' ' + p.letter);
+  sel.value = cur;
+  liveEd[p.id] = () => (editor ? { lang: cur, code: editor.getValue() } : drafts[p.id]);
   (async () => {
-    editor = await createEditor(mount, { doc: skeletonFor(cur, cfg), cm: langById(cur).cm, tab: 'indent' });
+    editor = await createEditor(mount, { doc: (dr && dr.lang === cur) ? dr.code : skeletonFor(cur, cfg), cm: langById(cur).cm, tab: 'indent' });
     sel.addEventListener('change', async () => {
       const txt = docOnLangChange(editor ? editor.getValue() : '', sel.value, cfg); cur = sel.value; mount.innerHTML = '';
       editor = await createEditor(mount, { doc: txt, cm: langById(cur).cm, tab: 'indent' });
@@ -553,8 +564,10 @@ let clarItems = [], clarSig = '';
 let seen = new Set();
 try { seen = new Set(JSON.parse(localStorage.getItem(SKEY) || '[]')); } catch { /* storage indisponível */ }
 const saveSeen = () => { try { localStorage.setItem(SKEY, JSON.stringify([...seen])); } catch { /* idem */ } };
-const relTxt = (it) => (it.kind === 'news' && it.rel === 0) ? T('antes da prova', 'before the contest', 'antes de la competencia')
-  : (it.rel > info.duration ? T('depois da prova', 'after the contest', 'después de la competencia')
+// rel null = o servidor não achou um instante válido p/ o item (ele só sai com a participação terminada)
+const relTxt = (it) => it.rel == null ? T('sem horário', 'no time', 'sin horario')
+  : (it.kind === 'news' && it.rel === 0) ? T('antes da prova', 'before the contest', 'antes de la competencia')
+  : (it.after || it.rel > info.duration ? T('depois da prova', 'after the contest', 'después de la competencia')
     : (it.kind === 'clar' ? T('respondida aos ', 'answered at ', 'respondida a los ') : T('aos ', 'at ', 'a los ')) + hms(it.rel));
 async function loadClar() {
   if (!tabsOn() || loadClar.busy) return; loadClar.busy = true;
@@ -633,6 +646,8 @@ async function loadDocs() {
       onclick: (e) => { e.preventDefault(); openPdf('/treino/virtual/doc?contest=' + enc(CID) + '&type=' + enc(x.type) + '&lang=' + enc(l)); } }, l.toUpperCase()))));
   });
   (d.links || []).forEach((x) => rows.push(el('div', { class: 'doc-line' }, '🔗 ', el('a', { href: x.url, target: '_blank', rel: 'noopener noreferrer' }, x.label))));
+  // links externos não têm data e mostram o estado de AGORA (placar final, vídeo das soluções): só no fim
+  if (d.links_locked) rows.push(el('div', { class: 'doc-line muted' }, '🔒 ', el('b', {}, T('🔗 Links da prova', '🔗 Contest links', '🔗 Enlaces de la competencia')), ' — ', T('liberam quando a sua participação terminar', 'unlock when your participation ends', 'se liberan cuando termine tu participación')));
   $('vdocssec').classList.toggle('hidden', !rows.length);
   $('vdocs').replaceChildren(...rows);
 }

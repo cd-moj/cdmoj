@@ -954,6 +954,28 @@ cmd_claim_urgent() {  # <host> : reivindica 1 comando URGENTE (kill|restart), de
     done < <(find "$CMDDIR/$host" -maxdepth 1 -name '*.json' 2>/dev/null | sort)
   ) 9>"$CMDDIR/$host/.lock"
 }
+# cmd_calibrate_request <host> <by> <id> <reuse 0|1> -> "<status>\t<cmdid>" (status queued|already_queued): o pedido de
+# calibração DIRIGIDO, com o dedup e o "rodar tudo vence" (_req_drop_reuse) SOB A TRAVA do host — a mesma do cmd_claim.
+# Fora dela (revisão de 10/11/2026) o juiz podia pegar o comando entre a busca e a troca: o "rodar tudo" respondia
+# already_queued e o juiz rodava só a ♻.
+cmd_calibrate_request() {
+  local host="$1" by="$2" id="$3" reuse="${4:-0}"
+  valid_hostname "$host" || return 1
+  _mkd "$CMDDIR/$host"
+  (
+    flock -w "${CMD_LOCK_WAIT:-10}" 9 || exit 1
+    local cid rx='{}'
+    cid="$(cmd_find_calibrate "$host" "$id")"
+    if [[ -n "$cid" ]]; then
+      [[ "$reuse" == 1 ]] || _req_drop_reuse "$CMDDIR/$host/$cid.json"
+      printf 'already_queued\t%s' "$cid"
+    else
+      [[ "$reuse" == 1 ]] && rx='{"reuse":true}'
+      cid="$(cmd_request "$host" calibrate "$by" "$id" "$rx")" || exit 1
+      printf 'queued\t%s' "$cid"
+    fi
+  ) 9>"$CMDDIR/$host/.lock"
+}
 cmd_claim() {  # <host> : reivindica 1 comando pendente do host (ecoa + remove), atômico.
   # LARGURA: `calibrate` de problema com CPUNEEDED=k só sai se k_slots cabe (QC_* do heartbeat);
   # não cabe ⇒ fica no diretório e o próximo comando é examinado. Sai com {test_cpus,same_numa,slots}.

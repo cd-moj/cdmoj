@@ -205,6 +205,20 @@ vr_clock(){
   else VR_ELAPSED=$VR_DUR; VR_ENDED=1; fi
   return 0
 }
+# VR_TIME_JQ — A REGRA DE TEMPO do que o virtual libera (avisos, clarifications, notícias e anexo; 10/11/2026), fonte
+# única do /clarifications e do /news-file. Usa $st (início da prova), $dur, $el (decorrido da run) e $ended.
+#   vr_at(lista) = o instante em que o item saiu: o MAIOR dos candidatos válidos (> 0) — o aviso reeditado pelo chefe
+#                  regrava `answered_at` e a notícia editada leva `edited_at`, e é a versão de AGORA que o cliente recebe;
+#                  nenhum válido (lixo, ausente) = null.
+#   vr_rel(at)   = segundos desde o início (antes da prova = 0); null p/ sem instante.
+#   vr_after(at) = saiu depois do fim — ou não tem instante: FALHA FECHADO, só com a run terminada.
+#   vr_vis(at)   = o cliente pode receber agora.
+VR_TIME_JQ='
+  def vr_at($xs): [$xs[] | tonumber? | select(. > 0)] | max;
+  def vr_rel($at): if $at == null then null else ([$at - $st, 0] | max) end;
+  def vr_after($at): $at == null or (($at - $st) > $dur);
+  def vr_vis($at): $ended or ((vr_after($at) | not) and vr_rel($at) <= $el);
+'
 # vr_freeze_rel <cid> -> o instante do FREEZE da prova em segundos desde o início (o "Encerrar evento" o preserva em
 # var/freeze-final.json antes de zerar o FREEZE_TIME), ou nada (sem registro, ou fora da janela)
 vr_freeze_rel(){

@@ -29,8 +29,12 @@ export async function readZip(file, opts = {}) {
   const cenOff = tail.getUint32(eocd + 16, true);
   if (count === 0xffff || cenOff === 0xffffffff) throw bad('Zip grande demais (ZIP64): divida em pacotes menores.', 'Zip too large (ZIP64): split it into smaller packages.', 'Zip demasiado grande (ZIP64): divídelo en paquetes más pequeños.');
   if (count > maxEntries) throw bad(`O zip tem ${count} arquivos; o máximo é ${maxEntries}.`, `The zip has ${count} files; the maximum is ${maxEntries}.`, `El zip tiene ${count} archivos; el máximo es ${maxEntries}.`);
+  if (cenOff + cenSize > file.size) throw bad('Zip corrompido (índice).', 'Corrupted zip (index).', 'Zip dañado (índice).');
   const cen = new DataView(await file.slice(cenOff, cenOff + cenSize).arrayBuffer());
-  const dec = new TextDecoder();
+  // NOME: o zip marca UTF-8 no bit 11 das flags; sem ele, o do Windows grava na página de código local (CP437/1252) e o
+  // UTF-8 estrito falha — aí vai o windows-1252 (o login é ASCII, que as duas leem igual; acento sai legível)
+  const utf8 = new TextDecoder('utf-8', { fatal: true }), legacy = new TextDecoder('windows-1252');
+  const decName = (u8, flags) => { if (flags & 0x800) return new TextDecoder().decode(u8); try { return utf8.decode(u8); } catch { return legacy.decode(u8); } };
   const out = [];
   let p = 0, total = 0;
   for (let k = 0; k < count; k++) {
@@ -39,7 +43,8 @@ export async function readZip(file, opts = {}) {
     const csize = cen.getUint32(p + 20, true), usize = cen.getUint32(p + 24, true);
     const nlen = cen.getUint16(p + 28, true), xlen = cen.getUint16(p + 30, true), clen = cen.getUint16(p + 32, true);
     const loc = cen.getUint32(p + 42, true);
-    const name = dec.decode(new Uint8Array(cen.buffer, cen.byteOffset + p + 46, nlen));
+    if (p + 46 + nlen > cen.byteLength) throw bad('Zip corrompido (índice).', 'Corrupted zip (index).', 'Zip dañado (índice).');
+    const name = decName(new Uint8Array(cen.buffer, cen.byteOffset + p + 46, nlen), flags);
     p += 46 + nlen + xlen + clen;
     const base = name.split('/').pop();
     if (!base || name.endsWith('/') || /(^|\/)__MACOSX\//.test(name) || base.startsWith('.')) continue;
@@ -54,19 +59,27 @@ export async function readZip(file, opts = {}) {
 }
 
 async function entryBlob(file, loc, method, csize, usize, name, bad) {
+  // TRUNCADO OU CORROMPIDO dá a MESMA mensagem clara (revisão de 10/11/2026): antes o arquivo cortado saía MENOR e
+  // calado (o servidor recebia meia foto) e o deflate quebrado subia o TypeError cru do navegador
+  const broken = () => bad(`Zip corrompido em "${name}".`, `Corrupted zip at "${name}".`, `Zip dañado en "${name}".`);
+  if (loc + 30 > file.size) throw broken();
   const h = new DataView(await file.slice(loc, loc + 30).arrayBuffer());
-  if (h.getUint32(0, true) !== SIG_LOC) throw bad(`Zip corrompido em "${name}".`, `Corrupted zip at "${name}".`, `Zip dañado en "${name}".`);
+  if (h.getUint32(0, true) !== SIG_LOC) throw broken();
   const start = loc + 30 + h.getUint16(26, true) + h.getUint16(28, true);
+  if (start + csize > file.size) throw broken();
   const raw = file.slice(start, start + csize);
-  if (method === 0) return raw;
+  if (method === 0) { if (csize !== usize) throw broken(); return raw; }
   const ds = raw.stream().pipeThrough(new DecompressionStream('deflate-raw'));
   const r = ds.getReader(); const parts = []; let n = 0;
   for (;;) {
-    const { done, value } = await r.read();
+    let step;
+    try { step = await r.read(); } catch { throw broken(); }
+    const { done, value } = step;
     if (done) break;
     n += value.byteLength;
     if (n > usize) { try { r.cancel(); } catch (e) { /* já parou */ } throw bad(`"${name}" é maior do que o zip declara.`, `"${name}" is larger than the zip declares.`, `"${name}" es más grande de lo que el zip declara.`); }
     parts.push(value);
   }
+  if (n !== usize) throw broken();      // descompactou MENOS do que o zip declara
   return new Blob(parts);
 }

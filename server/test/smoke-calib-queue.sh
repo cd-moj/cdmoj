@@ -128,6 +128,18 @@ _req_drop_reuse "$CMDDIR/juiz1/$cid.json"
 ck "_req_drop_reuse tira o campo do comando"     '! jq -e "has(\"reuse\")" "$CMDDIR/juiz1/$cid.json" >/dev/null && [[ "$(jq -r .id "$CMDDIR/juiz1/$cid.json")" == "col#pq" ]]'
 cid2="$(cmd_request juiz1 calibrate autor "col#pz")"
 ck "comando sem o 5º argumento: sem reuse"       '! jq -e "has(\"reuse\")" "$CMDDIR/juiz1/$cid2.json" >/dev/null'
+r="$(cmd_calibrate_request juiz2 autor "col#pv" 1)"; c2="${r#*$'\t'}"
+ck "cmd_calibrate_request: cria com reuse (queued)" '[[ "${r%%$'"'"'\t'"'"'*}" == queued ]] && jq -e ".reuse == true" "$CMDDIR/juiz2/$c2.json" >/dev/null'
+r="$(cmd_calibrate_request juiz2 autor "col#pv" 0)"
+ck "…um rodar-tudo sobre ele: already_queued, o MESMO comando, sem reuse" '[[ "$r" == "already_queued"$'"'"'\t'"'"'"$c2" ]] && ! jq -e "has(\"reuse\")" "$CMDDIR/juiz2/$c2.json" >/dev/null'
+r="$(cmd_calibrate_request juiz2 autor "col#pv" 1)"
+ck "…e uma ♻ depois não o religa" '[[ "${r%%$'"'"'\t'"'"'*}" == already_queued ]] && ! jq -e "has(\"reuse\")" "$CMDDIR/juiz2/$c2.json" >/dev/null'
+# a trava do host ocupada: não enfileira nada e devolve erro (o handler responde 503 busy se nenhum host recebeu)
+mkdir -p "$CMDDIR/juiz3"; exec 7>"$CMDDIR/juiz3/.lock"; flock 7
+n0="$(find "$CMDDIR/juiz3" -name '*.json' | wc -l)"
+CMD_LOCK_WAIT=1 cmd_calibrate_request juiz3 autor "col#pt" 0 >/dev/null; rc=$?
+ck "trava ocupada: rc≠0 e nenhum comando criado" '(( rc != 0 )) && [[ "$(find "$CMDDIR/juiz3" -name "*.json" | wc -l)" == "$n0" ]]'
+exec 7>&-
 out="$(cmd_request juiz1 calibrate autor "col#pw" '{"reuse":true,"cmdid":"forjado","action":"kill"}')"
 ck "o extra nunca sobrescreve cmdid/action/id"   '[[ "$(jq -r ".cmdid + \" \" + .action" "$CMDDIR/juiz1/$out.json")" == "$out calibrate" ]]'
 

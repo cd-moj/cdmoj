@@ -146,7 +146,10 @@ com `team-music` (`audio/mpeg`, 206 com `Range`). Rode
 
 **Balde da autoria (10/11/2026).** O `/api/v1/problems/` (editor, Painel de problemas, CLI `moj`) fica fora do
 anteparo do treino (`moj_site`), para o autor que termina um problema da prova não levar 429, mas tem zonas próprias
-(bloco "AUTORIA" do `conf.d/moj.conf`): **6 pedidos em voo por sessão** (o token; sem token, o IP) e **12 no total**.
+(bloco "AUTORIA" do `conf.d/moj.conf`): **6 pedidos em voo por sessão** (o token; sem token, o IP), **8 por IP** e
+**12 no total**, com `client_body_timeout 15s`. A chave por sessão é o cabeçalho que o cliente manda; o teto por IP é
+o que reparte o total entre as origens. Numa sala com NAT (todos os autores pelo mesmo IP) o teto é 8 pedidos em voo
+para a sala inteira.
 Um script em laço sobre `/problems/{tl,calib,status,validation}` ocupava workers do pool de 64 sem teto nenhum (LATAM,
 07/11). O excedente leva 429; a CLI o repete sozinha (1, 2, 4, 8 s). Mudou o template ⇒ reinstale o nginx e rode
 `server/test/smoke-problems-limit.sh` (sobe um nginx de teste com upstream lento e conta os 429).

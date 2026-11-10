@@ -66,7 +66,10 @@ pda_check(){ # <cfg> → stdout: array JSON de erros
     def int: type == "number" and floor == .;
     def nonneg: int and . >= 0;
     def strs: type == "array" and all(.[]; type == "string");
-    def label_ok: . == null or type == "string" or (type == "object" and all(to_entries[]; (.key | test("^(pt|en|es)$")) and (.value | type) == "string" or .key == "short"));
+    # o `short` é texto ou {pt,en,es} de textos — antes `… and … or .key == "short"` (o `and` liga antes do `or`)
+    # aceitava QUALQUER valor no short (número, objeto aninhado) e o renderer quebrava (revisão de 10/11/2026)
+    def lang_str_ok: type == "string" or (type == "object" and all(to_entries[]; (.key | test("^(pt|en|es)$")) and ((.value | type) == "string")));
+    def label_ok: . == null or type == "string" or (type == "object" and all(to_entries[]; if .key == "short" then (.value | lang_str_ok) else (.key | test("^(pt|en|es)$")) and ((.value | type) == "string") end));
     def ms($p): if type != "object" then "\($p): objeto" elif has("min_solved") and ((.min_solved | nonneg) | not) then "\($p).min_solved: inteiro ≥ 0" else empty end;
     ["p1","p2","p3","p4","manual","lista","reserva","comite"] as $reserved
     | if type != "object" then ["a config tem de ser um objeto"] else [

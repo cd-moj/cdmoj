@@ -15,15 +15,21 @@
 #   role_can <cap> [login]   → rc 0 se o papel (do login; padrão: a sessão) tem a capacidade (admin = tudo)
 #   role_is <login> <suf…>   → rc 0 se o login tem um desses sufixos
 #   role_glob_scoped         → globs "*.<suf>" dos papéis com escopo (p/ find -name)
-ROLES_TSV="${ROLES_TSV:-${BASH_SOURCE[0]%/*}/../../../etc/roles.tsv}"
+# MOJ_ROLES_TSV = o mesmo nome no bash, no porteiro e no ingest-drain (p/ teste; produção usa o arquivo do checkout)
+ROLES_TSV="${MOJ_ROLES_TSV:-${BASH_SOURCE[0]%/*}/../../../etc/roles.tsv}"
 declare -gA ROLE_NAV=() ROLE_CLASS=() ROLE_SCOPED=() ROLE_CAN=()
 declare -ga ROLE_SUFFIXES=()
 _roles_load() {
-  local suf nav cls esc pode
+  local suf nav cls esc pode ln=0
   [[ -r "$ROLES_TSV" ]] || { printf 'roles.sh: registro ausente: %s\n' "$ROLES_TSV" >&2; return 1; }
   while IFS=$'\t' read -r suf nav cls esc pode || [[ -n "$suf" ]]; do
+    ln=$((ln + 1))
+    # CRLF (arquivo salvo no Windows) é tolerado: o `\r` sai de cada campo
+    suf="${suf%$'\r'}"; nav="${nav%$'\r'}"; cls="${cls%$'\r'}"; esc="${esc%$'\r'}"; pode="${pode%$'\r'}"
     [[ -z "$suf" || "$suf" == \#* ]] && continue
-    [[ "$suf" =~ ^[a-z]+$ ]] || continue
+    # LINHA MALFORMADA É FATAL, como o registro vazio (falha fechado)
+    [[ "$suf" =~ ^[a-z]+$ && -n "$nav" && "$cls" =~ ^(org|sala)$ && "$esc" =~ ^(sim|nao)$ && -n "$pode" ]] \
+      || { printf 'roles.sh: linha %s malformada (%s): sufixo, nav, classe org|sala, escopo sim|nao, capacidades\n' "$ln" "$ROLES_TSV" >&2; return 1; }
     ROLE_SUFFIXES+=("$suf"); ROLE_NAV[$suf]="$nav"; ROLE_CLASS[$suf]="$cls"
     ROLE_SCOPED[$suf]="$esc"; ROLE_CAN[$suf]=" $pode "
   done < "$ROLES_TSV"

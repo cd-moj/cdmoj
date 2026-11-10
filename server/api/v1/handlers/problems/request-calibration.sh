@@ -20,19 +20,19 @@ repo="${id%%#*}"; [[ "$repo" == "$id" ]] && repo="${id%%/*}"   # org; pacote já
 
 hosts="$(jq -c '.hosts // []' <<<"$body" 2>/dev/null)"; [[ -n "$hosts" ]] || hosts='[]'
 reuse="$(jq -r 'if .reuse == true then 1 else 0 end' <<<"$body" 2>/dev/null)"; [[ "$reuse" == 1 ]] || reuse=0
-rx='{}'; (( reuse )) && rx='{"reuse":true}'
 if (( $(jq 'length' <<<"$hosts") > 0 )); then
   # DEDUP direcionado: calibrate ainda não entregue ao host p/ o mesmo id não é duplicado
-  sent='[]'
+  sent='[]'; busy=0
   while IFS= read -r h; do
     valid_hostname "$h" || continue
-    st="queued"
-    cid="$(cmd_find_calibrate "$h" "$id")"
-    if [[ -n "$cid" ]]; then st="already_queued"; (( reuse )) || _req_drop_reuse "$CMDDIR/$h/$cid.json"
-    else cid="$(cmd_request "$h" calibrate "$SESSION_LOGIN" "$id" "$rx")"; fi
+    # busca + "rodar tudo vence" + criação SOB a trava do host (a do cmd_claim — sched-lib cmd_calibrate_request)
+    r="$(cmd_calibrate_request "$h" "$SESSION_LOGIN" "$id" "$reuse")" || { busy=1; continue; }
+    st="${r%%$'\t'*}"; cid="${r#*$'\t'}"
     [[ -n "$cid" ]] && sent="$(jq -c --arg h "$h" --arg c "$cid" --arg s "$st" \
                                '. + [{host:$h, cmdid:$c, status:$s}]' <<<"$sent")"
   done < <(jq -r '.[]' <<<"$hosts")
+  # nenhum juiz recebeu o pedido porque a trava de todos estourou: dizer "queued" seria mentir para o editor
+  (( busy )) && [[ "$sent" == '[]' ]] && fail 503 "Fila de calibração ocupada, tente de novo" "busy"
   audit_log "calibrate" "id=$id targeted_hosts=$(jq 'length' <<<"$sent") reuse=$reuse"
   # o `status` do topo REFLETE os hosts: era a string fixa "queued" mesmo quando todos caíram no
   # dedup, e o editor (que só lê o topo) dizia "Calibração disparada ✓" sem ter disparado nada —

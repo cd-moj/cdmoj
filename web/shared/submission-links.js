@@ -96,7 +96,11 @@ const srcExt = (s) => ((s && s.lang) ? String(s.lang) : 'txt').toLowerCase();
 // ESQUERDO simples é interceptado: o log abre o report numa aba (como sempre) e o código abre o POP-UP com cor de
 // sintaxe (pedido do Paulo). Ctrl/Cmd/Shift-clique, clique do meio e "abrir em nova aba" vão para a página.
 // No TREINO não há página da submissão (ela é do juiz de contest; ali quem vê é o próprio dono): o link segue `#`.
-const hasRunPage = (contest) => !!contest && contest !== 'treino';
+// Também não há para quem NÃO é juiz (o `.mon` vê Todas as Submissões, mas a página e o /submission/info são só de
+// juiz — revisão de 10/11/2026: o link levava a um 403): a página chama setRunPage(false) e os links seguem `#`.
+let RUN_PAGE = true;
+export const setRunPage = (on) => { RUN_PAGE = !!on; };
+const hasRunPage = (contest) => RUN_PAGE && !!contest && contest !== 'treino';
 export const runHref = (contest, id, hash) => (hasRunPage(contest)
   ? `/contest/run/?c=${enc(contest)}&id=${enc(id)}` + (hash ? '#' + hash : '') : '#');
 const plainClick = (e) => e.button === 0 && !e.ctrlKey && !e.metaKey && !e.shiftKey && !e.altKey;
@@ -116,6 +120,7 @@ export function srcLink(contest, s, label) {
 }
 // o id curto (8 hex, o que se dita e se procura) como link para a página da submissão
 export function runLink(contest, s, label) {
+  if (!hasRunPage(contest)) return el('span', { class: 'small', style: 'font-family:var(--mono,monospace)', title: String(s.id || '') }, label || String(s.id || '').slice(0, 8));
   return el('a', { href: runHref(contest, s.id), class: 'small', style: 'font-family:var(--mono,monospace)',
     title: T('página da submissão: ', 'submission page: ', 'página del envío: ') + s.id }, label || String(s.id || '').slice(0, 8));
 }

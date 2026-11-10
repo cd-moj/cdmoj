@@ -8,7 +8,7 @@ import { status } from '/shared/auth.js';
 import { el, verdictClass, isPending, fmtDate } from '/shared/ui.js';
 import { T } from '/shared/i18n.js';
 import { mountChrome } from '/lib/contest-chrome.js';
-import { srcLink, logLink, runLink } from '/shared/submission-links.js';
+import { srcLink, logLink, runLink, setRunPage } from '/shared/submission-links.js';
 import { langLabel } from '/shared/languages.js';
 
 const qs = new URLSearchParams(location.search);
@@ -200,6 +200,7 @@ async function boot() {
   const isMon = /\.mon$/.test(st.login || '');
   if (!st.is_admin && !st.is_chief && !st.is_judge && !isMon) { document.body.innerHTML = `<div class="container"><div class="notice">${T('Acesso restrito a administradores, juízes e monitores.', 'Restricted to administrators, judges and monitors.', 'Restringido a administradores, jueces y monitores.')}</div></div>`; return; }
   FULL = !!(st.is_admin || st.is_chief);
+  setRunPage(!!(st.is_admin || st.is_chief || st.is_judge));   // a página da submissão é só de juiz (o .mon não abre)
 
   await mountChrome(CONTEST, basic, { auth: true });
 

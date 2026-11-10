@@ -224,9 +224,10 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   FAIL) — foram 76 cópias com 7 divergências. Papel novo = 1 linha no TSV + o que ele pode nas rotas + nav. "Fora da
   prova" (`contest-gate.sh _role_off_contest`) = papel sem `julgar` nem `como_time`: sem enunciado, sem submeter (também
   offline), sem pedir impressão. **Os papéis com escopo de 09/11 falham FECHADO** (sem escopo, ninguém): `.foto`/`.musica`
-  (telão: foto OU música do escopo), `.sistemas` (nutella + `site-lock` recortado, POST só `release` de IP da sede),
+  (telão: foto OU música do escopo), `.sistemas` (nutella + `site-lock` recortado, POST só `release` de IP da sede — IP da sede = preso agora e com a reivindicação auditada MAIS RECENTE de um login do escopo),
   `.diretor` (`score.sh` → `pr_filter_board_subset`: SEM freeze, só o escopo, ★ recalculada no recorte e retida quando o
-  placar inteiro a retém; o porteiro declina). Teste: `smoke-roles-new.sh`.
+  placar inteiro a retém OU quando um time do escopo tem run não julgada enviada até o melhor AC do recorte — a
+  pendência vem do `metrics.json` das contas do escopo; o porteiro declina). Teste: `smoke-roles-new.sh`.
   **`.cjudge`** = juiz-chefe: `is_judge` vale p/ ele (herda juiz) + `is_chief`/`is_admin_or_chief`
   p/ os extras escopados (editar notícias/respostas já dadas, Situação, Todas Submissões, resolver
   conflitos, config de auto-veredicto) — **não** é admin pleno. **`.cstaff`** = chefe de staff de
@@ -750,7 +751,7 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   desligado por padrão, sempre dá p/ rodar tudo)**: `/problems/request-calibration {reuse:true}` → o update/comando leva
   `reuse` (`cal_request` 4º arg, `cmd_request` 5º = objeto extra; o extra nunca sobrescreve os campos próprios) → o
   agente roda o calibreitor com `MOJ_CALIB_REUSE=1` e o memo por solução do juiz (`<cache>/<id>/calib-memo`, mojtools)
-  só roda o que mudou. Dedup: "rodar tudo" vence (`_req_drop_reuse`). Web: ☐ ♻ em "Validação & calibração" (vale p/
+  só roda o que mudou. Dedup: "rodar tudo" vence (`_req_drop_reuse`); no pedido DIRIGIDO a busca, a troca e a criação rodam sob a trava do host, a do `cmd_claim` (`cmd_calibrate_request`, sched-lib): fora dela o juiz podia levar a ♻ entre a busca e a troca. Web: ☐ ♻ em "Validação & calibração" (vale p/
   os botões, o "Calibrar" e o recalibrar do Salvar; lembrado no localStorage), selo "♻ reaproveitado" na solução
   (`sols[].reused_at`, que o `/judge/calib-report` agora passa — junto com o `tests[].wall`, que a projeção fechada
   DESCARTAVA desde o TLCLOCK=cpu: a simulação só via a morte pela parede no teste, que grava o arquivo do host direto).
@@ -867,7 +868,7 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
 - **Regra do veredicto** (`VERDICT_RULE=first` no conf do contest, 09/11/2026; Central › Regras, campo `verdict_rule`
   do `/contest/admin/settings`, `moj-contest settings set verdict_rule=`): `first` = o do 1º teste que falhou (exemplos
   primeiro, depois o nome natural) · ausente/`worst` = o do teste mais grave (o de sempre; treino nunca muda). Contest
-  NOVO nasce `first` (`cc_settings_conf_lines`: só `verdict_rule:"worst"` explícito não grava); o export leva sempre a
+  NOVO do modo icpc nasce `first` (`cc_settings_conf_lines`: só `verdict_rule:"worst"` explícito não grava; nos outros modos só `"first"` explícito grava — com STOPWHEN a ordem muda a nota); o export leva sempre a
   regra (duplicate de antigo continua `worst`). Vai no JOB ao enfileirar (`intake_enqueue` e o gêmeo `spool-drain.py`;
   rejulgamento passa pelo mesmo intake) → agente (`MOJ_VERDICT_RULE`) → mojtools `build-and-test.sh`. A info sheet diz a
   regra (`{{VERDICT_RULE}}`), e o preflight `stop_first` muda o porquê. Teste: `smoke-verdict-rule.sh` (+ deprio, preflight).
@@ -1176,7 +1177,8 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
 - **BALDE DA AUTORIA no nginx** (10/11/2026; LATAM: uma ferramenta em laço sobre `/problems/{tl,calib,status,validation}`,
   70/min a 1,47 s, ocupava ~3 workers do pool sem teto): `location /api/v1/problems/` segue FORA do `moj_site` (autor
   terminando problema da prova não leva o 429 do treino), mas com `limit_conn moj_problems_key 6` (por sessão = o
-  `Authorization`; sem ele, o IP) e `limit_conn moj_problems 12` (total). Zonas no bloco "AUTORIA", IGUAL nos dois
+  `Authorization`; sem ele, o IP), `limit_conn moj_problems_ip 8` (por IP: a chave da sessão é o cabeçalho do cliente; o
+  teto por IP reparte o total entre as origens) e `limit_conn moj_problems 12` (total), com `client_body_timeout 15s`. Zonas no bloco "AUTORIA", IGUAL nos dois
   `moj-prod*.conf.in`. O editor abre com ≤5 pedidos em paralelo; a CLI (`_api_retry_429`, moj-cli `lib/core.sh`) repete o
   429 do NGINX (corpo não-JSON) em 1, 2, 4, 8 s — o 429 da API (JSON) nunca — e a WEB também, só na autoria
   (`timedFetch` do `web/shared/api.js`: `/api/v1/problems/*`, 0,5/1/2/4 s; duas abas do editor abrindo juntas passam de 6;

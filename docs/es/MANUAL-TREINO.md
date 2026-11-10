@@ -1,4 +1,4 @@
-<!-- i18n-source: MANUAL-TREINO.md blob:4f5d234325d46267b9d2318b5add8341d8c30b8c -->
+<!-- i18n-source: MANUAL-TREINO.md blob:80783a56b923fb8e300e827a05141d498ba8a4fb -->
 # MOJ: Manual del Entrenamiento libre (estudiante)
 
 > **Nota de traducción.** Este manual es una traducción del original en portugués. Las herramientas de línea de comandos (`moj`, `moj-contest`, `moj-comp`) muestran sus mensajes en portugués, y los ejemplos de comandos son idénticos al original.
@@ -364,9 +364,22 @@ marcador oficial. Los equipos oficiales resuelven los problemas en el mismo minu
 
 1. **Lee las reglas y marca la casilla de aceptación.** No participes si ya viste los problemas. Haz la competencia entera.
 2. Elige **Empezar ahora** o **Programar** (hasta 7 días; puedes cancelar la programación).
-3. En la arena: abre un problema, elige el archivo y envíalo. El veredicto aparece en **Mis envíos**.
+3. En la arena: abre un problema, escribe en el editor (o elige un archivo) y envíalo. El veredicto aparece en
+   **Mis envíos**.
    El marcador muestra tu fila destacada, con la posición que ocuparías.
 4. **Terminar ahora** finaliza antes de tiempo.
+
+**La pantalla es la de la competencia.** Las pestañas son **Competencia · Marcador · Aclaraciones y avisos · Mis
+envíos · Ayuda**.
+
+- Cada problema muestra el **límite de tiempo por lenguaje** y tiene el **editor integrado**, al lado del enunciado en
+  pantalla ancha; **o enviar archivo…** sigue valiendo.
+- En **Competencia** están los **archivos de la competencia** que la organización publicó (cuaderno, entorno de
+  evaluación, límites de tiempo). El **editorial** y los enlaces externos se abren cuando termina tu participación.
+- Los **avisos y las aclaraciones públicas** llegan en el mismo minuto de la competencia en que salieron, con un
+  contador en la pestaña. No se puede preguntar: nadie responde el virtual.
+- El **marcador se congela** en el mismo minuto en que se congeló la competencia y se descongela cuando terminas. Tus
+  envíos se te muestran todo el tiempo.
 
 **Filtros del marcador.** La barra es la misma del marcador de la competencia: **Marcador** (por ejemplo, solo los equipos
 oficiales, sin invitados), **Bandera**, **Universidad**, **Sede** y la búsqueda. Con un filtro activo, el

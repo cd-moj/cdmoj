@@ -38,7 +38,7 @@ export function tlChips(p, langs) {
 export function tlParts(p, langs) {
   const chips = tlChips(p, langs);
   if (!chips.length) return [];
-  const out = [el('span', { class: 'tl-label' }, '⏱ ' + T('Tempo limite', 'Time limit', 'Límite de tiempo'))];
+  const out = [el('span', { class: 'tl-label' }, '⏱ ' + T('Tempo limite', 'Time limit', 'Tiempo límite'))];
   const clk = tlClockBadge(p); if (clk) out.push(clk);
   chips.forEach((c) => out.push(el('span', { class: 'tl-chip' }, el('b', {}, c.label), el('span', { class: 'tl-time' }, fmtTime(c.time)))));
   return out;

@@ -2,7 +2,8 @@
 # smoke-verdict-rule.sh — REGRA DO VEREDICTO por contest (VERDICT_RULE, 09/11/2026; decisão do Ribas pós-LATAM).
 #   • Central › Regras (/contest/admin/settings): GET diz `verdict_rule` (ausente do conf = worst); POST first grava
 #     VERDICT_RULE=first, worst APAGA a linha (o de sempre), outro valor = 422 verdict_rule_invalid, nada gravado;
-#   • criação (/treino/contest-create/create): contest NOVO nasce com first; `verdict_rule:"worst"` explícito não grava;
+#   • criação (/treino/contest-create/create): contest NOVO do icpc nasce com first (os outros modos, worst, salvo first
+#     explícito); `verdict_rule:"worst"` explícito não grava;
 #   • export leva SEMPRE a regra (worst explícito p/ contest antigo) ⇒ duplicate de contest antigo continua worst e
 #     o de um first continua first; template guarda a regra.
 # O job (judged/spool-drain) é coberto em smoke-submit-deprio.sh; o juízo, no mojtools (test-final-loop.sh).
@@ -44,11 +45,16 @@ regras '{"verdict_rule":"worst"}'
 ck "worst apaga a linha"                          '[[ "$STATUS" == 200 && -z "$(vrof ct)" ]]'
 
 echo "== criação, export, duplicate, template =="
-spec(){ printf '{"id":"%s","name":"%s","mode":"icpc","end":%s%s,"problems":[{"problem_id":"a/b","name":"AB"}]}' "$1" "$1" "$FUT" "${2:+,\"verdict_rule\":\"$2\"}"; }
+spec(){ printf '{"id":"%s","name":"%s","mode":"%s","end":%s%s,"problems":[{"problem_id":"a/b","name":"AB"}]}' "$1" "$1" "${MODE:-icpc}" "$FUT" "${2:+,\"verdict_rule\":\"$2\"}"; }
 call /treino/contest-create/create POST "$(spec vr1)" t-prof
 ck "contest NOVO nasce first"                     '[[ "$STATUS" == 200 && "$(vrof vr1)" == first ]]'
 call /treino/contest-create/create POST "$(spec vr2 worst)" t-prof
 ck "worst explícito na criação: sem a linha"      '[[ "$STATUS" == 200 && -z "$(vrof vr2)" ]]'
+# fora do icpc a nota é o que vale (com STOPWHEN a ordem dos testes muda a nota): o first só entra pedido
+MODE=obi call /treino/contest-create/create POST "$(MODE=obi spec vr3)" t-prof
+ck "obi sem a chave: nasce worst (sem a linha)"   '[[ "$STATUS" == 200 && -z "$(vrof vr3)" ]]'
+call /treino/contest-create/create POST "$(MODE=obi spec vr4 first)" t-prof
+ck "obi com first explícito: grava first"         '[[ "$STATUS" == 200 && "$(vrof vr4)" == first ]]'
 call /treino/contest-create/export GET '' t-prof "id=ct"
 ck "export de contest antigo leva worst explícito" '[[ "$(jq -r ".spec.verdict_rule // .verdict_rule" <<<"$BODY")" == worst ]]'
 call /treino/contest-create/duplicate POST '{"from":"ct","id":"ctcopia"}' t-prof

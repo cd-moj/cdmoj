@@ -42,15 +42,16 @@ case "$action" in
     new="$(jq -cn --argjson cur "$cur" --arg id "$id" '[ $cur[] | select(.id != $id) ]')"
     ;;
   edit)
-    # editar notícia JÁ enviada: poder do juiz-chefe (e do admin). Mantém id/date/anexo.
+    # editar notícia JÁ enviada: poder do juiz-chefe (e do admin). Mantém id/date/anexo e carimba `edited_at` — a
+    # participação virtual libera a notícia pelo instante da versão que entrega (VR_TIME_JQ, lib/virtual.sh).
     is_admin_or_chief || fail 403 "Apenas admin/juiz-chefe editam notícias" "news_edit_forbidden"
     id="$(jq -r '.id // empty' <<<"$body")"
     [[ -n "$id" ]] || fail 400 "Informe o id" "id_missing"
     title="$(jq -r '.title // empty' <<<"$body")"; text="$(jq -r '.text // ""' <<<"$body")"
     [[ -n "$title" ]] || fail 422 "Informe o título" "title_missing"
     jq -e --arg id "$id" 'any(.[]; .id==$id)' <<<"$cur" >/dev/null 2>&1 || fail 404 "Notícia não encontrada" "notfound"
-    new="$(jq -cn --argjson cur "$cur" --arg id "$id" --arg t "$title" --arg x "$text" \
-      '[ $cur[] | if .id==$id then (.title=$t | .text=$x) else . end ]')"
+    new="$(jq -cn --argjson cur "$cur" --arg id "$id" --arg t "$title" --arg x "$text" --argjson now "$EPOCHSECONDS" \
+      '[ $cur[] | if .id==$id then (.title=$t | .text=$x | .edited_at=$now) else . end ]')"
     ;;
   *) fail 400 "action inválida (add|remove|edit)" "action_invalid" ;;
 esac

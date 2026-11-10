@@ -156,11 +156,13 @@ não tem título nesse idioma, o MOJ usa o título em português.
 
 > **Qual veredicto o time recebe.** Quando uma submissão erra em mais de um teste, a regra do
 > contest decide qual erro vale. Em **Central › Regras › Qual veredicto o time recebe**:
-> - **O do 1º teste que falhou** (o padrão de um contest novo, a regra do ICPC): os exemplos são
+> - **O do 1º teste que falhou** (o padrão de um contest ICPC novo, a regra do ICPC): os exemplos são
 >   julgados primeiro, depois os outros testes pelo nome, e vale o primeiro erro. Quem erra o exemplo
 >   recebe o erro do exemplo.
 > - **O do teste mais grave** (a regra antiga do MOJ; os contests criados antes de 09/11/2026 ficam
->   nela): vale o pior erro entre todos os testes (TLE/MLE, depois RE, depois WA).
+>   nela): vale o pior erro entre todos os testes (TLE/MLE, depois RE, depois WA). É também o padrão
+>   de um contest novo nos outros modos (OBI, treino, heurístico): lá a nota é o que vale e, num
+>   problema que para no primeiro erro, a ordem dos testes muda a nota.
 >
 > A mudança vale para os julgamentos e rejulgamentos feitos depois de salvar. Para aplicar a regra
 > nova a submissões antigas, rejulgue.
@@ -641,6 +643,22 @@ treino. Um contest que não pode ser visto por fora não deve ligar o módulo.
   linha do placar virtual (o registro fica guardado; **devolver** desfaz). A ação é auditada.
   O botão **devolver tentativa** apaga a linha e deixa aquela conta largar de novo neste contest. Use
   para um testador, ou para quem teve problema durante a prova. A ação também é auditada.
+
+**O que o participante vê do contest.** A tela tem a cara da prova (abas Prova · Placar · Clarifications & avisos ·
+Minhas submissões · Ajuda), e o servidor libera cada coisa no **tempo relativo** da participação:
+
+- os enunciados, com o **tempo-limite por linguagem**: o que julga a submissão virtual, isto é, o do treino agora (se o
+  problema foi recalibrado depois da prova, pode diferir da folha de tempos-limite);
+- os **documentos publicados** em Evento › Documentos (caderno, ambiente de julgamento, tempos-limite) desde a largada;
+  o **editorial** e os **links externos** dos Recursos, só quando a participação termina;
+- as **clarifications respondidas em público**, os **avisos oficiais** e as **notícias**, cada um no minuto da prova em
+  que saiu (o que saiu depois do fim, só quando a participação termina). Pergunta privada nunca aparece, e o
+  participante não pergunta: ninguém responderia. Aviso ou notícia **editados** contam pelo horário da edição;
+- o **placar congela** no mesmo minuto do freeze da prova (o **Encerrar evento** guarda esse minuto) e descongela
+  quando a participação termina.
+
+O que você publicar ou editar depois da prova também chega a quem fizer o virtual depois. Não publique ali o que não
+deve ser visto.
 
 **Regra do participante** (ele a lê antes de largar): uma participação por conta; pode desistir sem
 gravar nos primeiros 15 minutos ou enquanto não tiver nenhum aceito, no máximo 2 vezes; a 3ª largada

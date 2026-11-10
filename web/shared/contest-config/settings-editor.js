@@ -91,7 +91,13 @@ export function makeSettingsEditor({ value = {}, mode = 'admin', canSuper = fals
   const vRule = el('select', {},
     el('option', { value: 'first' }, T('O do 1º teste que falhou (exemplos primeiro, depois pelo nome)', 'The first failing test (samples first, then by name)', 'El del 1.er caso que falló (ejemplos primero, después por nombre)')),
     el('option', { value: 'worst' }, T('O do teste mais grave (TLE/MLE > RE > WA)', 'The most severe test (TLE/MLE > RE > WA)', 'El del caso más grave (TLE/MLE > RE > WA)')));
-  vRule.value = isCreate ? (s.verdict_rule === 'worst' ? 'worst' : 'first') : (s.verdict_rule === 'first' ? 'first' : 'worst');
+  // na criação o padrão segue o MODO (revisão de 10/11/2026: fora do icpc a nota é o que vale e, com STOPWHEN, a
+  // ordem dos testes muda a nota): first no icpc, worst nos outros — até o autor escolher (syncVRule, abaixo)
+  const vRuleSet = s.verdict_rule === 'first' || s.verdict_rule === 'worst';
+  let vRuleTouched = false;
+  vRule.addEventListener('change', () => { vRuleTouched = true; });
+  vRule.value = isCreate ? (vRuleSet ? s.verdict_rule : (contestMode === '' || contestMode === 'icpc' ? 'first' : 'worst'))
+    : (s.verdict_rule === 'first' ? 'first' : 'worst');
   const ua = el('input', { value: s.login_ua_substring || '', placeholder: T('substring do UA (vazio = sem gate)', 'UA substring (empty = no gate)', 'substring del UA (vacío = sin filtro)') });
   // data-k: o settings-tab esconde este campo sem o módulo `maquinas` (por chave, não por índice)
   const uaField = field(T('Gate de login por substring de UA (só não-privilegiados)', 'Login gate by UA substring (only non-privileged)', 'Filtro de inicio de sesión por substring de UA (solo no privilegiados)'), ua);
@@ -149,6 +155,7 @@ export function makeSettingsEditor({ value = {}, mode = 'admin', canSuper = fals
   };
   showLog.addEventListener('change', () => { showLogTouched = true; syncShowLog(); });
   syncShowLog();
+  const syncVRule = () => { if (isCreate && !vRuleSet && !vRuleTouched) vRule.value = cmode === 'icpc' ? 'first' : 'worst'; };
 
   const box = el('div', {});
   if (!isCreate) {
@@ -277,5 +284,5 @@ export function makeSettingsEditor({ value = {}, mode = 'admin', canSuper = fals
     if ('locale' in v) { base.locale = v.locale || 'pt'; base.locale_set = v.locale !== ''; }
     if (v.priority) prioInitial = v.priority;
   }
-  return { el: box, getValue, commit, setContestMode: (m) => { cmode = m; syncPen(); syncShowLog(); } };
+  return { el: box, getValue, commit, setContestMode: (m) => { cmode = m; syncPen(); syncShowLog(); syncVRule(); } };
 }

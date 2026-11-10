@@ -22,15 +22,23 @@ _sl_audit_json(){ # <action-prefix> [n] -> últimas linhas do audit com aquela a
            login:($d.login // ""), until:($d.until // "")} ] | reverse' 2>/dev/null || printf '[]'
 }
 
-# _sl_scope_ips <arq-saída> — (só .sistemas) os IPs reivindicados por logins do escopo, um por linha
+# _sl_scope_ips <arq-saída> — (só .sistemas) os IPs da sede, um por linha: o IP preso AGORA (sl_list, ativo) cuja
+# reivindicação MAIS RECENTE (auditoria site-lock-claim ip= login=; o registro da trava guarda só a contagem) é de um
+# login do escopo (staff_visible_logins). Toda linha nova de reivindicação é auditada, então a mais recente é a de quem
+# prende o IP hoje, qualquer que tenha sido o caminho que soltou o anterior. Sem escopo, ou IP sem reivindicação
+# auditada (claim-seen), nenhum IP.
 _sl_scope_ips(){
-  local vis="$1.vis"
+  local vis="$1.vis" w; w="$(mktemp -d)"
   source "$_LIBDIR/print.sh"
   staff_visible_logins "$contest" "$SESSION_LOGIN" > "$vis" 2>/dev/null || : > "$vis"     # sem escopo = nada
-  _sl_audit_json site-lock-claim 5000 | jq -r --rawfile v "$vis" '
+  _sl_audit_json site-lock-claim 5000 > "$w/c"
+  sl_list "$contest" > "$w/l"
+  jq -rn --rawfile v "$vis" --slurpfile c "$w/c" --slurpfile l "$w/l" '
     ($v | split("\n") | map(select(length > 0)) | map({(.): true}) | add // {}) as $V
-    | .[] | select($V[.login] == true) | .ip' 2>/dev/null | sort -u > "$1"
-  rm -f "$vis"
+    | ($l[0] | map(select(.active)) | map({(.ip): true}) | add // {}) as $A
+    | $c[0] | group_by(.ip) | map(max_by(.at))[]
+    | select($A[.ip] == true and $V[.login] == true) | .ip' 2>/dev/null | sort -u > "$1"
+  rm -rf "$vis" "$w"
 }
 
 if [[ "$REQUEST_METHOD" == GET ]]; then

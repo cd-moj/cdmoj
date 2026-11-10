@@ -71,7 +71,10 @@ async function mountReport(host, s) {
     if (!r.ok) { let m = ''; try { m = JSON.parse(body).error.message || ''; } catch { /* não é JSON */ } throw new Error(m || 'HTTP ' + r.status); }
     if (reportUrl) URL.revokeObjectURL(reportUrl);
     reportUrl = URL.createObjectURL(new Blob([body], { type: 'text/html' }));
-    host.replaceChildren(el('iframe', { class: 'run-report', src: reportUrl, title: 'report' }));
+    // sandbox SEM allow-scripts: o blob é da origem desta página (a do token) e o report não tem script (default-src
+    // 'none' no <head> dele) — o sandbox garante isso mesmo se um dia tiver. O allow-same-origin é o que deixa o Chrome
+    // carregar o blob (com origem opaca o iframe fica em branco) e, sem scripts, não dá poder nenhum ao documento.
+    host.replaceChildren(el('iframe', { class: 'run-report', src: reportUrl, title: 'report', sandbox: 'allow-same-origin' }));
   } catch (e) {
     host.replaceChildren(el('div', { class: 'error-box' }, T('Não foi possível abrir o report: ', 'Could not open the report: ', 'No se pudo abrir el informe: ') + (e.message || '')));
   }

@@ -87,10 +87,12 @@ LBL='{"country-part":{"pt":"Participação do país","en":"Country participation
 jq --argjson l "$LBL" '. + {labels:$l}' "$FIX/cfg.json" > "$FIX/c3.json"; bash "$ENG" sel "$FIX/c3.json" "$FIX/o3.json"
 eqk "$(jq -c '.via_order' "$FIX/o3.json")" '["manual","country-part","pend"]' "com labels: via_order = manual + as da config, na ordem"
 eqk "$(jq -r '"\(.labels["country-part"].short.en)|\(.labels.pend)|\(.labels.manual.short.en)"' "$FIX/o3.json")" "country|Pendente|organizers' choice" "com labels: os da config + o manual"
-for bad in '{"p1":"x"}' '{"comite":"x"}' '{"Maiusc":"x"}' '{"z":null}' '{"z":{"pt":1}}'; do
+for bad in '{"p1":"x"}' '{"comite":"x"}' '{"Maiusc":"x"}' '{"z":null}' '{"z":{"pt":1}}' '{"z":{"pt":"a","short":5}}' '{"z":{"short":{"pt":1}}}' '{"z":{"short":{"de":"x"}}}'; do
   jq --argjson l "$bad" '. + {labels:$l}' "$FIX/cfg.json" > "$FIX/k3.json"
   bash "$ENG" --check "$FIX/k3.json" 2>/dev/null; eqk "$?" 2 "--check recusa labels $bad"
 done
+jq --argjson l '{"z":{"pt":"Zê","short":"z"}}' '. + {labels:$l}' "$FIX/cfg.json" > "$FIX/k5.json"
+bash "$ENG" --check "$FIX/k5.json"; eqk "$?" 0 "--check aceita short em texto (e o {pt,en,es} do LBL acima)"
 # via_order (opcional): a ordem das seções; o que ficar de fora vem depois, sem repetir
 jq --argjson l "$LBL" '. + {labels:$l, via_order:["p2","country-part"]}' "$FIX/cfg.json" > "$FIX/c4.json"; bash "$ENG" sel "$FIX/c4.json" "$FIX/o4.json"
 eqk "$(jq -c '.via_order' "$FIX/o4.json")" '["p2","country-part","manual","pend"]' "via_order da config vem primeiro; o resto depois, sem repetir"

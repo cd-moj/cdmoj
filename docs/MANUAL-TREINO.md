@@ -358,9 +358,20 @@ placar oficial. Os times oficiais resolvem os problemas no mesmo minuto em que r
 
 1. **Leia as regras e marque o aceite.** Não participe se já viu os problemas. Faça a prova inteira.
 2. Escolha **Começar agora** ou **Agendar** (até 7 dias; o agendamento pode ser cancelado).
-3. Na arena: abra um problema, escolha o arquivo e envie. O veredicto aparece em **Minhas submissões**.
-   O placar mostra a sua linha em destaque, com a posição que você ocuparia.
+3. Na arena: abra um problema, escreva no editor (ou escolha um arquivo) e envie. O veredicto aparece em
+   **Minhas submissões**. O placar mostra a sua linha em destaque, com a posição que você ocuparia.
 4. **Encerrar agora** termina antes do tempo.
+
+**A tela é a da prova.** As abas são **Prova · Placar · Clarifications & avisos · Minhas submissões · Ajuda**.
+
+- Cada problema mostra o **tempo-limite por linguagem** e tem o **editor embutido**, ao lado do enunciado em tela
+  larga; **ou enviar arquivo…** continua valendo.
+- Em **Prova** ficam os **arquivos da prova** que a organização publicou (caderno, ambiente de julgamento,
+  tempos-limite). O **editorial** e os links externos abrem quando a sua participação termina.
+- Os **avisos e as clarifications públicas** chegam no mesmo minuto da prova em que saíram, com um contador na aba.
+  Não dá para perguntar: ninguém responde o virtual.
+- O **placar congela** no mesmo minuto em que a prova congelou e descongela quando você termina. As suas submissões
+  aparecem para você o tempo todo.
 
 **Filtros do placar.** A barra é a mesma do placar do contest: **Placar** (por exemplo, só os times
 oficiais, sem convidados), **Bandeira**, **Universidade**, **Sede** e a busca. Com filtro ativo, o

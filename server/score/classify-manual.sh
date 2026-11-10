@@ -26,7 +26,10 @@ set -u
 HERE="$(cd "$(dirname "$(readlink -f "$0")")" && pwd)"
 mn_check(){
   jq -c --slurpfile cat "$HERE/classify-catalog.json" 'def nonneg: type == "number" and floor == . and . >= 0;
-    def label_ok: . == null or type == "string" or (type == "object" and all(to_entries[]; (.key | test("^(pt|en|es)$")) and (.value | type) == "string" or .key == "short"));
+    # o `short` é texto ou {pt,en,es} de textos — antes `… and … or .key == "short"` (o `and` liga antes do `or`)
+    # aceitava QUALQUER valor no short (número, objeto aninhado) e o renderer quebrava (revisão de 10/11/2026)
+    def lang_str_ok: type == "string" or (type == "object" and all(to_entries[]; (.key | test("^(pt|en|es)$")) and ((.value | type) == "string")));
+    def label_ok: . == null or type == "string" or (type == "object" and all(to_entries[]; if .key == "short" then (.value | lang_str_ok) else (.key | test("^(pt|en|es)$")) and ((.value | type) == "string") end));
     ((["manual","lista","reserva","comite"] + ($cat[0].manual_vias // []) + (($cat[0].vias // {}) | keys)) | unique) as $reserved
     | if type != "object" then ["a config tem de ser um objeto {slots}"] else [
       (if (.slots | nonneg) | not then "slots: inteiro ≥ 0 (quantos times serão promovidos)" else empty end),

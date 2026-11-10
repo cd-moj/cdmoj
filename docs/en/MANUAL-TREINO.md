@@ -1,4 +1,4 @@
-<!-- i18n-source: MANUAL-TREINO.md blob:4f5d234325d46267b9d2318b5add8341d8c30b8c -->
+<!-- i18n-source: MANUAL-TREINO.md blob:80783a56b923fb8e300e827a05141d498ba8a4fb -->
 # MOJ: Free Training Manual (student)
 
 > **Translation note.** This manual is a translation of the Portuguese original. The command-line tools (`moj`, `moj-contest`, `moj-comp`) print their messages in Portuguese, and the command examples below are identical to the original.
@@ -369,10 +369,22 @@ the real contest.
 1. **Read the rules and accept them.** Do not participate if you already saw the problems. Do
    the full contest.
 2. Select **Start now** or **Schedule** (up to 7 days ahead; you can cancel the schedule).
-3. In the arena: open a problem, select the file, and submit. The verdict shows in
-   **My submissions**. The scoreboard highlights your row, with the position that you would
-   have.
+3. In the arena: open a problem, write in the editor (or select a file), and submit. The verdict
+   shows in **My submissions**. The scoreboard highlights your row, with the position that you
+   would have.
 4. **Finish now** ends before the time is over.
+
+**The page is the contest one.** The tabs are **Contest · Scoreboard · Clarifications & notices · My submissions ·
+Help**.
+
+- Each problem shows the **time limit per language** and has the **built-in editor**, next to the statement on a
+  wide screen; **or submit a file…** still works.
+- **Contest** has the **contest files** that the organization published (problem set, judging environment, time
+  limits). The **editorial** and the external links open when your participation ends.
+- The **notices and the public clarifications** arrive at the same contest minute when they came out, with a counter
+  on the tab. You cannot ask: nobody answers the virtual.
+- The **scoreboard freezes** at the same minute when the contest froze and unfreezes when you finish. Your own
+  submissions show to you all the time.
 
 **Scoreboard filters.** The bar is the same as on the contest scoreboard: **Board** (for example,
 only the official teams, without guests), **Flag**, **University**, **Site** and the search. When

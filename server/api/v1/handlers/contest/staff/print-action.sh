@@ -29,6 +29,9 @@ pr_task_can_see "$contest" "$meta" || fail 403 "Tarefa fora do seu escopo" "out_
 
 me="$SESSION_LOGIN"
 exec 9>"$dir/$id.lock"; flock -w 10 9 || fail 409 "Ocupado, tente de novo" "locked"
+# a tarefa pode ter sido APAGADA entre o -f e o lock (o pr_test_remove toma este lock antes de apagar): confere de novo
+# sob o lock — tarefa apagada não volta
+[[ -f "$meta" ]] || fail 404 "Pedido não encontrado" "notfound"
 
 cur="$(jq -r '.status // "pending"' "$meta")"
 seq="$(jq -r '.seq // 0' "$meta")"

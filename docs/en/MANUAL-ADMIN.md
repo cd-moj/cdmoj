@@ -1,4 +1,4 @@
-<!-- i18n-source: MANUAL-ADMIN.md blob:4881ce3a2b3284d553299f3fddf087649afe60c2 -->
+<!-- i18n-source: MANUAL-ADMIN.md blob:3b4128eb42ca2975fb65836cf1e1124db1774dff -->
 # MOJ: Organizer manual (the contest .admin panel)
 
 > **Translation note.** This manual is a translation of the Portuguese original. The command-line tools (`moj`, `moj-contest`, `moj-comp`) print their messages in Portuguese, and the command examples below are identical to the original.
@@ -164,11 +164,13 @@ contest offers it). If the problem has no title in that language, MOJ uses the P
 
 > **Which verdict the team gets.** When a submission fails more than one test, the contest rule
 > decides which error counts. In **Home › Rules › Which verdict the team gets**:
-> - **The first failing test** (the default of a new contest, the ICPC rule): the samples are judged
+> - **The first failing test** (the default of a new ICPC contest, the ICPC rule): the samples are judged
 >   first, then the other tests by name, and the first error counts. A team that fails the sample
 >   gets the error of the sample.
 > - **The most severe test** (the old MOJ rule; the contests created before 2026-11-09 keep it): the
->   worst error among all tests counts (TLE/MLE, then RE, then WA).
+>   worst error among all tests counts (TLE/MLE, then RE, then WA). It is also the default of a new
+>   contest in the other modes (OBI, training, heuristic): there the score is what counts and, in a
+>   problem that stops at the first error, the order of the tests changes the score.
 >
 > The change applies to the judgings and rejudgings done after you save. To apply the new rule to
 > old submissions, rejudge them.
@@ -681,6 +683,24 @@ accounts. A contest that must not be seen from outside must not turn on this mod
   The **give attempt back** button deletes the row and lets that account start again in this
   contest. Use it for a tester, or for a person who had a problem during the contest. This action
   is also audited.
+
+**What the participant sees of the contest.** The page looks like the contest (tabs Contest · Scoreboard ·
+Clarifications & notices · My submissions · Help), and the server releases each item at the **relative time** of the
+participation:
+
+- the statements, with the **time limit per language**: the one that judges the virtual submission, that is, the
+  training one now (if the problem was recalibrated after the contest, it can differ from the time limits sheet);
+- the **documents published** in Event › Documents (problem set, judging environment, time limits) from the start;
+  the **editorial** and the **external links** of the Resources, only when the participation ends;
+- the **clarifications answered in public**, the **official notices** and the **news**, each one at the contest minute
+  when it came out (what came out after the end, only when the participation ends). A private question never shows,
+  and the participant does not ask: nobody would answer. An **edited** notice or news item counts from the time of the
+  edit;
+- the **scoreboard freezes** at the same minute as the contest freeze (**End event** keeps that minute) and unfreezes
+  when the participation ends.
+
+What you publish or edit after the contest also reaches whoever does the virtual later. Do not publish there what must
+not be seen.
 
 **Participant rule** (the participant reads it before the start): one participation per account.
 The participant can give up without a record in the first 15 minutes, or while he or she has no

@@ -87,6 +87,23 @@ call /contest/admin/site-lock POST ns "" '{"action":"set","enabled":false}'
 ck "…desligar a trava: 403 (só o admin)"  '[[ "$(st)" == 403 ]]'
 call /contest/admin/site-lock POST ns "" '{"action":"release","ip":"10.0.0.1"}'
 ck "…soltar o IP da sede: ok"             '[[ "$(jq -r .released <<<"$BODY")" == true ]]'
+# a máquina solta passa a OUTRA sede: o que a auditoria antiga diz (tn1 a reivindicou) não vale mais
+sleep 1; sl_claim rn 10.0.0.1 ts1 >/dev/null 2>&1
+call /contest/admin/site-lock GET ns
+ck "IP solto e reivindicado pela outra sede: some do .sistemas" '[[ "$(jq -r "[.claims[].ip] | join(\",\")" <<<"$BODY")" == "" ]]'
+call /contest/admin/site-lock POST ns "" '{"action":"release","ip":"10.0.0.1"}'
+ck "…e soltá-lo: 403"                     '[[ "$(st)" == 403 && "$BODY" == *site_forbidden* ]]'
+call /contest/admin/site-lock GET adm
+ck "…o admin vê os dois presos"            '[[ "$(jq -r "[.claims[].ip] | sort | join(\",\")" <<<"$BODY")" == "10.0.0.1,10.0.0.2" ]]'
+# a linha também sai sem soltura auditada (módulo desligado, varredura): vale a reivindicação mais recente
+sl_claim rn 10.0.0.3 tn2 >/dev/null 2>&1
+call /contest/admin/site-lock GET ns
+ck "IP novo da sede: aparece"              '[[ "$(jq -r "[.claims[].ip] | join(\",\")" <<<"$BODY")" == 10.0.0.3 ]]'
+sl_release rn 10.0.0.3; sleep 1; sl_claim rn 10.0.0.3 ts1 >/dev/null 2>&1
+call /contest/admin/site-lock GET ns
+ck "linha removida sem auditoria e reivindicada por outra sede: some" '[[ "$(jq -r "[.claims[].ip] | join(\",\")" <<<"$BODY")" == "" ]]'
+call /contest/admin/site-lock POST ns "" '{"action":"release","ip":"10.0.0.3"}'
+ck "…e soltá-lo: 403"                     '[[ "$(st)" == 403 && "$BODY" == *site_forbidden* ]]'
 
 echo "== .diretor: o placar SEM freeze do recorte =="
 # congelado (público) e completo; a ★ de B é do Sul (fora do recorte) e a de A, do Norte. Mais novos que o conf.
@@ -102,6 +119,23 @@ call /contest/score GET sd
 ck "diretor SEM escopo: só o cabeçalho"   '[[ "$(grep -c . <<<"$BODY")" == 2 ]]'
 call /contest/score GET t1
 ck "o time segue no congelado"            '[[ "$OUT" == *"X-MOJ-Frozen: 1"* && "$BODY" != *"1/4000"* ]]'
+# ★ CERTA NO GERAL, INCERTA NO RECORTE: a de B é do Sul (300 s); no Norte o melhor é tn2 (900 s), mas tn1 tem run de B
+# NÃO JULGADA enviada aos 500 s — ela pode virar o 1º AC do recorte: a ★ espera (revisão de 10/11/2026)
+ST="$(sed -n 's/^CONTEST_START=//p' "$C/conf")"
+jq -cn --argjson e "$((ST+500))" '{by_problem:{"col#pb":{solved:false, pending:true, pending_min_epoch:$e}}}' > "$C/users/tn1/metrics.json"
+call /contest/score GET nd
+ck "pendente do recorte ANTES do melhor AC dele: B sem ★" 'grep -q "^:tn2::Norte Dois::1/600\*:1/900:" <<<"$BODY"'
+jq -cn --argjson e "$((ST+1000))" '{by_problem:{"col#pb":{solved:false, pending:true, pending_min_epoch:$e}}}' > "$C/users/tn1/metrics.json"
+call /contest/score GET nd
+ck "…pendente DEPOIS do melhor AC: a ★ volta"           'grep -q "^:tn2::Norte Dois::1/600\*:1/900\*:" <<<"$BODY"'
+jq -cn '{by_problem:{"col#pb":{solved:false, pending:true}}}' > "$C/users/tn1/metrics.json"
+call /contest/score GET nd
+ck "…metrics velho (sem o campo): conservador, sem ★"  'grep -q "^:tn2::Norte Dois::1/600\*:1/900:" <<<"$BODY"'
+jq -cn --argjson e "$((ST+100))" '{by_problem:{"col#pb":{solved:false, pending:true, pending_min_epoch:$e}}}' > "$C/users/ts1/metrics.json"
+rm -f "$C/users/tn1/metrics.json"
+call /contest/score GET nd
+ck "…pendente FORA do recorte não segura a ★ do recorte" 'grep -q "^:tn2::Norte Dois::1/600\*:1/900\*:" <<<"$BODY"'
+rm -f "$C/users/ts1/metrics.json"
 # ★ RETIDA no placar inteiro (run antiga pendente): o recorte também retém
 printf 'icpc s\ndesc:asc:flag:username:univ short:team name:univ full:A:B:Total:Penalty:LastAC\n:tn2::Norte Dois::1/600:1/900:2:25:15\n:tn1::Norte Um::1/1200:1/4000:2:87:66\n' > "$C/var/placar-full.txt"
 call /contest/score GET nd
