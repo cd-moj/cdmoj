@@ -1,4 +1,4 @@
-<!-- i18n-source: MANUAL-STAFF.md blob:833c253005591bb809e3ce90357e612197f79f8f -->
+<!-- i18n-source: MANUAL-STAFF.md blob:482b0613a28a6f5125dce185818d0a9610765466 -->
 # MOJ: Manual del personal de sala (.staff y .cstaff)
 
 > **Nota de traducción.** Este manual es una traducción del original en portugués. Las herramientas de línea de comandos (`moj`, `moj-contest`, `moj-comp`) muestran sus mensajes en portugués, y los ejemplos de comandos son idénticos al original.
@@ -112,7 +112,11 @@ Antes de la competencia, mide las impresoras con tareas de prueba. La caja **�
 
 - La hoja de prueba sale con la franja **PRUEBA — NO ENTREGAR** y numeración propia (T1, T2…). No entregues esa hoja.
 - La numeración de la competencia no cambia, y la prueba no entra en el informe de la competencia.
-- El tiempo incluye la generación del PDF en el servidor: es el mismo camino de una tarea de la competencia.
+- El tiempo incluye la generación de la hoja: es el mismo camino de una tarea de la competencia. El servidor
+  prepara la hoja cuando la tarea nace, así que la estación ya la encuentra lista.
+- El admin puede cambiar el **formato de la hoja** a HTML (experimental): la estación arma e imprime la hoja en el
+  navegador, y el botón **Abrir PDF** pasa a **Abrir hoja**. Una solicitud que no es texto (PDF, imagen) sigue en
+  PDF. Genera un lote de prueba en cada formato y compara las tareas por minuto.
 - **Durante la competencia la prueba está prohibida.** Al iniciar la competencia, se borran las tareas de prueba que quedaron.
 
 ### Calentamiento: tu ensayo (y la competencia puede tener dos rondas)

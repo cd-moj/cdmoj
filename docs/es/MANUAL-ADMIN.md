@@ -1,4 +1,4 @@
-<!-- i18n-source: MANUAL-ADMIN.md blob:97147a182b2944e3758375791bff972aef57dd86 -->
+<!-- i18n-source: MANUAL-ADMIN.md blob:1fa056613cdce9142a23f923266156d312b952bf -->
 # MOJ: Manual del organizador (el panel .admin de la competencia)
 
 > **Nota de traducción.** Este manual es una traducción del original en portugués. Las herramientas de línea de comandos (`moj`, `moj-contest`, `moj-comp`) muestran sus mensajes en portugués, y los ejemplos de comandos son idénticos al original.
@@ -110,7 +110,7 @@ portugués.
 | Panel | Qué hace |
 |---|---|
 | **Situación** | El tablero en vivo (se actualiza en su lugar cada ~12 s): sesiones iniciadas, jueces en línea/ocupados, cola, pendientes, latencia, línea de tiempo, evaluación manual, las **acciones sugeridas** cuando algo no está bien y el botón **🔥 Calentar jueces**. Globos pendientes/retenidos solo con el módulo `baloes`. |
-| **Staff** | Panorama y acciones sobre la cola de impresión (+ globos con el módulo), desempeño por miembro del staff y el **alcance** de cada staff/jefe de sede (regex o `region:<sede>`). `region:<nombre>` cubre todo lo que está **en ese nodo** de Evento › Sedes y escuelas: la sede y, si es un nodo padre, todas las sedes debajo de él (`region:Nordeste` ve las sedes del Nordeste), y también un recorte (`view`) por su nombre. Vale la sede grabada en el equipo o, sin ella, la regex. Una regex en el alcance se prueba en el usuario. |
+| **Staff** | Panorama y acciones sobre la cola de impresión (+ globos con el módulo), desempeño por miembro del staff y el **alcance** de cada staff/jefe de sede (regex o `region:<sede>`). `region:<nombre>` cubre todo lo que está **en ese nodo** de Evento › Sedes y escuelas: la sede y, si es un nodo padre, todas las sedes debajo de él (`region:Nordeste` ve las sedes del Nordeste), y también un recorte (`view`) por su nombre. Vale la sede grabada en el equipo o, sin ella, la regex. Una regex en el alcance se prueba en el usuario. Abajo, la **🧪 prueba de impresora** y el **🧾 formato de la hoja**: PDF (como siempre, armado en el servidor y listo cuando la tarea nace) o HTML en el navegador de la estación (experimental, mucho más liviano para el servidor; la solicitud que no es texto sigue en PDF). Mídelo con un lote de prueba en cada formato antes de usar HTML en una competencia. |
 | **Jueces** | La cola de la corrección manual: quién reservó cada envío, votos, antigüedad; decidir/resolver en el momento; y la configuración del veredicto manual (opciones de etiqueta + **🔎 Qué va a revisión**: una tabla problema × veredicto; lo marcado va a los jueces y el resto sale automático; sin nada marcado, todo sale automático; con excepciones por lenguaje y el botón para liberar los retenidos que la tabla nueva deja salir). |
 | **Auditoría** | Feed unificado de todo lo que pasó (acciones de admin, inicios de sesión, envíos, veredictos) con filtros y CSV, más los **respaldos** que subieron los usuarios (por usuario, con ZIP). |
 

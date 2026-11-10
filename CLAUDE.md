@@ -994,6 +994,14 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   desliga; `MOJ_JOBS_SYNC=1` não pré-gera (salvo `PR_PREGEN_SYNC=1`). ⚠ O render regrava o meta no fim: quem APAGA uma
   tarefa (o `pr_test_remove`) toma o `<id>.lock` antes, e os builders re-conferem o meta depois do lock — sem isso a
   tarefa apagada voltava. A claim/impressão (`print-action`) já serializa no mesmo lock. Teste: `smoke-print-pregen.sh`.
+  **FOLHA EM HTML (09/11/2026, PROTÓTIPO, `PRINT_FORMAT=html` no conf — Operação › Staff › 🧾 formato da folha,
+  campo `print_format` do settings e do `/contest/basic`):** `pr_html` monta a folha como HTML A4 (capa + código numerado,
+  ou a folha do balão; o MESMO layout e as MESMAS strings `_pr_t`; estrela em SVG) e `/contest/staff/print-html` a serve
+  com o gate do `print-pdf`; 409 `html_unsupported` (não é texto, ou > 2 MB) = a estação cai no PDF. Custo no servidor
+  ~0,05 s × 1,4–2 s do PDF; a vazão da estação quase não muda (o gap de 3 s do `print()` domina — 8 tarefas em 18 s ×
+  21 s, Chrome, 2 estações). ⚠ A página é aberta de um `blob:` na ORIGEM da página do staff (a do token): tudo do aluno
+  passa por `@html`, a página leva CSP `default-src 'none'` (meta + cabeçalho) e o iframe é `sandbox` sem allow-scripts.
+  No modo html a pré-geração só faz o PDF do pedido que não é texto. Testes: `smoke-print-html.sh`.
   **TAREFAS DE TESTE (09/11/2026, pedido do Fernando; `lib/print.sh` `pr_test_*`, rota `/contest/staff/test-tasks`,
   caixa `web/contest/staff/test-box.js` na página do staff e no painel Operação › Staff):** lote falso (impressão de N
   páginas e/ou balão) pela MESMA cadeia das reais, para medir as impressoras. Id `tst…`, `test:true`, `seq` = `"T<n>"`

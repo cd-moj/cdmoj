@@ -78,6 +78,24 @@ function syncHeldNote(held) {
   heldNote.style.display = txt ? '' : 'none';
 }
 
+// FORMATO DA FOLHA (09/11/2026, PROTÓTIPO — PRINT_FORMAT=html do contest, a medir com as tarefas de teste): a folha
+// vem em HTML (/contest/staff/print-html) e a estação a imprime no navegador, sem PDF no servidor. 409 = a tarefa não
+// sai em HTML (pedido que não é texto): cai no PDF de sempre. A página tem a própria CSP (sem script) e o iframe é
+// `sandbox` sem allow-scripts — o blob: herda a origem desta página (a do token).
+const htmlMode = () => !!(BASIC && BASIC.print_format === 'html');
+async function htmlBlobUrl(id) {
+  const r = await fetch('/api/v1/contest/staff/print-html?contest=' + enc(CONTEST) + '&id=' + enc(id),
+    { headers: { 'Authorization': 'Bearer ' + (getToken(CONTEST) || '') } });
+  if (r.status === 409) return null;                  // não sai em HTML: o chamador usa o PDF
+  if (!r.ok) throw new Error('HTTP ' + r.status);
+  return URL.createObjectURL(new Blob([await r.text()], { type: 'text/html' }));
+}
+// a folha da tarefa: {url, html} — HTML quando o contest pede e a tarefa sai em HTML; senão o PDF
+async function sheetBlobUrl(id) {
+  if (htmlMode()) { const u = await htmlBlobUrl(id); if (u) return { url: u, html: true }; }
+  return { url: await pdfBlobUrl(id), html: false };
+}
+
 // busca o PDF combinado (com Bearer) como blob -> URL temporária (sem token na URL)
 async function pdfBlobUrl(id) {
   const r = await fetch('/api/v1/contest/staff/print-pdf?contest=' + enc(CONTEST) + '&id=' + enc(id),
@@ -102,9 +120,10 @@ const IS_CHROMIUM = /Chrome\//.test(navigator.userAgent) && !/Firefox\//.test(na
 const PRINT_GAP_MS = 3000;       // Chromium: espera depois de o print() voltar
 const PRINT_FALLBACK_MS = 8000;  // demais navegadores: teto sem o onafterprint (o de sempre)
 const PRINT_KEEP_MS = 60000;     // vida do iframe e do blob depois de seguir
-function printBlobIframe(url) {
+function printBlobIframe(url, html) {
   return new Promise((res) => {
     const ifr = el('iframe', { style: 'position:fixed;left:-10000px;top:0;width:800px;height:1100px;border:0' });
+    if (html) ifr.setAttribute('sandbox', 'allow-same-origin allow-modals');   // a folha HTML não roda script
     let done = false;
     const fin = () => {
       if (done) return; done = true;
@@ -124,7 +143,7 @@ function openPdfWindow(id, doPrint) {
   const w = window.open('', '_blank');
   if (!w) { alert(T('Permita pop-ups para abrir/imprimir o PDF desta sede.', 'Allow pop-ups to open/print this site\'s PDF.', 'Permite las ventanas emergentes para abrir/imprimir el PDF de esta sede.')); return null; }
   try { w.document.write(T('<!doctype html><meta charset="utf-8"><title>Impressão</title><body style="margin:0;font:16px sans-serif;padding:1.2rem">Gerando o PDF…</body>', '<!doctype html><meta charset="utf-8"><title>Printing</title><body style="margin:0;font:16px sans-serif;padding:1.2rem">Generating the PDF…</body>', '<!doctype html><meta charset="utf-8"><title>Impresión</title><body style="margin:0;font:16px sans-serif;padding:1.2rem">Generando el PDF…</body>')); } catch (_) {}
-  pdfBlobUrl(id).then((url) => {
+  sheetBlobUrl(id).then(({ url }) => {
     w.location.href = url;
     if (doPrint) { const tryPrint = () => { try { w.focus(); w.print(); } catch (_) {} }; setTimeout(tryPrint, 1500); }
     setTimeout(() => URL.revokeObjectURL(url), 120000);
@@ -151,8 +170,8 @@ async function autoTick() {
   busy = true; seen.add(t.id);
   try {
     await action(t.id, 'claim');              // reserva (409 already_claimed => outra aba pegou)
-    const url = await pdfBlobUrl(t.id);
-    await printBlobIframe(url);               // o blob é revogado junto com o iframe (PRINT_KEEP_MS)
+    const sh = await sheetBlobUrl(t.id);
+    await printBlobIframe(sh.url, sh.html);   // o blob é revogado junto com o iframe (PRINT_KEEP_MS)
     await action(t.id, 'processed', { mode: 'auto' });
   } catch (e) {
     if (!(e && e.code === 'already_claimed')) seen.delete(t.id);  // erro real: permite retry
@@ -171,7 +190,7 @@ function rowActions(t) {
     b.addEventListener('click', async () => { b.disabled = true; try { await fn(); } catch (e) { alert(e.message || T('falha', 'failed', 'fallido')); } finally { b.disabled = false; await loadQueue(); } }); return b; };
   if (t.status === 'pending') r.append(mkBtn(T('Pegar', 'Claim', 'Reservar'), () => action(t.id, 'claim')));
   if (t.status !== 'delivered') r.append(mkBtn(T('🖨️ Imprimir', '🖨️ Print', '🖨️ Imprimir'), () => printTaskManual(t), ''));
-  r.append(mkBtn(T('Abrir PDF', 'Open PDF', 'Abrir PDF'), () => { openPdfWindow(t.id, false); }));
+  r.append(mkBtn(htmlMode() ? T('Abrir folha', 'Open sheet', 'Abrir hoja') : T('Abrir PDF', 'Open PDF', 'Abrir PDF'), () => { openPdfWindow(t.id, false); }));
   if (t.status === 'printed') r.append(mkBtn(T('✅ Entregue', '✅ Delivered', '✅ Entregado'), () => action(t.id, 'delivered'), ''));
   return r;
 }

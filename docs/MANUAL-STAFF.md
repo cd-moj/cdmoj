@@ -108,7 +108,11 @@ Antes da prova, meça as impressoras com tarefas de teste. A caixa **🧪 Teste 
 
 - A folha de teste sai com a faixa **TESTE — NÃO ENTREGAR** e a numeração própria (T1, T2…). Não entregue essa folha.
 - A numeração da prova não muda, e o teste não entra no relatório da prova.
-- O tempo inclui a geração do PDF no servidor: é o mesmo caminho de uma tarefa da prova.
+- O tempo inclui a geração da folha: é o mesmo caminho de uma tarefa da prova. A folha é preparada no servidor
+  quando a tarefa nasce, então a estação já a encontra pronta.
+- O admin pode trocar o **formato da folha** para HTML (experimental): a estação monta e imprime a folha no
+  navegador, e o botão **Abrir PDF** vira **Abrir folha**. Um pedido que não é texto (PDF, imagem) continua em PDF.
+  Gere um lote de teste em cada formato e compare as tarefas por minuto.
 - **Durante a prova o teste é proibido.** No início da prova, as tarefas de teste que sobraram são apagadas.
 
 ### Aquecimento: o seu ensaio (e a prova pode ter duas rodadas)

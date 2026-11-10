@@ -663,6 +663,106 @@ _pr_render() {  # <c> <id> <src> <meta> <cache>
   (( built ))
 }
 
+# ===== FOLHA EM HTML (09/11/2026, PROTÓTIPO — opção PRINT_FORMAT=html do contest, a medir com as tarefas de teste) =====
+# pr_html <c> <id> — ecoa a folha como HTML de impressão (A4) que a ESTAÇÃO imprime no navegador, sem PDF nem
+# LibreOffice no servidor: a capa do pedido + o código (texto), ou a folha do balão. O MESMO layout aprovado pela
+# Camila (login maior, nº pequeno no canto, sede, faixa de teste, faixa de primeiro com a estrela DESENHADA em SVG) e as
+# MESMAS strings (_pr_t, LOCALE do contest). rc 3 = não dá em HTML (pedido que não é texto: PDF, imagem, office, ou
+# texto acima de PR_HTML_MAX_BYTES) — a estação cai no PDF de sempre. rc 1 = tarefa inexistente.
+# ⚠ SEGURANÇA: a página é aberta de um blob: na ORIGEM da página do staff (o token está no localStorage dela). Todo
+# dado do aluno (nome do arquivo, código, time, universidade) passa pelo `@html` do jq; e a página leva a sua CSP
+# (`default-src 'none'`, sem script) — se um escape faltar um dia, nada roda.
+PR_HTML_MAX_BYTES="${PR_HTML_MAX_BYTES:-2000000}"
+pr_html() {
+  local c="$1" id="$2" dir meta src L kind istest login site enc txt="" fn
+  dir="$(pr_dir "$c")"; meta="$dir/$id.json"; src="$dir/$id.src"
+  [[ -f "$meta" ]] || return 1
+  L="$(pr_lang "$c")"
+  kind="$(jq -r '.kind // "print"' "$meta" 2>/dev/null)"
+  istest="$(jq -r '.test == true' "$meta" 2>/dev/null)"
+  login="$(jq -r '.login // ""' "$meta" 2>/dev/null)"
+  site=""; [[ "$istest" == true ]] || site="$(_pr_site "$c" "$login")"
+  if [[ "$kind" != balloon ]]; then
+    [[ -f "$src" ]] || return 1
+    (( $(stat -c%s "$src" 2>/dev/null || echo 0) <= PR_HTML_MAX_BYTES )) || return 3
+    enc="$(file -b --mime-encoding "$src" 2>/dev/null)"
+    [[ "$enc" == binary ]] && return 3
+    case "$(file -b --mime-type "$src" 2>/dev/null)" in application/pdf|image/*) return 3 ;; esac
+    txt="$(mktemp)"
+    case "$enc" in utf-8|us-ascii|'') cat "$src" ;; *) iconv -c -f "$enc" -t UTF-8 "$src" 2>/dev/null || cat "$src" ;; esac > "$txt"
+  fi
+  local colorname=""
+  if [[ "$kind" == balloon ]]; then
+    colorname="$(jq -r --arg l "$L" 'if (.color_lang // "pt") == $l then (.color_name // "") else "" end' "$meta")"
+    [[ -n "$colorname" ]] || colorname="$(pr_color_name "$(jq -r '.color_hex // "CCCCCC"' "$meta")" "$L")"
+  fi
+  local -a K=(); local k
+  for k in team noteam login taskshort pages balloon problem color first firstsub site test_team test_band test_sub sign when foot; do
+    K+=(--arg "t_$k" "$(_pr_t "$L" "$k" "")")
+  done
+  jq -rn --slurpfile m "$meta" --rawfile code "${txt:-/dev/null}" --arg kind "$kind" --arg site "$site" \
+     --arg cn "$colorname" --arg lang "$L" --arg taskn "$(_pr_t "$L" taskshort "$(jq -r '.seq // 0' "$meta")")" \
+     --arg sitel "$(_pr_t "$L" site "$site")" "${K[@]}" '
+    $m[0] as $t
+    | ($t.test == true) as $test
+    | (if $test then $t_test_team else ($t.login // "") end) as $login
+    | (if $test then "" else (($t.team // "") | if . == "" then $t_noteam else . end) end) as $team
+    | ($t.univ // "") as $univ
+    # o login é O texto da folha: corpo pelo tamanho (o caption do magick escolhe sozinho; aqui, por faixas)
+    | ($login | length) as $n
+    | (if $n <= 8 then 76 elif $n <= 12 then 60 elif $n <= 18 then 46 elif $n <= 26 then 34 else 24 end) as $lsz
+    | def band: if $test then "<div class=\"testband\"><b>\($t_test_band | @html)</b><span>\($t_test_sub | @html)</span></div>" else "" end;
+      def star: "<svg width=\"56\" height=\"56\" viewBox=\"-28 -28 56 56\"><polygon fill=\"#B8860B\" stroke=\"#7A5C00\" points=\"0,-26 6.2,-8.5 24.7,-8 10,3.2 15.3,21 0,10.5 -15.3,21 -10,3.2 -24.7,-8 -6.2,-8.5\"/></svg>";
+      def head: "<div class=\"task\">\($taskn | @html)</div>";
+      def ident($big):
+        (if $test then "" else "<div class=\"lbl\">\($t_login | @html)</div>" end)
+        + "<div class=\"login\" style=\"font-size:\($lsz * $big | floor)pt\">\($login | @html)</div>"
+        + (if $team != "" then "<div class=\"team\">\($team | @html)</div>" else "" end)
+        + (if $univ != "" then "<div class=\"univ\">\($univ | @html)</div>" else "" end)
+        + (if $site != "" then "<div class=\"site\">\($sitel | @html)</div>" else "" end);
+      def signs: "<div class=\"signs\"><div><span>\($t_sign | @html)</span><i></i></div><div><span>\($t_when | @html)</span><i></i></div></div>";
+    "<!doctype html><html lang=\"\($lang)\"><head><meta charset=\"utf-8\">"
+    + "<meta http-equiv=\"Content-Security-Policy\" content=\"default-src '\''none'\''; style-src '\''unsafe-inline'\''; img-src data:\">"
+    + "<title>\($taskn | @html)</title><style>"
+    + "@page{size:A4;margin:12mm}html,body{margin:0;background:#fff;color:#000;font-family:\"DejaVu Sans\",\"Liberation Sans\",Arial,sans-serif}"
+    + ".sheet{position:relative;height:268mm;box-sizing:border-box;padding-top:8mm;text-align:center;break-after:page;page-break-after:always;overflow:hidden;display:flex;flex-direction:column}"
+    + ".task{position:absolute;top:0;right:0;font-size:13pt;color:#777}.lbl{font-size:15pt;color:#555;margin-top:6mm}"
+    + ".login{font-weight:800;line-height:1.05;overflow-wrap:anywhere;margin:2mm 0 4mm}.team{font-weight:700;font-size:26pt;margin:2mm 0}"
+    + ".univ{font-size:15pt;color:#333}.site{font-size:15pt;font-weight:700;color:#333;margin-top:2mm}"
+    + "hr{border:0;border-top:2px solid #999;margin:6mm 0}.pages{font-size:20pt}"
+    + ".testband{border:5px solid #B91C1C;border-radius:4mm;color:#B91C1C;padding:3mm;margin:6mm 0}.testband b{display:block;font-size:24pt}.testband span{font-size:12pt}"
+    + ".first{display:flex;align-items:center;gap:6mm;border:3px solid #B8860B;border-radius:4mm;padding:3mm 6mm;margin:6mm 0;color:#7A5C00;text-align:left}"
+    + ".first b{display:block;font-size:22pt}.first span{font-size:12pt}"
+    + ".signs{margin-top:auto;padding-bottom:6mm;display:flex;gap:10mm;text-align:left;font-size:13pt}.signs div{flex:1}.signs i{display:block;border-bottom:2px solid #000;height:12mm}"
+    + ".prob{display:flex;justify-content:space-around;align-items:flex-start}.prob .lbl{margin-top:0}.short{font-size:96pt;font-weight:800;line-height:1}"
+    + ".cname{font-size:22pt;font-weight:700}"
+    + ".code{font:9.5pt/1.3 \"DejaVu Sans Mono\",\"Liberation Mono\",monospace;white-space:pre-wrap;word-break:break-all;tab-size:4;margin:0 0 8mm}"
+    + ".code .n{color:#888;user-select:none}.foot{position:fixed;left:0;right:0;bottom:0;font-size:8pt;color:#555;text-align:center}"
+    + "</style></head><body>"
+    + (if $kind == "balloon" then
+        "<section class=\"sheet\">" + head + "<div class=\"lbl\">\($t_balloon | @html)</div>" + ident(1) + "<hr>"
+        + "<div class=\"prob\"><div><div class=\"lbl\">\($t_problem | @html)</div><div class=\"short\">\(($t.short // "?") | @html)</div></div>"
+        + "<div><div class=\"lbl\">\($t_color | @html)</div>"
+        + "<svg width=\"150\" height=\"205\" viewBox=\"-110 -130 220 300\"><ellipse rx=\"100\" ry=\"126\" fill=\"#\(($t.color_hex // "CCCCCC") | gsub("[^0-9A-Fa-f]"; "") | .[0:6])\" stroke=\"#333\" stroke-width=\"2\"/><polygon points=\"-15,124 15,124 0,156\" fill=\"#\(($t.color_hex // "CCCCCC") | gsub("[^0-9A-Fa-f]"; "") | .[0:6])\" stroke=\"#333\" stroke-width=\"2\"/></svg>"
+        + "<div class=\"cname\">\($cn | @html)</div></div></div><hr>"
+        + band
+        + (if $t.first_site == true then "<div class=\"first\">" + star + "<div><b>\($t_first | @html)</b><span>\($t_firstsub | @html)</span></div></div>" else "" end)
+        + signs + "</section>"
+      else
+        ($code | split("\n") | if (.[-1] == "") then .[:-1] else . end) as $lines
+        | "<section class=\"sheet\">" + head + ident(1) + "<hr>"
+          + "<div class=\"pages\">\(($t.filename // "") | @html)</div><hr>" + band + signs + "</section>"
+          + "<div class=\"foot\">\((($t.login // "?") + "  -  " + ($t.filename // "") + "  -  " + $t_foot + " #" + ($t.seq | tostring)) | @html)</div>"
+          + "<pre class=\"code\">"
+          + ([$lines | to_entries[] | "<span class=\"n\">\((.key + 1) | tostring | (" " * ([3 - length, 0] | max)) + .) | </span>\(.value | @html)"] | join("\n"))
+          + "</pre>"
+      end)
+    + "</body></html>"'
+  local rc=$?
+  [[ -n "$txt" ]] && rm -f "$txt"
+  return "$rc"
+}
+
 # pr_build_pdf <c> <id>  -> ecoa o caminho do combined.pdf (cache); rc!=0 em falha total.
 # Build-once: o <id>.src é imutável após o upload, então o cache vale para sempre.
 #
@@ -1341,6 +1441,17 @@ pr_pregen_bg() {
   (( $# )) || return 0
   local pg; pg="$(sed -n 's/^[[:space:]]*PRINT_PREGEN=//p' "$CONTESTSDIR/$c/conf" 2>/dev/null | tail -1 | tr -d "\"' ")"
   [[ "$pg" == n || "$pg" == no || "$pg" == 0 ]] && return 0
+  # PRINT_FORMAT=html (protótipo): a estação imprime em HTML — só o pedido que NÃO sai em HTML precisa do PDF pronto
+  local pf; pf="$(sed -n 's/^[[:space:]]*PRINT_FORMAT=//p' "$CONTESTSDIR/$c/conf" 2>/dev/null | tail -1 | tr -d "\"' ")"
+  if [[ "$pf" == html ]]; then
+    local -a keep=(); local i d; d="$(pr_dir "$c")"
+    for i in "$@"; do
+      [[ -f "$d/$i.src" && "$(jq -r '.kind // "print"' "$d/$i.json" 2>/dev/null)" != balloon ]] || continue
+      [[ "$(file -b --mime-encoding "$d/$i.src" 2>/dev/null)" == binary ]] && keep+=("$i")
+    done
+    (( ${#keep[@]} )) || return 0
+    set -- "${keep[@]}"
+  fi
   if [[ "${MOJ_JOBS_SYNC:-0}" == 1 ]]; then
     [[ "${PR_PREGEN_SYNC:-0}" == 1 ]] && _pr_pregen "$c" "$@"
     return 0

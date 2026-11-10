@@ -1,4 +1,4 @@
-<!-- i18n-source: MANUAL-STAFF.md blob:833c253005591bb809e3ce90357e612197f79f8f -->
+<!-- i18n-source: MANUAL-STAFF.md blob:482b0613a28a6f5125dce185818d0a9610765466 -->
 # MOJ: Room staff manual (.staff and .cstaff)
 
 > **Translation note.** This manual is a translation of the Portuguese original. The command-line tools (`moj`, `moj-contest`, `moj-comp`) print their messages in Portuguese, and the command examples below are identical to the original.
@@ -112,7 +112,11 @@ Before the contest, measure the printers with test tasks. The **🧪 Printer tes
 
 - The test sheet carries the band **TEST — DO NOT DELIVER** and its own numbering (T1, T2…). Do not deliver this sheet.
 - The contest numbering does not change, and the test is not in the contest report.
-- The time includes the PDF generation on the server: it is the same path as a contest task.
+- The time includes the sheet generation: it is the same path as a contest task. The server prepares the
+  sheet when the task is created, so the station finds it ready.
+- The admin can change the **sheet format** to HTML (experimental): the station builds and prints the sheet in
+  the browser, and the **Open PDF** button becomes **Open sheet**. A request that is not text (PDF, image) stays
+  in PDF. Create a test batch in each format and compare the tasks per minute.
 - **The test is not allowed during the contest.** When the contest starts, the system deletes the test tasks that are left.
 
 ### Warm-up: your rehearsal (and the contest can have two rounds)

@@ -348,6 +348,28 @@ export function makeTasksTab(CONTEST, opts = {}) {
 
   let built = false;
   const TESTBOX = makeTestBox(CONTEST, { admin: true, onChange: () => refresh() });
+  // FORMATO DA FOLHA (09/11/2026, PROTÓTIPO): PDF (o de sempre) × HTML impresso pelo navegador da estação. É p/
+  // MEDIR: gere um lote de teste em cada formato, nas mesmas estações, e compare as tarefas/min do resumo.
+  const fmtSel = el('select', {},
+    el('option', { value: 'pdf' }, T('PDF (padrão)', 'PDF (default)', 'PDF (por defecto)')),
+    el('option', { value: 'html' }, T('HTML no navegador (experimental)', 'HTML in the browser (experimental)', 'HTML en el navegador (experimental)')));
+  const fmtMsg = el('span', { class: 'small' });
+  fmtSel.addEventListener('change', async () => {
+    fmtSel.disabled = true; fmtMsg.textContent = T('Salvando…', 'Saving…', 'Guardando…');
+    try {
+      await apiPost('/contest/admin/settings?contest=' + enc(CONTEST), { print_format: fmtSel.value }, G);
+      fmtMsg.textContent = T('✓ salvo — as estações usam o formato novo na próxima tarefa (recarregar a página aplica na hora)',
+        '✓ saved — the stations use the new format from the next task (reloading the page applies it at once)',
+        '✓ guardado — las estaciones usan el formato nuevo desde la próxima tarea (recargar la página lo aplica enseguida)');
+    } catch (e) { fmtMsg.textContent = e.message || T('falha', 'failed', 'fallido'); }
+    fmtSel.disabled = false;
+  });
+  const fmtBox = el('div', { class: 'section' },
+    el('h3', { style: 'margin:.1rem 0 .3rem' }, T('🧾 Formato da folha impressa', '🧾 Printed sheet format', '🧾 Formato de la hoja impresa')),
+    el('p', { class: 'muted small' }, T('PDF: o servidor monta a folha (o de sempre). HTML: a estação monta e imprime a folha no navegador — mais leve para o servidor; o pedido que não é texto (PDF, imagem) continua em PDF. Experimental: meça com um lote de teste em cada formato antes de usar numa prova.',
+      'PDF: the server builds the sheet (as always). HTML: the station builds and prints the sheet in the browser — lighter for the server; a request that is not text (PDF, image) stays in PDF. Experimental: measure it with a test batch in each format before you use it in a contest.',
+      'PDF: el servidor arma la hoja (como siempre). HTML: la estación arma e imprime la hoja en el navegador — más liviano para el servidor; la solicitud que no es texto (PDF, imagen) sigue en PDF. Experimental: mídelo con un lote de prueba en cada formato antes de usarlo en una competencia.')),
+    el('div', { class: 'row', style: 'gap:.5rem;align-items:center' }, fmtSel, fmtMsg));
   function skeleton() {
     const dl = el('button', { class: 'btn ghost', title: T('Baixar a fila (CSV)', 'Download the queue (CSV)', 'Descargar la cola (CSV)'), onclick: () => {
       const rows = [[T('seq', 'seq', 'seq'), T('tipo', 'kind', 'tipo'), 'login', T('nome', 'name', 'nombre'), T('univ', 'univ', 'univ'), T('item', 'item', 'item'), 'status', T('criada_em', 'created_at', 'creada_en'), 'claimed_by', 'processed_by', 'delivered_by', 'delivered_at'],
@@ -365,12 +387,15 @@ export function makeTasksTab(CONTEST, opts = {}) {
       el('div', { class: 'row', style: 'margin:.4rem 0' },
         el('span', { class: 'small muted' }, T('Filtrar:', 'Filter:', 'Filtrar:')), fKind, fStatus, fQ,
         el('button', { class: 'btn ghost', onclick: () => refresh() }, '↻'), dl),
-      listBox, perfBox, cfgBox), TESTBOX.el);
+      listBox, perfBox, cfgBox), TESTBOX.el, fmtBox);
     built = true;
   }
 
   async function load() {
-    if (!built) skeleton();
+    if (!built) {
+      skeleton();
+      apiGet('/contest/basic?contest=' + enc(CONTEST), {}).then((b) => { fmtSel.value = (b && b.print_format === 'html') ? 'html' : 'pdf'; }).catch(() => {});
+    }
     optBalloon.hidden = !has('baloes');   // sem o módulo balões o filtro nem oferece o tipo
     await refresh();
     if (stopTimer) stopTimer();
