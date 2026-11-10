@@ -303,7 +303,7 @@ export function makeCentralTab(CONTEST, opts = {}) {
     renderLive(liveBox, dash);
     clearInterval(timer);
     timer = setInterval(async () => {
-      if (panel.hidden || !panel.isConnected) return;
+      if (panel.hidden || !panel.isConnected || document.hidden) return;   // aba de fundo não pola
       const d2 = await apiGet('/contest/admin/dashboard?contest=' + enc(CONTEST), G).catch(() => null);
       if (d2) renderLive(liveBox, d2);
     }, 15000);

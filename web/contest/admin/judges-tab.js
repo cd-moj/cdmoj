@@ -28,7 +28,7 @@ export function makeJudgesTab(CONTEST) {
       el('h3', { style: 'margin:1.2rem 0 .3rem' }, T('⚙️ Configuração do veredicto manual', '⚙️ Manual verdict configuration', '⚙️ Configuración del veredicto manual')),
       makeVerdictOptionsEditor(CONTEST), makeAutoVerdictEditor(CONTEST));
     await board.load();
-    clearInterval(timer); timer = setInterval(() => { if (!panel.hidden && panel.isConnected) board.load(); }, 12000);
+    clearInterval(timer); timer = setInterval(() => { if (!panel.hidden && panel.isConnected && !document.hidden) board.load(); }, 12000);
   }
   return { panel, load };
 }

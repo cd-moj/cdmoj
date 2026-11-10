@@ -63,6 +63,11 @@ judge_tl(){ # <lang> <linhas do conf> -> o TL[lang] que o juiz cobra (o trecho d
   bash -c 'declare -A TL TLMOD TLOVERRIDE; LOG(){ :; }; LANGUAGE="$1"; eval "$2"; eval "$3"; eval "$4"; printf "%s" "${TL[$LANGUAGE]}"' \
     _ "$1" "$TABLE" "$2" "$blk" 2>/dev/null; }
 CAL='{"c":".3035","cpp":"0.2","default":".3035"}'
+# o trecho do JUIZ faz as contas em `bc` (o juiz tem); a imagem do SERVIDOR não tem `bc` — lá (test-candidate) a comparação
+# com o juiz é pulada, e o resto do arquivo (o lado do servidor, que não usa bc) segue valendo
+if ! command -v bc >/dev/null 2>&1; then
+  echo "  (sem bc: comparação com o trecho do juiz pulada — o juiz tem bc; o servidor não precisa)"
+else
 for conf in 'TLMOD[spim.sum]=2; TLMOD[cpp.sum]=.5; TLMOD[cpp.mult]=1.5; TLMOD[rs.sum]=-0.1; TLMOD[py3.sum]=7' \
             'TLMOD[spim.sum]=1; TLOVERRIDE[cpp]=1' \
             'TLMOD[c.mult]=3; TLOVERRIDE[default]=2'; do
@@ -74,6 +79,7 @@ for conf in 'TLMOD[spim.sum]=2; TLMOD[cpp.sum]=.5; TLMOD[cpp.mult]=1.5; TLMOD[rs
     ck "[$conf] $L: juiz $j = servidor $s" 'near "$j" "$s"'
   done
 done
+fi
 
 echo "== o servido (contest/problems, docs da prova, juízo das soluções): as duas metades =="
 printf 'CALIBRATIONTL=5\nTLMOD[spim.sum]=2\nTLMOD[cpp.sum]=.5\nTLMOD[cpp.mult]=1.5\n' > "$P/conf"

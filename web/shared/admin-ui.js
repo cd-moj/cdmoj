@@ -33,9 +33,15 @@ export function swapIf(box, sig, build) {
 }
 export const sigOf = (...parts) => JSON.stringify(parts);
 // tick só com o painel visível e no DOM (o padrão repetido em status/tasks/central/judges/sessions)
+// everyVisible(panel, ms, fn) — o poll de um painel do admin: só roda com o painel VISÍVEL e a ABA à frente. Aba de
+// fundo não pola (revisão das rotas da LATAM, 05/11/2026: dashboard/sessões/anomalias/staff pollavam em aba escondida —
+// carga no servidor que ninguém via); ao voltar p/ a aba, uma atualização na hora (o dado não fica velho na cara).
 export function everyVisible(panel, ms, fn) {
-  const t = setInterval(() => { if (!panel.hidden && panel.isConnected) fn(); }, ms);
-  return () => clearInterval(t);
+  const live = () => !panel.hidden && panel.isConnected && !(typeof document !== 'undefined' && document.hidden);
+  const t = setInterval(() => { if (live()) fn(); }, ms);
+  const onVis = () => { if (live()) fn(); };
+  if (typeof document !== 'undefined' && document.addEventListener) document.addEventListener('visibilitychange', onVis);
+  return () => { clearInterval(t); if (typeof document !== 'undefined' && document.removeEventListener) document.removeEventListener('visibilitychange', onVis); };
 }
 export const todayStr = () => { const d = new Date(); return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()); };
 export const stamp = () => new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');

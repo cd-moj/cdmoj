@@ -63,7 +63,7 @@ export function makeReportTab(CONTEST, opts = {}) {
     pubBox.innerHTML = '';
     if (job && job.state === 'running') {
       pubBox.append(el('span', { class: 'muted' }, T('⏳ publicando… (gera o site e troca de uma vez; ~1–2 min numa prova grande)', '⏳ publishing… (builds the site and swaps it at once; ~1–2 min for a large contest)', '⏳ publicando… (genera el sitio y lo reemplaza de una vez; ~1–2 min en una competencia grande)')));
-      if (!pubTimer) pubTimer = setInterval(() => { if (!panel.hidden && panel.isConnected) pubRefresh(); }, 5000);   // só com o painel visível
+      if (!pubTimer) pubTimer = setInterval(() => { if (!panel.hidden && panel.isConnected && !document.hidden) pubRefresh(); }, 5000);   // só com o painel visível
       return;
     }
     if (pubTimer) { clearInterval(pubTimer); pubTimer = null; }
