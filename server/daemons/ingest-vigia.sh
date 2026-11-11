@@ -16,6 +16,9 @@ COOLDOWN="${VIGIA_COOLDOWN_S:-120}"
 LOG="$RUNDIR/ingest-vigia.log"
 STOP="$RUNDIR/ingest-vigia.stop"
 API_CT="${VIGIA_API_CT:-systemd-moj-api}"
+# o drenador é o da IMAGEM (a mesma versão da API no ar, com o roles.tsv ao lado dele) — nunca uma cópia em run/,
+# que envelhece calada a cada deploy
+DRAIN="${VIGIA_DRAIN:-/opt/moj/cdmoj/server/daemons/ingest-drain.py}"
 
 exec 9>"$RUNDIR/.ingest-vigia.lock"
 flock -n 9 || { echo "já há um vigia rodando"; exit 1; }
@@ -27,7 +30,11 @@ ciclo(){
   systemctl --user stop moj-judged 2>>"$LOG"
   # religa SEMPRE, mesmo se o dreno explodir (o daemon parado é o único estado perigoso)
   trap 'systemctl --user start moj-judged 2>>"$LOG"; trap - RETURN' RETURN
-  podman exec -i "$API_CT" python3 /data/run/ingest-drain.py >> "$LOG" 2>&1
+  if ! podman exec "$API_CT" test -f "$DRAIN" 2>>"$LOG"; then
+    vlog "ERRO: $DRAIN não existe no $API_CT — ciclo abortado (o daemon volta e trata o spool sozinho)"
+    return 1
+  fi
+  podman exec -i "$API_CT" python3 "$DRAIN" >> "$LOG" 2>&1
   # metrics SÓ dos afetados, 8 em paralelo (recompute é por-usuário e independente)
   if [[ -s "$RUNDIR/ingest-affected.txt" ]]; then
     local n; n=$(wc -l < "$RUNDIR/ingest-affected.txt")

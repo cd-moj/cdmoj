@@ -17,8 +17,8 @@
 #     rename de VOLTA ao nome original — o bash trata do jeito canônico dele (Judge Error
 #     auditado etc.). Este drenador NUNCA descarta nem fabrica veredicto.
 #
-# Uso (dentro do container do judged, que tem os volumes):
-#   podman exec -d systemd-moj-judged python3 /data/run/spool-drain.py
+# Uso (dentro do container do judged, que tem os volumes) — o arquivo da IMAGEM, nunca uma cópia em run/:
+#   podman exec -d systemd-moj-judged python3 /opt/moj/cdmoj/server/daemons/spool-drain.py
 # Sai sozinho após IDLE_EXIT_S sem submit elegível (não é serviço; é bomba de porão).
 import json
 import os
