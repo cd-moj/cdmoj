@@ -52,7 +52,9 @@ _roles_load() {
 _roles_load && (( ${#ROLE_SUFFIXES[@]} > 0 )) \
   || { printf 'roles.sh: registro dos papéis ausente ou vazio (%s) — abortando\n' "$ROLES_TSV" >&2; exit 1; }
 role_suffix_to() { local -n __rs_ref="$1"; local __rs_s="${2##*.}"; __rs_ref=""
-  [[ "$2" == *.* && -n "${ROLE_CLASS[$__rs_s]+x}" ]] && __rs_ref="$__rs_s"; return 0; }
+  # login terminado em ponto (`fulano.`, há contas assim no treino) dá sufixo vazio: chave vazia em array associativo é
+  # erro do bash ("bad array subscript") a cada pedido — o teste do vazio vem antes
+  [[ "$2" == *.* && -n "$__rs_s" && -n "${ROLE_CLASS[$__rs_s]+x}" ]] && __rs_ref="$__rs_s"; return 0; }
 role_of() { local s; role_suffix_to s "$1"; printf '%s' "$s"; }
 is_reserved_role_login() { local s; role_suffix_to s "$1"; [[ -n "$s" ]]; }
 role_class() { local s; role_suffix_to s "$1"; printf '%s' "${s:+${ROLE_CLASS[$s]}}"; [[ -n "$s" ]] || printf 'time'; }
