@@ -68,7 +68,11 @@ PDF="$(mktemp)"; PATH_INFO=/contest/staff/print-pdf REQUEST_METHOD=GET QUERY_STR
   bash "$ROUTER" 2>/dev/null | python3 -c 'import sys
 d=sys.stdin.buffer.read(); i=d.find(b"\r\n\r\n"); sys.stdout.buffer.write(d[i+4:])' > "$PDF"
 ck "T1 (impressão de 2 páginas): PDF com 3 páginas (rosto + 2)" '[[ "$(pdfinfo "$PDF" 2>/dev/null | awk "/^Pages/{print \$2}")" == 3 ]]'
-ck "o texto das páginas diz o que é"            'pdftotext "$PDF" - 2>/dev/null | grep -q "TESTE DE IMPRESSÃO — NÃO ENTREGAR" && pdftotext "$PDF" - 2>/dev/null | grep -q "página 2 de 2"'
+# o paps da IMAGEM (0.6.8) desenha o texto como curvas, sem camada de texto: lá o pdftotext não lê nada e a conferência
+# fica com a contagem de páginas acima (a página foi conferida renderizada no deploy de 11/11/2026)
+PT="$(pdftotext "$PDF" - 2>/dev/null)"
+if [[ -z "${PT//[[:space:]]/}" ]]; then echo "  (PDF sem camada de texto — o texto das páginas não é conferido aqui)"
+else ck "o texto das páginas diz o que é"          'grep -q "TESTE DE IMPRESSÃO — NÃO ENTREGAR" <<<"$PT" && grep -q "página 2 de 2" <<<"$PT"'; fi
 source "$ROOT/api/v1/lib/print.sh" 2>/dev/null
 ck "a faixa TESTE — NÃO ENTREGAR foi desenhada (tile em cache)" 'grep -lq . "$RUN"/print-cap/*.png 2>/dev/null && [[ -n "$(_pr_t pt test_band)" ]] && ls "$RUN"/print-cap/ | grep -q .'
 call /contest/staff/print-pdf norte.staff GET "id=$T2"; ck "T2 (balão) gera a folha" '[[ "$OUT" == *"application/pdf"* ]]'
