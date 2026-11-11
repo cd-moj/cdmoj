@@ -50,7 +50,7 @@
 MOJ_TOOL="${MOJ_TOOL:-moj}"
 # carimbo de build: "dev" no repo; o mkdist.sh troca pelo <git-short>-<data> nos artefatos
 # distribuídos (é o que `moj version`/`doctor` comparam com o /moj.build do servidor)
-MOJ_CLI_BUILD="1569636-20261105"
+MOJ_CLI_BUILD="144483e-20261110"
 die(){ printf '%s: %s\n' "$MOJ_TOOL" "$*" >&2; exit 1; }
 # bash>=4 ANTES de qualquer bashismo (mapfile, read -i, ${x^^}): o /bin/bash do macOS é 3.2
 [ "${BASH_VERSINFO[0]:-0}" -ge 4 ] || die "preciso de bash >= 4 (macOS: brew install bash e rode com ele)"
@@ -278,11 +278,29 @@ _cli_hdr_check(){ local f="${1:-}" st="" lt="" k v stamp
   printf '%s: ⚠ há uma versão nova da CLI (sua build %s; servidor %s) — rode: %s update\n' "$MOJ_TOOL" "$MOJ_CLI_BUILD" "${lt:-?}" "$MOJ_TOOL" >&2
   return 0
 }
+# 429 do NGINX no `/problems/*` (o balde da autoria: teto por sessão, por IP e global, 10/11/2026): o pedido nem chegou à API,
+# então repetir é seguro, inclusive POST. Espera 1, 2, 4, 8 s (+ até 1 s de dispersão) e desiste na 5ª. O 429 da API
+# (corpo JSON: `submit_busy`, `busy` do jplag…) NÃO repete — é resposta de regra, e o chamador mostra a mensagem.
+# Uso: _api_retry_429 <código> <arquivo-do-corpo> <tentativa> → rc 0 = tentar de novo (já esperou).
+_api_retry_429(){ local code="$1" f="$2" n="$3" p="${4:-}"
+  [[ "$code" == 429 ]] || return 1
+  # SÓ a autoria (o balde do /problems/*): no resto o 429 do nginx é o quebra-circuito do contest ou o anteparo do
+  # treino, e repetir somaria carga a quem já está afogado (revisão de 10/11/2026; o core.sh também serve moj-comp e
+  # moj-contest)
+  [[ "$p" == /problems/* ]] || return 1
+  (( n < ${MOJ_RETRY_429:-4} )) || return 1
+  jq -e . "$f" >/dev/null 2>&1 && return 1
+  sleep "$(( 1 << n )).$(( RANDOM % 10 ))"
+  return 0; }
 api(){ # api METHOD PATH [json] -> corpo JSON (erro -> die). Token resolvido POR CHAMADA.
   local m="$1" p="$2" data="${3:-}" auth=() out code tmp hf; tmp="$(mktemp)"
   hf="$(auth_hdr_file 2>/dev/null || true)"; [[ -n "$hf" ]] && auth=(-H "@$hf")
-  if [[ -n "$data" ]]; then code="$(printf '%s' "$data" | curl -sS -o "$tmp" -D "$tmp.h" -w '%{http_code}' "${HDR[@]}" "${auth[@]}" -X "$m" -H 'Content-Type: application/json' --data-binary @- "$MOJ_URL/api/v1$p" 2>/dev/null || true)"
-  else code="$(curl -sS -o "$tmp" -D "$tmp.h" -w '%{http_code}' "${HDR[@]}" "${auth[@]}" -X "$m" "$MOJ_URL/api/v1$p" 2>/dev/null || true)"; fi
+  local n=0
+  while :; do
+    if [[ -n "$data" ]]; then code="$(printf '%s' "$data" | curl -sS -o "$tmp" -D "$tmp.h" -w '%{http_code}' "${HDR[@]}" "${auth[@]}" -X "$m" -H 'Content-Type: application/json' --data-binary @- "$MOJ_URL/api/v1$p" 2>/dev/null || true)"
+    else code="$(curl -sS -o "$tmp" -D "$tmp.h" -w '%{http_code}' "${HDR[@]}" "${auth[@]}" -X "$m" "$MOJ_URL/api/v1$p" 2>/dev/null || true)"; fi
+    _api_retry_429 "$code" "$tmp" "$n" "$p" || break; n=$(( n + 1 ))
+  done
   out="$(cat "$tmp")"; _cli_hdr_check "$tmp.h"; rm -f "$tmp" "$tmp.h"
   [[ "$code" =~ ^2 ]] && { printf '%s' "$out"; return 0; }
   _api_fail "$code" "$out"
@@ -308,7 +326,11 @@ api_post_file(){ # api_post_file PATH BODYFILE -> POST grande (corpo via arquivo
   # ponta sai 0 e o push FALHAVA COM rc=0 — script nenhum detectava. Use `resp="$(api_post_file …)"`.
   local p="$1" f="$2" auth=() out code tmp hf; tmp="$(mktemp)"
   hf="$(auth_hdr_file 2>/dev/null || true)"; [[ -n "$hf" ]] && auth=(-H "@$hf")
-  code="$(curl -sS -o "$tmp" -D "$tmp.h" -w '%{http_code}' "${HDR[@]}" "${auth[@]}" -X POST -H 'Content-Type: application/json' --data-binary @"$f" "$MOJ_URL/api/v1$p" 2>/dev/null || true)"
+  local n=0
+  while :; do
+    code="$(curl -sS -o "$tmp" -D "$tmp.h" -w '%{http_code}' "${HDR[@]}" "${auth[@]}" -X POST -H 'Content-Type: application/json' --data-binary @"$f" "$MOJ_URL/api/v1$p" 2>/dev/null || true)"
+    _api_retry_429 "$code" "$tmp" "$n" "$p" || break; n=$(( n + 1 ))
+  done
   out="$(cat "$tmp")"; _cli_hdr_check "$tmp.h"; rm -f "$tmp" "$tmp.h"
   API_LAST_CODE="$code"
   API_LAST_BODY="$out"   # com API_SOFT=1 o _api_fail não imprime: o chamador lê a msg daqui
@@ -319,7 +341,11 @@ api_post_file(){ # api_post_file PATH BODYFILE -> POST grande (corpo via arquivo
 api_get_to_file(){ local p="$1" dest="$2" auth=() code hf hdr
   hf="$(auth_hdr_file 2>/dev/null || true)"; [[ -n "$hf" ]] && auth=(-H "@$hf")
   hdr="$(mktemp)"
-  code="$(curl -sS -o "$dest" -D "$hdr" -w '%{http_code}' "${HDR[@]}" "${auth[@]}" "$MOJ_URL/api/v1$p" 2>/dev/null || true)"
+  local n=0
+  while :; do
+    code="$(curl -sS -o "$dest" -D "$hdr" -w '%{http_code}' "${HDR[@]}" "${auth[@]}" "$MOJ_URL/api/v1$p" 2>/dev/null || true)"
+    _api_retry_429 "$code" "$dest" "$n" "$p" || break; n=$(( n + 1 ))
+  done
   _cli_hdr_check "$hdr"; rm -f "$hdr"
   [[ "$code" =~ ^2 ]] || { [[ -f "$dest" ]] && rm -f "$dest"; die "download falhou${code:+ ($code)}"; }
 }
