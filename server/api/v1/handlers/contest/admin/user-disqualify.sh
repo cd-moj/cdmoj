@@ -25,9 +25,10 @@ user_exists "$contest" "$login" || shared_overlay_ensure "$contest" "$login" \
 af="$(account_file "$contest" "$login")"
 tmp="$af.tmp.${BASHPID}"
 if [[ "$undo" == true ]]; then
-  jq -c 'del(.disqualified) | .updated_at = now | .updated_at |= floor' "$af" > "$tmp" 2>/dev/null
+  jq -c 'del(.disqualified, .dq_batch) | .updated_at = now | .updated_at |= floor' "$af" > "$tmp" 2>/dev/null
 else
-  jq -c '.disqualified = true | .updated_at = now | .updated_at |= floor' "$af" > "$tmp" 2>/dev/null
+  # a decisão individual vence a do lote (.dq_batch, lib/absent-dq.sh): o "desfazer lote" não mexe mais neste time
+  jq -c '.disqualified = true | del(.dq_batch) | .updated_at = now | .updated_at |= floor' "$af" > "$tmp" 2>/dev/null
 fi
 [[ -s "$tmp" ]] || { rm -f "$tmp"; fail 500 "Falha ao gravar" "write_fail"; }
 mv -f "$tmp" "$af"

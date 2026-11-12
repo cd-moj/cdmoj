@@ -610,6 +610,24 @@ O MOJ recusa publicar o relatório quando ele mostraria o que ainda não é púb
 - **Com coorte PRIVADA e os resultados não liberados.** O relatório mostra todos os times. Vale também para o
   relatório de uma rodada arquivada. Libere os resultados em Evento › Coortes.
 
+**Desclassificar quem não logou** (Pessoas › Contas › cartão **🚫 Desclassificar quem não logou**). Tira do placar e da
+estatística, de uma vez, os times que não participaram:
+
+- **Quem sai:** o time sem nenhum login de 1 hora antes da abertura do login até o fim da prova (para todas as sedes)
+  **e** sem nenhuma submissão. Quem submeteu nunca sai, mesmo sem login registrado. Login de aquecimento não conta.
+- **Quem fica:** quem está num estágio **publicado** da classificação, quem já estava desclassificado e as contas de
+  papel.
+- **Ver prévia** mostra a janela usada, as contagens e a lista, com o último login de cada time, sem gravar nada. O
+  botão **Desclassificar N times** confirma. Se a lista mudou desde a prévia, o painel mostra a lista nova e pede de
+  novo.
+- Funciona a qualquer momento. Com a prova ainda rodando, a janela vai até agora, e quem logar depois já estará
+  desclassificado.
+- Cada clique vira um **lote**, listado no cartão com data e autor. **Desfazer** devolve o lote inteiro, menos quem
+  você desclassificou ou devolveu à mão depois. Tudo vai para a Auditoria.
+- A desclassificação é a mesma de cada conta: a conta, a senha e o histórico ficam. Se o relatório já foi publicado,
+  republique-o. O placar congelado preservado pelo **Encerrar evento** não muda: é o registro do que foi exibido na
+  prova.
+
 ## 6¾. Participação virtual (Evento › Virtual — módulo `virtual`)
 
 Com a prova encerrada, qualquer conta do Treino Livre pode **refazer o contest uma vez**, no próprio

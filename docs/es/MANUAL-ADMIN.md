@@ -1,4 +1,4 @@
-<!-- i18n-source: MANUAL-ADMIN.md blob:3b4128eb42ca2975fb65836cf1e1124db1774dff -->
+<!-- i18n-source: MANUAL-ADMIN.md blob:0c82366bb06eb4d1cb4c347da69f2c6d420ac5a5 -->
 # MOJ: Manual del organizador (el panel .admin de la competencia)
 
 > **Nota de traducción.** Este manual es una traducción del original en portugués. Las herramientas de línea de comandos (`moj`, `moj-contest`, `moj-comp`) muestran sus mensajes en portugués, y los ejemplos de comandos son idénticos al original.
@@ -620,6 +620,25 @@ MOJ se niega a publicar el informe cuando mostraría lo que todavía no es públ
 - **Con una cohorte PRIVADA y los resultados no liberados.** El informe muestra todos los equipos. Vale también
   para el informe de una ronda archivada. Libera los resultados en Evento › Cohortes.
 
+**Descalificar a quien no inició sesión** (Personas › Cuentas › tarjeta **🚫 Descalificar a quien no inició sesión**).
+Quita del marcador y de la estadística, de una vez, a los equipos que no participaron:
+
+- **Quién sale:** el equipo sin ningún inicio de sesión desde 1 hora antes de la apertura del inicio de sesión hasta el
+  fin de la competencia (para todas las sedes) **y** sin ningún envío. Quien envió nunca sale, aunque no tenga inicio
+  de sesión registrado. El inicio de sesión del calentamiento no cuenta.
+- **Quién se queda:** quien está en una etapa **publicada** de la clasificación, quien ya estaba descalificado y las
+  cuentas de rol.
+- **Ver vista previa** muestra la ventana usada, los conteos y la lista, con el último inicio de sesión de cada equipo,
+  sin guardar nada. El botón **Descalificar N equipos** confirma. Si la lista cambió desde la vista previa, el panel
+  muestra la lista nueva y vuelve a pedir.
+- Funciona en cualquier momento. Con la competencia todavía en curso, la ventana llega hasta ahora, y quien inicie
+  sesión después ya estará descalificado.
+- Cada clic se convierte en un **lote**, listado en la tarjeta con fecha y autor. **Deshacer** devuelve el lote entero,
+  menos a quien descalificaste o devolviste a mano después. Todo va a la Auditoría.
+- Es la misma descalificación de cada cuenta: la cuenta, la contraseña y el historial se quedan. Si el informe ya fue
+  publicado, vuelve a publicarlo. El marcador congelado guardado por **Terminar evento** no cambia: es el registro de lo
+  que se mostró en la competencia.
+
 ## 6¾. Participación virtual (Evento › Virtual, módulo `virtual`)
 
 Con la competencia terminada, cualquier cuenta del Entrenamiento libre puede **rehacer la competencia una vez**, en su propio
@@ -668,7 +687,7 @@ participación:
   competencia en que salió (lo que salió después del fin, solo cuando termina la participación). Una pregunta privada
   nunca aparece, y el participante no pregunta: nadie respondería. Un aviso o una noticia **editados** cuentan desde la
   hora de la edición;
-- el **marcador se congela** en el mismo minuto del congelamiento de la competencia (**Cerrar evento** guarda ese
+- el **marcador se congela** en el mismo minuto del congelamiento de la competencia (**Terminar evento** guarda ese
   minuto) y se descongela cuando termina la participación.
 
 Lo que publiques o edites después de la competencia también llega a quien haga el virtual después. No publiques ahí lo

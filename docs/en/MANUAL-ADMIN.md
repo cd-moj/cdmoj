@@ -1,4 +1,4 @@
-<!-- i18n-source: MANUAL-ADMIN.md blob:3b4128eb42ca2975fb65836cf1e1124db1774dff -->
+<!-- i18n-source: MANUAL-ADMIN.md blob:0c82366bb06eb4d1cb4c347da69f2c6d420ac5a5 -->
 # MOJ: Organizer manual (the contest .admin panel)
 
 > **Translation note.** This manual is a translation of the Portuguese original. The command-line tools (`moj`, `moj-contest`, `moj-comp`) print their messages in Portuguese, and the command examples below are identical to the original.
@@ -644,6 +644,25 @@ MOJ refuses to publish the report when it would show what is not public yet:
 - **With a PRIVATE cohort and the results not released.** The report shows all the teams. This also applies to
   the report of an archived round. Release the results in Event › Cohorts.
 
+**Disqualify who did not log in** (People › Accounts › the **🚫 Disqualify who did not log in** card). Removes from the
+scoreboard and the statistics, in one go, the teams that did not take part:
+
+- **Who goes:** a team with no login from 1 hour before the login opens until the end of the contest (for all sites)
+  **and** with no submission. A team that submitted never goes, even with no recorded login. A warm-up login does not
+  count.
+- **Who stays:** teams in a **published** classification stage, teams that were already disqualified, and role
+  accounts.
+- **Preview** shows the window used, the counts and the list, with the last login of each team, and changes nothing.
+  The **Disqualify N teams** button confirms. If the list changed since the preview, the panel shows the new list and
+  asks again.
+- It works at any time. With the contest still running, the window goes up to now, and a team that logs in later will
+  already be disqualified.
+- Each click becomes a **batch**, listed in the card with date and author. **Undo** brings the whole batch back, except
+  the teams that you disqualified or brought back by hand afterwards. Everything goes to the Audit.
+- It is the same disqualification as for one account: the account, the password and the history stay. If the report
+  was already published, publish it again. The frozen scoreboard kept by **Finish event** does not change: it is the
+  record of what was shown during the contest.
+
 ## 6¾. Virtual participation (Event › Virtual — module `virtual`)
 
 After the contest ends, any Free Training account can **do the contest again one time**, in its
@@ -696,7 +715,7 @@ participation:
   when it came out (what came out after the end, only when the participation ends). A private question never shows,
   and the participant does not ask: nobody would answer. An **edited** notice or news item counts from the time of the
   edit;
-- the **scoreboard freezes** at the same minute as the contest freeze (**End event** keeps that minute) and unfreezes
+- the **scoreboard freezes** at the same minute as the contest freeze (**Finish event** keeps that minute) and unfreezes
   when the participation ends.
 
 What you publish or edit after the contest also reaches whoever does the virtual later. Do not publish there what must

@@ -330,7 +330,12 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   (`resolve_submission` globa `<sid>.*`); e **título igual NÃO prova mesmo problema** — confira o
   enunciado (a agulha tem de sair da ESTÓRIA: "Entrada/Saída" é clichê e casa problema alheio).
   Handlers de usuário do admin (`user-add`/`user-disable`/`user-remove`/`users-set-password`)
-  escrevem no account.json; remover = `mv` p/ `.removed-users/`. **`.team` agora tem WRITERS
+  escrevem no account.json; remover = `mv` p/ `.removed-users/`. **Desclassificar quem não logou em LOTE**
+  (`/contest/admin/absent-disqualify`, `lib/absent-dq.sh`, cartão 🚫 de Pessoas › Contas, 12/11/2026): sem login na janela
+  (1 h antes da abertura do login até o fim, ou agora) E sem submissão; fica quem está num estágio publicado da
+  classificação. Prévia com `plan_id` → aplicar → lote em `var/absent-dq.json` com DESFAZER; a marca é a do
+  `user-disqualify` + `.dq_batch` (o `user-disqualify` individual a apaga: a decisão individual vence o lote). Levantamento
+  numa varredura (2.000 contas: 0,17 s). Teste: `smoke-absent-dq.sh`. **`.team` agora tem WRITERS
   na API** (antes só o store-migrate): `users-bulk`/`user-add`/`contest-create users[]` aceitam
   `univ_short/univ_full/country/region` (helper `team_fields_json` + `account_team_merge` em
   lib/users.sh — saneiam `:`/tab/newline) e `/contest/admin/teams` (painel **Pessoas › Times**) faz set

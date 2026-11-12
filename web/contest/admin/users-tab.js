@@ -8,6 +8,7 @@ import { parseUsers, parseRichCsv, downloadCsv, colonNote, colonQ, skipReason, N
 import { mkBool, PRIV_RE as PRIV } from '/shared/admin-ui.js';
 import { T } from '/shared/i18n.js';
 import { makeConvertCard } from './users-convert.js';
+import { makeAbsentDqCard } from './absent-dq.js';
 
 const enc = encodeURIComponent;
 
@@ -34,6 +35,7 @@ export function makeUsersTab(CONTEST) {
   let USERS = [], built = false;
   const call = (path, body) => apiPost('/contest/admin/' + path + '?contest=' + enc(CONTEST), body, G);
   const conv = makeConvertCard(CONTEST, { onDone: () => loadList() });   // contest compartilhado (USERS_FROM)
+  const adq = makeAbsentDqCard(CONTEST, { onDone: () => loadList() });   // desclassificar quem não logou (lote)
 
   // filtros (sobrevivem ao re-render da lista) — essenciais em contest com 1000+ usuários
   const fQ = el('input', { type: 'search', placeholder: T('login / nome / email…', 'login / name / email…', 'login / nombre / email…'), style: 'min-width:200px' });
@@ -189,7 +191,7 @@ export function makeUsersTab(CONTEST) {
     built = true;
     panel.append(el('h2', {}, T('👥 Contas & senhas ', '👥 Accounts & passwords ', '👥 Cuentas y contraseñas '),
       el('a', { class: 'btn ghost', style: 'font-size:.85rem; font-weight:400', target: '_blank',
-        href: '/contest/badges/?c=' + enc(CONTEST) }, T('🏷️ Etiquetas de credenciais', '🏷️ Credential badges', '🏷️ Etiquetas de credenciales'))), conv.el);
+        href: '/contest/badges/?c=' + enc(CONTEST) }, T('🏷️ Etiquetas de credenciais', '🏷️ Credential badges', '🏷️ Etiquetas de credenciales'))), conv.el, adq.el);
     panel.append(el('div', { class: 'row', style: 'margin:.3rem 0' }, el('span', { class: 'small muted' }, T('Filtrar:', 'Filter:', 'Filtrar:')), fQ, fSel,
       el('button', { class: 'btn ghost', onclick: () => loadList() }, '↻')), list);
     // add/reset (individual)

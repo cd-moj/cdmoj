@@ -7331,13 +7331,30 @@
         }
       }
     },
+    "/contest/admin/absent-disqualify": {
+      "get": {
+        "tags": ["contest-admin"],
+        "summary": "Prévia: os times sem login na janela da prova E sem submissão (fora: classificados num estágio publicado, já desclassificados, papel). Nada gravado.",
+        "parameters": [{"name": "contest", "in": "query", "required": true, "schema": {"type": "string"}}],
+        "responses": {"200": {"description": "{preview:{window:{from,to}, live, counts, candidates:[{login,name,univ,region,last_login}], kept_classified:[{login,name,region,via,stage}], plan_id}, batches:[{id,at,by,count,window,undone_at,undone_by}]}"}},
+        "security": [{"bearer": []}]
+      },
+      "post": {
+        "tags": ["contest-admin"],
+        "summary": "Desclassifica em lote os candidatos da prévia (action apply + plan_id) ou desfaz um lote (action undo + batch)",
+        "parameters": [{"name": "contest", "in": "query", "required": true, "schema": {"type": "string"}}],
+        "requestBody": {"content": {"application/json": {"schema": {"type": "object", "required": ["action"], "properties": {"action": {"type": "string", "enum": ["apply", "undo"]}, "plan_id": {"type": "string"}, "batch": {"type": "string"}}}}}},
+        "responses": {"200": {"description": "apply: {batch, count, batches}; undo: {batch, restored, batches} (volta só quem ainda tem a marca do lote)"}, "409": {"description": "plan_changed (a lista mudou: peça a prévia de novo), nothing_to_do, busy, batch_undone, not_a_contest"}, "404": {"description": "batch_notfound"}},
+        "security": [{"bearer": []}]
+      }
+    },
     "/contest/admin/user-disqualify": {
       "post": {
         "tags": ["contest-admin"],
         "summary": "Desclassifica o time (some do placar e da estatística; undo reverte)",
         "parameters": [{"name": "contest", "in": "query", "required": true, "schema": {"type": "string"}}],
         "requestBody": {"content": {"application/json": {"schema": {"type": "object", "required": ["login"], "properties": {"login": {"type": "string"}, "undo": {"type": "boolean"}}}}}},
-        "responses": {"200": {"description": "{disqualified, login}. Seta .disqualified=true no account.json: fora do placar (sc_users) e da estatística (stats-gen) — mesma população nas duas telas. Não mexe em senha/sessões."}},
+        "responses": {"200": {"description": "{disqualified, login}. Seta .disqualified=true no account.json: fora do placar (sc_users) e da estatística (stats-gen) — mesma população nas duas telas. Não mexe em senha/sessões. Apaga a marca de lote (.dq_batch) do absent-disqualify nos dois sentidos: a decisão individual vence."}},
         "security": [{"bearer": []}]
       }
     },
