@@ -39,10 +39,15 @@ _pub_state(){
   [[ -s "$CD/relatorio/index.html" && -s "$STAMP" ]] && pub=true
   stamp="$(cat "$STAMP" 2>/dev/null)"; jq -e . >/dev/null 2>&1 <<<"$stamp" || stamp='{}'
   job="$(cat "$ST" 2>/dev/null)"; jq -e . >/dev/null 2>&1 <<<"$job" || job=null
-  # job "running" cujo lock já soltou = processo morreu no meio (reboot): não fica preso
+  # job "running" cujo lock já soltou = processo morreu no meio (reboot): não fica preso. O estado é RELIDO com a trava
+  # na mão: o job grava o estado final ANTES de soltá-la, então o "running" lido antes pode ser de um job que acabou
+  # entre a leitura e o teste da trava — sem a releitura, o GET desse instante anunciava "geração interrompida".
   if [[ "$(jq -r '.state // ""' <<<"$job")" == running ]]; then
-    if ( exec 9>"$CD/var/.report.lock"; flock -n 9 ) 2>/dev/null; then
-      job="$(jq -c '.state="error" | .error="geração interrompida"' <<<"$job")"
+    local again
+    if again="$( exec 9>"$CD/var/.report.lock"; flock -n 9 || exit 1; cat "$ST" 2>/dev/null || true )"; then
+      jq -e . >/dev/null 2>&1 <<<"$again" && job="$again"
+      [[ "$(jq -r '.state // ""' <<<"$job")" == running ]] \
+        && job="$(jq -c '.state="error" | .error="geração interrompida"' <<<"$job")"
     fi
   fi
   rounds="$(_rounds_json)"; [[ -n "$rounds" ]] || rounds='[]'

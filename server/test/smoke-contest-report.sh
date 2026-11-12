@@ -342,6 +342,26 @@ ck "site publicado: nav consistente também"       '[[ "$(grep -o "<nav class=\"
 J="$(callj /index/contests GET '' 'all=1')"
 ck "/index/contests: report_url do rp"            '[[ "$(jq -r "[.open[], .upcoming[], .closed.items[]] | .[] | select(.id==\"rp\") | .report_url" <<<"$J")" == "/relatorio/rp/" ]]'
 ck "audit: report-publish"                        'grep -q "report-publish" "$C/var/admin-audit.log"'
+# ESTADO DO JOB (12/11/2026): o job grava o estado final ANTES de soltar a trava; o GET relê com a trava na mão.
+# Fim do job entre a leitura e o teste da trava — FIFO: a 1ª leitura recebe "running", a 2ª "done" (determinístico).
+calljt(){ PATH_INFO="$1" REQUEST_METHOD="$2" QUERY_STRING="$4" HTTP_AUTHORIZATION="Bearer $3" \
+  CONTESTSDIR="$FIX" SESSIONDIR="$SESS" MOJ_PROBLEMS_DIR="$PKG" RUNDIR="$FIX/run" MOJ_JOBS_SYNC=1 \
+  timeout 20 bash "$ROUTER" <<<"${5:-}" 2>/dev/null | awk 'f{print} /^\r?$/{f=1}'; }
+STF="$C/var/report-publish.status.json"; cp "$STF" "$FIX/st.bak"; rm -f "$STF"; mkfifo "$STF"
+# (a pausa deixa a 1ª leitura chegar ao fim do arquivo antes de o escritor reabrir o FIFO: sem ela as duas escritas
+# podiam cair na mesma leitura)
+( printf '%s' '{"state":"running","by":"rp.admin","started":1,"updated":1}' > "$STF"; sleep 0.4
+  printf '%s' '{"state":"done","by":"rp.admin","started":1,"updated":2}' > "$STF" ) & wpid=$!
+J="$(calljt /contest/admin/report-publish GET adm 'contest=rp')"
+kill "$wpid" 2>/dev/null; wait "$wpid" 2>/dev/null; rm -f "$STF"
+ck "job acabou entre a leitura e a trava: done, nunca 'geração interrompida'" '[[ "$(jq -r .job.state <<<"$J")" == done ]]'
+printf '%s' '{"state":"running","by":"rp.admin","started":1,"updated":1}' > "$STF"
+J="$(calljt /contest/admin/report-publish GET adm 'contest=rp')"
+ck "running SEM ninguém na trava (job morreu): error 'geração interrompida'" '[[ "$(jq -r .job.state <<<"$J")" == error && "$(jq -r .job.error <<<"$J")" == "geração interrompida" ]]'
+( exec 9>"$C/var/.report.lock"; flock 9; sleep 4 ) & lpid=$!; sleep 0.5
+J="$(calljt /contest/admin/report-publish GET adm 'contest=rp')"
+ck "running COM a trava presa: segue running"     '[[ "$(jq -r .job.state <<<"$J")" == running ]]'
+kill "$lpid" 2>/dev/null; wait "$lpid" 2>/dev/null; cp "$FIX/st.bak" "$STF"
 # rodada ARQUIVADA com relatório (fixture mínimo): publicar/despublicar o relatório dela (symlink)
 mkdir -p "$C/rounds/aq/relatorio"; printf '<!DOCTYPE html><html><body>aq</body></html>\n' > "$C/rounds/aq/relatorio/index.html"
 jq -cn '{active:"oficial", rounds:[{slug:"aq", name:"Aquecimento", kind:"warmup", start:1, end:2, state:"archived", published:false},
