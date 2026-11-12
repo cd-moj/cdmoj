@@ -1,4 +1,4 @@
-<!-- i18n-source: MANUAL-ADMIN.md blob:0c82366bb06eb4d1cb4c347da69f2c6d420ac5a5 -->
+<!-- i18n-source: MANUAL-ADMIN.md blob:67a7d27ff583ec7afb2f276bb994c54fa158f626 -->
 # MOJ: Manual del organizador (el panel .admin de la competencia)
 
 > **Nota de traducción.** Este manual es una traducción del original en portugués. Las herramientas de línea de comandos (`moj`, `moj-contest`, `moj-comp`) muestran sus mensajes en portugués, y los ejemplos de comandos son idénticos al original.
@@ -620,8 +620,9 @@ MOJ se niega a publicar el informe cuando mostraría lo que todavía no es públ
 - **Con una cohorte PRIVADA y los resultados no liberados.** El informe muestra todos los equipos. Vale también
   para el informe de una ronda archivada. Libera los resultados en Evento › Cohortes.
 
-**Descalificar a quien no inició sesión** (Personas › Cuentas › tarjeta **🚫 Descalificar a quien no inició sesión**).
-Quita del marcador y de la estadística, de una vez, a los equipos que no participaron:
+**Descalificar a quien no inició sesión** (Personas › Cuentas › tarjeta **🚫 Descalificar a quien no inició sesión**; en
+la CLI, `moj-contest -c <contest> users absent`). Quita del marcador y de la estadística, de una vez, a los equipos que
+no participaron:
 
 - **Quién sale:** el equipo sin ningún inicio de sesión desde 1 hora antes de la apertura del inicio de sesión hasta el
   fin de la competencia (para todas las sedes) **y** sin ningún envío. Quien envió nunca sale, aunque no tenga inicio

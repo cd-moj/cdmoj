@@ -1,4 +1,4 @@
-<!-- i18n-source: MANUAL-ADMIN.md blob:0c82366bb06eb4d1cb4c347da69f2c6d420ac5a5 -->
+<!-- i18n-source: MANUAL-ADMIN.md blob:67a7d27ff583ec7afb2f276bb994c54fa158f626 -->
 # MOJ: Organizer manual (the contest .admin panel)
 
 > **Translation note.** This manual is a translation of the Portuguese original. The command-line tools (`moj`, `moj-contest`, `moj-comp`) print their messages in Portuguese, and the command examples below are identical to the original.
@@ -644,8 +644,9 @@ MOJ refuses to publish the report when it would show what is not public yet:
 - **With a PRIVATE cohort and the results not released.** The report shows all the teams. This also applies to
   the report of an archived round. Release the results in Event › Cohorts.
 
-**Disqualify who did not log in** (People › Accounts › the **🚫 Disqualify who did not log in** card). Removes from the
-scoreboard and the statistics, in one go, the teams that did not take part:
+**Disqualify who did not log in** (People › Accounts › the **🚫 Disqualify who did not log in** card; in the CLI,
+`moj-contest -c <contest> users absent`). Removes from the scoreboard and the statistics, in one go, the teams that did
+not take part:
 
 - **Who goes:** a team with no login from 1 hour before the login opens until the end of the contest (for all sites)
   **and** with no submission. A team that submitted never goes, even with no recorded login. A warm-up login does not

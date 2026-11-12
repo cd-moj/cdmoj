@@ -610,8 +610,8 @@ O MOJ recusa publicar o relatório quando ele mostraria o que ainda não é púb
 - **Com coorte PRIVADA e os resultados não liberados.** O relatório mostra todos os times. Vale também para o
   relatório de uma rodada arquivada. Libere os resultados em Evento › Coortes.
 
-**Desclassificar quem não logou** (Pessoas › Contas › cartão **🚫 Desclassificar quem não logou**). Tira do placar e da
-estatística, de uma vez, os times que não participaram:
+**Desclassificar quem não logou** (Pessoas › Contas › cartão **🚫 Desclassificar quem não logou**; na CLI,
+`moj-contest -c <contest> users absent`). Tira do placar e da estatística, de uma vez, os times que não participaram:
 
 - **Quem sai:** o time sem nenhum login de 1 hora antes da abertura do login até o fim da prova (para todas as sedes)
   **e** sem nenhuma submissão. Quem submeteu nunca sai, mesmo sem login registrado. Login de aquecimento não conta.
