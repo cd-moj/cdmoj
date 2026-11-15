@@ -59,6 +59,13 @@ let pollGen = 0, pollFails = 0, everRendered = false;
 // peças do boot que FALHARAM (mesma rajada): sem elas o placar fica sem brasão/bandeira/sede/balão até o F5. Cada poll
 // bem-sucedido as pede de novo (uma vez por poll) até virem. nome -> caminho
 const BOOT_RETRY = {};
+// 401/403 não se resolve sozinho (sessão derrubada, papel sem acesso à peça): repedir a cada poll era um pedido inútil
+// para sempre — abas do placar da LATAM com a sessão derrubada pediam o navbuttons ~1.800 vezes por dia cada (15/11/2026).
+// A peça fica de fora até o F5; o placar público segue atualizando. Só falha de rede, 429 e 5xx voltam ao BOOT_RETRY.
+function bootRetryable(e) {
+  const s = e && e.status;
+  return s !== 401 && s !== 403;
+}
 
 
 function navHref(url) {
@@ -488,7 +495,7 @@ async function retryBoot() {
   if (!names.length) return;
   await Promise.all(names.map(async (n) => {
     let r;
-    try { r = await apiGet(BOOT_RETRY[n], { contest: CONTEST, auth: isAuth }); } catch { return; }
+    try { r = await apiGet(BOOT_RETRY[n], { contest: CONTEST, auth: isAuth }); } catch (e) { if (!bootRetryable(e)) delete BOOT_RETRY[n]; return; }
     delete BOOT_RETRY[n];
     applyBootPiece(n, r);
   }));
@@ -534,9 +541,10 @@ async function boot() {
   document.getElementById('publicNotice').classList.toggle('hidden', isAuth);
 
   // nav + balões + regiões + times (auth quando possível; tolerante a falha)
-  // a peça que FALHA (rajada: 429/502) vai p/ o BOOT_RETRY e o próximo poll bem-sucedido a pede de novo
+  // a peça que FALHA (rajada: 429/502) vai p/ o BOOT_RETRY e o próximo poll bem-sucedido a pede de novo (401/403 não:
+  // bootRetryable)
   const piece = (n) => { const path = '/contest/' + n + '?contest=' + encodeURIComponent(CONTEST);
-    return apiGet(path, { contest: CONTEST, auth: isAuth }).catch(() => { BOOT_RETRY[n] = path; return null; }); };
+    return apiGet(path, { contest: CONTEST, auth: isAuth }).catch((e) => { if (bootRetryable(e)) BOOT_RETRY[n] = path; return null; }); };
   const [nav, bc, rg, tm, td, mani, cls] = await Promise.all([
     piece('navbuttons'), piece('balloons'), piece('regions'), piece('teams-meta'), piece('teams'),
     flagManifest().catch(() => ({ countries: [], br_states: [] })),

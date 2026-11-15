@@ -544,7 +544,8 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   F5, e o F5 em massa é a própria rajada. Hoje o `score.js` mantém o placar anterior, mostra o aviso `#scoreStale` e tenta
   de novo com espera crescente (10–20, 20–40, teto 30–60 s); o 1º sucesso volta ao ritmo normal; `pollGen` mata a cadeia
   velha (início da prova × troca de coorte rodavam duas); o disparo do INÍCIO sai com dispersão de até 1,5 s; e a peça do
-  boot que falhou (`teams`, `regions`, `balloons`…) é pedida de novo no próximo poll bem-sucedido (`BOOT_RETRY`). Contest
+  boot que falhou (`teams`, `regions`, `balloons`…) é pedida de novo no próximo poll bem-sucedido (`BOOT_RETRY`) — menos a
+  que voltou 401/403 (`bootRetryable`, 15/11/2026: abas da LATAM com a sessão derrubada pediam o `navbuttons` ~1.800×/dia cada). Contest
   secreto com 401/403 = convite ao login, sem reagendar. O `judge.js` (`review/list`) idem, parando só em 401/403. Poll
   NOVO segue a mesma regra: erro reagenda, nunca para. Testes: `smoke-score-poll.gjs.sh`, `smoke-judge-poll.gjs.sh`.
 - **PLACAR ANÔNIMO É CORTADO NA API** (`SCORE_ANON=1`, 03/10/2026, decisão do Ribas; era só a TELA — o TXT com nomes ia

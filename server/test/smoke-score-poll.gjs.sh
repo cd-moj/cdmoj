@@ -34,8 +34,9 @@ async function apiGetTextMeta() {
   const r = queue.shift(); if (r instanceof Error) throw r;
   return { text: r, headers: new Map([['X-MOJ-Frozen', '0']]) };
 }
-let apiCalls = [];
-async function apiGet(path) { apiCalls.push(path); if (path.includes('/contest/teams?')) return { teams: { t1: { has_logo: true } } }; return null; }
+let apiCalls = [], apiFail = {};   // apiFail: pedaço do caminho -> status que a API falsa devolve
+async function apiGet(path) { apiCalls.push(path); for (const k in apiFail) if (path.includes(k)) throw new ApiError(apiFail[k]);
+  if (path.includes('/contest/teams?')) return { teams: { t1: { has_logo: true } } }; return null; }
 function setFrozenNotice() {} function renderAnon() {} function renderFilters() {} function reRender() {}
 function applyTeamsDir() {} function applyTeamsMeta() {} async function fetchGenPlace() {} function renderNav() {}
 function parseICPC() { return { teams: [] }; } function parseOBI() { return null; } function parseGeneric() { return null; }
@@ -43,7 +44,7 @@ function classifiedMap(x) { return x; }
 let refreshTimer = null;
 JS
   grep -E '^let pollGen = |^const BOOT_RETRY = ' "$SJ"
-  sed -n '/^async function pollScore(/,/^}/p; /^function pollOk(/,/^}/p; /^async function retryBoot(/,/^}/p; /^function applyBootPiece(/,/^}/p' "$SJ"
+  sed -n '/^async function pollScore(/,/^}/p; /^function pollOk(/,/^}/p; /^async function retryBoot(/,/^}/p; /^function applyBootPiece(/,/^}/p; /^function bootRetryable(/,/^}/p' "$SJ"
   cat <<'JS'
 const out = [];
 const last = () => timers[timers.length - 1];
@@ -84,6 +85,14 @@ const run = async () => { const t = timers.shift(); await t.fn(); };
   out.push('boot=' + (teamsDir.t1 && !BOOT_RETRY.teams ? 1 : 0));
   apiCalls = []; queue = ['icpc\n']; await run();
   out.push('boot_once=' + (apiCalls.length === 0 ? 1 : 0));
+  // 6b) peça do boot com 401/403 (sessão derrubada): sai do BOOT_RETRY e não é pedida de novo; 429 segue na fila
+  timers = []; BOOT_RETRY['navbuttons'] = '/contest/navbuttons?contest=c1'; BOOT_RETRY['regions'] = '/contest/regions?contest=c1';
+  apiFail = { '/contest/navbuttons?': 401, '/contest/regions?': 429 };
+  queue = ['icpc\n']; await pollScore();
+  out.push('boot401_drop=' + (!BOOT_RETRY.navbuttons && BOOT_RETRY.regions ? 1 : 0));
+  apiCalls = []; queue = ['icpc\n']; await run();
+  out.push('boot401_quiet=' + (!apiCalls.some((p) => p.includes('navbuttons')) && apiCalls.some((p) => p.includes('regions')) ? 1 : 0));
+  apiFail = {}; delete BOOT_RETRY.regions;
   // 7) contest secreto, sessão encerrada (401): convite ao login, sem reagendar
   timers = []; basic = { secret: true }; queue = [new ApiError(401)];
   await pollScore();
@@ -106,6 +115,8 @@ chk reset     "…e zera a espera"
 chk one_chain "duas cadeias: a velha morre sem reagendar"
 chk boot      "peça do boot que falhou (teams) volta no próximo poll"
 chk boot_once "…e não é pedida de novo depois de vir"
+chk boot401_drop  "peça do boot com 401 sai da fila de nova tentativa (a com 429 fica)"
+chk boot401_quiet "…e não é pedida de novo no poll seguinte (a com 429 é)"
 chk secret401 "contest secreto com 401: convite ao login, sem reagendar"
 [[ $FAIL -eq 0 ]] || echo "saída: $out" >&2
 echo "score-poll: $PASS ok, $FAIL falhas"; [[ $FAIL -eq 0 ]]
