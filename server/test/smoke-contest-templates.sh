@@ -23,17 +23,18 @@ pass=0; fail=0; ck(){ if eval "$2"; then echo "  ok: $1"; ((pass++)); else echo 
 
 # contest origem do regular: 2 problemas (banco + custom com enunciado), toggles e freeze
 ST=$(( NOW + 1000 )); EN=$(( NOW + 11800 )); FZ=$(( EN - 3600 ))
-SPEC="{\"id\":\"orig-c\",\"name\":\"Original\",\"mode\":\"icpc\",\"priority\":\"prova\",\"start\":$ST,\"end\":$EN,\"freeze\":$FZ,\"languages\":[\"c\",\"cpp\"],\"score_anon\":true,\"show_log\":false,\"penalty_minutes\":15,\"penalty_verdicts\":[\"wa\",\"ce\"],\"users\":[{\"login\":\"aluno1\",\"password\":\"pw1\",\"fullname\":\"Aluno\"}],\"problems\":[{\"bank_id\":\"bankprob\",\"name\":\"B1\",\"letter\":\"A\",\"languages\":[\"c\"]},{\"problem_id\":\"x/custom\",\"name\":\"Cust\",\"letter\":\"B\",\"statement_b64\":\"PHA+Y3VzdDwvcD4=\"}]}"
+SPEC="{\"id\":\"orig-c\",\"name\":\"Original\",\"mode\":\"icpc\",\"priority\":\"prova\",\"start\":$ST,\"end\":$EN,\"freeze\":$FZ,\"languages\":[\"c\",\"cpp\"],\"score_anon\":true,\"show_log\":false,\"penalty_minutes\":15,\"penalty_verdicts\":[\"wa\",\"ce\"],\"balloon_style\":\"fill\",\"review_judges\":4,\"users\":[{\"login\":\"aluno1\",\"password\":\"pw1\",\"fullname\":\"Aluno\"}],\"problems\":[{\"bank_id\":\"bankprob\",\"name\":\"B1\",\"letter\":\"A\",\"languages\":[\"c\"]},{\"problem_id\":\"x/custom\",\"name\":\"Cust\",\"letter\":\"B\",\"statement_b64\":\"PHA+Y3VzdDwvcD4=\"}]}"
 call /treino/contest-create/create POST "$SPEC" reg
 [[ "$(jq -r .contest_id <<<"$BODY")" == orig-c ]] || { echo "SETUP FAIL: $BODY"; exit 1; }
 
 echo "== templates: save do formulário / list / get / rename / delete =="
-call /treino/contest-create/templates POST '{"op":"save","name":"prova ed","template":{"mode":"icpc","priority":"prova","start":1000,"end":11800,"freeze":8200,"languages":["c"],"score_anon":true,"users":[{"login":"mal","password":"x"}],"admin":{"password":"vaza"},"id":"nao-vai"}}' reg
+call /treino/contest-create/templates POST '{"op":"save","name":"prova ed","template":{"mode":"icpc","priority":"prova","start":1000,"end":11800,"freeze":8200,"languages":["c"],"judges":["j1"],"score_anon":true,"users":[{"login":"mal","password":"x"}],"admin":{"password":"vaza"},"id":"nao-vai"}}' reg
 ck "save 200"               '[[ "$(jq -r .saved <<<"$BODY")" == true ]]'
 TPLF="$T/var/contest-templates/regular.json"
 ck "arquivo por login criado" '[[ -f "$TPLF" ]]'
 ck "whitelist: sem users/admin/id/datas absolutas" '[[ "$(jq -r ".templates[\"prova ed\"].spec | has(\"users\") or has(\"admin\") or has(\"id\") or has(\"start\") or has(\"end\")" "$TPLF")" == false ]]'
 ck "relativo: duration=10800 freeze_before_end=3600" '[[ "$(jq -r ".templates[\"prova ed\"].spec.duration" "$TPLF")" == 10800 && "$(jq -r ".templates[\"prova ed\"].spec.freeze_before_end" "$TPLF")" == 3600 ]]'
+ck "template guarda o pool de juízes (16/11/2026: a whitelist o descartava)" '[[ "$(jq -rc ".templates[\"prova ed\"].spec.judges" "$TPLF")" == "[\"j1\"]" ]]'
 call /treino/contest-create/templates GET '' reg
 ck "list traz o template"   '[[ "$(jq -r ".templates[0].name" <<<"$BODY")" == "prova ed" && "$(jq -r ".templates[0].mode" <<<"$BODY")" == icpc ]]'
 call /treino/contest-create/templates GET '' reg 'name=prova%20ed'
@@ -50,6 +51,7 @@ ck "delete de inexistente 404" '[[ "$OUT" == *"Status: 404"* ]]'
 echo "== templates: save from_contest (gate de dono) =="
 call /treino/contest-create/templates POST '{"op":"save","name":"da-prova","from_contest":"orig-c","include_problems":true}' reg
 ck "dono salva do contest"  '[[ "$(jq -r .saved <<<"$BODY")" == true ]]'
+ck "template do contest leva estilo do balão e juízes da revisão" '[[ "$(jq -r ".templates[\"da-prova\"].spec | \"\(.balloon_style)/\(.review_judges)\"" "$TPLF")" == "fill/4" ]]'
 ck "template tem problemas sem enunciado embutido" '[[ "$(jq -r ".templates[\"da-prova\"].spec.problems|length" "$TPLF")" == 2 && "$(jq -r ".templates[\"da-prova\"].spec.problems[1]|has(\"statement_b64\")" "$TPLF")" == false ]]'
 call /treino/contest-create/templates POST '{"op":"save","name":"rouba","from_contest":"orig-c"}' eve
 ck "não-dono from_contest 404" '[[ "$OUT" == *"Status: 404"* ]]'
@@ -78,6 +80,7 @@ ck "dono exporta (attachment)" '[[ "$OUT" == *"Content-Disposition"* ]]'
 ck "spec sem passwd/senhas"  '[[ "$(printf "%s" "$BODY" | grep -ci "password\|passwd")" == 0 ]]'
 ck "spec com toggles/priority" '[[ "$(jq -r .priority <<<"$BODY")" == prova && "$(jq -r .score_anon <<<"$BODY")" == true && "$(jq -r .show_log <<<"$BODY")" == false ]]'
 ck "langs por problema no export" '[[ "$(jq -rc ".problems[0].languages" <<<"$BODY")" == "[\"c\"]" ]]'
+ck "estilo do balão e juízes da revisão no export" '[[ "$(jq -r .balloon_style <<<"$BODY")" == fill && "$(jq -r .review_judges <<<"$BODY")" == 4 ]]'
 ck "penalidade no export"    '[[ "$(jq -r .penalty_minutes <<<"$BODY")" == 15 && "$(jq -rc .penalty_verdicts <<<"$BODY")" == "[\"wa\",\"ce\"]" ]]'
 ck "auto: custom embutido, banco não" '[[ "$(jq -r ".problems[1]|has(\"statement_b64\")" <<<"$BODY")" == true && "$(jq -r ".problems[0]|has(\"statement_b64\")" <<<"$BODY")" == false ]]'
 EXPORTED="$BODY"
@@ -109,6 +112,7 @@ ck "duração preservada (10800)" '[[ "$( . "$FIX/dup-c/conf"; echo $((CONTEST_E
 ck "freeze relativo preservado" '[[ "$( . "$FIX/dup-c/conf"; echo $((CONTEST_END - FREEZE_TIME)) )" == 3600 ]]'
 ck "enunciado custom copiado por arquivo" '[[ -f "$FIX/dup-c/enunciados/x#custom.html" ]]'
 ck "toggles copiados"       'grep -q "^SCORE_ANON=1" "$FIX/dup-c/conf"'
+ck "estilo do balão e juízes da revisão copiados" '[[ "$( . "$FIX/dup-c/conf"; echo "$SCORE_BALLOON_STYLE/$REVIEW_JUDGES" )" == "fill/4" ]]'
 ck "penalidade copiada"     '[[ "$( . "$FIX/dup-c/conf"; echo "$PENALTY_MINUTES/$PENALTY_VERDICTS" )" == "15/wa ce" ]]'
 call /treino/contest-create/duplicate POST '{"from":"orig-c"}' eve
 ck "não-dono duplicate 404" '[[ "$OUT" == *"Status: 404"* ]]'

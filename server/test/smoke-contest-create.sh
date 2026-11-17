@@ -171,7 +171,7 @@ ck "draw só por tag segue ok"  '[[ "$(jq -r .candidates <<<"$BODY")" == 1 && "$
 
 echo "== paridade do spec: toggles/priority/langs/pdf =="
 PDF64="$(printf '%%PDF-fake' | base64 -w0)"
-SPEC2="{\"id\":\"tog-c\",\"name\":\"Toggles\",\"mode\":\"icpc\",\"priority\":\"prova\",\"end\":$FUT,\"languages\":[\"C\",\"CPP\",\"bad lang!\"],\"show_log\":false,\"show_editor\":false,\"show_tl\":false,\"allow_backup\":false,\"allow_print\":false,\"score_anon\":true,\"manual_verdict\":true,\"allow_late\":true,\"login_ua_substring\":\"MOJBOX\",\"score_full_users\":[\"prof\",\"bad user\"],\"penalty_minutes\":10,\"penalty_verdicts\":[\"ce\",\"wa\"],\"problems\":[{\"bank_id\":\"bankprob\",\"name\":\"B\",\"letter\":\"A\",\"languages\":[\"C\",\"PY3\"],\"statement_pdf_b64\":\"$PDF64\"}]}"
+SPEC2="{\"id\":\"tog-c\",\"name\":\"Toggles\",\"mode\":\"icpc\",\"priority\":\"prova\",\"end\":$FUT,\"languages\":[\"C\",\"CPP\",\"bad lang!\"],\"show_log\":false,\"show_editor\":false,\"show_tl\":false,\"allow_backup\":false,\"allow_print\":false,\"score_anon\":true,\"manual_verdict\":true,\"allow_late\":true,\"login_ua_substring\":\"MOJBOX\",\"score_full_users\":[\"prof\",\"bad user\"],\"penalty_minutes\":10,\"penalty_verdicts\":[\"ce\",\"wa\"],\"balloon_style\":\"fill\",\"review_judges\":3,\"problems\":[{\"bank_id\":\"bankprob\",\"name\":\"B\",\"letter\":\"A\",\"languages\":[\"C\",\"PY3\"],\"statement_pdf_b64\":\"$PDF64\"}]}"
 call /treino/contest-create/create POST "$SPEC2" reg
 ck "criou tog-c"            '[[ "$(jq -r .contest_id <<<"$BODY")" == "tog-c" ]]'
 CF="$FIX/tog-c/conf"
@@ -180,6 +180,7 @@ ck "conf: score_anon/manual; allow_late (REMOVIDO 28/09) aceito e ignorado" 'gre
 ck "conf: ua + score_full_users filtrado" '[[ "$( . "$CF"; echo "$LOGIN_UA_SUBSTRING/$SCORE_FULL_USERS" )" == "MOJBOX/prof" ]]'
 ck "conf: priority prova"   'grep -q "^CONTEST_PRIORITY=prova" "$CF"'
 ck "conf: penalidade não-default (10 / wa ce)" '[[ "$( . "$CF"; echo "$PENALTY_MINUTES/$PENALTY_VERDICTS" )" == "10/wa ce" ]]'
+ck "conf: estilo do balão e juízes da revisão (16/11/2026: o assistente os mostrava e a criação não os gravava)" '[[ "$( . "$CF"; echo "$SCORE_BALLOON_STYLE/$REVIEW_JUDGES" )" == "fill/3" ]]'
 ck "languages array canônico (filtra inválida)" '[[ "$( . "$CF"; echo "$LANGUAGES" )" == "c cpp" ]]'
 ck "problem-langs.json por problema (PY3 legado -> py)" '[[ "$(jq -rc ".[\"bankprob\"]" "$FIX/tog-c/problem-langs.json")" == "[\"c\",\"py\"]" ]]'
 ck "enunciado PDF gravado"  '[[ -f "$FIX/tog-c/enunciados/bankprob.pdf" ]]'
@@ -188,9 +189,16 @@ printf 'CONTEST=tog-c\nLOGIN=regular.admin\nUSERFULLNAME=Regular\nLOGINAT=1\n' >
 call /contest/admin/settings GET '' togadm 'contest=tog-c'
 ck "round-trip settings: toggles"  '[[ "$(jq -r ".show_log" <<<"$BODY")" == false && "$(jq -r ".score_anon" <<<"$BODY")" == true && "$(jq -r ".manual_verdict" <<<"$BODY")" == true ]]'
 ck "round-trip settings: langs/ua" '[[ "$(jq -rc ".languages" <<<"$BODY")" == "[\"c\",\"cpp\"]" && "$(jq -r ".login_ua_substring" <<<"$BODY")" == "MOJBOX" ]]'
+ck "round-trip settings: estilo do balão / juízes da revisão" '[[ "$(jq -r ".balloon_style" <<<"$BODY")" == fill && "$(jq -r ".review_judges" <<<"$BODY")" == 3 ]]'
 ck "round-trip settings: penalidade" '[[ "$(jq -r ".penalty_minutes" <<<"$BODY")" == "10" && "$(jq -rc ".penalty_verdicts" <<<"$BODY")" == "[\"wa\",\"ce\"]" ]]'
 call /treino/contest-create/create POST "{\"name\":\"BadPen\",\"mode\":\"icpc\",\"end\":$FUT,\"penalty_verdicts\":[\"xx\"],\"problems\":[{\"bank_id\":\"bankprob\",\"name\":\"B\"}]}" reg
 ck "penalty_verdicts inválido no create -> 422" '[[ "$OUT" == *"Status: 422"* ]]'
+call /treino/contest-create/create POST "{\"name\":\"BadBln\",\"mode\":\"icpc\",\"end\":$FUT,\"balloon_style\":\"x\",\"problems\":[{\"bank_id\":\"bankprob\",\"name\":\"B\"}]}" reg
+ck "balloon_style inválido no create -> 422" '[[ "$OUT" == *"Status: 422"* && "$(jq -r .error.code <<<"$BODY")" == balloon_style_invalid ]]'
+call /treino/contest-create/create POST "{\"name\":\"BadRj\",\"mode\":\"icpc\",\"end\":$FUT,\"review_judges\":9,\"problems\":[{\"bank_id\":\"bankprob\",\"name\":\"B\"}]}" reg
+ck "review_judges inválido no create -> 422" '[[ "$OUT" == *"Status: 422"* && "$(jq -r .error.code <<<"$BODY")" == review_judges_invalid ]]'
+call /treino/contest-create/create POST "{\"id\":\"dflt-c\",\"name\":\"Padrao\",\"mode\":\"icpc\",\"end\":$FUT,\"balloon_style\":\"icon\",\"review_judges\":2,\"problems\":[{\"bank_id\":\"bankprob\",\"name\":\"B\"}]}" reg
+ck "o padrão (icon / 2 juízes) não grava linha no conf" '! grep -qE "^(SCORE_BALLOON_STYLE|REVIEW_JUDGES)=" "$FIX/dflt-c/conf"'
 call /treino/contest-create/create POST "{\"name\":\"Sup\",\"mode\":\"icpc\",\"priority\":\"super\",\"end\":$FUT,\"problems\":[{\"bank_id\":\"bankprob\",\"name\":\"B\"}]}" reg
 ck "priority super só admin 403" '[[ "$OUT" == *"Status: 403"* ]]'
 call /treino/contest-create/create POST "{\"id\":\"nolate\",\"name\":\"NoLate\",\"mode\":\"treino\",\"end\":$FUT,\"problems\":[{\"bank_id\":\"bankprob\",\"name\":\"B\"}]}" reg

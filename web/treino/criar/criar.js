@@ -167,6 +167,10 @@ async function boot() {
     const colors = ctx.editors.colors ? ctx.editors.colors.getValue() : (d.visual.colors || {});
     const regionsV = ctx.editors.regions ? ctx.editors.regions.getValue() : (d.visual.regions || []);
     const teamsV = ctx.editors.teams ? ctx.editors.teams.getValue() : (d.visual.teams_meta || []);
+    const mods = buildModules(d, colors, regionsV, teamsV);
+    // "balões no congelamento" (passo 5) vai na seção do módulo `baloes` — só existe com o módulo ligado, e com ele
+    // desligado a opção não vale (a regra do `msec` no servidor); a seção herdada de export/template não a sobrepõe
+    if (mods.modules && mods.modules.baloes) mods.modules.baloes.during_freeze = !!o.balloons_during_freeze;
     return {
       id: (d.id || '').trim() || undefined, name: (d.name || '').trim(), mode: d.mode,
       ...(o.priority ? { priority: o.priority } : {}),
@@ -188,7 +192,7 @@ async function boot() {
         ...((p.languages || []).length ? { languages: p.languages } : {}),
         ...((p.judges || []).length ? { judges: p.judges } : {}),
       })),
-      ...buildModules(d, colors, regionsV, teamsV),
+      ...mods,
       locale: o.locale, login_enabled: o.login_enabled,
       ...(o.login_start ? { login_start: o.login_start } : {}),
       ...(o.freeze ? { freeze: o.freeze } : {}),
@@ -201,6 +205,13 @@ async function boot() {
       ...((o.judges || []).length ? { judges: o.judges } : {}),
       ...(o.penalty_minutes !== undefined ? { penalty_minutes: o.penalty_minutes } : {}),
       ...(o.penalty_verdicts !== undefined ? { penalty_verdicts: o.penalty_verdicts } : {}),
+      // Todo campo do passo 5 (o editor de Opções) vai no pedido de criação: o que a tela mostra e não vai ao servidor
+      // é opção que não faz nada. Guarda: smoke-wizard-spec.gjs.sh (cada chave do getValue() tem de sair aqui).
+      ...((o.languages || []).length ? { languages: o.languages } : {}),
+      ...(o.tz ? { tz: o.tz } : {}),
+      ...(o.verdict_rule ? { verdict_rule: o.verdict_rule } : {}),
+      ...(o.balloon_style ? { balloon_style: o.balloon_style } : {}),
+      ...(o.review_judges ? { review_judges: o.review_judges } : {}),
     };
   }
 
@@ -243,9 +254,12 @@ async function boot() {
     if (spec.mode) d.mode = spec.mode;
     d.start = st; d.end = st + (spec.duration || 10800);
     const o = { ...d.opts };
-    ['priority', 'locale', 'login_enabled', 'show_log', 'show_editor', 'show_tl', 'allow_backup',
-      'allow_print', 'score_anon', 'manual_verdict', 'login_ua_substring',
-      'score_full_users', 'languages', 'judges', 'penalty_minutes', 'penalty_verdicts'].forEach((k) => { if (spec[k] !== undefined) o[k] = spec[k]; });
+    ['priority', 'locale', 'tz', 'login_enabled', 'show_log', 'show_editor', 'show_tl', 'allow_backup',
+      'allow_print', 'score_anon', 'manual_verdict', 'secret', 'verdict_rule', 'login_ua_substring',
+      'score_full_users', 'languages', 'judges', 'penalty_minutes', 'penalty_verdicts',
+      'balloon_style', 'review_judges'].forEach((k) => { if (spec[k] !== undefined) o[k] = spec[k]; });
+    { const bf = spec.modules && spec.modules.baloes && typeof spec.modules.baloes === 'object' ? spec.modules.baloes.during_freeze : undefined;
+      if (bf !== undefined || spec.balloons_during_freeze !== undefined) o.balloons_during_freeze = bf === true || spec.balloons_during_freeze === true; }
     if (spec.login_lead) o.login_start = st - spec.login_lead;
     if (spec.freeze_before_end) o.freeze = d.end - spec.freeze_before_end;
     d.opts = o;
@@ -264,9 +278,12 @@ async function boot() {
     if (spec.mode) d.mode = spec.mode;
     d.start = st; d.end = st + dur;
     const o = { ...newDraft(perm).opts };
-    ['priority', 'locale', 'login_enabled', 'show_log', 'show_editor', 'show_tl', 'allow_backup',
-      'allow_print', 'score_anon', 'manual_verdict', 'login_ua_substring',
-      'score_full_users', 'languages', 'judges', 'penalty_minutes', 'penalty_verdicts'].forEach((k) => { if (spec[k] !== undefined) o[k] = spec[k]; });
+    ['priority', 'locale', 'tz', 'login_enabled', 'show_log', 'show_editor', 'show_tl', 'allow_backup',
+      'allow_print', 'score_anon', 'manual_verdict', 'secret', 'verdict_rule', 'login_ua_substring',
+      'score_full_users', 'languages', 'judges', 'penalty_minutes', 'penalty_verdicts',
+      'balloon_style', 'review_judges'].forEach((k) => { if (spec[k] !== undefined) o[k] = spec[k]; });
+    { const bf = spec.modules && spec.modules.baloes && typeof spec.modules.baloes === 'object' ? spec.modules.baloes.during_freeze : undefined;
+      if (bf !== undefined || spec.balloons_during_freeze !== undefined) o.balloons_during_freeze = bf === true || spec.balloons_during_freeze === true; }
     if (spec.login_start && spec.start && spec.start > spec.login_start) o.login_start = st - (spec.start - spec.login_start);
     if (spec.freeze && spec.end && spec.end > spec.freeze) o.freeze = d.end - (spec.end - spec.freeze);
     d.opts = o;

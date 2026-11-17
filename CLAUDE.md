@@ -1840,6 +1840,16 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   campo do MEIO desloca −1 todos os seguintes no `GROUPS` de `settings-tab.js` (guarda:
   `smoke-settings-groups.gjs.sh` monta o editor e confere seção por seção). Teste:
   `smoke-submission-access.sh` (parte do conf LEGADO com `SHOWCODE=1`).
+  **O ASSISTENTE DE CRIAÇÃO LEVA TODO CAMPO DO PASSO 5** (16/11/2026; relato de um professor, lista `ta-fac-t4-202602`): o
+  passo Opções é o MESMO `settings-editor.js`, mas o `buildSpec` (`web/treino/criar/criar.js`) escolhe campo a campo o
+  que vai no pedido — linguagens, fuso, regra do veredicto, estilo do balão e juízes da revisão nunca iam (a lista
+  nascia aceitando qualquer linguagem); balões no congelamento vão na seção do módulo `baloes` (desligado = não vão).
+  O `applyExport`/`applyTemplate` trazem os mesmos campos de volta (inclusive `secret`), e a criação passou a aceitar
+  `balloon_style`/`review_judges` (o export/template os levam; o template também passou a guardar o `judges`). Campo
+  novo no editor ⇒ entra em CINCO lugares: `buildSpec` e `applyExport`/`applyTemplate` (web) e, em
+  `lib/contest-create.sh`, a validação do `cc_create`, o `cc_settings_conf_lines`, as variáveis + o jq do export
+  (`cc_export`) e o `pick` do `cc_tpl_relativize`. O `smoke-wizard-spec.gjs.sh` monta o editor de verdade e FALHA com
+  chave do `getValue()` sem caso; o lado do servidor está no `smoke-contest-create.sh`/`smoke-contest-templates.sh`.
 - **`ALLOWLATEUSER`/`allow_late` ("Permitir auto-cadastro de novos usuários (late users)") REMOVIDA em
   2026-09-28**, mesmo molde: era o `adduser` do bot do MOJ antigo (`mojinho.sh`, gitignorado — só o ramo
   morto dele ainda cita a var) e nada a lia desde o store por-usuário — a caixa não fazia nada. Settings POST e criação

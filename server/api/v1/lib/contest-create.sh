@@ -114,6 +114,8 @@ cc_settings_conf_lines(){
   v="$(jq -r '.score_anon' <<<"$spec")";     [[ "$v" == true ]] && printf 'SCORE_ANON=%q\n' 1
   v="$(jq -r '.manual_verdict' <<<"$spec")"; [[ "$v" == true ]] && printf 'MANUAL_VERDICT=%q\n' 1
   v="$(jq -r '.secret' <<<"$spec")";         [[ "$v" == true ]] && printf 'SECRET=%q\n' 1
+  v="$(jq -r '.balloon_style // ""' <<<"$spec")";  [[ "$v" == fill ]] && printf 'SCORE_BALLOON_STYLE=%q\n' fill
+  v="$(jq -r '.review_judges // ""' <<<"$spec")";  [[ "$v" =~ ^[1-5]$ && "$v" != 2 ]] && printf 'REVIEW_JUDGES=%q\n' "$v"
   # REGRA DO VEREDICTO (09/11/2026, decisão do Ribas): contest NOVO nasce com `first` (o do 1º teste que falhou,
   # exemplos primeiro). Só `verdict_rule:"worst"` explícito mantém o de sempre — é o que o export/duplicate de um
   # contest antigo (sem a linha) carrega, então a cópia não muda de regra. Spec sem a chave = contest novo = first — SÓ
@@ -235,6 +237,10 @@ cc_create(){
   # FORA calada (03/10/2026). Vazio = o padrão da instalação; nome antigo vira o atual (tz_canon).
   local tz_in="" tz_raw; tz_raw="$(jq -r '.tz // empty' <<<"$spec")"
   if [[ -n "$tz_raw" ]]; then tz_in="$(tz_canon "$tz_raw")" || fail 422 "fuso horário desconhecido (ex.: America/Santiago)" "tz_invalid"; fi
+  # estilo do balão e juízes da revisão (os mesmos campos e códigos de Central › Regras; 16/11/2026)
+  local bsty rjud; bsty="$(jq -r '.balloon_style // empty' <<<"$spec")"; rjud="$(jq -r '.review_judges // empty' <<<"$spec")"
+  [[ -z "$bsty" || "$bsty" =~ ^(icon|fill)$ ]] || fail 422 "balloon_style inválido (icon|fill)" "balloon_style_invalid"
+  [[ -z "$rjud" || "$rjud" =~ ^[1-5]$ ]] || fail 422 "review_judges inválido (1..5)" "review_judges_invalid"
   # penalidade do placar ICPC (opcional; só válida em conjunto — a gravação fica no conf_lines)
   local pmin; pmin="$(jq -r '.penalty_minutes // empty' <<<"$spec")"
   if [[ -n "$pmin" ]]; then
@@ -1190,9 +1196,9 @@ cc_tpl_relativize(){
     (.start|tonumber? // 0) as $st | (.end|tonumber? // 0) as $en
     | (.login_start|tonumber? // 0) as $ls | (.freeze|tonumber? // 0) as $fz
     | pick(["mode","priority","languages","show_log","show_editor","show_tl",
-            "allow_backup","allow_print","score_anon","manual_verdict","secret","verdict_rule",
+            "allow_backup","allow_print","score_anon","manual_verdict","secret","verdict_rule","balloon_style","review_judges",
             "login_ua_substring","score_full_users","locale","tz","login_enabled",
-            "penalty_minutes","penalty_verdicts",
+            "penalty_minutes","penalty_verdicts","judges",
             "colors","regions","teams_meta","modules"])
     + (if $st > 0 and $en > $st then {duration:($en-$st)} else {} end)
     + (if $ls > 0 and $st > $ls then {login_lead:($st-$ls)} else {} end)
@@ -1218,6 +1224,7 @@ cc_export_spec(){
     FREEZE_TIME=""; SHOWLOG=""; SHOWEDITOR=""; SHOWTL=""; SCORE_ANON=""
     BACKUP=""; PRINT=""; MANUAL_VERDICT=""; LOGIN_UA_SUBSTRING=""; SCORE_FULL_USERS=""; SECRET=""
     PENALTY_MINUTES=""; PENALTY_VERDICTS="__unset"; CONTEST_JUDGES=""; CONTEST_MODULES=""; VERDICT_RULE=""
+    SCORE_BALLOON_STYLE=""; REVIEW_JUDGES=""
     . "$cdir/conf" 2>/dev/null
     jq -cn \
       --arg name "$CONTEST_NAME" --arg mode "$CONTEST_TYPE" --arg prio "$CONTEST_PRIORITY" \
@@ -1228,8 +1235,10 @@ cc_export_spec(){
       --arg showtl "$SHOWTL" --arg anon "$SCORE_ANON" --arg backup "$BACKUP" --arg prnt "$PRINT" \
       --arg manual "$MANUAL_VERDICT" --arg ua "$LOGIN_UA_SUBSTRING" --arg sfu "$SCORE_FULL_USERS" \
       --arg secret "$SECRET" --arg pmin "$PENALTY_MINUTES" --arg pvd "$PENALTY_VERDICTS" \
-      --arg jdg "$CONTEST_JUDGES" --arg vrule "$VERDICT_RULE" '
+      --arg jdg "$CONTEST_JUDGES" --arg vrule "$VERDICT_RULE" --arg bsty "$SCORE_BALLOON_STYLE" --arg rjud "$REVIEW_JUDGES" '
       {name:$name, mode:(if $mode=="" then "icpc" else $mode end)}
+      + (if $bsty == "fill" then {balloon_style:"fill"} else {} end)
+      + (if ($rjud | test("^[1-5]$")) and $rjud != "2" then {review_judges:($rjud | tonumber)} else {} end)
       # SEMPRE explícito: um contest antigo (sem a linha = worst) duplicado continua worst (o create sem a chave = first)
       + {verdict_rule:(if $vrule == "first" then "first" else "worst" end)}
       + (if $prio != "" then {priority:$prio} else {} end)
