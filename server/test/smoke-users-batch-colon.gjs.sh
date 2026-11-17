@@ -32,6 +32,7 @@ async function apiPost(path, body){ POSTED.push([path, body]); return path.inclu
 const PRIV=/\.(admin|judge|cjudge|staff|cstaff|mon)$/;
 function mkBool(){ return document.createElement('input'); }
 function makeConvertCard(){ return { el: document.createElement('div'), show(){} }; }
+function makeAbsentDqCard(){ return { el: document.createElement('div') }; }   // cartão 🚫 (absent-dq.js, 11/11/2026)
 EOF
   strip "$WEB/shared/dom.js"; strip "$WEB/shared/users-batch.js"; strip "$WEB/contest/admin/users-tab.js"
   cat <<'EOF'
