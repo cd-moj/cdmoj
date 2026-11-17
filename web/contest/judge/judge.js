@@ -199,14 +199,16 @@ function renderLegacy() {
     const btn = el('button', { class: 'btn', type: 'button', disabled: 'disabled' }, T('Enviar', 'Submit', 'Enviar')); const msg = el('span', { class: 'submit-steps' });
     sel.addEventListener('change', () => { btn.disabled = !sel.value; });
     btn.addEventListener('click', async () => { btn.disabled = true; msg.textContent = T('Enviando…', 'Sending…', 'Enviando…');
-      try { await apiPost('/contest/set-verdict?contest=' + enc(CONTEST), { problem_id: s.problem_id, verdict: sel.value, username: s.username }, G); msg.textContent = T('✓ Enviado!', '✓ Sent!', '✓ ¡Enviado!'); }
+      // o id é o da SUBMISSÃO: é por ele que o servidor acha a linha (sem ele o pedido não tinha alvo)
+      try { await apiPost('/contest/set-verdict?contest=' + enc(CONTEST), { id: s.id, problem_id: s.problem_id, verdict: sel.value, username: s.username }, G); msg.textContent = T('✓ Enviado!', '✓ Sent!', '✓ ¡Enviado!'); }
       catch (e) { msg.innerHTML = '<span class="error-box">' + T('Erro: ', 'Error: ', 'Error: ') + (e && e.message ? e.message : T('falha', 'failed', 'fallido')) + '</span>'; btn.disabled = false; } });
     tb.append(el('tr', {}, el('td', {}, el('span', { class: 'small' }, fmtDate(s.epoch))),
       ...(PRIV ? [el('td', {}, s.username || '')] : []),
       el('td', {}, el('b', {}, shortOf(s.problem_id))),
       el('td', { class: 'small' }, langLabel(s.lang)),
       el('td', {}, el('span', { class: 'verdict ' + verdictClass(s.verdict) }, isPending(s.verdict) ? el('span', {}, el('span', { class: 'spin' }), ' ' + s.verdict) : s.verdict)),
-      ...(PRIV ? [el('td', {}, sel, ' ', btn, ' ', msg)] : []),
+      // em julgamento não se troca: o resultado do juiz chegaria depois e apagaria a troca (a API recusa, 409)
+      ...(PRIV ? [el('td', {}, isPending(s.verdict) ? el('span', { class: 'small muted' }, T('aguarde o veredicto do juiz', 'wait for the judge’s verdict', 'espera el veredicto del juez')) : el('span', {}, sel, ' ', btn, ' ', msg))] : []),
       el('td', {}, el('div', { class: 'row', style: 'gap:.4rem' }, runLink({ id: s.id }), logLink({ id: s.id, sub_epoch: s.epoch }), srcLink({ id: s.id, sub_epoch: s.epoch, lang: s.lang })))));
   });
   box.append(el('div', { class: 'chart-wrap' }, el('table', { class: 'moj' }, head, tb)));

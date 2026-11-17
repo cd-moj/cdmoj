@@ -187,10 +187,10 @@ call "/contest/final-verdicts" GET "contest=$CONTEST" "$TOKEN"
 check "final-verdicts 200 + Accepted in list" 'okstatus && jvalid && (printf "%s" "$BODY" | jq -e ".verdicts|index(\"Accepted\")" >/dev/null)'
 
 echo "== contest/set-verdict (POST judge) =="
-call "/contest/set-verdict" POST "contest=$CONTEST" "$TOKEN" '{"problem_id":"A","verdict":"Accepted","username":"alice"}'
+call "/contest/set-verdict" POST "contest=$CONTEST" "$TOKEN" '{"id":"'"$SID"'","problem_id":"col#pa","verdict":"Accepted","username":"alice"}'
 check "set-verdict queued" 'okstatus && [[ "$BODY" == *\"status\":\"queued\"* ]]'
-check "set-verdict spool file created" '[[ -n "$(ls "$SPOOL"/$CONTEST:*:setverdict:A 2>/dev/null)" ]]'
-check "set-verdict vai ao audit do contest (quem pediu, alvo, veredicto)" 'grep -qP "\tset-verdict\tid=[0-9a-f]+ user=alice prob=A verdict=Accepted$" "$C/var/admin-audit.log"'
+check "set-verdict spool file created" '[[ -n "$(ls "$SPOOL"/$CONTEST:*:setverdict:col#pa 2>/dev/null)" ]]'
+check "set-verdict vai ao audit do contest (quem pediu, alvo, veredicto)" 'grep -qP "\tset-verdict\tid=[0-9a-f]+ user=alice prob=col#pa verdict=Accepted$" "$C/var/admin-audit.log"'
 
 echo "== contest/rejudge (POST admin, store-v2) =="
 call "/contest/rejudge" POST "contest=$CONTEST" "$TOKEN" '{"ids":["'"$SID"'"]}'

@@ -909,7 +909,10 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   `review/conflicts` (o alerta do chefe, a cada 8–12 s por aba) 0,8 s; com o rv_scan, 0,06 s e 0,04 s (81) e
   0,11 s e 0,05 s (500), saída idêntica. Guarda no `smoke-contest-review.sh` (nº de jq por chamada).
   `set-verdict` legado só aceita label/classe
-  da lista. Teste: `smoke-contest-review.sh`. O **voto é permanente e libera o juiz**
+  da lista, e aponta UMA submissão pelo `id` (16/11/2026: a página Avaliar mandava só usuário+problema, o handler
+  inventava um id e respondia `queued`, e o daemon descartava o pedido — "submissão não achada" — desde o corte do
+  store de 04/07; hoje a rota confere a submissão antes de responder: 404/422/409 `submission_pending`; teste de ponta a
+  ponta, com o daemon, em `smoke-set-verdict.sh`). Teste: `smoke-contest-review.sh`. O **voto é permanente e libera o juiz**
   (pega outra na hora); o **alerta é global** (ver "Alerta da organização" abaixo); o painel **Operação › Situação** traz estatística por juiz
   (`review/stats`, derivada do `admin-audit.log`). **Watch do spool = `inotifywait -m`
   PERSISTENTE (coproc) + `read -t`** (03/09/2026): nunca volte ao `inotifywait` de um evento por

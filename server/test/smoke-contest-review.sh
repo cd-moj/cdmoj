@@ -14,6 +14,9 @@ fx_user "$C" j1.judge  p "Juiz Um"
 fx_user "$C" j2.judge  p "Juiz Dois"
 fx_user "$C" cj.cjudge p Chefe
 fx_user "$C" aluno1    a Aluno
+# aluno2: uma submissão JULGADA p/ a troca do Avaliar (o set-verdict aponta a submissão pelo id; ver smoke-set-verdict.sh)
+fx_user "$C" aluno2    a "Aluno Dois"; SV2=5e7d000000000000000000000000002a
+printf '%s:apc#p1:C:Wrong Answer:%s:%s\n' "$OLD" "$OLD" "$SV2" > "$C/users/aluno2/history"
 mkrev(){ printf '%s' "{\"id\":\"$1\",\"login\":\"aluno1\",\"problem_id\":\"apc#p1\",\"lang\":\"C\",\"computed_verdict\":\"Wrong Answer\",\"status\":\"open\",\"conflict\":false,\"created_at\":$OLD,\"sub_epoch\":$OLD,\"claimants\":[],\"votes\":[]}" > "$C/review/$1.json"; }
 mkrev r1; mkrev r2
 for s in adm:rv.admin j1:j1.judge j2:j2.judge cj:cj.cjudge alu:aluno1; do
@@ -85,9 +88,9 @@ mkrev r3
 call /contest/review/resolve POST '{"id":"r3","verdict":"7 - NO - Formato"}' cj 'contest=rv'
 ck "resolve com opção de texto => classe¦texto no released_verdict" '[[ "$(jq -r .released_verdict <<<"$BODY")" == "Wrong Answer¦Formato de saída errado" ]]'
 ck "spool leva classe¦texto"      'grep -l "Formato de saída errado" "$SPOOL"/*setverdict* >/dev/null'
-call /contest/set-verdict POST '{"problem_id":"apc#p1","verdict":"Banana","username":"aluno1"}' cj 'contest=rv'
+call /contest/set-verdict POST '{"id":"'"$SV2"'","problem_id":"apc#p1","verdict":"Banana","username":"aluno2"}' cj 'contest=rv'
 ck "set-verdict legado NÃO aceita string livre (422)" '[[ "$OUT" == *"Status: 422"* ]]'
-call /contest/set-verdict POST '{"problem_id":"apc#p1","verdict":"7 - NO - Formato","username":"aluno1"}' cj 'contest=rv'
+call /contest/set-verdict POST '{"id":"'"$SV2"'","problem_id":"apc#p1","verdict":"7 - NO - Formato","username":"aluno2"}' cj 'contest=rv'
 ck "set-verdict legado pelo label => enfileirado" '[[ "$(jq -r .status <<<"$BODY")" == queued ]]'
 call /contest/auto-verdicts GET '' cj 'contest=rv'
 ck "auto-verdicts: vocabulário = as 6 classes" '[[ "$(jq -r ".verdicts|length" <<<"$BODY")" == 6 ]]'
@@ -126,11 +129,11 @@ ck "aluno vê o congelado"         '[[ "$OUT" == *CONGELADO* && "$OUT" != *COMPL
 echo "== set-verdict: sobrescrever veredicto é ato de CHEFIA (gate fechado 2026-08-20) =="
 # a UI já escondia a coluna do juiz puro, mas a rota aceitava qualquer is_judge: por curl um
 # juiz comum sobrescrevia veredicto de time sozinho, fora do quórum.
-call /contest/set-verdict POST '{"problem_id":"apc#p1","verdict":"Accepted","username":"aluno1"}' j1 'contest=rv'
+call /contest/set-verdict POST '{"id":"'"$SV2"'","problem_id":"apc#p1","verdict":"Accepted","username":"aluno2"}' j1 'contest=rv'
 ck "juiz puro NÃO sobrescreve"    '[[ "$OUT" == *chief_required* ]]'
-call /contest/set-verdict POST '{"problem_id":"apc#p1","verdict":"Accepted","username":"aluno1"}' cj 'contest=rv'
+call /contest/set-verdict POST '{"id":"'"$SV2"'","problem_id":"apc#p1","verdict":"Accepted","username":"aluno2"}' cj 'contest=rv'
 ck "juiz-chefe sobrescreve"       '[[ "$OUT" == *queued* ]]'
-call /contest/set-verdict POST '{"problem_id":"apc#p1","verdict":"Accepted","username":"aluno1"}' adm 'contest=rv'
+call /contest/set-verdict POST '{"id":"'"$SV2"'","problem_id":"apc#p1","verdict":"Accepted","username":"aluno2"}' adm 'contest=rv'
 ck "admin sobrescreve"            '[[ "$OUT" == *queued* ]]'
 
 

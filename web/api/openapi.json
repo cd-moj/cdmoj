@@ -3710,7 +3710,7 @@
         "tags": [
           "contest"
         ],
-        "summary": "Definir veredicto final (admin ou juiz-chefe)",
+        "summary": "Troca o veredicto de UMA submissão (admin ou juiz-chefe). id (o da submissão) obrigatório: sem ele 400 id_required; fora do history do username 404 submission_notfound; problem_id diferente 422 problem_mismatch; em julgamento 409 submission_pending (a retida na revisão manual pode). Resposta {action,id,status:queued} com o id da submissão.",
         "security": [
           {
             "bearerAuth": []
@@ -3722,6 +3722,10 @@
               "schema": {
                 "type": "object",
                 "properties": {
+                  "id": {
+                    "type": "string",
+                    "description": "id da submissão (o do history), obrigatório"
+                  },
                   "contest": {
                     "type": "string"
                   },
@@ -3734,7 +3738,8 @@
                   "username": {
                     "type": "string"
                   }
-                }
+                },
+                "required": ["id", "username", "verdict"]
               }
             }
           }
