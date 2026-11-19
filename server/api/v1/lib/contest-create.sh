@@ -478,7 +478,13 @@ cc_create(){
     cc_regions_ok "$regions_j" || { rm -rf "$stg"; cc_regions_fail; }
     printf '%s' "$regions_j" > "$stg/regions.json"
   fi
-  [[ -n "$teams_j"   && "$teams_j"   != null ]] && jq -cn --argjson r "$teams_j" '{rules:$r}' > "$stg/teams-meta.json"
+  # as regras entram por STDIN, nunca por argv: cada uma pode levar o brasão da escola como data: URI (o `logo` do editor
+  # de países e escolas) e a lista passa fácil dos 128 KiB por argumento do jq — o `--argjson` nem rodava e o `>` deixava o
+  # teams-meta.json VAZIO (19/11/2026, cnpci-2026: todo GET de /contest/admin/config virou 500 build_fail)
+  if [[ -n "$teams_j" && "$teams_j" != null ]]; then
+    printf '%s' "$teams_j" | jq -c '{rules:.}' > "$stg/teams-meta.json" \
+      || { rm -rf "$stg"; fail 500 "Falha ao gravar as regras de países e escolas" "teams_meta_write_fail"; }
+  fi
   cc_apply_modules_spec "$spec" "$stg" "$creator" || { rm -rf "$stg"; fail 422 "Seção de módulo inválida no spec (${CC_MOD_ERR:-modules})" "modules_spec_invalid"; }
 
   mv -T "$stg" "$CONTESTSDIR/$id" 2>/dev/null || { rm -rf "$stg"; fail 500 "Falha ao publicar o contest (id pode ter sido criado em paralelo)" "publish_fail"; }
@@ -745,7 +751,9 @@ cc_modules_spec(){
             else .stages = [ $S[] | {id, algorithm:(.config.algorithm // "sbc-fase1"), config:(.config | del(.algorithm))}
                              + ({name, venue, when, chip} | with_entries(select(.value != null))) ] end' <<<"$sec" 2>/dev/null || printf '%s' "$sec")";;
     esac
-    out="$(jq -c --arg m "$m" --argjson s "$sec" '.[$m]=$s' <<<"$out")"
+    # a seção entra por ARQUIVO: a de sedes leva as regras de países e escolas, com brasões em data: URI (passa dos 128 KiB
+    # por argumento do jq — o export, o duplicate e o template a partir do contest perdiam os módulos; 19/11/2026)
+    out="$(jq -c --arg m "$m" --slurpfile s <(printf '%s' "$sec") '.[$m]=$s[0]' <<<"$out")"
   done
   # esqueletos: o código pode somar centenas de KB — entra por ARQUIVO, nunca pelo argv do jq (ARG_MAX)
   if [[ ",$mods," == *",esqueletos,"* ]]; then

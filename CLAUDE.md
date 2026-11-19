@@ -83,7 +83,13 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   `/judge/heartbeat` (o lote de jobs agregava por `--argjson`): o `q_claim` já tinha movido
   o job p/ `assigned/`, o beat respondia 200 VAZIO e o job quicava assigned→TTL→fila p/
   sempre — fonte grande era aceita mas nunca julgada. Hoje o lote agrega por arquivo e a
-  resposta sai por `ok_json_slurp`. E o /submit é FAIL-CLOSED: valida o spool
+  resposta sai por `ok_json_slurp`. A 5ª (19/11/2026): as regras de países e escolas (`teams-meta.json`) levam o BRASÃO
+  da escola em data: URI por regra, e a criação, o GET/POST de `/contest/admin/config` e o export (a seção do módulo)
+  as passavam por argv — dois contests nasceram com o arquivo VAZIO (o `>` trunca antes de o jq falhar) e todo GET do
+  config virou 500 `build_fail` (Evento › Balões). Duas regras a mais: saída de jq redirecionada para o arquivo de
+  verdade ⇒ tmp+`mv` ou conferir o rc (jq que falha não pode deixar o vazio no lugar do bom); arquivo que PODE estar
+  vazio ⇒ `[[ -s ]]` + o padrão (o jq num arquivo vazio sai 0 sem imprimir, e o `|| echo padrão` não pega). Teste:
+  `smoke-teams-meta-big.sh`. E o /submit é FAIL-CLOSED: valida o spool
   antes do OK; o judged nunca descarta submit em silêncio (JSON ruim → Judge Error na linha) e
   o **reconciliador** (`reconcile_stale_pending`, `--reconcile` p/ rodar à mão) resolve
   pendência órfã >15 min (re-enfileira com fonte 1×; sem fonte → Judge Error). Whitelist de

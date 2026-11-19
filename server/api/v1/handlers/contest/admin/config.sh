@@ -14,14 +14,20 @@ if [[ "${REQUEST_METHOD:-GET}" == GET ]]; then
   load_contest_conf "$contest"
   declare -a LT; for ((i=3;i<${#PROBS[@]};i+=5)); do LT+=("${PROBS[$i]}"); done
   letters="$( ((${#LT[@]})) && printf '%s\n' "${LT[@]}" | jq -R . | jq -cs . || echo '[]')"
-  colors="$( [[ -f "$cdir/balloons.json" ]] && jq -c . "$cdir/balloons.json" 2>/dev/null || echo '{}')"
-  regions="$( [[ -f "$cdir/regions.json" ]] && jq -c . "$cdir/regions.json" 2>/dev/null || echo '[]')"
-  teams="$( [[ -f "$cdir/teams-meta.json" ]] && jq -c '.rules // (if type=="array" then . else [] end)' "$cdir/teams-meta.json" 2>/dev/null || echo '[]')"
+  # arquivo ausente, VAZIO ou ilegível = o padrão (o `jq` num arquivo vazio sai 0 sem imprimir nada, e o `|| echo` não
+  # pegava: o vazio ia ao --argjson e a rota inteira virava 500 build_fail — 19/11/2026)
+  _vis(){ local v=""; [[ -s "$1" ]] && v="$(jq -c "$2" "$1" 2>/dev/null)"; printf '%s' "${v:-$3}"; }
+  colors="$(_vis "$cdir/balloons.json" . '{}')"
+  regions="$(_vis "$cdir/regions.json" . '[]')"
+  teams="$(_vis "$cdir/teams-meta.json" '.rules // (if type=="array" then . else [] end)' '[]')"
   le="$([[ "$LOGIN_ENABLED" == n ]] && echo false || echo true)"
-  ok_json '{name:$nm, mode:$md, start:$st, end:$en, letters:$lt, colors:$co, regions:$rg, teams_meta:$tm,
+  # cores, sedes e regras por ARQUIVO (--slurpfile), nunca por argv: as regras levam brasões em data: URI e passam dos
+  # 128 KiB por argumento do jq
+  ok_json '{name:$nm, mode:$md, start:$st, end:$en, letters:$lt, colors:$co[0], regions:$rg[0], teams_meta:$tm[0],
             basic:{locale:$loc, login_start:$lst, login_enabled:$le, freeze:$fz}}' \
     --arg nm "$CONTEST_NAME" --arg md "${CONTEST_TYPE:-icpc}" --argjson st "${CONTEST_START:-0}" --argjson en "${CONTEST_END:-0}" \
-    --argjson lt "$letters" --argjson co "$colors" --argjson rg "$regions" --argjson tm "$teams" \
+    --argjson lt "$letters" --slurpfile co <(printf '%s' "$colors") --slurpfile rg <(printf '%s' "$regions") \
+    --slurpfile tm <(printf '%s' "$teams") \
     --arg loc "${LOCALE:-pt}" --argjson lst "${LOGIN_START_TIME:-0}" --argjson le "$le" --argjson fz "${FREEZE_TIME:-0}"
   exit 0
 fi
@@ -71,7 +77,14 @@ if jq -e 'has("regions")' >/dev/null 2>&1 <<<"$body"; then
 fi
 if jq -e 'has("teams_meta")' >/dev/null 2>&1 <<<"$body"; then
   t="$(jq -c '.teams_meta' <<<"$body")"
-  if [[ "$(jq 'length' <<<"$t" 2>/dev/null)" -gt 0 ]]; then jq -cn --argjson r "$t" '{rules:$r}' > "$cdir/teams-meta.json"; mod_enable "$contest" sedes; else rm -f "$cdir/teams-meta.json"; fi
+  # por STDIN e com troca atômica: as regras levam brasões em data: URI (passam dos 128 KiB por argumento do jq) e um jq que
+  # falha não pode deixar o arquivo VAZIO no lugar do bom
+  if [[ "$(jq 'length' <<<"$t" 2>/dev/null)" -gt 0 ]]; then
+    tmf="$cdir/teams-meta.json.tmp.${BASHPID}"   # (resolvido ANTES: no alvo do redirect da pipeline o BASHPID seria o do filho)
+    printf '%s' "$t" | jq -c '{rules:.}' > "$tmf" && mv -f "$tmf" "$cdir/teams-meta.json" \
+      || { rm -f "$tmf"; fail 500 "Falha ao gravar as regras de países e escolas" "teams_meta_write_fail"; }
+    mod_enable "$contest" sedes
+  else rm -f "$cdir/teams-meta.json"; fi
 fi
 if jq -e 'has("basic")' >/dev/null 2>&1 <<<"$body"; then
   [[ -n "$bl" ]] && cc_set_conf_var "$contest" LOCALE "$bl"
