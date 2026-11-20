@@ -269,6 +269,14 @@ printf 'CONTEST_JUDGES=j2\n' >> "$C/conf"
 jq -cn --argjson now "$EPOCHSECONDS" '{host:"j1",last_seen:$now,langs:["c"],problems:{},total_slots:8,free_slots:8,slot_cpus:1,slots_by_node:{"0":8}}' > "$REG/j1.json"
 run
 check "pool do contest (j2) sem o juiz capaz (j1) => warn"          '[[ "$(lvl judges_cpus)" == warn ]]'
+# (20/11/2026: com pool definido a conta dava ERRO calado — `index(.host)` lia a lista — e o aviso saía sempre; e o
+# pool POR PROBLEMA nunca valia. Os dois casos abaixo falham no código de antes.)
+printf '{"col#p0":["j1"]}' > "$C/problem-judges.json"
+run
+check "pool DO PROBLEMA (j1) vence o do contest (j2) => ok"          '[[ "$(lvl judges_cpus)" == ok ]]'
+rm -f "$C/problem-judges.json"; sed -i '/^CONTEST_JUDGES=/d' "$C/conf"; printf 'CONTEST_JUDGES=j1\n' >> "$C/conf"
+run
+check "pool do contest COM o juiz capaz (j1) => ok"                  '[[ "$(lvl judges_cpus)" == ok ]]'
 sed -i '/^CONTEST_JUDGES=/d' "$C/conf"; rm -f "$FIX/treino/var/jsons/col#p0.json"
 run
 check "sem problema paralelo => checagem ausente (sem ruído)"       '[[ "$(lvl judges_cpus)" == "(ausente)" ]]'

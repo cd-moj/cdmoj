@@ -335,10 +335,14 @@ for ((i=0; i+4<${#PROBS[@]}; i+=5)); do
   [[ "$pk" =~ ^[0-9]+$ && "$pk" -gt 1 ]] || continue
   par_probs+=" ${PROBS[i+3]}"
   # pool efetivo do problema: override → CONTEST_JUDGES → todos os online
-  pool="$(jq -r --arg p "$pid" '([$p, ($p|gsub("#";"/")), ($p|gsub("/";"#"))] | unique) as $vs | ([ $vs[] | .[$vs[]] ] | .[0]) // [] | join(" ")' <<<"$pjm0" 2>/dev/null)"
+  # (`$vs[] as $v | .[$v]`: o mapa é o `.`; o `$vs[] | .[…]` de antes indexava a STRING e dava erro, calado pelo
+  # 2>/dev/null — o override por problema nunca valia; achado pelo log do lib/jq-safe.sh, 20/11/2026)
+  pool="$(jq -r --arg p "$pid" '([$p, ($p|gsub("#";"/")), ($p|gsub("/";"#"))] | unique) as $vs | ([ $vs[] as $v | .[$v] | select(. != null) ] | .[0]) // [] | join(" ")' <<<"$pjm0" 2>/dev/null)"
   [[ -n "$pool" ]] || pool="${CONTEST_JUDGES:-}"
+  # (`index($j.host)`: o argumento de uma função jq avalia contra o INPUT dela — o `index(.host)` de antes lia `.host` da
+  # LISTA do pool e dava erro com pool definido: o aviso "sem juiz com as CPUs" saía falso; 20/11/2026)
   fit="$(jq -r --arg pool "$pool" --argjson k "$pk" --arg nm "$pn" '
-      [ .[] | select(($pool == "") or (($pool | split(" ")) | index(.host)))
+      [ .[] | . as $j | select(($pool == "") or ((($pool | split(" ")) | index($j.host)) != null))
             | select((if $nm == "true" then .node_cpus else .cpus end) >= $k) ] | length' <<<"$judges" 2>/dev/null)"
   [[ "$fit" =~ ^[0-9]+$ && "$fit" -gt 0 ]] || par_bad+=" ${PROBS[i+3]}(${pk} CPUs$([[ "$pn" == true ]] && printf ', NUMA'))"
 done
