@@ -39,6 +39,12 @@ A plataforma empacota numa imagem OCI (`deploy/Containerfile`, base `debian:trix
 e faz `fastcgi_pass` ao socket); a imagem é a **API** (fcgiwrap + `router.sh`) + o **daemon**.
 Dois containers da mesma imagem (papéis `api` e `judged`) sobem por **quadlets** rootless.
 
+**Base e pacotes atualizados a cada build:** o `make image` passa `--pull=newer`. Base nova faz as camadas de `apt-get`
+refazerem com os pacotes atuais. Sem isso, o cache de camadas reaproveitava o `apt-get install` de meses atrás (20/11/2026:
+base de 23/06 e 52 atualizações de segurança pendentes na imagem). Para conferir uma imagem: `podman run --rm --user root
+--entrypoint bash localhost/moj-server:prod -c 'apt-get update -qq; apt list --upgradable'`. O nginx e o kernel são do HOST
+(`apt` do servidor; o `unattended-upgrades` aplica as de segurança uma vez por dia).
+
 O papel `api` também sobe dois caminhos rápidos opcionais (ver o CLAUDE.md, seção Backend):
 o **PORTEIRO** (`moj-porteiro.py`, Python puro — leitor dos caches das rotas quentes de
 leitura, socket `$RUNDIR/moj-porteiro.sock`, `PORTEIRO_WORKERS` 16, `PORTEIRO_DISABLE=1`
