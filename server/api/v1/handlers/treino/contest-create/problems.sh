@@ -12,23 +12,25 @@ source "$_LIBDIR/problems.sh"
 q="$(param q)"; limit="$(param limit)"
 [[ "$limit" =~ ^[0-9]+$ ]] || limit=40; (( limit > 100 )) && limit=100
 
-# ids que já têm enunciado pronto (público ou privado já validado)
+# ids que já têm enunciado pronto (público ou privado já validado) — num ARQUIVO: o mapa cresce com o banco (67 KB com
+# 1.882 problemas, 20/11/2026) e ia por --argjson (o embrulho do jq o convertia: `argv-convertido` no run/jq-errors)
+HAVEF="$(mktemp)"; trap 'rm -f "$HAVEF"' EXIT
 set +o noglob
-have="$( { ls "$CONTESTSDIR"/treino/var/jsons/*.json "$CONTESTSDIR"/treino/var/jsons-private/*.json 2>/dev/null \
-          | sed 's@.*/@@; s@\.json$@@'; } | jq -R . | jq -cs 'map({(.):true})|add // {}' 2>/dev/null )"
+{ ls "$CONTESTSDIR"/treino/var/jsons/*.json "$CONTESTSDIR"/treino/var/jsons-private/*.json 2>/dev/null \
+    | sed 's@.*/@@; s@\.json$@@'; } | jq -R . | jq -cs 'map({(.):true})|add // {}' > "$HAVEF" 2>/dev/null
 set -o noglob
-[[ -n "$have" ]] || have='{}'
+[[ -s "$HAVEF" ]] || printf '{}' > "$HAVEF"
 
 # corpo ANTES do cabeçalho (falha do jq = 500, nunca "200 com lista vazia")
 out="$(owners_merged | jq -c --arg me "$SESSION_LOGIN" --argjson orgs "$(my_orgs_json)" \
-    --arg q "$q" --argjson n "$limit" --argjson have "$have" '
+    --arg q "$q" --argjson n "$limit" --slurpfile have "$HAVEF" '
   [ .problems[]
     | ( if .owner==$me then "mine"
         elif ((.collaborators // [])|index($me)) then "shared"
         elif (((.repo // (.id|split("#")[0])) as $r | $orgs|index($r))|type=="number") then "shared"
         elif .public then "public" else null end ) as $acc
     | select($acc != null)
-    | { id, title, tags:(.tags // []), access:$acc, private:(.public|not), has_statement:($have[.id]==true) } ]
+    | { id, title, tags:(.tags // []), access:$acc, private:(.public|not), has_statement:($have[0][.id]==true) } ]
   | ( if (($q|length) > 0)
       then map(select( ((.id + " " + (.title // ""))|ascii_downcase) | contains($q|ascii_downcase) ))
       else . end )
