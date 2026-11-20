@@ -39,7 +39,8 @@ A plataforma empacota numa imagem OCI (`deploy/Containerfile`, base `debian:trix
 e faz `fastcgi_pass` ao socket); a imagem é a **API** (fcgiwrap + `router.sh`) + o **daemon**.
 Dois containers da mesma imagem (papéis `api` e `judged`) sobem por **quadlets** rootless.
 
-**Base e pacotes atualizados a cada build:** o `make image` passa `--pull=newer`. Base nova faz as camadas de `apt-get`
+**Base e pacotes atualizados a cada build:** o `make image` passa `--pull=always` (o `--pull=newer` não puxou a base nova no
+podman do servidor). Base nova faz as camadas de `apt-get`
 refazerem com os pacotes atuais. Sem isso, o cache de camadas reaproveitava o `apt-get install` de meses atrás (20/11/2026:
 base de 23/06 e 52 atualizações de segurança pendentes na imagem). Para conferir uma imagem: `podman run --rm --user root
 --entrypoint bash localhost/moj-server:prod -c 'apt-get update -qq; apt list --upgradable'`. O nginx e o kernel são do HOST

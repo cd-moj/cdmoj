@@ -72,11 +72,12 @@ docs-html:
 	  bash docs/build-html.sh >/dev/null && echo "docs-html: docs/html regenerado"; \
 	else echo "docs-html: pandoc ausente no host — /docs pode ficar sem HTML" >&2; fi
 
-# --pull=newer: a base (debian:trixie-slim) é puxada quando há uma mais nova, e com ela as camadas de apt refazem com os
+# --pull=always: a base (debian:trixie-slim) é puxada a cada build, e base nova faz as camadas de apt refazerem com os
 # pacotes ATUAIS. Sem isso o cache de camadas reaproveitava o `apt-get install` de meses atrás (20/11/2026: base de 23/06
-# e 52 atualizações de segurança pendentes na imagem — ImageMagick, Ghostscript, LibreOffice, openssl, curl…).
+# e 52 atualizações de segurança pendentes na imagem — ImageMagick, Ghostscript, LibreOffice, openssl, curl…). O
+# `--pull=newer` NÃO bastou: no podman do servidor ele não puxou a base de 04/11 que um `podman pull` explícito trouxe.
 image: cli-dist docs-html
-	podman build --pull=newer --ignorefile deploy/.containerignore -f deploy/Containerfile \
+	podman build --pull=always --ignorefile deploy/.containerignore -f deploy/Containerfile \
 	  --build-arg WITH_OFFICE=$(WITH_OFFICE) --build-arg WITH_JPLAG=$(WITH_JPLAG) \
 	  --label org.opencontainers.image.revision=$$(git rev-parse --short HEAD) \
 	  -t $(IMAGE):$(TAG) $(WORKROOT)
