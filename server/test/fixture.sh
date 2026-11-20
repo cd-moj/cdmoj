@@ -2,6 +2,8 @@
 # Aquecimento AUTOMÁTICO de juízes (promoção de rodada, judged antes do início) DESLIGADO nos testes: o processo
 # destacado usaria o run/ da máquina e mandaria calibrações de problemas de fixture aos juízes de verdade. Só o
 # smoke-warm-auto.sh o liga (com run/ isolado).
+# o log do embrulho do jq (lib/jq-safe.sh) de teste nunca vai ao run/ de verdade do checkout
+: "${JQ_SAFE_LOG:=${TMPDIR:-/tmp}/moj-test-jq-errors.log}"; export JQ_SAFE_LOG
 export AUTO_WARM_JUDGES="${AUTO_WARM_JUDGES:-0}"
 # TIME SÓ PELO SUBDOMÍNIO (lib/team-host.sh) DESLIGADO nos testes: eles chamam o router sem CONTEST_HOST. Só o
 # smoke-team-host.sh (e o caso do porteiro) o liga.

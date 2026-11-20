@@ -20,6 +20,7 @@
 : "${ALERT_BOT_GONE_AFTER:=300}"  # s sem poll do bot p/ considerá-lo fora (bot.alive)
 : "${ALERT_STUCK_AFTER:=900}"     # s de job PARADO na fila (com juiz online) p/ contar como preso
 : "${ALERT_STUCK_COOLDOWN:=3600}" # s entre lembretes enquanto a fila segue parada (dias parados ≠ spam)
+: "${ALERT_JQ_COOLDOWN:=3600}"   # s entre avisos de ERRO DE JQ (os do meio esperam e saem somados no seguinte)
 
 _alert_dir(){ printf '%s/alerts' "$RUNDIR"; }
 
@@ -102,7 +103,48 @@ _alert_stuck_why(){
   fi
   printf '%s\x01%s\x01%s' "$contest" "$prob" "$why"
 }
-_alert_html(){ local s="$1"; s="${s//&/&amp;}"; s="${s//</&lt;}"; s="${s//>/&gt;}"; printf '%s' "$s"; }
+# _alert_jq_errors <dir-do-estado> — erro NOVO de jq desde o último aviso (lib/jq-safe.sh grava um por linha em
+# run/jq-errors/AAAA-MM-DD.log, mesmo o calado pelo `2>/dev/null`; pedido do Ribas, 20/11/2026: arquivo corrompido numa
+# rota consultada sem parar gravaria uma linha por pedido até alguém olhar o relatório). Ecoa o texto do aviso; vazio =
+# nada novo ou ainda no ALERT_JQ_COOLDOWN (aí o offset NÃO anda: o que vier no meio sai somado no próximo aviso). Lê só
+# os bytes novos (estado `arquivo offset último-aviso` em jq-errors.state; na virada do dia termina o arquivo de ontem).
+# `argv-convertido` (argumento grande que o embrulho salvou) não é erro: fica só no levantamento diário.
+_alert_jq_errors(){
+  local sf="$1/jq-errors.state" jd="$RUNDIR/jq-errors" now="$EPOCHSECONDS" lastf="" off=0 lastn=0 lf today sz sum
+  [[ -d "$jd" ]] || return 0
+  [[ -f "$sf" ]] && read -r lastf off lastn < "$sf"
+  [[ "$off" =~ ^[0-9]+$ ]] || off=0; [[ "$lastn" =~ ^[0-9]+$ ]] || lastn=0
+  if (( lastn > 0 && now - lastn < ALERT_JQ_COOLDOWN )); then return 0; fi
+  printf -v today '%(%Y-%m-%d)T' -1; lf="$jd/$today.log"
+  sz=0; [[ -f "$lf" ]] && sz="$(stat -c %s "$lf" 2>/dev/null || echo 0)"
+  [[ "$lastf" == "$lf" ]] || { [[ -n "$lastf" && -f "$lastf" ]] || off=0; }
+  if [[ "$lastf" == "$lf" ]] && (( sz <= off )); then return 0; fi      # nada novo hoje (o caminho de sempre)
+  # resumo dos erros novos: total + as 3 origens mais frequentes (classe, 1º quadro de quem chamou, rota)
+  sum="$( { if [[ -n "$lastf" && "$lastf" != "$lf" && -f "$lastf" ]]; then tail -c +$(( off + 1 )) "$lastf"; fi
+            if [[ -f "$lf" ]]; then
+              if [[ "$lastf" == "$lf" ]]; then tail -c +$(( off + 1 )) "$lf"; else cat "$lf"; fi
+            fi; } 2>/dev/null \
+    | awk -F'\t' '$3 != "" && $3 != "argv-convertido" { n++; split($5, w, " "); k = $3 "\t" w[1] "\t" $4; c[k]++ }
+        END { if (!n) exit; print n; m = 0
+              while (m < 3) { b = ""; bv = 0; for (k in c) if (c[k] > bv) { bv = c[k]; b = k }
+                              if (b == "") break; print bv "\t" b; delete c[b]; m++ } }')"
+  local st="$lf $sz $lastn" txt=""
+  if [[ -n "$sum" ]]; then
+    local n line cnt cls who route top=""
+    n="$(head -1 <<<"$sum")"
+    while IFS=$'\t' read -r cnt cls who route; do
+      [[ -n "$cnt" ]] || continue
+      top+=$'\n'"• <code>$(_alert_html "$cls")</code> em <code>$(_alert_html "$who")</code> (<code>$(_alert_html "$route")</code>) ×$cnt"
+    done < <(tail -n +2 <<<"$sum")
+    txt="🧩 <b>MOJ</b>: <b>$n</b> erro(s) de jq no servidor desde o último aviso (arquivo de estado corrompido ou bug de código). Mais frequentes:$top"$'\n'"Detalhes em <code>run/jq-errors/$today.log</code>; o levantamento diário tem a seção JQ."
+    st="$lf $sz $now"
+  fi
+  printf '%s\n' "$st" > "$sf.tmp.$BASHPID" 2>/dev/null && mv -f "$sf.tmp.$BASHPID" "$sf" 2>/dev/null
+  printf '%s' "$txt"
+}
+
+# (`\&`: no bash 5.2+ o `&` cru da substituição vira o texto casado — `<` saía `<lt;` e quebrava o HTML do Telegram)
+_alert_html(){ local s="$1"; s="${s//&/\&amp;}"; s="${s//</\&lt;}"; s="${s//>/\&gt;}"; printf '%s' "$s"; }
 _alert_dur(){ local s="$1"; (( s >= 3600 )) && printf '%dh%02dm' $(( s / 3600 )) $(( s % 3600 / 60 )) || printf '%d min' $(( s / 60 )); }
 
 # --- destinos: .admin do treino com Telegram vinculado --------------------
@@ -232,6 +274,10 @@ alerts_evaluate(){
   fi
   ALERT_COOLDOWN="$ALERT_STUCK_COOLDOWN" alert_step queue_stuck "$bad" 0 "$stxt" \
     "✅ <b>MOJ</b>: a fila voltou a andar — nenhuma submissão parada."
+
+  # jq_errors: EVENTO (não estado) — um aviso por janela de ALERT_JQ_COOLDOWN, com o que se acumulou (formato de incidente)
+  local jtxt; jtxt="$(_alert_jq_errors "$d")"
+  [[ -n "$jtxt" ]] && ( umask 077; printf '%s' "$jtxt" > "$d/outbox/$EPOCHSECONDS-jq_errors-${BASHPID}.txt" )
 
   # daemon_judged: caído
   bad=0; (( daemonup == 0 )) && bad=1

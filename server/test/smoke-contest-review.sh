@@ -163,7 +163,7 @@ for i in $(seq -w 1 40); do
 done
 printf '{"id":"q07","login":"aluno1","problem_id":"apc#p1","lang":"C","computed_verdict":"Wrong Answer","status":"claimed","conflict":false,"created_at":%s,"sub_epoch":%s,"claimants":[{"by":"j1.judge","at":%s,"expires_at":%s}],"votes":[]}' \
   "$(( OLD + 7 ))" "$OLD" "$NOW" "$(( NOW + 300 ))" > "$C2/review/q07.json"
-SHIM="$FIX/shim"; mkdir -p "$SHIM"; REALJQ="$(command -v jq)"
+SHIM="$FIX/shim"; mkdir -p "$SHIM"; REALJQ="$(type -P jq)"
 printf '#!/bin/bash\necho x >> "%s/n"\nexec "%s" "$@"\n' "$SHIM" "$REALJQ" > "$SHIM/jq"; chmod +x "$SHIM/jq"
 P0="$PATH"; PATH="$SHIM:$PATH"; : > "$SHIM/n"; call /contest/review/list GET '' j1b 'contest=rv2'; PATH="$P0"
 NJQ="$(wc -l < "$SHIM/n")"

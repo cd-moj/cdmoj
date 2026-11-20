@@ -19,6 +19,7 @@
 #   CONTEST_TYPE  may be exported to override the conf value (used for testing)
 #
 set -u
+source "$(dirname "${BASH_SOURCE[0]}")/../api/v1/lib/jq-safe.sh"   # o embrulho do jq (lib/jq-safe.sh)
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 

@@ -16,6 +16,7 @@
 # do xargs em vários awk é inócuo; o estágio 2 agrega tudo num único awk. Não copiar o
 # loop por-contest do problem-panorama-gen.sh (forka um processo por usuário).
 set -u
+source "$(dirname "${BASH_SOURCE[0]}")/../api/v1/lib/jq-safe.sh"   # o embrulho do jq (lib/jq-safe.sh)
 : "${CONTESTSDIR:=/home/ribas/moj/contests}"
 export TZ="${MOJ_TZ:-America/Sao_Paulo}"
 

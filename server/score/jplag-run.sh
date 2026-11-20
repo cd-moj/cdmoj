@@ -8,6 +8,7 @@
 # sanitização é pré-existente — o cp sobrescreve e o último vence); a_login = login literal,
 # a_name = nome do time (.team.name // .fullname), via users.json gravado por run.
 set -u
+source "$(dirname "${BASH_SOURCE[0]}")/../api/v1/lib/jq-safe.sh"   # o embrulho do jq (lib/jq-safe.sh)
 contest="${1:?uso: jplag-run.sh <contest>}"
 : "${CONTESTSDIR:=/home/ribas/moj/contests}"
 : "${JPLAG_JAR:=/opt/moj/jplag/jplag-3.0.0-jar-with-dependencies.jar}"

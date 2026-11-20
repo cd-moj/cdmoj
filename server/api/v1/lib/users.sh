@@ -1,4 +1,5 @@
 # lib/users.sh — store de contas POR-USUÁRIO (contests/<c>/users/<login>/).
+source "${BASH_SOURCE[0]%/*}/jq-safe.sh"   # o embrulho do jq (lib/jq-safe.sh; o score/build.sh e o judged chegam por aqui)
 declare -F role_suffix_to >/dev/null || source "${BASH_SOURCE[0]%/*}/roles.sh"   # o registro dos papéis (ROLE_RE)
 #
 # Fonte da verdade da conta = users/<login>/account.json — auth (verify_password),

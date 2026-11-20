@@ -778,6 +778,8 @@ spool_done_gc() {
         -printf . -delete 2>/dev/null | wc -c)"
   n="${n//[^0-9]/}"
   (( ${n:-0} > 0 )) && log "spool-gc: removidos $n arquivo(s) de submissions-done/ com mais de ${SPOOL_DONE_KEEP_DAYS}d"
+  # o log diário do embrulho do jq (lib/jq-safe.sh: run/jq-errors/AAAA-MM-DD.log) guarda 30 dias
+  [[ -d "$RUNDIR/jq-errors" ]] && find "$RUNDIR/jq-errors" -maxdepth 1 -type f -name '*.log' -mtime +30 -delete 2>/dev/null
   return 0
 }
 

@@ -26,7 +26,7 @@ C="$FIX/ct"; mkdir -p "$C/var"; printf 'CONTEST_ID=ct\nCONTEST_NAME=Prova\\ X\nC
 fx_user "$C" t1 p T1 >/dev/null; printf '%s:ct#a:PY:Running:%s:r1\n%s:ct#b:C:Wrong Answer:%s:w1\n' $((NOW-50)) $((NOW-50)) $((NOW-40)) $((NOW-40)) > "$C/users/t1/history"
 fx_user "$C" t2 p T2 >/dev/null; printf '%s:ct#a:C:On queue:%s:q2\n' $((NOW-30)) $((NOW-30)) > "$C/users/t2/history"
 C3="$FIX/zz"; mkdir -p "$C3/var"; printf 'CONTEST_ID=zz\nCONTEST_TYPE=icpc\n' > "$C3/conf"; fx_user "$C3" u p U >/dev/null; printf '%s:zz#a:C:Accepted:%s:a1\n' $NOW $NOW > "$C3/users/u/history"
-REALJQ="$(command -v jq)"
+REALJQ="$(type -P jq)"
 for b in grep jq wc awk tr; do printf '#!/bin/bash\necho %s >> "%s/n"\nexec "%s" "$@"\n' $b "$SHIM" "$(command -v $b)" > "$SHIM/$b"; chmod +x "$SHIM/$b"; done
 pass=0; fail=0; ck(){ if eval "$2"; then echo "  ok: $1"; ((pass++)); else echo "  FAIL: $1 :: ${DBG:-}"; ((fail++)); fi; }
 rm -f "$FIX"/*/var/.pending-count; : > "$SHIM/n"

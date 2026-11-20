@@ -8,7 +8,9 @@ require_auth_contest "$contest"
 is_judge || fail 403 "Apenas juiz, juiz-chefe ou admin" "judge_required"
 
 jdir="$CONTESTSDIR/$contest/jplag"
-status="$( [[ -f "$jdir/status.json" ]] && jq -c . "$jdir/status.json" 2>/dev/null || echo '{"running":false,"message":"nunca executado"}')"
+# arquivo VAZIO conta como ausente: o jq num arquivo vazio sai 0 sem imprimir, e o vazio derrubava o --argjson (20/11/2026)
+_st0='{"running":false,"message":"nunca executado"}'
+status="$( [[ -s "$jdir/status.json" ]] && jq -c . "$jdir/status.json" 2>/dev/null)"; status="${status:-$_st0}"
 [[ -n "$status" ]] || status='{"running":false,"message":"nunca executado"}'
 # ⚠ O agregado dos r-*.json NÃO pode ir por --argjson: o jq tem teto de 128KiB POR ARGUMENTO
 # e o corpo cresce com o nº de pares (o esquenta 2026, com 22 problemas e 552 pares nomeados,

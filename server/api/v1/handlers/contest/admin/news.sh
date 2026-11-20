@@ -11,7 +11,7 @@ body="$(read_body)"
 jq -e . >/dev/null 2>&1 <<<"$body" || fail 400 "JSON inválido" "bad_json"
 action="$(jq -r '.action // empty' <<<"$body")"
 f="$CONTESTSDIR/$contest/news.json"
-cur="$( [[ -f "$f" ]] && jq -c 'if type=="array" then . else [] end' "$f" 2>/dev/null || echo '[]')"
+cur="$( [[ -s "$f" ]] && jq -c 'if type=="array" then . else [] end' "$f" 2>/dev/null)"; cur="${cur:-[]}"   # vazio = [] (jq em arquivo vazio não imprime nada)
 [[ -n "$cur" ]] || cur='[]'
 
 case "$action" in

@@ -2,6 +2,8 @@
 # Carrega config e fornece helpers de resposta (CGI), JSON, validação.
 
 set -o noglob   # ids podem conter chars de glob; evita expansão acidental
+# o embrulho do jq (ARG_MAX vira arquivo; erro calado vai ao log) — lib/jq-safe.sh, ANTES de qualquer jq
+source "${BASH_SOURCE[0]%/*}/jq-safe.sh"
 
 # --- config ---------------------------------------------------------------
 if [[ "${BASH_SOURCE[0]}" == /* && "${BASH_SOURCE[0]}" != *"/./"* && "${BASH_SOURCE[0]}" != *"/../"* ]]; then
@@ -133,7 +135,7 @@ fail() {
   type cli_status_compute &>/dev/null && { cli_status_compute; msg="$msg${CLI_HINT:-}"; }
   # FAIL_EXTRA (objeto JSON, opcional): campos a mais DENTRO de `error` — o 409 stale_rev do editor
   # diz quem mudou e quando. JSON inválido é ignorado (o erro sai assim mesmo).
-  jq -e 'type == "object"' >/dev/null 2>&1 <<<"${x:-x}" || x='{}'
+  if [[ -n "$x" ]]; then jq -e 'type == "object"' >/dev/null 2>&1 <<<"$x" || x='{}'; else x='{}'; fi   # sem extra: nem roda o jq
   emit_json "$code" "$(_reason "$code")"
   jq -cn --arg m "$msg" --arg c "$ecode" --argjson x "$x" '{success:false, error:({message:$m, code:$c} + $x)}'
   exit 0

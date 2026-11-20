@@ -113,7 +113,7 @@ esac; }
 # penalty_codes_normalize <json-array> -> códigos válidos na ordem canônica (espaço-separados,
 # dedup); vazio se a lista for []; rc!=0 se não for array de códigos conhecidos.
 penalty_codes_normalize() {
-  jq -r --arg all "$PENALTY_CODES_ALL" '
+  JQ_SAFE_EXPECT=1 jq -r --arg all "$PENALTY_CODES_ALL" '
     . as $in
     | if (type=="array" and all(.[]?; . as $c | ($c|type)=="string" and ((($all|split(" "))|index($c)) != null)))
       then (($all|split(" ")) | map(select(. as $c | ($in|index($c)) != null)) | join(" "))

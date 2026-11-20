@@ -4,6 +4,8 @@
 # Tudo é bash + arquivos: registro JSON por host, fila por bandas de prioridade,
 # claim atômico por flock+mv. Sem DB/broker. NÃO usa globs (a API roda com -o noglob).
 
+source "${BASH_SOURCE[0]%/*}/../api/v1/lib/jq-safe.sh"   # o embrulho do jq (ARG_MAX vira arquivo; erro calado vai ao log)
+
 : "${RUNDIR:=/home/ribas/moj/run}"
 : "${CONTESTSDIR:=/home/ribas/moj/contests}"
 : "${REGISTRYDIR:=$RUNDIR/registry}"        # <host>.json por worker (vivo = last_seen recente)

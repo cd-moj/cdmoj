@@ -21,6 +21,7 @@
 # o progresso vai em var/report-publish.status.json {state:running|done|error,…}.
 # Um por vez: flock em var/.report.lock (o mesmo do download tar.gz).
 set -u
+source "$(dirname "${BASH_SOURCE[0]}")/../api/v1/lib/jq-safe.sh"   # o embrulho do jq (lib/jq-safe.sh)
 : "${CONTESTSDIR:=/home/ribas/moj/contests}"
 SELF="$(readlink -f "$0")"; HERE="$(dirname "$SELF")"
 C="${1:-}"; BY="${2:-}"; MODE="${3:-}"

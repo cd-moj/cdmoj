@@ -452,3 +452,9 @@ rodadas=R modulos=…`.
 
 O super-admin vê tudo. Se o índice de problemas não estiver legível, as linhas que citam problema ou org somem para o
 admin comum, e o resto do feed continua.
+
+**Erros do jq (`run/jq-errors/AAAA-MM-DD.log`, 20/11/2026).** Fora das trilhas: é o log do embrulho do jq do servidor
+(`server/api/v1/lib/jq-safe.sh`). Uma linha por jq que falhou, mesmo silenciado, e por argumento grande que ele
+converteu em arquivo (TSV `epoch rc classe rota quem-chamou argumentos programa`; os argumentos aparecem só como nome e
+tamanho, nunca o valor). Linha nova aqui é arquivo de estado corrompido ou bug de código. O processo de julgamento apaga
+os arquivos com mais de 30 dias. O levantamento diário de operação o resume na seção JQ.

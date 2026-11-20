@@ -11,6 +11,7 @@
 # stats-gen.sh). Ids sem dono ficam sob o próprio id canônico (o /problems/my-stats filtra ao dono,
 # então nunca aparecem p/ ninguém). Precompute (o handler serve o cache filtrado).
 set -u
+source "$(dirname "${BASH_SOURCE[0]}")/../api/v1/lib/jq-safe.sh"   # o embrulho do jq (lib/jq-safe.sh)
 : "${CONTESTSDIR:=/home/ribas/moj/contests}"
 _SDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$_SDIR/../api/v1/lib/users.sh" 2>/dev/null   # emit_history_stream

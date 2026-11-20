@@ -12,6 +12,7 @@
 #
 # Estatísticas contam SÓ usuários normais — descarta privilegiados (.admin/.judge/.staff/.cstaff/.mon).
 set -u
+source "$(dirname "${BASH_SOURCE[0]}")/../api/v1/lib/jq-safe.sh"   # o embrulho do jq (lib/jq-safe.sh)
 : "${CONTESTSDIR:=/home/ribas/moj/contests}"
 
 C="${1:-}"; OUT="${2:-}"

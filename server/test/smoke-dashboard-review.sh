@@ -23,7 +23,7 @@ mk r-1voto  open '[]' "[$(V j1.judge Accepted)]"                                
 mk r-2votos open '[]' "[$(V j1.judge Accepted),$(V j2.judge Accepted)]"                  # 2 de 3: AGUARDANDO (era ignorada)
 mk r-confl  open '[]' "[$(V j1.judge Accepted),$(V j2.judge 'Wrong Answer'),$(V j3.judge Accepted)]"   # 3 de 3 divergentes
 mk r-solto  released '[]' "[$(V j1.judge Accepted),$(V j2.judge Accepted),$(V j3.judge Accepted)]"     # liberada: fora
-printf '#!/bin/bash\necho jq >> "%s/n"\nexec "%s" "$@"\n' "$SHIM" "$(command -v jq)" > "$SHIM/jq"; chmod +x "$SHIM/jq"
+printf '#!/bin/bash\necho jq >> "%s/n"\nexec "%s" "$@"\n' "$SHIM" "$(type -P jq)" > "$SHIM/jq"; chmod +x "$SHIM/jq"
 pass=0; fail=0; ck(){ if eval "$2"; then echo "  ok: $1"; ((pass++)); else echo "  FAIL: $1 :: $(jq -c .review <<<"$BODY" 2>/dev/null | head -c 300)"; ((fail++)); fi; }
 dash(){ : > "$SHIM/n"; OUT="$(PATH="$SHIM:$PATH" PATH_INFO=/contest/admin/dashboard REQUEST_METHOD=GET QUERY_STRING=contest=db \
     HTTP_AUTHORIZATION="Bearer adm" CONTESTSDIR="$FIX" SESSIONDIR="$SESS" RUNDIR="$RUN" bash "$ROUTER" 2>&1)"

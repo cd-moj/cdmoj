@@ -47,7 +47,7 @@ printf '%s:pw1:u01:vim\n%s:pw2:u02:vim\n%s:pw4:u03:vscode\n' "$PREV" "$PREV" "$P
 # top10 e abrir o recent; não é usuário real e fica fora da home
 mkdir -p "$T/users/zorfao"; bulk zorfao 9; ac zorfao 'col#p9' $((NOW-5))
 
-REALJQ="$(command -v jq)"
+REALJQ="$(type -P jq)"
 # jq falso: conta as chamadas; com $SHIM/slow presente, o 1º jq da REGENERAÇÃO destacada (MOJ_OT_REGEN) dorme 3 s
 printf '#!/bin/bash\necho x >> "%s/n"\n[[ -n "${MOJ_OT_REGEN:-}" ]] && rm "%s/slow" 2>/dev/null && sleep 3\nexec "%s" "$@"\n' "$SHIM" "$SHIM" "$REALJQ" > "$SHIM/jq"; chmod +x "$SHIM/jq"
 pass=0; fail=0; ck(){ if eval "$2"; then echo "  ok: $1"; ((pass++)); else echo "  FAIL: $1 :: ${DBG:-${BODY:0:400}}"; ((fail++)); fi; }

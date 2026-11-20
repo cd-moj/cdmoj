@@ -31,7 +31,7 @@ w({"last_seen": now, "gpu": {"vendor": "nvidia", "names": ""}}); w(None, raw="")
 w({"last_seen": now, "free_slots": 1, "total_slots": 3, "slot_cpus": 2, "ncpu": 12})
 w({"last_seen": now, "free_slots": 2, "total_slots": 2, "slot_cpus": 0, "ncpu": 8})
 PY
-printf '#!/bin/bash\necho x >> "%s/n"\nexec "%s" "$@"\n' "$SHIM" "$(command -v jq)" > "$SHIM/jq"; chmod +x "$SHIM/jq"
+printf '#!/bin/bash\necho x >> "%s/n"\nexec "%s" "$@"\n' "$SHIM" "$(type -P jq)" > "$SHIM/jq"; chmod +x "$SHIM/jq"
 pass=0; fail=0; ck(){ if eval "$2"; then echo "  ok: $1"; ((pass++)); else echo "  FAIL: $1 :: ${DBG:-}"; ((fail++)); fi; }
 run(){ rm -f "$RUN/status.json"; : > "$SHIM/n"
   OUT="$(PATH="$SHIM:$PATH" PATH_INFO=/index/status REQUEST_METHOD=GET QUERY_STRING= bash "$ROOT/api/v1/router.sh" </dev/null 2>/dev/null)"

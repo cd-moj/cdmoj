@@ -159,4 +159,5 @@ ab_notify(){
 }
 
 # ab_html <texto> — escapa &<> p/ o HTML do Telegram.
-ab_html(){ local s="$1"; s="${s//&/&amp;}"; s="${s//</&lt;}"; s="${s//>/&gt;}"; printf '%s' "$s"; }
+# (`\&`: no bash 5.2+ o `&` cru da substituição vira o texto casado — `<` saía `<lt;` e quebrava o HTML do Telegram)
+ab_html(){ local s="$1"; s="${s//&/\&amp;}"; s="${s//</\&lt;}"; s="${s//>/\&gt;}"; printf '%s' "$s"; }

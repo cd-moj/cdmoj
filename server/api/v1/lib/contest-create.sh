@@ -558,7 +558,7 @@ cc_apply_modules_spec(){
     # desligado não grava dado.
     [[ "$(jq -r --arg m "$mod" 'if (.modules[$m] | type) == "object" and .modules[$m].on == false then "off" else "" end' \
           <<<"$spec" 2>/dev/null)" == off ]] && return 0
-    val="$(jq -c "$1 // empty" <<<"$spec" 2>/dev/null)"
+    val="$(JQ_SAFE_EXPECT=1 jq -c "$1 // empty" <<<"$spec" 2>/dev/null)"   # spec do usuário: tipo errado = 422
     [[ -n "$val" ]] || return 0
     jq -e "type == \"$2\"" >/dev/null 2>&1 <<<"$val" || { CC_MOD_ERR="$1 deve ser $2"; return 1; }
     printf '%s' "$val"
@@ -646,7 +646,8 @@ cc_apply_modules_spec(){
       keys="$(jq -c --arg k "$k" --arg v "$vw" --arg l "$lb" --arg by "$creator" --argjson t "$EPOCHSECONDS" \
         '. + [{id:($k[6:14]), key:$k, view:$v, label:$l, created_by:$by, created_at:$t, revoked_at:0, fetches:0, last_at:0, last_ip:""}]' <<<"$keys")"
     done < <(jq -r '.[] | select(type=="object") | [(.view // "public"), (.label // "")] | @tsv' <<<"$v")
-    ( umask 077; jq -cn --argjson k "$keys" '{version:1, keys:$k}' > "$stg/webcast.json" )
+    ( umask 077; jq -cn --argjson k "$keys" '{version:1, keys:$k}' > "$stg/webcast.json" ) \
+      || { CC_MOD_ERR="telao: falha ao gravar as chaves do webcast"; return 1; }   # nunca o arquivo vazio publicado
   fi
   # esqueletos.langs -> esqueletos.json (lib/esqueletos.sh: só modos válidos, código até o teto). O texto do
   # admin anda por stdin, nunca por argv (ARG_MAX: até ESQ_MAX_BYTES por linguagem)
@@ -687,7 +688,8 @@ cc_apply_modules_spec(){
                + ($st[0][$i] | {name, venue, when, chip} | with_entries(select((.value | type) == "string" and .value != ""))) ]' \
         "$stg/.cl-stages.json" > "$stg/.cl-stages.tmp" && mv -f "$stg/.cl-stages.tmp" "$stg/.cl-stages.json"
     done
-    jq -c '{version:1, stages:.}' "$stg/.cl-stages.json" > "$stg/classification.json"
+    jq -c '{version:1, stages:.}' "$stg/.cl-stages.json" > "$stg/classification.json" \
+      || { CC_MOD_ERR="classificacao: falha ao gravar os estágios"; return 1; }   # nunca o arquivo vazio publicado
     rm -f "$cf" "$cst" "$stg/.cl-stages.json"
   fi
   return 0

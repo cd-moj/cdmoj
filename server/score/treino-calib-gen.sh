@@ -6,6 +6,7 @@
 # (tudo UTC, consistente com os heatmaps de submissão; cada log é uma rodada curta do agente).
 # Ressalva: run/ NÃO é versionado e pode rotacionar -> cobertura histórica parcial.
 set -u -o pipefail
+source "$(dirname "${BASH_SOURCE[0]}")/../api/v1/lib/jq-safe.sh"   # o embrulho do jq (lib/jq-safe.sh)
 : "${RUNDIR:=/home/ribas/moj/run}"
 LOGDIR="$RUNDIR/updates/log"
 OUT="${1:-}"; [[ -n "$OUT" ]] || { echo "uso: treino-calib-gen.sh <outfile>" >&2; exit 1; }

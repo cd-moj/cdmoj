@@ -19,6 +19,7 @@
 # estágio 2 (jq -c, leitor de stream) com stdin vazio — que imprime NADA e sai 0 — o
 # `|| fallback` não disparava e um cache de 0 BYTE ia p/ o ar (200 com corpo vazio no painel).
 set -u -o pipefail
+source "$(dirname "${BASH_SOURCE[0]}")/../api/v1/lib/jq-safe.sh"   # o embrulho do jq (lib/jq-safe.sh)
 : "${CONTESTSDIR:=/home/ribas/moj/contests}"
 
 C="${1:-}"; OUT="${2:-}"

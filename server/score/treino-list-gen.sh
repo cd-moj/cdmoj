@@ -13,6 +13,7 @@
 # Sem lock aqui dentro (o chamador serializa); escrita atômica (tmp+mv); NUNCA troca um
 # cache bom por vazio.
 set -u -o pipefail
+source "$(dirname "${BASH_SOURCE[0]}")/../api/v1/lib/jq-safe.sh"   # o embrulho do jq (lib/jq-safe.sh)
 : "${CONTESTSDIR:=/home/ribas/moj/contests}"
 T="$CONTESTSDIR/treino"
 JD="$T/var/jsons"; META="$T/var/jsons-meta"; COUNTS="$T/var/json-count"
