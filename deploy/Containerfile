@@ -61,8 +61,12 @@ ENV DEBIAN_FRONTEND=noninteractive
 #           via `dot`. Sem ele o grafo aparece como TEXTO DOT cru no enunciado (degrada com
 #           graciosidade — não quebra o resto — mas a figura some). Ver mojtools/docs/enunciado-grafos.md.
 # As asserções de build lá embaixo conferem todos: podar um pacote quebra o BUILD, não a produção.
+# `apt-get upgrade` primeiro: o que já vem na BASE (zlib, libc…) não é atualizado pelo `install` — sem isso a imagem nascia
+# com as correções de segurança da base pendentes (20/11/2026: o zlib1g, 2 CVEs). Junto com o `--pull=always` do
+# `make image`, todo build sai com os pacotes do dia.
 RUN set -eux; \
     apt-get update; \
+    apt-get upgrade -y --no-install-recommends; \
     apt-get install -y --no-install-recommends \
       bash jq git gawk sed grep findutils coreutils util-linux tar gzip zip unzip \
       rsync file bzip2 zstd xz-utils python3 python3-yaml \
