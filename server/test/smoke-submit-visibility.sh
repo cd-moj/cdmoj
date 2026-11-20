@@ -68,10 +68,10 @@ ck "…nada foi à fila nem ao history"                             '[[ "$(nspoo
 echo "== CONTEST offline-submit: a MESMA regra (pacote cifrado de problema fora da prova é rejeitado) =="
 ( source "$ROOT/api/v1/lib/common.sh" >/dev/null 2>&1; source "$ROOT/api/v1/lib/contest-offline.sh"
   offline_beacon ct time1 ) > "$FIX/beacon" 2>/dev/null
-pkt(){ # <problem_id> -> pacote {v,wk,ct} cifrado com a pública do contest (o formato do moj-comp)
+pkt(){ # <problem_id> [arquivo] -> pacote {v,wk,ct} cifrado com a pública do contest (o formato do moj-comp)
   local inner key iv mac wk ct
-  inner="$(jq -cn --arg p "$1" --arg b "$(cat "$FIX/beacon")" --arg c "$B64" --argjson t "$EPOCHSECONDS" \
-    '{v:1, l:"time1", c:"ct", problem_id:$p, filename:"a.c", code_b64:$c, claimed_utc:$t, beacon:$b}')"
+  inner="$(jq -cn --arg p "$1" --arg f "${2:-a.c}" --arg b "$(cat "$FIX/beacon")" --arg c "$B64" --argjson t "$EPOCHSECONDS" \
+    '{v:1, l:"time1", c:"ct", problem_id:$p, filename:$f, code_b64:$c, claimed_utc:$t, beacon:$b}')"
   key="$(head -c32 /dev/urandom | od -An -tx1 | tr -d ' \n')"; iv="$(head -c16 /dev/urandom | od -An -tx1 | tr -d ' \n')"
   mac="$(printf '%s' "$inner" | sha256sum | cut -d' ' -f1)"
   wk="$(printf '%s:%s:%s' "$key" "$iv" "$mac" | openssl pkeyutl -encrypt -pubin -inkey "$FIX/ct/secrets/offline.pub" -pkeyopt rsa_padding_mode:oaep | base64 -w0)"
@@ -84,6 +84,13 @@ if [[ -s "$FIX/ct/secrets/offline.pub" ]]; then
     bash "$ROUTER" <<<"{\"packets\":[$(pkt 'priv#x'),$(pkt 'pub#a')]}" 2>/dev/null)"; BODY="$(printf '%s' "$OUT" | awk 'f{print} /^\r?$/{f=1}')"
   ck "offline: privado fora da prova rejeitado com o motivo" '[[ "$(jq -r ".results[0].status + \" \" + .results[0].reason" <<<"$BODY")" == "rejected problema não pertence a este contest" ]]'
   ck "offline: problema da prova aceito"                    '[[ "$(jq -r ".results[1].status" <<<"$BODY")" == accepted ]]'
+  # linguagem da lista que o PACOTE não traz (o `script_langs` do json servível): rejeitada na chegada, como no /submit
+  printf '%s' '{"pub#a":["grepe","c"]}' > "$FIX/ct/problem-langs.json"
+  cp "$T/var/jsons/pub#a.json" "$FIX/puba.bak"; jq -c '.script_langs=[]' "$FIX/puba.bak" > "$T/var/jsons/pub#a.json"
+  OUT="$(PATH_INFO=/contest/offline-submit REQUEST_METHOD=POST QUERY_STRING=contest=ct HTTP_AUTHORIZATION="Bearer tok-time1" \
+    bash "$ROUTER" <<<"{\"packets\":[$(pkt 'pub#a' a.grepe)]}" 2>/dev/null)"; BODY="$(printf '%s' "$OUT" | awk 'f{print} /^\r?$/{f=1}')"
+  ck "offline: linguagem que o pacote não traz rejeitada com o motivo" '[[ "$(jq -r ".results[0].status" <<<"$BODY")" == rejected && "$(jq -r ".results[0].reason" <<<"$BODY")" == *"não disponível neste problema"* ]]'
+  cp "$FIX/puba.bak" "$T/var/jsons/pub#a.json"; rm -f "$FIX/ct/problem-langs.json"
 else
   echo "  (openssl sem gerar chave — pulando o offline)"
 fi

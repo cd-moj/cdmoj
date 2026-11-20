@@ -94,7 +94,10 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   o **reconciliador** (`reconcile_stale_pending`, `--reconcile` p/ rodar à mão) resolve
   pendência órfã >15 min (re-enfileira com fonte 1×; sem fonte → Judge Error). Whitelist de
   linguagem tem CHÃO: lista vazia = `PLATFORM_LANGS` (as 17 de mojtools/lang), nunca "qualquer
-  extensão". Teste: `smoke-submit-pipeline.sh`. —
+  extensão". E o juiz tem de RODÁ-LA (20/11/2026, `lang_runnable`): linguagem da lista fora da plataforma só passa se o
+  PACOTE a traz (`script_langs` do json servível, mojtools gen-problem-json) — senão 400 `lang_unavailable` (a lista
+  lfa_regex só tinha `grepe` e quatro problemas não o traziam); teste a mais depois do `lang_allowed`, nunca dentro do
+  `effective_problem_langs` (lá `[]` = todas); índice sem o campo = aceita. Teste: `smoke-submit-pipeline.sh`. —
   pares do jplag, times, clarifications, fila de impressão, fila de revisão, backups. Use o
   helper **`ok_json_slurp <filtro> <nome> <json> [args…]`** (`lib/common.sh`; no filtro o
   valor vira `$<nome>[0]`). Sintoma do estouro, antes da blindagem: **200 com corpo vazio** e

@@ -92,6 +92,9 @@ if ! lang_allowed "$_wl" "$FILETYPE"; then
   fi
   fail 400 "Linguagem .${ext,,} não aceita neste problema (aceitas: ${_wll:-?})" "lang_not_allowed"
 fi
+# …e o juiz tem de conseguir RODAR a linguagem neste problema (lib/langs.sh lang_runnable): a whitelist pode listar uma
+# linguagem que só existe nos pacotes que a trazem (grepe, l, lpp…)
+lang_runnable "$problem" "$FILETYPE" || lang_unrunnable_fail "${ext}"
 
 # PARTICIPAÇÃO VIRTUAL (lib/virtual.sh): `virtual:"<cid>"` etiqueta ESTA submissão do treino como
 # parte da run virtual do login naquele contest. Custo zero sem o campo. Mesmo portão das rotas do

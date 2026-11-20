@@ -107,6 +107,7 @@ const prep = (lang, code) => async () => ({ payload: { filename: 'a.' + lang, co
   ck('sem resposta (rede): manda conferir antes de reenviar', submitErrorText(new TypeError('Failed to fetch')).includes('Confira a lista de envios'));
   ck('502 sem código idem', submitErrorText({ status: 502, message: 'Resposta inválida do servidor' }).includes('Confira'));
   ck('erro com código: a mensagem do servidor', submitErrorText({ status: 400, code: 'lang_not_allowed', message: 'Linguagem .x não aceita' }) === 'Erro: Linguagem .x não aceita');
+  ck('lang_unavailable: texto próprio com a linguagem (o pacote não a traz)', submitErrorText({ status: 400, code: 'lang_unavailable', message: 'x', data: { lang: 'grepe' } }).includes('A linguagem .grepe não está disponível neste problema'));
 
   print('== DOM: botão + linha de status ==');
   const S2 = store(); let d2 = null; const sentCb = [];

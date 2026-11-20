@@ -72,6 +72,8 @@ while (( i < NP )); do
   wlx="${filename##*.}"; [[ "$wlx" == "$filename" || -z "$wlx" ]] && wlx=TXT
   lang_allowed "$(effective_problem_langs "$contest" "$problem")" "$wlx" \
     || { reject "linguagem .$(printf '%s' "$wlx" | tr '[:upper:]' '[:lower:]') não aceita neste problema"; continue; }
+  lang_runnable "$problem" "$wlx" \
+    || { reject "linguagem .$(printf '%s' "$wlx" | tr '[:upper:]' '[:lower:]') não disponível neste problema (o pacote não traz suporte)"; continue; }
 
   bp="$(offline_beacon_verify "$contest" "$beacon")" || { reject "beacon inválido (assinatura)"; continue; }
   bl="$(jq -r '.l' <<<"$bp")"; bc="$(jq -r '.c' <<<"$bp")"; bt="$(jq -r '.t' <<<"$bp")"

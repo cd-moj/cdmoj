@@ -48,6 +48,29 @@ call /submit POST "{\"problem_id\":\"col#pa\",\"filename\":\"a.c\",\"code_b64\":
 ck "…e restringe de verdade"       'grep -q "lang_not_allowed" <<<"$BODY"'
 rm -f "$C/problem-langs.json"
 
+echo "== linguagem da lista que o PACOTE não traz: recusada na porta (20/11/2026, lista lfa_regex) =="
+# a whitelist pode listar uma linguagem que não é da plataforma (grepe, l, lpp…) e só roda no pacote que traz
+# scripts/<lang>/compile.sh — o `script_langs` do json servível. Antes ia ao juiz e voltava "Language 'x' not availale".
+J="$FIX/treino/var/jsons"; mkdir -p "$J"
+printf '%s' '{"col#pa":["grepe","pddl","c"]}' > "$C/problem-langs.json"
+nhist(){ wc -l < "$C/users/aluno/history" 2>/dev/null || echo 0; }; nspool(){ ls "$SPOOLDIR" | wc -l; }
+printf '%s' '{"id":"col#pa","script_langs":["grepe"]}' > "$J/col#pa.json"
+call /submit POST "{\"problem_id\":\"col#pa\",\"filename\":\"a.grepe\",\"code_b64\":\"$B64C\"}"
+ck "o pacote traz grepe: aceito"   'grep -q "\"success\":true" <<<"$BODY"'
+h0="$(nhist)"; s0="$(nspool)"
+call /submit POST "{\"problem_id\":\"col#pa\",\"filename\":\"a.pddl\",\"code_b64\":\"$B64C\"}"
+ck "o pacote NÃO traz pddl: 400 lang_unavailable" '[[ "$OUT" == *"Status: 400"* && "$(jq -r .error.code <<<"$BODY")" == lang_unavailable && "$(jq -r .error.lang <<<"$BODY")" == pddl ]]'
+ck "…sem linha no history e sem arquivo no spool" '[[ "$(nhist)" == "$h0" && "$(nspool)" == "$s0" ]]'
+call /submit POST "{\"problem_id\":\"col#pa\",\"filename\":\"a.c\",\"code_b64\":\"$B64C\"}"
+ck "linguagem da plataforma não depende do pacote: .c aceito" 'grep -q "\"success\":true" <<<"$BODY"'
+printf '%s' '{"id":"col#pa","script_langs":[]}' > "$J/col#pa.json"
+call /submit POST "{\"problem_id\":\"col#pa\",\"filename\":\"a.grepe\",\"code_b64\":\"$B64C\"}"
+ck "pacote sem scripts/: grepe recusado"  '[[ "$(jq -r .error.code <<<"$BODY")" == lang_unavailable ]]'
+printf '%s' '{"id":"col#pa","languages":[]}' > "$J/col#pa.json"
+call /submit POST "{\"problem_id\":\"col#pa\",\"filename\":\"a.pddl\",\"code_b64\":\"$B64C\"}"
+ck "índice antigo (sem script_langs) = desconhecido: aceito" 'grep -q "\"success\":true" <<<"$BODY"'
+rm -f "$C/problem-langs.json" "$J/col#pa.json"
+
 echo "== nome de arquivo é ENTRADA HOSTIL: normalizado na PORTA (relato 2026-08-24) =="
 # `l(1).cpp` — a marca que o navegador gruda em download repetido — chegava CRU ao juiz, que
 # monta o recipe do make e o entrega ao /bin/sh: erro de sintaxe = Compilation Error, com o

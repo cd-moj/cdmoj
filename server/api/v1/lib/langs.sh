@@ -78,6 +78,29 @@ effective_problem_langs(){
   printf '%s' "$plangs"
 }
 
+# lang_runnable <problem_id> <ext-ou-FILETYPE> -> 0 se o JUIZ consegue rodar a linguagem neste problema (16/11 → 20/11/2026,
+# lista lfa_regex: a whitelist do contest só tinha `grepe` e quatro problemas não a traziam — todo envio voltava "Language
+# 'grepe' not availale" do juiz, contando como tentativa). Roda = é da PLATAFORMA (PLATFORM_LANGS) ou o PACOTE a traz
+# (`scripts/<lang>/compile.sh` = o `script_langs` do json servível, que o mojtools gen-problem-json.sh grava — o envio não
+# abre o pacote). É um teste A MAIS, depois do lang_allowed, nunca dentro do effective_problem_langs (lá [] = "todas":
+# uma interseção vazia abriria tudo). Json sem o campo (índice anterior ao 20/11) ou sem json = desconhecido = aceita.
+lang_runnable(){
+  local pid="$1" c pjf sl
+  c="$(_lang_canon "$2")"
+  [[ " $PLATFORM_LANGS " == *" $c "* ]] && return 0
+  pjf="$CONTESTSDIR/treino/var/jsons/$pid.json"
+  [[ -f "$pjf" ]] || pjf="$CONTESTSDIR/treino/var/jsons-private/$pid.json"
+  [[ -f "$pjf" ]] || return 0
+  sl="$(jq -c 'if (.script_langs | type) == "array" then .script_langs else "?" end' "$pjf" 2>/dev/null)"
+  [[ -z "$sl" || "$sl" == '"?"' ]] && return 0
+  jq -e --arg c "$c" 'index($c) != null' >/dev/null 2>&1 <<<"$sl"
+}
+# lang_unrunnable_fail <ext> — a recusa de quem não passou no lang_runnable (o /submit; a web traduz pelo código)
+lang_unrunnable_fail(){
+  FAIL_EXTRA="$(jq -cn --arg l "${1,,}" '{lang:$l}')" \
+    fail 400 "A linguagem .${1,,} não está disponível neste problema: o pacote dele não traz suporte a ela. Avise a organização." "lang_unavailable"
+}
+
 # lang_allowed <langs-json-array> <ext-ou-FILETYPE> -> 0 se permitido ([]/vazio = todas).
 # Compara CANÔNICO dos dois lados: x.py3 passa em ["py"]; ids exóticos comparam literal.
 lang_allowed(){

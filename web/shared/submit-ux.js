@@ -91,6 +91,13 @@ export function submitErrorText(e) {
       `You already have ${n} submissions waiting for a verdict — wait for a result before submitting again.`,
       `Ya tienes ${n} envíos esperando el veredicto: espera un resultado para enviar de nuevo.`);
   }
+  if (code === 'lang_unavailable') {
+    // a linguagem está na lista da prova, mas o juiz não a roda NESTE problema (o pacote não a traz; lib/langs.sh lang_runnable)
+    const l = (e.data && e.data.lang) ? '.' + e.data.lang : '';
+    return T(`A linguagem ${l} não está disponível neste problema: o pacote dele não traz suporte a ela. Envie em outra linguagem ou avise a organização.`,
+      `The ${l} language is not available for this problem: its package has no support for it. Submit in another language or tell the organizers.`,
+      `El lenguaje ${l} no está disponible en este problema: su paquete no lo soporta. Envía en otro lenguaje o avisa a la organización.`);
+  }
   if (!code && (st == null || st === 502 || st === 503 || st === 504)) {
     return T('O servidor não respondeu. Confira a lista de envios antes de enviar de novo.',
       'The server did not respond. Check your submissions list before you submit again.',
